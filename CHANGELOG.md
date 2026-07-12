@@ -126,6 +126,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Projected generic deployment apply resource events into one correlated
   notification so apply progress, success, and failure update the same
   Control Plane-owned item.
+- Added stable UI-local progress toasts for Resource Manager application
+  artifact upload and validation.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

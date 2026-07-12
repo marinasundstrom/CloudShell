@@ -3,6 +3,7 @@
 @inject IDeploymentArtifactManager Artifacts
 @inject IResourceTemplateManager Templates
 @inject IResourceManager ResourceManager
+@inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
 
 @if (IsCreateMode)
@@ -108,6 +109,7 @@ else
     private const string SourceKindAttribute = ResourceAttributeNames.ApplicationSourceKind;
     private const string ArtifactsEnabledAttribute = ResourceAttributeNames.ArtifactsEnabled;
     private const string ArtifactsSourceAttribute = ResourceAttributeNames.ArtifactsSource;
+    private const string ArtifactToastIdPrefix = "cloudshell.resource-manager.artifacts";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValueType>> ProjectedAttributeTypesByResourceType =
@@ -574,7 +576,8 @@ else
         string resourceName,
         CancellationToken cancellationToken = default)
     {
-        if (SelectedFile is null || string.IsNullOrWhiteSpace(EffectiveResourceTypeId))
+        var selectedFile = SelectedFile;
+        if (selectedFile is null || string.IsNullOrWhiteSpace(EffectiveResourceTypeId))
         {
             ErrorMessage = "Select an application artifact package.";
             return null;
@@ -590,48 +593,101 @@ else
         StatusMessage = "Uploading application artifact...";
         ErrorMessage = null;
         ValidationSignals = [];
-        var upload = await Artifacts.CreateDeploymentArtifactUploadSessionAsync(
-            new CreateDeploymentArtifactUploadSessionCommand(
-                EffectiveResourceTypeId,
-                resourceName,
-                SelectedPackageKind,
-                SelectedFile.Name,
-                SelectedFile.Size,
-                ArtifactLayoutKind: layout.Kind,
-                ResourceId: resourceId),
+        var toastId = CreateArtifactToastId(resourceId);
+        await Toasts.PublishAsync(
+            new CoreShellToastRequest(
+                "Uploading application artifact",
+                $"Uploading {selectedFile.Name} for {resourceName}.",
+                CoreShellNotificationSeverity.Info,
+                CoreShellNotificationStatus.InProgress,
+                Source: "Resource Manager",
+                Id: toastId,
+                AutoDismiss: CoreShellToastAutoDismissBehavior.Never),
             cancellationToken);
 
-        await using var stream = SelectedFile.OpenReadStream(GetMaxUploadBytes(), cancellationToken);
-        await Artifacts.UploadDeploymentArtifactContentAsync(
-            resourceId,
-            upload.UploadId,
-            stream,
-            cancellationToken);
-        var revision = await Artifacts.CompleteDeploymentArtifactUploadAsync(
-            resourceId,
-            new CompleteDeploymentArtifactUploadCommand(upload.UploadId),
-            cancellationToken);
-
-        StatusMessage = "Validating application artifact...";
-        var validation = await Artifacts.ValidateDeploymentArtifactAsync(
-            resourceId,
-            new ValidateDeploymentArtifactCommand(
-                EffectiveResourceTypeId,
-                resourceName,
-                revision.ArtifactId,
-                revision.RevisionId,
-                NormalizeNullable(EntryPath),
-                layout.Kind),
-            cancellationToken);
-        ValidationSignals = ToSignals(validation.Diagnostics);
-        if (validation.HasErrors)
+        try
         {
-            ErrorMessage = "Application artifact validation failed.";
-            return null;
-        }
+            var upload = await Artifacts.CreateDeploymentArtifactUploadSessionAsync(
+                new CreateDeploymentArtifactUploadSessionCommand(
+                    EffectiveResourceTypeId,
+                    resourceName,
+                    SelectedPackageKind,
+                    selectedFile.Name,
+                    selectedFile.Size,
+                    ArtifactLayoutKind: layout.Kind,
+                    ResourceId: resourceId),
+                cancellationToken);
 
-        StatusMessage = $"Accepted artifact revision {revision.RevisionId}.";
-        return revision;
+            await using var stream = selectedFile.OpenReadStream(GetMaxUploadBytes(), cancellationToken);
+            await Artifacts.UploadDeploymentArtifactContentAsync(
+                resourceId,
+                upload.UploadId,
+                stream,
+                cancellationToken);
+            var revision = await Artifacts.CompleteDeploymentArtifactUploadAsync(
+                resourceId,
+                new CompleteDeploymentArtifactUploadCommand(upload.UploadId),
+                cancellationToken);
+
+            StatusMessage = "Validating application artifact...";
+            await Toasts.UpdateAsync(
+                toastId,
+                new CoreShellToastUpdate(
+                    "Validating application artifact",
+                    $"Validating {selectedFile.Name} for {resourceName}.",
+                    CoreShellNotificationSeverity.Info,
+                    CoreShellNotificationStatus.InProgress,
+                    AutoDismiss: CoreShellToastAutoDismissBehavior.Never),
+                cancellationToken);
+
+            var validation = await Artifacts.ValidateDeploymentArtifactAsync(
+                resourceId,
+                new ValidateDeploymentArtifactCommand(
+                    EffectiveResourceTypeId,
+                    resourceName,
+                    revision.ArtifactId,
+                    revision.RevisionId,
+                    NormalizeNullable(EntryPath),
+                    layout.Kind),
+                cancellationToken);
+            ValidationSignals = ToSignals(validation.Diagnostics);
+            if (validation.HasErrors)
+            {
+                ErrorMessage = "Application artifact validation failed.";
+                await Toasts.UpdateAsync(
+                    toastId,
+                    new CoreShellToastUpdate(
+                        "Application artifact validation failed",
+                        $"{selectedFile.Name} was not accepted.",
+                        CoreShellNotificationSeverity.Error,
+                        CoreShellNotificationStatus.Failed),
+                    cancellationToken);
+                return null;
+            }
+
+            StatusMessage = $"Accepted artifact revision {revision.RevisionId}.";
+            await Toasts.UpdateAsync(
+                toastId,
+                new CoreShellToastUpdate(
+                    "Application artifact accepted",
+                    $"Accepted {selectedFile.Name} as revision {revision.RevisionId}.",
+                    CoreShellNotificationSeverity.Success,
+                    CoreShellNotificationStatus.Succeeded),
+                cancellationToken);
+            return revision;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            await Toasts.UpdateAsync(
+                toastId,
+                new CoreShellToastUpdate(
+                    "Application artifact failed",
+                    exception.Message,
+                    CoreShellNotificationSeverity.Error,
+                    CoreShellNotificationStatus.Failed),
+                cancellationToken);
+            throw;
+        }
     }
 
     private ResourceTemplate CreateTemplate(
@@ -867,6 +923,9 @@ else
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string CreateArtifactToastId(string resourceId) =>
+        $"{ArtifactToastIdPrefix}.{resourceId.Trim()}";
 
     private static string GetProviderId(string resourceTypeId) =>
         resourceTypeId switch
