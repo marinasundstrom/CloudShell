@@ -114,6 +114,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Gave the built-in Resource Manager settings and template export toast-only
   confirmations stable IDs so repeated UI-local confirmations replace the
   current toast instead of stacking duplicate cards.
+- Aligned the CoreShell Fluent UI sample toast stack with CloudShell so
+  notification-backed toasts take priority and toast-only items fill the
+  remaining capped stack slots.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

@@ -90,9 +90,11 @@ purely transient feedback. Visibility, time-to-live, and auto-dismiss behavior
 are part of the notification or toast data: the reference sample uses CoreShell
 defaults for short-lived plain toasts, keeps in-progress feedback visible until
 the producer updates or dismisses it, and lets terminal toast presentation
-expire without removing the notification-center item. Future hosts can also
-register different notification or toast renderers for template keys such as
-operation progress, approval, provider diagnostics, or deployment summaries
+expire without removing the notification-center item. The reference sample uses
+the same shared toast-stack cap as CloudShell, with notification-backed toasts
+taking priority and toast-only items filling the remaining space. Future hosts
+can also register different notification or toast renderers for template keys
+such as operation progress, approval, provider diagnostics, or deployment summaries
 while keeping the common CoreShell behaviors for actions, links,
 acknowledgement, dismissal, visibility, and lifetime. In CloudShell, persisted
 notification records should be Control Plane-owned domain data; the UI owns how
