@@ -45,12 +45,22 @@ public sealed class InMemoryCoreShellToastService : ICoreShellToastService
                 : request.TimeToLive ?? CoreShellToastDefaults.DefaultTimeToLive,
             AutoDismiss: autoDismiss);
 
+        var changeKind = CoreShellToastChangeKind.Published;
         lock (_gate)
         {
+            var existingIndex = _toasts.FindIndex(item =>
+                string.Equals(item.Id, toast.Id, StringComparison.OrdinalIgnoreCase));
+            if (existingIndex >= 0)
+            {
+                _toasts.RemoveAll(item =>
+                    string.Equals(item.Id, toast.Id, StringComparison.OrdinalIgnoreCase));
+                changeKind = CoreShellToastChangeKind.Updated;
+            }
+
             _toasts.Add(toast);
         }
 
-        RaiseChanged(CoreShellToastChangeKind.Published, toast.Id);
+        RaiseChanged(changeKind, toast.Id);
         return Task.FromResult(toast);
     }
 
@@ -106,14 +116,13 @@ public sealed class InMemoryCoreShellToastService : ICoreShellToastService
         var changed = false;
         lock (_gate)
         {
-            var index = _toasts.FindIndex(item =>
+            var matchingToast = _toasts.FirstOrDefault(item =>
                 string.Equals(item.Id, toastId, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0
-                && _toasts[index].Actions?.Any(item =>
+            if (matchingToast?.Actions?.Any(item =>
                     string.Equals(item.Id, actionId, StringComparison.OrdinalIgnoreCase)) == true)
             {
-                _toasts.RemoveAt(index);
-                changed = true;
+                changed = _toasts.RemoveAll(item =>
+                    string.Equals(item.Id, toastId, StringComparison.OrdinalIgnoreCase)) > 0;
             }
         }
 
@@ -134,13 +143,8 @@ public sealed class InMemoryCoreShellToastService : ICoreShellToastService
         var changed = false;
         lock (_gate)
         {
-            var index = _toasts.FindIndex(item =>
-                string.Equals(item.Id, toastId, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0)
-            {
-                _toasts.RemoveAt(index);
-                changed = true;
-            }
+            changed = _toasts.RemoveAll(item =>
+                string.Equals(item.Id, toastId, StringComparison.OrdinalIgnoreCase)) > 0;
         }
 
         if (changed)

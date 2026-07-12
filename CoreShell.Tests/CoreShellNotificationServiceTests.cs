@@ -390,6 +390,42 @@ public sealed class CoreShellNotificationServiceTests
     }
 
     [Fact]
+    public async Task InMemoryToastService_ReplacesExistingToastWhenPublishingSameId()
+    {
+        ICoreShellToastService service = new InMemoryCoreShellToastService();
+        var changes = new List<CoreShellToastChangeKind>();
+        service.ToastsChanged += (_, args) => changes.Add(args.Kind);
+
+        var first = await service.PublishAsync(new CoreShellToastRequest(
+            "Exporting",
+            "Exporting the current resource template.",
+            CoreShellNotificationSeverity.Info,
+            CoreShellNotificationStatus.Active,
+            Id: "resource-template-export"));
+
+        var second = await service.PublishAsync(new CoreShellToastRequest(
+            "Exported",
+            "The resource template was exported.",
+            CoreShellNotificationSeverity.Success,
+            CoreShellNotificationStatus.Succeeded,
+            Id: "RESOURCE-TEMPLATE-EXPORT"));
+
+        Assert.Equal(first.Id, second.Id, StringComparer.OrdinalIgnoreCase);
+        Assert.Collection(
+            await service.GetToastsAsync(),
+            item =>
+            {
+                Assert.Equal(second.Id, item.Id);
+                Assert.Equal("Exported", item.Title);
+                Assert.Equal(CoreShellNotificationSeverity.Success, item.Severity);
+                Assert.True(item.CreatedAt >= first.CreatedAt);
+            });
+        Assert.Equal(
+            [CoreShellToastChangeKind.Published, CoreShellToastChangeKind.Updated],
+            changes);
+    }
+
+    [Fact]
     public async Task InMemoryToastService_ValidatesInputs()
     {
         ICoreShellToastService service = new InMemoryCoreShellToastService();

@@ -108,6 +108,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed the Resource Manager settings toast so it appears after confirming
   changes instead of canceling pending changes, and added a transient
   toast-only confirmation for Resource Template export.
+- Changed the reusable in-memory CoreShell toast service so publishing a toast
+  with an existing ID replaces the current toast for that ID instead of
+  stacking duplicate toast references.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.
