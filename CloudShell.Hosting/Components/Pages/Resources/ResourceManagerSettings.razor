@@ -5,6 +5,7 @@
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
 @inject ResourceManagerDisplaySettings DisplaySettings
+@inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
@@ -342,6 +343,11 @@
         await ApplyDisplaySelectionAsync();
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
+        await Toasts.PublishAsync(new CoreShellToastRequest(
+            L["Resource Manager settings saved"].Value,
+            L["Your Resource Manager preferences were applied."].Value,
+            CoreShellNotificationSeverity.Success,
+            CoreShellNotificationStatus.Succeeded));
     }
 
     private async Task ConfirmChange()
