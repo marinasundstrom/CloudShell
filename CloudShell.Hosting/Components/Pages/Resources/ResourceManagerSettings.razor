@@ -224,6 +224,7 @@
     private const string ViewAll = "all";
     private const string ViewGeneral = "general";
     private const string ViewOrchestration = "orchestration";
+    private const string SettingsSavedToastId = "cloudshell.resource-manager.settings.saved";
 
     [Parameter]
     public bool IsEmbedded { get; set; }
@@ -371,7 +372,8 @@
             L["Resource Manager settings saved"].Value,
             L["Your Resource Manager preferences were applied."].Value,
             CoreShellNotificationSeverity.Success,
-            CoreShellNotificationStatus.Succeeded));
+            CoreShellNotificationStatus.Succeeded,
+            Id: SettingsSavedToastId));
     }
 
     private void Cancel() => Navigation.NavigateTo("/resources");

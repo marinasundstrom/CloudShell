@@ -145,6 +145,7 @@
 
 @code {
     private const string UngroupedExportScopeId = "__ungrouped";
+    private const string ExportToastId = "cloudshell.resource-manager.templates.export";
 
     private string? SelectedExportScopeId { get; set; }
     private string SelectedTemplateFormatValue { get; set; } = ResourceTemplateFormat.Yaml.ToString();
@@ -210,7 +211,8 @@
                 L["Resource template exported"].Value,
                 L["Exported {0} resources to {1}.", result.Template.Resources.Count, TemplateFormatName].Value,
                 CoreShellNotificationSeverity.Success,
-                CoreShellNotificationStatus.Succeeded));
+                CoreShellNotificationStatus.Succeeded,
+                Id: ExportToastId));
         }
         catch (Exception exception)
         {

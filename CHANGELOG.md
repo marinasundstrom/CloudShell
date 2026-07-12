@@ -111,6 +111,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed the reusable in-memory CoreShell toast service so publishing a toast
   with an existing ID replaces the current toast for that ID instead of
   stacking duplicate toast references.
+- Gave the built-in Resource Manager settings and template export toast-only
+  confirmations stable IDs so repeated UI-local confirmations replace the
+  current toast instead of stacking duplicate cards.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.
