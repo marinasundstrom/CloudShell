@@ -3773,7 +3773,7 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.True(result.IsCommitted, string.Join("; ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
-            new CloudShellNotificationQuery(RecipientKey: "resource-template-apply")));
+            new CloudShellNotificationQuery(RecipientKey: "user")));
         Assert.Equal("Apply resource template", notification.Title);
         Assert.Equal("Resource template 'local' applied.", notification.Message);
         Assert.Equal(ResourceSignalSeverity.Success, notification.Severity);
@@ -3809,7 +3809,7 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.False(result.IsCommitted);
         var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
-            new CloudShellNotificationQuery(RecipientKey: "resource-template-apply")));
+            new CloudShellNotificationQuery(RecipientKey: "user")));
         Assert.Equal("Apply resource template", notification.Title);
         Assert.Equal("Resource template 'local' was not applied.", notification.Message);
         Assert.Equal(ResourceSignalSeverity.Error, notification.Severity);

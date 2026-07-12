@@ -1219,10 +1219,11 @@ public sealed class InProcessControlPlane(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Template);
         var triggeredBy = ResolveTriggeredBy("resource-template-apply");
+        var notificationRecipientKey = ResolveTriggeredBy(null) ?? UnauthenticatedRequestActor;
         var operationId = Guid.NewGuid().ToString("n");
         CreateOrUpdateTemplateApplyNotification(
             request,
-            triggeredBy,
+            notificationRecipientKey,
             operationId,
             ResourceSignalSeverity.Info,
             CloudShellNotificationStatus.InProgress,
@@ -1233,7 +1234,7 @@ public sealed class InProcessControlPlane(
         {
             CreateOrUpdateTemplateApplyNotification(
                 request,
-                triggeredBy,
+                notificationRecipientKey,
                 operationId,
                 ResourceSignalSeverity.Error,
                 CloudShellNotificationStatus.Failed,
@@ -1274,7 +1275,7 @@ public sealed class InProcessControlPlane(
             diagnostics);
         CreateOrUpdateTemplateApplyNotification(
             request,
-            triggeredBy,
+            notificationRecipientKey,
             operationId,
             result.HasErrors || !result.IsCommitted
                 ? ResourceSignalSeverity.Error

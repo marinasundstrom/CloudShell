@@ -131,6 +131,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Added Control Plane notification production for resource template apply
   operations so accepted, successful, and rejected template applies update one
   correlated notification item.
+- Routed resource template apply notifications to the resolved actor or local
+  operator recipient while preserving the template-apply commit principal.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.
