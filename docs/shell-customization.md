@@ -99,7 +99,9 @@ notification records should be Control Plane-owned domain data; the UI owns how
 those records are adapted into Fluent UI notification-center rows, toasts,
 templates, icons, and action placement. The current CloudShell local-development
 path renders a topbar notification center and notification-backed toast cards
-over the in-memory Control Plane notification store. Passive facts can remain
+over the in-memory Control Plane notification store. The same toast stack also
+renders toast-only items from `ICoreShellToastService` for transient UI-local
+signals that should not create notification history. Passive facts can remain
 in the center without contributing to the unread count; in-progress toast
 feedback remains visible while the backing operation is in progress and then
 uses the normal toast lifetime after the item reaches a terminal state.

@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject ICoreShellNotificationService Notifications
+@inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 
@@ -76,7 +77,7 @@
     }
 </div>
 
-@if (ToastItems.Count > 0)
+@if (ToastItems.Count > 0 || ToastOnlyItems.Count > 0)
 {
     <div class="shell-notifications-toast-stack" aria-live="polite">
         @foreach (var item in ToastItems)
@@ -113,6 +114,41 @@
                 </div>
             </article>
         }
+
+        @foreach (var item in ToastOnlyItems)
+        {
+            <article class="@GetToastClass(item)">
+                @if (GetActions(item).Count == 0)
+                {
+                    <button type="button"
+                            class="shell-notifications-toast-body-button"
+                            @onclick="@(() => HandleToastDefaultAsync(item))">
+                        @RenderToastBody(item)
+                    </button>
+                }
+                else
+                {
+                    <div class="shell-notifications-toast-body">
+                        @RenderToastBody(item)
+                    </div>
+                }
+
+                <div class="shell-notifications-toast-actions">
+                    @foreach (var action in GetActions(item))
+                    {
+                        <FluentButton Appearance="@(action.IsPrimary ? Appearance.Accent : Appearance.Stealth)"
+                                      OnClick="@(() => HandleToastActionAsync(item, action))">
+                            @action.Label
+                        </FluentButton>
+                    }
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                                  OnClick="@(() => DismissToastAsync(item.Id))">
+                        @L["Dismiss"]
+                    </FluentButton>
+                </div>
+            </article>
+        }
     </div>
 }
 
@@ -124,6 +160,8 @@
     private IReadOnlyList<CoreShellNotificationInstance> Items { get; set; } = [];
 
     private IReadOnlyList<CoreShellNotificationInstance> ToastCandidates { get; set; } = [];
+
+    private IReadOnlyList<CoreShellToast> ToastOnlyCandidates { get; set; } = [];
 
     private PeriodicTimer? RefreshTimer { get; set; }
 
@@ -139,9 +177,16 @@
             DateTimeOffset.UtcNow,
             NotificationToastLimit);
 
+    private IReadOnlyList<CoreShellToast> ToastOnlyItems =>
+        CoreShellNotificationPresentation.SelectToastItems(
+            ToastOnlyCandidates,
+            DateTimeOffset.UtcNow,
+            Math.Max(0, NotificationToastLimit - ToastItems.Count));
+
     protected override async Task OnInitializedAsync()
     {
         Notifications.NotificationsChanged += OnNotificationsChanged;
+        Toasts.ToastsChanged += OnToastsChanged;
         RefreshTimerCancellation = new CancellationTokenSource();
         RefreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         _ = RunRefreshTimerAsync(RefreshTimer, RefreshTimerCancellation.Token);
@@ -154,6 +199,7 @@
         RefreshTimer?.Dispose();
         RefreshTimerCancellation?.Dispose();
         Notifications.NotificationsChanged -= OnNotificationsChanged;
+        Toasts.ToastsChanged -= OnToastsChanged;
     }
 
     private async Task LoadAsync()
@@ -164,6 +210,7 @@
         Items = notifications
             .Take(NotificationCenterItemLimit)
             .ToArray();
+        ToastOnlyCandidates = await Toasts.GetToastsAsync();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -199,6 +246,12 @@
         await LoadAsync();
     }
 
+    private async Task DismissToastAsync(string id)
+    {
+        await Toasts.DismissAsync(id);
+        await LoadAsync();
+    }
+
     private async Task HandleDefaultAsync(CoreShellNotificationInstance item)
     {
         if (item.Target is not null)
@@ -210,6 +263,19 @@
         }
 
         await DismissAsync(item.Id);
+    }
+
+    private async Task HandleToastDefaultAsync(CoreShellToast item)
+    {
+        if (item.Target is not null)
+        {
+            await Toasts.DismissAsync(item.Id);
+            await LoadAsync();
+            Navigation.NavigateTo(item.Target.Href);
+            return;
+        }
+
+        await DismissToastAsync(item.Id);
     }
 
     private async Task HandleActionAsync(
@@ -225,7 +291,23 @@
         }
     }
 
+    private async Task HandleToastActionAsync(
+        CoreShellToast item,
+        CoreShellNotificationAction action)
+    {
+        await Toasts.HandleActionAsync(item.Id, action.Id);
+        await LoadAsync();
+
+        if (action.Target is not null)
+        {
+            Navigation.NavigateTo(action.Target.Href);
+        }
+    }
+
     private void OnNotificationsChanged(object? sender, CoreShellNotificationsChangedEventArgs args) =>
+        _ = InvokeAsync(LoadAsync);
+
+    private void OnToastsChanged(object? sender, CoreShellToastsChangedEventArgs args) =>
         _ = InvokeAsync(LoadAsync);
 
     private static string GetItemClass(CoreShellNotificationInstance item) =>
@@ -234,7 +316,20 @@
     private static string GetToastClass(CoreShellNotificationInstance item) =>
         $"shell-notifications-toast {GetToneClass(item)}";
 
+    private static string GetToastClass(CoreShellToast item) =>
+        $"shell-notifications-toast {GetToneClass(item)}";
+
     private static string GetToneClass(CoreShellNotificationInstance item) =>
+        item.Severity switch
+        {
+            CoreShellNotificationSeverity.Success => "is-success",
+            CoreShellNotificationSeverity.Warning => "is-warning",
+            CoreShellNotificationSeverity.Error => "is-error",
+            _ when item.Status == CoreShellNotificationStatus.InProgress => "is-progress",
+            _ => "is-info"
+        };
+
+    private static string GetToneClass(CoreShellToast item) =>
         item.Severity switch
         {
             CoreShellNotificationSeverity.Success => "is-success",
@@ -257,7 +352,13 @@
     private static IReadOnlyList<CoreShellNotificationAction> GetActions(CoreShellNotificationInstance item) =>
         item.Actions ?? [];
 
+    private static IReadOnlyList<CoreShellNotificationAction> GetActions(CoreShellToast item) =>
+        item.Actions ?? [];
+
     private static bool IsLoading(CoreShellNotificationInstance item) =>
+        item.Status == CoreShellNotificationStatus.InProgress;
+
+    private static bool IsLoading(CoreShellToast item) =>
         item.Status == CoreShellNotificationStatus.InProgress;
 
     private static bool NeedsUserAttention(CoreShellNotificationInstance item) =>
@@ -270,6 +371,21 @@
                 or CoreShellNotificationSeverity.Error);
 
     private RenderFragment RenderNotificationBody(CoreShellNotificationInstance item) => @<div>
+        <strong>
+            @if (IsLoading(item))
+            {
+                <span class="shell-notifications-loading-indicator" aria-label="@L["In progress"]"></span>
+            }
+            @item.Title
+        </strong>
+        <span>@item.Message</span>
+        @if (item.Target is not null && GetActions(item).Count == 0)
+        {
+            <small>@(item.Target.Label ?? L["Open"])</small>
+        }
+    </div>;
+
+    private RenderFragment RenderToastBody(CoreShellToast item) => @<div>
         <strong>
             @if (IsLoading(item))
             {
