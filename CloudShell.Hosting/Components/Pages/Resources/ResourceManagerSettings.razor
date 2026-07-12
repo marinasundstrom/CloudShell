@@ -343,11 +343,6 @@
         await ApplyDisplaySelectionAsync();
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
-        await Toasts.PublishAsync(new CoreShellToastRequest(
-            L["Resource Manager settings saved"].Value,
-            L["Your Resource Manager preferences were applied."].Value,
-            CoreShellNotificationSeverity.Success,
-            CoreShellNotificationStatus.Succeeded));
     }
 
     private async Task ConfirmChange()
@@ -372,6 +367,11 @@
         await ApplyDisplaySelectionAsync();
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
+        await Toasts.PublishAsync(new CoreShellToastRequest(
+            L["Resource Manager settings saved"].Value,
+            L["Your Resource Manager preferences were applied."].Value,
+            CoreShellNotificationSeverity.Success,
+            CoreShellNotificationStatus.Succeeded));
     }
 
     private void Cancel() => Navigation.NavigateTo("/resources");

@@ -105,6 +105,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added the first CloudShell UI-local toast-only workflow: applying Resource
   Manager settings now shows a transient success toast without creating
   notification-center history.
+- Fixed the Resource Manager settings toast so it appears after confirming
+  changes instead of canceling pending changes, and added a transient
+  toast-only confirmation for Resource Template export.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

@@ -3,6 +3,7 @@
 @using CloudShell.ResourceModel
 @inject IResourceManager ResourceManager
 @inject IResourceTemplateManager Templates
+@inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
@@ -205,6 +206,11 @@
             ImportDocument = ExportDocument;
             Diagnostics.AddRange(result.Diagnostics);
             StatusMessage = L["Exported {0} resources.", result.Template.Resources.Count].Value;
+            await Toasts.PublishAsync(new CoreShellToastRequest(
+                L["Resource template exported"].Value,
+                L["Exported {0} resources to {1}.", result.Template.Resources.Count, TemplateFormatName].Value,
+                CoreShellNotificationSeverity.Success,
+                CoreShellNotificationStatus.Succeeded));
         }
         catch (Exception exception)
         {

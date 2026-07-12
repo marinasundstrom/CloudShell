@@ -104,11 +104,13 @@ renders toast-only items from `ICoreShellToastService` for transient UI-local
 signals that should not create notification history. CloudShell registers a
 scoped in-memory CoreShell toast service for those UI-local signals, while
 hosts can replace the service when they need a different source. Resource
-Manager settings use this path for save confirmation because the fact does not
-need notification-center history. Passive facts can remain in the center
-without contributing to the unread count; in-progress toast feedback remains
-visible while the backing operation is in progress and then uses the normal
-toast lifetime after the item reaches a terminal state.
+Manager settings and template export confirmations use this path because those
+facts do not need notification-center history. Resource mutations such as
+template apply should continue through the Control Plane notification path when
+they need durable or operation-oriented feedback. Passive facts can remain in
+the center without contributing to the unread count; in-progress toast feedback
+remains visible while the backing operation is in progress and then uses the
+normal toast lifetime after the item reaches a terminal state.
 Resource recovery notifications describe recovery for the stable resource,
 while replica-slot crash and replacement progress is projected as replica
 repair so runtime-managed replica concerns do not masquerade as resource
