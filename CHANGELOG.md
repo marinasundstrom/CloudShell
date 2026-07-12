@@ -117,6 +117,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Aligned the CoreShell Fluent UI sample toast stack with CloudShell so
   notification-backed toasts take priority and toast-only items fill the
   remaining capped stack slots.
+- Changed the reusable in-memory CoreShell toast service so a pinned
+  in-progress toast returns to normal time-to-live auto-dismiss when it is
+  updated to a terminal status without an explicit auto-dismiss override.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

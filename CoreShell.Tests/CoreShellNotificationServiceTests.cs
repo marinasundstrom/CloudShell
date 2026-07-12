@@ -426,6 +426,37 @@ public sealed class CoreShellNotificationServiceTests
     }
 
     [Fact]
+    public async Task InMemoryToastService_CompletedProgressToastReturnsToDefaultAutoDismiss()
+    {
+        ICoreShellToastService service = new InMemoryCoreShellToastService();
+
+        var running = await service.PublishAsync(new CoreShellToastRequest(
+            "Running",
+            "The task is running.",
+            CoreShellNotificationSeverity.Info,
+            CoreShellNotificationStatus.InProgress,
+            AutoDismiss: CoreShellToastAutoDismissBehavior.Never));
+
+        var completed = await service.UpdateAsync(
+            running.Id,
+            new CoreShellToastUpdate(
+                Title: "Completed",
+                Message: "The task completed.",
+                Severity: CoreShellNotificationSeverity.Success,
+                Status: CoreShellNotificationStatus.Succeeded));
+
+        Assert.NotNull(completed);
+        Assert.Equal(CoreShellToastAutoDismissBehavior.AfterTimeToLive, completed.AutoDismiss);
+        Assert.Equal(CoreShellToastDefaults.DefaultTimeToLive, completed.TimeToLive);
+        Assert.True(CoreShellNotificationPresentation.ShouldShowToast(
+            completed,
+            completed.UpdatedAt.Add(CoreShellToastDefaults.DefaultTimeToLive).AddTicks(-1)));
+        Assert.False(CoreShellNotificationPresentation.ShouldShowToast(
+            completed,
+            completed.UpdatedAt.Add(CoreShellToastDefaults.DefaultTimeToLive)));
+    }
+
+    [Fact]
     public async Task InMemoryToastService_ValidatesInputs()
     {
         ICoreShellToastService service = new InMemoryCoreShellToastService();

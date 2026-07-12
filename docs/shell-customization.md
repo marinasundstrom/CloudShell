@@ -114,8 +114,10 @@ When a producer publishes a toast with a stable ID, the in-memory CoreShell
 toast service replaces the existing toast for that ID so repeated UI-local
 operations and progress updates do not stack duplicate cards. Passive facts
 can remain in the center without contributing to the unread count; in-progress
-toast feedback remains visible while the backing operation is in progress and
-then uses the normal toast lifetime after the item reaches a terminal state.
+toast feedback remains visible while the backing operation is in progress. If
+an in-progress toast was pinned with `AutoDismiss = Never`, updating it to a
+terminal state without an explicit auto-dismiss override returns it to the
+normal toast lifetime.
 Resource recovery notifications describe recovery for the stable resource,
 while replica-slot crash and replacement progress is projected as replica
 repair so runtime-managed replica concerns do not masquerade as resource

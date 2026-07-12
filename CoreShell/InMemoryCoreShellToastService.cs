@@ -82,20 +82,27 @@ public sealed class InMemoryCoreShellToastService : ICoreShellToastService
                 return Task.FromResult<CoreShellToast?>(null);
             }
 
-            toast = _toasts[index] with
+            var current = _toasts[index];
+            var status = update.Status ?? current.Status;
+            var autoDismiss = update.AutoDismiss.HasValue
+                ? NormalizeAutoDismiss(update.AutoDismiss.Value)
+                : GetAutoDismissForUpdate(current, status);
+            TimeSpan? timeToLive = autoDismiss == CoreShellToastAutoDismissBehavior.Never
+                ? null
+                : update.TimeToLive ?? current.TimeToLive ?? CoreShellToastDefaults.DefaultTimeToLive;
+
+            toast = current with
             {
-                Title = NormalizeOptional(update.Title) ?? _toasts[index].Title,
-                Message = NormalizeOptional(update.Message) ?? _toasts[index].Message,
-                Severity = update.Severity ?? _toasts[index].Severity,
-                Status = update.Status ?? _toasts[index].Status,
-                Target = update.Target ?? _toasts[index].Target,
+                Title = NormalizeOptional(update.Title) ?? current.Title,
+                Message = NormalizeOptional(update.Message) ?? current.Message,
+                Severity = update.Severity ?? current.Severity,
+                Status = status,
+                Target = update.Target ?? current.Target,
                 Actions = update.Actions is null
-                    ? _toasts[index].Actions
+                    ? current.Actions
                     : NormalizeActions(update.Actions),
-                TimeToLive = update.TimeToLive ?? _toasts[index].TimeToLive,
-                AutoDismiss = update.AutoDismiss.HasValue
-                    ? NormalizeAutoDismiss(update.AutoDismiss.Value)
-                    : _toasts[index].AutoDismiss,
+                TimeToLive = timeToLive,
+                AutoDismiss = autoDismiss,
                 UpdatedAt = DateTimeOffset.UtcNow
             };
             _toasts[index] = toast;
@@ -183,6 +190,20 @@ public sealed class InMemoryCoreShellToastService : ICoreShellToastService
         autoDismiss == CoreShellToastAutoDismissBehavior.Default
             ? CoreShellToastAutoDismissBehavior.AfterTimeToLive
             : autoDismiss;
+
+    private static CoreShellToastAutoDismissBehavior GetAutoDismissForUpdate(
+        CoreShellToast current,
+        CoreShellNotificationStatus status)
+    {
+        if (current.Status == CoreShellNotificationStatus.InProgress &&
+            status != CoreShellNotificationStatus.InProgress &&
+            current.AutoDismiss == CoreShellToastAutoDismissBehavior.Never)
+        {
+            return CoreShellToastAutoDismissBehavior.AfterTimeToLive;
+        }
+
+        return current.AutoDismiss;
+    }
 
     private static IReadOnlyList<CoreShellNotificationAction>? NormalizeActions(
         IReadOnlyList<CoreShellNotificationAction>? actions)
