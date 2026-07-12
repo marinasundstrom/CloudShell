@@ -578,6 +578,47 @@ public sealed class CloudShellNotificationStoreTests
     }
 
     [Fact]
+    public void DefaultResourceEventNotificationRule_AddsActionsForExistingResourceFailures()
+    {
+        var rule = new DefaultResourceEventNotificationRule();
+
+        var lifecycleFailure = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Lifecycle.StartFailed,
+            "Resource failed to start.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "operator",
+            Severity: ResourceSignalSeverity.Error));
+        var createFailure = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Resource.CreateFailed,
+            "Resource failed to create.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "operator",
+            Severity: ResourceSignalSeverity.Error));
+
+        Assert.NotNull(lifecycleFailure!.Actions);
+        var actions = lifecycleFailure.Actions;
+        Assert.Collection(
+            actions,
+            action =>
+            {
+                Assert.Equal("open-resource", action.Id);
+                Assert.Equal("Open resource", action.Label);
+                Assert.True(action.IsPrimary);
+                Assert.Equal("/resources/application%3Aapi", action.Target!.Href);
+            },
+            action =>
+            {
+                Assert.Equal("view-activity", action.Id);
+                Assert.Equal("View activity", action.Label);
+                Assert.False(action.IsPrimary);
+                Assert.Equal("/resources/application%3Aapi/activity", action.Target!.Href);
+            });
+        Assert.Null(createFailure!.Actions);
+    }
+
+    [Fact]
     public void DefaultResourceEventNotificationRule_MapsContainerAppRuntimeFailureAndRecoveryStatus()
     {
         var rule = new DefaultResourceEventNotificationRule();

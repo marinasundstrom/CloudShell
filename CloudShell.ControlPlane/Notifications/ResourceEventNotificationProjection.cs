@@ -27,6 +27,8 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
 {
     private const string LocalSystemNotificationRecipientKey = "user";
     private const string ResourceStartMaterializationCause = "Resource start requested runtime materialization";
+    private const string OpenResourceActionId = "open-resource";
+    private const string ViewActivityActionId = "view-activity";
 
     public CreateCloudShellNotificationCommand? CreateNotification(ResourceEvent resourceEvent)
     {
@@ -47,18 +49,20 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return null;
         }
 
+        var status = CreateStatus(resourceEvent);
         return new CreateCloudShellNotificationCommand(
             recipientKey,
             CreateTitle(resourceEvent),
             resourceEvent.Message,
             resourceEvent.Severity,
-            CreateStatus(resourceEvent),
+            status,
             Source: "Control Plane",
             ResourceId: resourceEvent.ResourceId,
             EventType: resourceEvent.EventType,
             EventId: CreateEventId(resourceEvent),
             CorrelationId: CreateOperationCorrelationId(resourceEvent, operation.Kind, operation.Id, recipientKey),
             TemplateKey: operation.TemplateKey,
+            Actions: CreateResourceActions(resourceEvent, status),
             Attributes: CreateAttributes(resourceEvent));
     }
 
@@ -209,6 +213,36 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
 
         return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(basis)))
             .ToLowerInvariant();
+    }
+
+    private static IReadOnlyList<CloudShellNotificationAction>? CreateResourceActions(
+        ResourceEvent resourceEvent,
+        CloudShellNotificationStatus status)
+    {
+        if (status is not (CloudShellNotificationStatus.Failed or CloudShellNotificationStatus.NeedsAttention) ||
+            IsResourceCreateEvent(resourceEvent.EventType))
+        {
+            return null;
+        }
+
+        return
+        [
+            new CloudShellNotificationAction(
+                OpenResourceActionId,
+                "Open resource",
+                new CloudShellNotificationTarget(
+                    ResourceManagerRoutes.ResourceOverview(resourceEvent.ResourceId),
+                    "Open resource"),
+                IsPrimary: true),
+            new CloudShellNotificationAction(
+                ViewActivityActionId,
+                "View activity",
+                new CloudShellNotificationTarget(
+                    ResourceManagerRoutes.ResourceDetails(
+                        resourceEvent.ResourceId,
+                        ResourcePredefinedViewIds.Activity),
+                    "View activity"))
+        ];
     }
 
     private static IReadOnlyDictionary<string, string> CreateAttributes(ResourceEvent resourceEvent)

@@ -133,6 +133,8 @@ on `git blame --follow`, and then by the broad type of change.
   correlated notification item.
 - Routed resource template apply notifications to the resolved actor or local
   operator recipient while preserving the template-apply commit principal.
+- Added standard `Open resource` and `View activity` actions to failed or
+  needs-attention notifications for existing resource operations.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.
