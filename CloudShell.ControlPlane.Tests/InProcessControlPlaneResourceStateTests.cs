@@ -3750,6 +3750,76 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ApplyResourceTemplateAsync_ProjectsSuccessfulApplyNotification()
+    {
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var changes = new List<CloudShellNotificationChangeKind>();
+        notifications.NotificationsChanged += (_, args) => changes.Add(args.Kind);
+        var controlPlane = CreateControlPlane(
+            [CreateResource("application.dotnet-app:api", ResourceState.Stopped)],
+            notifications: notifications,
+            allowLocalPathResourceDefinitions: false);
+
+        var result = await controlPlane.ApplyResourceTemplateAsync(
+            CreateDotnetAppTemplate(
+                new Dictionary<GraphResourceAttributeId, GraphResourceAttributeValue>
+                {
+                    [ApplicationArtifactAttributeIds.Enabled] = true,
+                    [ApplicationArtifactAttributeIds.SourceKind] =
+                        DeploymentArtifactSourceKinds.UploadedArtifact,
+                    [ApplicationArtifactAttributeIds.SourceOwner] =
+                        ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner
+                }));
+
+        Assert.True(result.IsCommitted, string.Join("; ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "resource-template-apply")));
+        Assert.Equal("Apply resource template", notification.Title);
+        Assert.Equal("Resource template 'local' applied.", notification.Message);
+        Assert.Equal(ResourceSignalSeverity.Success, notification.Severity);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal("application.dotnet-app:api", notification.ResourceId);
+        Assert.Equal("cloudshell.resource-template-apply-operation", notification.TemplateKey);
+        Assert.Equal("templateApply", notification.Attributes!["operationKind"]);
+        Assert.Equal("CreateOrUpdate", notification.Attributes!["applyMode"]);
+        Assert.Equal("1", notification.Attributes!["resourceCount"]);
+        Assert.Equal(
+            [
+                CloudShellNotificationChangeKind.Created,
+                CloudShellNotificationChangeKind.Updated
+            ],
+            changes);
+    }
+
+    [Fact]
+    public async Task ApplyResourceTemplateAsync_ProjectsRejectedApplyNotification()
+    {
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var controlPlane = CreateControlPlane(
+            [],
+            notifications: notifications,
+            allowLocalPathResourceDefinitions: false);
+
+        var result = await controlPlane.ApplyResourceTemplateAsync(
+            CreateDotnetAppTemplate(
+                new Dictionary<GraphResourceAttributeId, GraphResourceAttributeValue>
+                {
+                    [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/API/API.csproj"
+                }));
+
+        Assert.False(result.IsCommitted);
+        var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "resource-template-apply")));
+        Assert.Equal("Apply resource template", notification.Title);
+        Assert.Equal("Resource template 'local' was not applied.", notification.Message);
+        Assert.Equal(ResourceSignalSeverity.Error, notification.Severity);
+        Assert.Equal(CloudShellNotificationStatus.Failed, notification.Status);
+        Assert.Equal("application.dotnet-app:api", notification.ResourceId);
+        Assert.Equal("templateApply", notification.Attributes!["operationKind"]);
+        Assert.Equal("local", notification.Attributes!["templateName"]);
+    }
+
+    [Fact]
     public async Task CreateResourceAsync_UsesResourceTypeClassWhenCreationClassIsOmitted()
     {
         var provider = new TestResourceCreationProvider();

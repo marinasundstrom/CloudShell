@@ -128,6 +128,9 @@ on `git blame --follow`, and then by the broad type of change.
   Control Plane-owned item.
 - Added stable UI-local progress toasts for Resource Manager application
   artifact upload and validation.
+- Added Control Plane notification production for resource template apply
+  operations so accepted, successful, and rejected template applies update one
+  correlated notification item.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

@@ -40,7 +40,7 @@ Notifications and toasts are related but not identical:
 | --- | --- | --- | --- |
 | Resource Manager settings saved | Toast-only | UI-local preference confirmation. It does not need notification history. | Implemented with stable toast ID. |
 | Resource template exported | Toast-only | Local export/copy-style confirmation. It does not mutate the resource graph. | Implemented with stable toast ID. |
-| Resource template apply | Notification-backed | Mutates Control Plane resource state and may create, update, or fail resources. | Planned producer. |
+| Resource template apply | Notification-backed | Mutates Control Plane resource state and may create, update, or fail resources. | First Control Plane producer implemented. |
 | Resource create | Notification-backed | User commits a domain operation and may leave the create UI before provider work completes. | First Control Plane event projection implemented. |
 | Resource lifecycle action | Notification-backed | Start, stop, pause, and restart can be long-running and need one correlated status item. | First Control Plane event projection implemented. |
 | Resource image or replica update | Notification-backed | Resource update may dispatch provider work and should update one correlated operation item. | First image and replica update projection implemented. |

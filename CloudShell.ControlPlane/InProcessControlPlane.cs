@@ -72,6 +72,8 @@ public sealed class InProcessControlPlane(
     private const string RecoveryTriggeredBy = "recovery";
     private const string LivenessTriggeredBy = "liveness";
     private const string ReplicaManagementTriggeredBy = "replica-management";
+    private const string ResourceTemplateApplySource = "Control Plane";
+    private const string ResourceTemplateApplyTemplateKey = "cloudshell.resource-template-apply-operation";
     private const string ApplicationDotnetAppType = "application.dotnet-app";
     private const string ApplicationPythonAppType = "application.python-app";
     private const string ApplicationJavaAppType = "application.java-app";
@@ -1216,9 +1218,26 @@ public sealed class InProcessControlPlane(
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Template);
+        var triggeredBy = ResolveTriggeredBy("resource-template-apply");
+        var operationId = Guid.NewGuid().ToString("n");
+        CreateOrUpdateTemplateApplyNotification(
+            request,
+            triggeredBy,
+            operationId,
+            ResourceSignalSeverity.Info,
+            CloudShellNotificationStatus.InProgress,
+            $"Applying resource template '{request.Template.Name}'.");
+
         var localPathDiagnostics = ValidateLocalPathResourceDefinitions(request.Template);
         if (localPathDiagnostics.Count > 0)
         {
+            CreateOrUpdateTemplateApplyNotification(
+                request,
+                triggeredBy,
+                operationId,
+                ResourceSignalSeverity.Error,
+                CloudShellNotificationStatus.Failed,
+                $"Resource template '{request.Template.Name}' was not applied.");
             return new ResourceTemplateApplyResult(
                 request.Template,
                 IsCommitted: false,
@@ -1229,7 +1248,7 @@ public sealed class InProcessControlPlane(
             request.Template,
             new ResourceGraphCommitContext(
                 EnvironmentId: request.Template.EnvironmentId,
-                PrincipalId: ResolveTriggeredBy("resource-template-apply"),
+                PrincipalId: triggeredBy,
                 Timestamp: DateTimeOffset.UtcNow),
             new ResourceModelGraphDefinitionApplyOptions(request.Mode),
             cancellationToken);
@@ -1249,11 +1268,77 @@ public sealed class InProcessControlPlane(
                 .ToArray();
         }
 
-        return new ResourceTemplateApplyResult(
+        var result = new ResourceTemplateApplyResult(
             apply.Template,
             apply.IsCommitted,
             diagnostics);
+        CreateOrUpdateTemplateApplyNotification(
+            request,
+            triggeredBy,
+            operationId,
+            result.HasErrors || !result.IsCommitted
+                ? ResourceSignalSeverity.Error
+                : ResourceSignalSeverity.Success,
+            result.HasErrors || !result.IsCommitted
+                ? CloudShellNotificationStatus.Failed
+                : CloudShellNotificationStatus.Succeeded,
+            result.HasErrors || !result.IsCommitted
+                ? $"Resource template '{request.Template.Name}' was not applied."
+                : $"Resource template '{request.Template.Name}' applied.");
+
+        return result;
     }
+
+    private void CreateOrUpdateTemplateApplyNotification(
+        ResourceTemplateApplyRequest request,
+        string? triggeredBy,
+        string operationId,
+        ResourceSignalSeverity severity,
+        CloudShellNotificationStatus status,
+        string message)
+    {
+        if (notifications is null || string.IsNullOrWhiteSpace(triggeredBy))
+        {
+            return;
+        }
+
+        var resourceCount = request.Template.Resources.Count;
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["operationKind"] = "templateApply",
+            ["operationId"] = operationId,
+            ["templateName"] = request.Template.Name,
+            ["applyMode"] = request.Mode.ToString(),
+            ["resourceCount"] = resourceCount.ToString(CultureInfo.InvariantCulture)
+        };
+        if (!string.IsNullOrWhiteSpace(request.Template.EnvironmentId))
+        {
+            attributes["environmentId"] = request.Template.EnvironmentId.Trim();
+        }
+
+        notifications.CreateOrUpdateNotification(new CreateCloudShellNotificationCommand(
+            triggeredBy.Trim(),
+            "Apply resource template",
+            message,
+            severity,
+            status,
+            Source: ResourceTemplateApplySource,
+            ResourceId: resourceCount == 1
+                ? request.Template.Resources[0].EffectiveResourceId
+                : null,
+            CorrelationId: CreateTemplateApplyCorrelationId(operationId, triggeredBy),
+            TemplateKey: ResourceTemplateApplyTemplateKey,
+            Attributes: attributes));
+    }
+
+    private static string CreateTemplateApplyCorrelationId(
+        string operationId,
+        string triggeredBy) =>
+        string.Join(
+            "|",
+            "resource-template-apply",
+            operationId,
+            triggeredBy.Trim());
 
     private IReadOnlyList<ResourceDefinitionDiagnostic> ValidateLocalPathResourceDefinitions(
         ResourceDefinitionTemplate template)
