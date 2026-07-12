@@ -8,6 +8,7 @@ using CloudShell.ControlPlane.Providers;
 using CloudShell.Hosting;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.ResourceModel;
+using CoreShell;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -73,6 +74,21 @@ public sealed class CloudShellHostCompositionTests
 
         Assert.Contains(registry.Extensions, extension => extension.Id == "cloudshell.core");
         Assert.Contains(registry.Extensions, extension => extension.Id == "cloudshell.resource-manager");
+    }
+
+    [Fact]
+    public void AddCloudShellUi_RegistersScopedToastService()
+    {
+        var builder = CreateBuilder();
+
+        builder.AddCloudShellUi();
+
+        Assert.Contains(
+            builder.Services,
+            descriptor =>
+                descriptor.ServiceType == typeof(ICoreShellToastService) &&
+                descriptor.ImplementationType == typeof(InMemoryCoreShellToastService) &&
+                descriptor.Lifetime == ServiceLifetime.Scoped);
     }
 
     [Fact]

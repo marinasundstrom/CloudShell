@@ -333,6 +333,78 @@ public sealed class CoreShellNotificationServiceTests
     }
 
     [Fact]
+    public async Task InMemoryToastService_PublishesUpdatesAndDismissesToastReferences()
+    {
+        ICoreShellToastService service = new InMemoryCoreShellToastService();
+
+        var toast = await service.PublishAsync(new CoreShellToastRequest(
+            "Running",
+            "The task is running.",
+            CoreShellNotificationSeverity.Info,
+            CoreShellNotificationStatus.InProgress,
+            Actions:
+            [
+                new CoreShellNotificationAction(
+                    "open",
+                    "Open",
+                    new CoreShellNotificationTarget("/operations"),
+                    IsPrimary: true)
+            ],
+            TimeToLive: TimeSpan.Zero));
+
+        Assert.Collection(
+            await service.GetToastsAsync(),
+            item =>
+            {
+                Assert.Equal(toast.Id, item.Id);
+                Assert.Equal(CoreShellNotificationStatus.InProgress, item.Status);
+                Assert.Equal(CoreShellToastAutoDismissBehavior.AfterTimeToLive, item.AutoDismiss);
+                Assert.Equal(TimeSpan.Zero, item.TimeToLive);
+            });
+
+        var updated = await service.UpdateAsync(
+            toast.Id,
+            new CoreShellToastUpdate(
+                Title: "Completed",
+                Message: "The task completed.",
+                Severity: CoreShellNotificationSeverity.Success,
+                Status: CoreShellNotificationStatus.Succeeded,
+                Actions: []));
+
+        Assert.NotNull(updated);
+        Assert.Equal("Completed", updated.Title);
+        Assert.Empty(await service.GetToastsAsync());
+
+        var persistent = await service.PublishAsync(new CoreShellToastRequest(
+            "Needs action",
+            "Review this item.",
+            AutoDismiss: CoreShellToastAutoDismissBehavior.Never,
+            Actions:
+            [
+                new CoreShellNotificationAction("dismiss", "Dismiss")
+            ]));
+
+        await service.HandleActionAsync(persistent.Id, "dismiss");
+
+        Assert.Empty(await service.GetToastsAsync());
+    }
+
+    [Fact]
+    public async Task InMemoryToastService_ValidatesInputs()
+    {
+        ICoreShellToastService service = new InMemoryCoreShellToastService();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() => service.PublishAsync(null!));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.PublishAsync(new CoreShellToastRequest("", "Message")));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.PublishAsync(new CoreShellToastRequest("Title", " ")));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.UpdateAsync("", new CoreShellToastUpdate()));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => service.UpdateAsync("toast-1", null!));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.HandleActionAsync("", "open"));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.HandleActionAsync("toast-1", ""));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.DismissAsync(" "));
+    }
+
+    [Fact]
     public void AddCoreShellBlazor_RegistersEmptyToastServiceByDefault()
     {
         var services = new ServiceCollection();

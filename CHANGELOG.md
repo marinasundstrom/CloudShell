@@ -100,6 +100,8 @@ on `git blame --follow`, and then by the broad type of change.
   and `Never` auto-dismiss toasts remain until explicitly dismissed.
 - Added CloudShell shell presentation for `ICoreShellToastService` toast-only
   signals in the same capped toast stack as notification-backed toasts.
+- Added a reusable `InMemoryCoreShellToastService` and wired CloudShell UI to
+  use it as the scoped default for transient toast-only shell feedback.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

@@ -27,8 +27,9 @@ It proves the extraction boundary for common shell building blocks:
   in-progress feedback that stays visible until the producer updates or closes
   it. Terminal and plain toasts then use the normal time-to-live unless
   explicitly marked as `Never` auto-dismiss.
-- Toast-only signals use `ICoreShellToastService`, render in the same toast
-  stack, and do not create notification-center history.
+- Toast-only signals use the reusable CoreShell in-memory
+  `ICoreShellToastService`, render in the same toast stack, and do not create
+  notification-center history.
 - A second CoreShell module contributes a dashboard section and navigation
   item without using CloudShell product services.
 

@@ -1,14 +1,13 @@
 using CoreShell;
-using CoreShell.FluentUiSample;
 
 namespace CloudShell.Sample.Tests;
 
 public sealed class CoreShellFluentUiSampleToastTests
 {
     [Fact]
-    public async Task SampleToastService_ExpiresPlainToastsAfterTimeToLive()
+    public async Task InMemoryToastService_ExpiresPlainToastsAfterTimeToLive()
     {
-        var service = new SampleToastService();
+        var service = new InMemoryCoreShellToastService();
 
         await service.PublishAsync(new CoreShellToastRequest(
             "Saved",
@@ -21,9 +20,9 @@ public sealed class CoreShellFluentUiSampleToastTests
     }
 
     [Fact]
-    public async Task SampleToastService_KeepsInProgressToastsUntilProgressCompletes()
+    public async Task InMemoryToastService_KeepsInProgressToastsUntilProgressCompletes()
     {
-        var service = new SampleToastService();
+        var service = new InMemoryCoreShellToastService();
 
         var toast = await service.PublishAsync(new CoreShellToastRequest(
             "Running",
@@ -48,9 +47,9 @@ public sealed class CoreShellFluentUiSampleToastTests
     }
 
     [Fact]
-    public async Task SampleToastService_KeepsNeverAutoDismissToastsUntilDismissed()
+    public async Task InMemoryToastService_KeepsNeverAutoDismissToastsUntilDismissed()
     {
-        var service = new SampleToastService();
+        var service = new InMemoryCoreShellToastService();
 
         var toast = await service.PublishAsync(new CoreShellToastRequest(
             "Saved",

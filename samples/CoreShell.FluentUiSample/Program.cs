@@ -20,11 +20,11 @@ builder.Services.AddRazorComponents()
 builder.Services.AddFluentUIComponents();
 builder.Services.AddCoreShellBlazor();
 builder.Services.AddSingleton<SampleNotificationService>();
-builder.Services.AddSingleton<SampleToastService>();
+builder.Services.AddSingleton<InMemoryCoreShellToastService>();
 builder.Services.Replace(ServiceDescriptor.Singleton<ICoreShellNotificationService>(
     serviceProvider => serviceProvider.GetRequiredService<SampleNotificationService>()));
 builder.Services.Replace(ServiceDescriptor.Singleton<ICoreShellToastService>(
-    serviceProvider => serviceProvider.GetRequiredService<SampleToastService>()));
+    serviceProvider => serviceProvider.GetRequiredService<InMemoryCoreShellToastService>()));
 builder.Services.AddSingleton<ICoreShellNotificationProducer>(
     serviceProvider => serviceProvider.GetRequiredService<SampleNotificationService>());
 

@@ -101,10 +101,12 @@ templates, icons, and action placement. The current CloudShell local-development
 path renders a topbar notification center and notification-backed toast cards
 over the in-memory Control Plane notification store. The same toast stack also
 renders toast-only items from `ICoreShellToastService` for transient UI-local
-signals that should not create notification history. Passive facts can remain
-in the center without contributing to the unread count; in-progress toast
-feedback remains visible while the backing operation is in progress and then
-uses the normal toast lifetime after the item reaches a terminal state.
+signals that should not create notification history. CloudShell registers a
+scoped in-memory CoreShell toast service for those UI-local signals, while
+hosts can replace the service when they need a different source. Passive facts
+can remain in the center without contributing to the unread count; in-progress
+toast feedback remains visible while the backing operation is in progress and
+then uses the normal toast lifetime after the item reaches a terminal state.
 Resource recovery notifications describe recovery for the stable resource,
 while replica-slot crash and replacement progress is projected as replica
 repair so runtime-managed replica concerns do not masquerade as resource

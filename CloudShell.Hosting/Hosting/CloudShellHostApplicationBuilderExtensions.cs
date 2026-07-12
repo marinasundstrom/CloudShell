@@ -82,6 +82,7 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
         builder.Services.TryAddScoped<ICoreShellNotificationService, ControlPlaneCoreShellNotificationService>();
+        builder.Services.TryAddScoped<ICoreShellToastService, InMemoryCoreShellToastService>();
         builder.Services.AddCoreShellBlazorHost();
         builder.Services.TryAddSingleton<ShellHostContext>();
         builder.Services.TryAddSingleton<CoreShellModuleCatalog>();
