@@ -23,6 +23,8 @@ on `git blame --follow`, and then by the broad type of change.
   default path selection testable through an injectable platform descriptor.
 - Added deterministic Java app build-command tests for Windows and Unix Maven
   wrapper selection without requiring those operating systems locally.
+- Added deterministic JavaScript app command tests for Windows `npm.cmd` and
+  Unix `npm` executable selection.
 
 ### 2026-07-11
 

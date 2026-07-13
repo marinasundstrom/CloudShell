@@ -1,10 +1,21 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class JavaScriptAppProcessCommandFactory
 {
+    private readonly JavaScriptAppProcessCommandPlatform _platform;
+
+    public JavaScriptAppProcessCommandFactory()
+        : this(JavaScriptAppProcessCommandPlatform.Current)
+    {
+    }
+
+    internal JavaScriptAppProcessCommandFactory(JavaScriptAppProcessCommandPlatform platform)
+    {
+        _platform = platform;
+    }
+
     public ProcessStartInfo CreateStartInfo(
         Resource resource,
         string fullProjectPath,
@@ -25,7 +36,7 @@ public sealed class JavaScriptAppProcessCommandFactory
             ? "dev"
             : script.Trim();
 
-        var startInfo = new ProcessStartInfo(GetExecutableName(packageManager))
+        var startInfo = new ProcessStartInfo(_platform.GetExecutableName(packageManager))
         {
             WorkingDirectory = fullProjectPath,
             UseShellExecute = false,
@@ -57,12 +68,6 @@ public sealed class JavaScriptAppProcessCommandFactory
 
         return startInfo;
     }
-
-    private static string GetExecutableName(string packageManager) =>
-        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
-        packageManager.Equals("npm", StringComparison.OrdinalIgnoreCase)
-            ? "npm.cmd"
-            : packageManager;
 
     private static void ApplyEndpointEnvironmentVariables(
         Resource resource,
@@ -127,6 +132,17 @@ public sealed class JavaScriptAppProcessCommandFactory
     private static IEnumerable<string> SplitArguments(string arguments) =>
         arguments
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+internal sealed record JavaScriptAppProcessCommandPlatform(bool IsWindows)
+{
+    public static JavaScriptAppProcessCommandPlatform Current => new(OperatingSystem.IsWindows());
+
+    public string GetExecutableName(string packageManager) =>
+        IsWindows &&
+        packageManager.Equals("npm", StringComparison.OrdinalIgnoreCase)
+            ? "npm.cmd"
+            : packageManager;
 }
 
 public static class JavaScriptAppEnvironmentNames

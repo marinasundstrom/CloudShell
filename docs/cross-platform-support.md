@@ -68,6 +68,8 @@ not cross-platform-ready until CI covers the relevant tier.
 3. Added focused tests around Unix and Windows default hosts-file resolution.
 4. Added a Java app command-platform seam and deterministic Maven/Gradle
    wrapper selection tests for Windows and Unix behavior.
+5. Added a JavaScript app command-platform seam and deterministic package-manager
+   executable selection tests for Windows and Unix behavior.
 
 ### Active
 
@@ -80,7 +82,7 @@ not cross-platform-ready until CI covers the relevant tier.
 
 ### Next
 
-1. Add command-construction tests for .NET, JavaScript, Go, Python, and
+1. Add command-construction tests for .NET, Go, Python, and
    executable app providers covering Windows and Unix quoting/path behavior.
 2. Add launcher smoke tests that emit templates and apply them to a test
    Control Plane without relying on shell scripts.
