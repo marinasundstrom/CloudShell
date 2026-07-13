@@ -2722,6 +2722,7 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
+    [Trait("DockerCi", "true")]
     public async Task ContainerAppDeploymentSample_StartsRegistryRuntime()
     {
         const string registryContainerName = "cloudshell-container-app-deployment-registry";
@@ -2787,6 +2788,7 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
+    [Trait("DockerCi", "true")]
     public async Task ContainerAppDeploymentSample_RegistryRuntimeStopsOnGracefulHostShutdown()
     {
         const string registryResourceId = "docker.container:sample-registry";

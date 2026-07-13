@@ -52,7 +52,11 @@ on `git blame --follow`, and then by the broad type of change.
   memory without shell scripts or runtime startup.
 - Split Docker-backed sample smoke coverage into an explicit Ubuntu Docker
   integration CI job with Docker daemon, Compose, and image-pull prerequisite
-  checks before running `Category=DockerIntegration` tests.
+  checks before running the explicit `Category=DockerIntegration&DockerCi=true`
+  smoke subset.
+- Added a testable host OS descriptor for the macOS host networking provider so
+  unsupported-platform behavior reports a stable unavailable reason on non-macOS
+  hosts.
 
 ### 2026-07-11
 

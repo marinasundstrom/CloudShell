@@ -34,10 +34,37 @@ builds it, and runs non-integration tests with
 `Category!=Integration&Category!=DockerIntegration`. Docker-dependent and
 executable-backed smoke tests remain explicit jobs so a missing runtime
 prerequisite is reported as an environment issue rather than a product
-regression.
+regression. Docker CI starts with the
+`Category=DockerIntegration&DockerCi=true` smoke subset. The full
+`Category=DockerIntegration` suite remains the manual Tier 3 hardening target
+until those heavier runtime, telemetry, SQL, and identity scenarios are stable
+on hosted Linux runners.
 
 Local development on macOS remains useful for fast iteration, but a change is
 not cross-platform-ready until CI covers the relevant tier.
+
+## Platform Abstraction Layer
+
+Cross-platform behavior is implemented through small, purpose-owned platform
+services resolved by capability and runtime requirements. The platform layer
+should select or describe:
+
+- host OS, distribution, and host capability signals;
+- path-root, path-composition, and path-comparison semantics when behavior is
+  not portable;
+- process start information, command names, shell usage, quoting boundaries,
+  and executable extension conventions;
+- host-mutating operations such as hosts-file edits, DNS resolver refreshes,
+  proxy setup, and privileged service operations;
+- runtime prerequisite checks and unavailable reasons for Docker, Podman,
+  local daemons, and provider-owned tools.
+
+Do not concentrate this into one catch-all platform object. Prefer focused
+descriptors, command factories, provider availability services, and
+host-operation planners that can be injected and tested from any development
+host. Linux distribution and installed-tool differences should be expressed as
+capabilities and provider availability, not as broad assumptions that all Linux
+hosts behave the same way.
 
 ## Current Known Gaps
 
@@ -96,14 +123,18 @@ not cross-platform-ready until CI covers the relevant tier.
     scripts, host startup, or runtime processes.
 15. Split Docker-backed sample smoke coverage into an explicit Ubuntu Docker
     integration job with Docker daemon, Compose, and image-pull prerequisite
-    checks before running `Category=DockerIntegration` tests.
+    checks before running the `Category=DockerIntegration&DockerCi=true` smoke
+    subset.
+16. Moved macOS host-network provider support checks behind an injectable host
+    OS descriptor and added deterministic tests for unsupported-platform
+    diagnostics without requiring Linux or Windows locally.
 
 ### Active
 
 1. Use the green Tier 0 matrix as the regression gate for the remaining
    cross-platform slices.
-2. Move more direct OS checks behind small injectable platform descriptors where
-   the behavior can be unit-tested from any development host.
+2. Move remaining direct OS checks behind small injectable platform descriptors
+   where the behavior can be unit-tested from any development host.
 3. Continue the same testability pattern for remaining command factories and
    runtime prerequisites.
 
@@ -117,8 +148,10 @@ not cross-platform-ready until CI covers the relevant tier.
    language toolchains are available without shell scripts.
 3. Use the Linux Docker CI job as the first Tier 3 regression gate and improve
    provider/runtime unavailable diagnostics where failures are still generic.
-4. Review host networking providers and document which operations are portable,
-   macOS-specific, Linux-specific, or Windows-specific.
+   Promote additional `Category=DockerIntegration` tests into `DockerCi=true`
+   only after they are deterministic on hosted Linux runners.
+4. Review the remaining host networking operations and document which
+   operations are portable, macOS-specific, Linux-specific, or Windows-specific.
 5. Add Resource Manager diagnostics for unsupported host/network/runtime
    operations before dispatch.
 

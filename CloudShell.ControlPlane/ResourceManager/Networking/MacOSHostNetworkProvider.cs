@@ -4,7 +4,8 @@ using CloudShell.Abstractions.ResourceManager;
 namespace CloudShell.ControlPlane.ResourceManager.Networking;
 
 public sealed class MacOSHostNetworkProvider(
-    LocalHostNetworkProvisioner provisioner) :
+    LocalHostNetworkProvisioner provisioner,
+    HostOperatingSystem hostOperatingSystem) :
     IResourceProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider
@@ -32,7 +33,7 @@ public sealed class MacOSHostNetworkProvider(
         if (!IsSupported)
         {
             throw new InvalidOperationException(
-                "The macOS host networking provider can only be activated on macOS.");
+                "The macOS host networking provider is unavailable because this host is not running macOS.");
         }
 
         return registrations.RegisterAsync(
@@ -84,5 +85,5 @@ public sealed class MacOSHostNetworkProvider(
                 new(ResourceCapabilityIds.NetworkingHostNetwork)
             ]);
 
-    private static bool IsSupported => OperatingSystem.IsMacOS();
+    private bool IsSupported => hostOperatingSystem.IsMacOS;
 }

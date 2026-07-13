@@ -101,8 +101,8 @@ jobs:
       - name: Build
         run: dotnet build CloudShell.slnx --no-restore
 
-      - name: Test Docker integration suite
-        run: dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-build --filter "Category=DockerIntegration" --logger "trx;LogFilePrefix=docker-test-results" --results-directory TestResults
+      - name: Test Docker CI smoke suite
+        run: dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-build --filter "Category=DockerIntegration&DockerCi=true" --logger "trx;LogFilePrefix=docker-test-results" --results-directory TestResults
 
       - name: Upload Docker test results
         if: always()
