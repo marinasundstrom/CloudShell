@@ -4,6 +4,18 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class PythonAppProcessCommandFactory
 {
+    private readonly PythonAppProcessCommandPlatform _platform;
+
+    public PythonAppProcessCommandFactory()
+        : this(PythonAppProcessCommandPlatform.Current)
+    {
+    }
+
+    internal PythonAppProcessCommandFactory(PythonAppProcessCommandPlatform platform)
+    {
+        _platform = platform;
+    }
+
     public ProcessStartInfo CreateStartInfo(
         Resource resource,
         string fullProjectPath,
@@ -25,14 +37,14 @@ public sealed class PythonAppProcessCommandFactory
         return startInfo;
     }
 
-    private static ProcessStartInfo CreatePythonStartInfo(
+    private ProcessStartInfo CreatePythonStartInfo(
         Resource resource,
         string fullProjectPath)
     {
         var command = resource.Attributes.GetString(
             PythonAppResourceTypeProvider.Attributes.Command);
         command = string.IsNullOrWhiteSpace(command)
-            ? "python3"
+            ? _platform.DefaultCommand
             : command.Trim();
 
         var startInfo = CreateBaseStartInfo(command, fullProjectPath);
@@ -146,6 +158,11 @@ public sealed class PythonAppProcessCommandFactory
             ? []
             : arguments
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+internal sealed record PythonAppProcessCommandPlatform(string DefaultCommand)
+{
+    public static PythonAppProcessCommandPlatform Current => new("python3");
 }
 
 public static class PythonAppEnvironmentNames

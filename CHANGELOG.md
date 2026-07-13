@@ -41,6 +41,9 @@ on `git blame --follow`, and then by the broad type of change.
   depend on the injected command platform, using platform-qualified paths in
   path-sensitive command tests, and clearing SQLite pools before deleting
   persistence test databases.
+- Added deterministic Python app command tests for the current `python3`
+  default, explicit command overrides such as Windows `py`, script paths with
+  spaces, and endpoint/environment precedence.
 
 ### 2026-07-11
 

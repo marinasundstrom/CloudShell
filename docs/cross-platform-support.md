@@ -84,6 +84,9 @@ not cross-platform-ready until CI covers the relevant tier.
     command assertions.
 11. Verified the Tier 0 matrix is green for patch whitespace, restore, build,
     and non-integration tests on Ubuntu, macOS, and Windows.
+12. Added a Python app command-platform seam and deterministic command tests
+    for the current `python3` default, explicit Windows-friendly command
+    overrides, script paths with spaces, and endpoint/environment precedence.
 
 ### Active
 
@@ -97,7 +100,9 @@ not cross-platform-ready until CI covers the relevant tier.
 ### Next
 
 1. Decide whether Python app local runs should keep the documented `python3`
-   default on every OS or select a Windows-friendly default command.
+   default on every OS or select a Windows-friendly default command. The
+   current seam and tests preserve `python3` while allowing explicit `py`
+   overrides.
 2. Add launcher smoke tests that emit templates and apply them to a test
    Control Plane without relying on shell scripts.
 3. Split Docker-backed sample smoke coverage into explicit Linux Docker CI and
