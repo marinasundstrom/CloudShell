@@ -239,9 +239,11 @@ workers. The broader direction also includes CloudShell agents for scaling
 CloudShell-managed services across hosts, regions, and provider-specific
 runtime boundaries; see
 [CloudShell agents and clustering](future/agents-and-clustering.md). This is
-important platform direction, but it should not displace the current
-local-development MVP stabilization unless a new subsystem would otherwise
-bake in single-process assumptions.
+important platform direction, but MVP relevance should stay limited to the
+agent and reconciliation foundation: typed assignments, leases, heartbeats,
+observed state, and one provider operation moved behind an agent-side handler.
+It should not displace the current local-development MVP stabilization unless
+a new subsystem would otherwise bake in single-process assumptions.
 
 The main stabilization lens is now the UI foundation that the MVP already
 uses. The priority is to make shell chrome, Resource Manager pages, resource

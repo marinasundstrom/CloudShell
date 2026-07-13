@@ -2,7 +2,7 @@
 
 ## Status
 
-Deferred strategic direction, not an active MVP proposal.
+Deferred strategic direction with a narrow MVP-aligned entry point.
 
 CloudShell should eventually support shared, clustered, and regionally
 distributed environments. That requires more than splitting the UI from the
@@ -14,8 +14,21 @@ This document proposes introducing CloudShell agents as the runtime
 participants that make that scale-out model explicit. An agent is not an AI
 assistant and should not become one large platform object. It is a deployable
 CloudShell process role that hosts smaller capability-specific components,
-registers those capabilities with the Control Plane, claims eligible work, and
-reports state back through Control Plane-owned contracts.
+registers those capabilities with the Control Plane, receives typed
+assignments, reconciles local state on the machine where it runs, and reports
+observed state back through Control Plane-owned contracts.
+
+The full clustering direction is not MVP scope. The MVP-relevant part is the
+agent and reconciliation foundation: the Control Plane owns desired state and
+typed assignments; agents execute and observe local work; reconciliation
+compares desired and observed state and decides what assignment should happen
+next.
+
+In practical terms, CloudShell is pushing execution and observation down into
+agents instead of letting the Control Plane directly perform host-local
+actions. The Control Plane still decides what should happen, records desired
+state, enforces identity and policy, and audits the result. The agent runs the
+provider-side operation on the machine where the relevant capability exists.
 
 ## Purpose
 
@@ -35,6 +48,10 @@ CloudShell scale-out includes:
 
 The direction should help current MVP work avoid single-process assumptions
 without pulling clustering into the MVP scope.
+
+For MVP purposes, this means proving the agent execution boundary with one
+boring vertical slice before adding scheduling, regions, multi-host replica
+placement, or load distribution.
 
 ## Problem
 
@@ -66,8 +83,9 @@ Introduce a CloudShell agent role.
 
 A CloudShell agent is a deployable process that belongs to one CloudShell
 environment authority. It registers with the Control Plane, advertises
-capabilities, receives or claims work, executes capability-owned components,
-and reports results, diagnostics, and heartbeats.
+capabilities, receives or claims typed assignments, executes
+capability-owned components on the machine where it runs, and reports results,
+diagnostics, observed state, and heartbeats.
 
 Agents should be capability hosts, not monolithic platform abstractions.
 Different deployments can run different agent components based on operating
@@ -93,6 +111,13 @@ Examples:
 The Control Plane remains the authority for accepted resource state,
 authorization, operation history, and API projection. Agents execute delegated
 work but do not own the resource graph.
+
+Resource Manager remains logically centralized. It should stop being the
+component that directly reaches every runtime target, but it remains the
+canonical entry point for operations such as creating resources, deploying
+revisions, restarting resources, and deleting resources. Those operations
+should become desired-state changes and assignments instead of long
+synchronous calls into Docker, Traefik, or another runtime.
 
 ## Core Concepts
 
@@ -231,24 +256,62 @@ Examples:
 Provider-backed environments may map these labels to cloud regions, edge
 locations, datacenters, racks, Kubernetes node pools, or appliance boundaries.
 
-### Work Item
+### Desired and Observed State
 
-A work item is a durable operation request owned by the Control Plane and
-eligible to be claimed by one agent or worker.
+CloudShell needs separate desired and observed state.
 
-Work items should include:
+Desired state records what the Control Plane has accepted:
 
-- operation id and idempotency key
+- the resource exists
+- the current desired generation
+- the image, command, endpoint, volume, or runtime configuration
+- the requested lifecycle state
+- placement or capability constraints when they exist
+
+Observed state records what agents and providers have seen:
+
+- the assignment generation the agent last applied
+- whether the local runtime artifact exists
+- whether it is running, stopped, failed, or unknown
+- diagnostics and status messages
+- log, health, telemetry, or readiness observations
+- the last heartbeat or observation time
+
+Reconciliation compares these views. If desired state has generation `18` and
+an agent reports that it has applied generation `17`, the Control Plane knows
+the report is stale and can issue or retain the assignment for generation
+`18`.
+
+### Assignment
+
+An assignment is a durable, typed operation request owned by the Control Plane
+and eligible to be claimed by one agent or worker.
+
+Assignments are not arbitrary shell commands and should not contain an
+unbounded remote execution payload. They should be versioned contracts such as
+container instance reconciliation, route application, log-source observation,
+or local runtime inspection.
+
+Assignments should include:
+
+- assignment id and idempotency key
+- assignment type and schema version
 - resource target and accepted resource revision
+- desired generation
 - required capabilities
 - placement constraints
 - authorization scope
 - lease owner and lease expiration
 - progress, result, diagnostics, and retry state
 
-Agents should claim work only when their identity, scope, labels, and
+Agents should claim assignments only when their identity, scope, labels, and
 capabilities match the operation. Leases and idempotency must prevent duplicate
 or conflicting execution.
+
+One logical resource can produce several assignments later. For example, a
+container app could eventually produce container-instance assignments,
+route assignments, and DNS assignments. The MVP should not require that full
+shape; it should prove one typed local assignment first.
 
 ## Scaling CloudShell
 
@@ -274,7 +337,7 @@ the execution and observation capacity.
 The required platform capabilities include:
 
 - durable leases or leader election for singleton duties
-- work queues or assignment tables for agent and worker work
+- work queues or assignment tables for agent and worker assignments
 - an outbox or event stream for reliable notifications
 - idempotent operation handlers
 - heartbeat and health tracking
@@ -366,6 +429,25 @@ Agents host these components where work needs to run. The Control Plane and
 providers select components based on target platform, capability, policy, and
 scope.
 
+## Provider Split
+
+Providers that execute runtime behavior should eventually have two halves:
+
+- a Control Plane component that validates resources, plans assignments,
+  contributes constraints, and interprets observed state
+- an agent component that reconciles typed assignments against local runtime
+  state
+
+For example, a container provider's Control Plane component can validate a
+container app and produce a container-instance assignment. The agent component
+can pull the image, create or update the container, inspect runtime state, and
+report the observed assignment state.
+
+This split should remain provider-owned. The core platform should define the
+assignment, lease, capability, and observation contracts, but it should not
+embed Docker, Podman, Kubernetes, Traefik, or operating-system-specific
+behavior.
+
 ## Security Model
 
 Agents must be explicit trust participants.
@@ -409,11 +491,17 @@ over pretending that a partitioned host is still healthy.
 ## Resource Model Projection
 
 CloudShell does not need to expose every agent concept as a user-authored
-resource at first. The initial projection can be operational:
+resource at first. The initial MVP projection should be operational Control
+Plane data:
 
 - registered agents
-- agent health
+- agent leases and health
 - agent capabilities
+- assignments
+- observed assignment state
+
+Later operational views can include:
+
 - agent pools
 - work backlog
 - recent assignments
@@ -432,39 +520,57 @@ extensions, or providers. Until then, Control Plane APIs and Resource Manager
 operations can expose operational views without turning every runtime
 participant into an authored resource.
 
-## Initial Implementation Slices
+## MVP Implementation Slices
 
-When this direction becomes active, the implementation should start with
-narrow slices:
+The first implementation should stay intentionally small. It should prove that
+CloudShell can move one local runtime operation behind an agent and
+reconciliation boundary without committing to clustering.
 
 1. Define the agent terminology, trust boundary, and Control Plane ownership
    rules in the architecture and hosting docs.
-2. Add an agent registration and heartbeat store with read-only API projection.
-3. Add capability advertisement and placement filtering over registered
-   agents.
-4. Add a durable work item contract with claim, renew, complete, fail, and
-   retry semantics.
-5. Move one low-risk host-local provider operation behind work-item execution
-   while keeping the combined local host path in process.
-6. Add a local development agent mode that runs in the same process as the
-   Control Plane for simple deployments.
-7. Add a normal shared-environment sample with one region and two agents
-   across separate machines or simulated hosts.
-8. Add a later remote-agent sample with two labeled regions and fake provider
-   capabilities.
-9. Add placement policy for a container application resource without requiring
-   distributed replicas.
-10. Add health-aware backend pool projection for one provider.
-11. Add operational UI for agents, pools, work backlog, and failed
-   assignments.
+2. Add operational Control Plane records for agent registration, agent lease,
+   agent capability, assignment, and observed assignment state.
+3. Add a local development agent mode that can run in process with the
+   combined host or as a simple external process for one machine.
+4. Let the agent register, advertise capabilities, renew a lease, and report
+   heartbeat state.
+5. Add one typed assignment contract for a low-risk local provider operation.
+6. Move one Docker or container-app runtime operation behind an agent-side
+   assignment handler while keeping Resource Manager as the user-facing
+   operation boundary.
+7. Have the agent reconcile local state for that assignment and report
+   observed state, diagnostics, and applied generation.
+8. Have the Control Plane derive resource status from desired state,
+   assignment state, and observed state.
+
+After that foundation is proven, follow-on slices can add:
+
+- a second agent and simple capability filtering
+- basic placement selection for one assignment type
+- operational UI for agents, leases, assignments, and failed reconciliation
+- a normal shared-environment sample with one logical region and two agents
+- health-aware backend pool projection for one provider
+- regional and data-center placement as a later scale-out feature
 
 Each slice should preserve the current Resource Manager facade. Users should
-not need to understand internal work items to start, inspect, or diagnose a
+not need to understand internal assignments to start, inspect, or diagnose a
 managed service.
 
 ## MVP Impact
 
-This is not an MVP feature.
+The full clustering direction is not an MVP feature. Agents and
+reconciliation can be MVP-relevant if they are kept narrow and used to prevent
+single-process provider execution from becoming permanent architecture.
+
+The MVP shape is:
+
+- one Control Plane environment authority
+- one logical region
+- one embedded or external agent
+- typed assignments
+- agent lease and heartbeat
+- desired state, observed state, and applied generation tracking
+- one provider operation reconciled through an agent-side handler
 
 Current MVP work should only take dependencies on this direction where it
 prevents single-process assumptions:
@@ -478,8 +584,9 @@ prevents single-process assumptions:
 - keep logs, health, and diagnostics shaped so a worker or agent can produce
   them later
 
-Do not build clustered scheduling, remote agents, or multi-region routing for
-the MVP unless a release-gating sample requires them.
+Do not build clustered scheduling, multi-host replica placement, regions,
+data-center topology, cross-host networking, gateway routing, or multi-region
+routing for the MVP unless a release-gating sample requires them.
 
 ## Non-Goals
 
