@@ -63,6 +63,13 @@ on `git blame --follow`, and then by the broad type of change.
   diagnostics.
 - Expanded the cross-platform support tracker with the MVP support contract and
   the next host-runtime abstraction queue.
+- Moved host tool availability into shared Resource Manager abstractions and
+  added a shared container-host command platform for Docker-compatible provider
+  runtimes.
+- Routed local Docker container, SQL Server, and RabbitMQ Docker command
+  runners through the shared command platform so Docker/Podman executable
+  selection, environment setup, and missing-runtime diagnostics are
+  deterministic before process invocation.
 
 ### 2026-07-11
 

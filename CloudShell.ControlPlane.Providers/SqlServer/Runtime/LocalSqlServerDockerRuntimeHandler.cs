@@ -365,7 +365,7 @@ public interface ILocalSqlServerDockerCommandRunner
 }
 
 public sealed class ProcessLocalSqlServerDockerCommandRunner(
-    IEnumerable<IContainerHostProvider> containerHostProviders) : ILocalSqlServerDockerCommandRunner
+    IContainerHostCommandPlatform commandPlatform) : ILocalSqlServerDockerCommandRunner
 {
     public LocalSqlServerDockerCommandResult Run(
         IReadOnlyList<string> arguments,
@@ -380,19 +380,21 @@ public sealed class ProcessLocalSqlServerDockerCommandRunner(
         bool throwOnError = true,
         TimeSpan? commandTimeout = null)
     {
-        var host = containerHostProviders.FirstOrDefault()?.GetDefaultHost();
-        var startInfo = new ProcessStartInfo(ResolveExecutable(host))
+        var plan = commandPlatform.CreatePlan();
+        if (!plan.IsAvailable)
         {
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false
-        };
+            if (throwOnError)
+            {
+                throw new InvalidOperationException(plan.UnavailableReason);
+            }
 
-        ConfigureEnvironment(startInfo, host);
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
+            return new(
+                -1,
+                string.Empty,
+                plan.UnavailableReason ?? "Container runtime command is unavailable.");
         }
+
+        var startInfo = plan.CreateStartInfo(arguments);
 
         using var commandTimeoutSource = commandTimeout is { } timeout
             ? new CancellationTokenSource(timeout)
@@ -455,12 +457,6 @@ public sealed class ProcessLocalSqlServerDockerCommandRunner(
         }
     }
 
-    private static string ResolveExecutable(ContainerHostDescriptor? host) =>
-        host?.HostMetadata.TryGetValue("cloudshell.executable", out var executable) == true &&
-        !string.IsNullOrWhiteSpace(executable)
-            ? executable
-            : host?.Kind == ContainerHostKind.Podman ? "podman" : "docker";
-
     private static void KillProcessTree(Process process)
     {
         try
@@ -476,24 +472,6 @@ public sealed class ProcessLocalSqlServerDockerCommandRunner(
         }
     }
 
-    private static void ConfigureEnvironment(
-        ProcessStartInfo startInfo,
-        ContainerHostDescriptor? host)
-    {
-        if (host is null ||
-            string.IsNullOrWhiteSpace(host.Endpoint))
-        {
-            return;
-        }
-
-        if (host.Kind == ContainerHostKind.Podman)
-        {
-            startInfo.Environment["CONTAINER_HOST"] = host.Endpoint;
-            return;
-        }
-
-        startInfo.Environment["DOCKER_HOST"] = host.Endpoint;
-    }
 }
 
 public sealed record LocalSqlServerDockerCommandResult(

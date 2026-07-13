@@ -2,6 +2,7 @@ using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Globalization;
+using System.ComponentModel;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -157,6 +158,11 @@ public sealed class LocalDockerContainerRuntimeHandler(
             return DockerContainerRuntimeStatus.Unknown;
         }
 
+        if (result.ExitCode == LocalDockerContainerCommandResult.UnavailableExitCode)
+        {
+            return DockerContainerRuntimeStatus.Unknown;
+        }
+
         if (result.ExitCode != 0)
         {
             return DockerContainerRuntimeStatus.Stopped;
@@ -288,7 +294,7 @@ public interface ILocalDockerContainerCommandRunner
 }
 
 public sealed class ProcessLocalDockerContainerCommandRunner(
-    IEnumerable<IContainerHostProvider> containerHostProviders) : ILocalDockerContainerCommandRunner
+    IContainerHostCommandPlatform commandPlatform) : ILocalDockerContainerCommandRunner
 {
     public LocalDockerContainerCommandResult Run(
         IReadOnlyList<string> arguments,
@@ -304,19 +310,21 @@ public sealed class ProcessLocalDockerContainerCommandRunner(
         bool throwOnError = true,
         TimeSpan? timeout = null)
     {
-        var host = containerHostProviders.FirstOrDefault()?.GetDefaultHost();
-        var startInfo = new ProcessStartInfo(ResolveExecutable(host))
+        var plan = commandPlatform.CreatePlan();
+        if (!plan.IsAvailable)
         {
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false
-        };
+            if (throwOnError)
+            {
+                throw new InvalidOperationException(plan.UnavailableReason);
+            }
 
-        ConfigureEnvironment(startInfo, host);
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
+            return new(
+                LocalDockerContainerCommandResult.UnavailableExitCode,
+                string.Empty,
+                plan.UnavailableReason ?? "Container runtime command is unavailable.");
         }
+
+        var startInfo = plan.CreateStartInfo(arguments);
 
         using var timeoutCancellation = timeout is null
             ? null
@@ -327,66 +335,64 @@ public sealed class ProcessLocalDockerContainerCommandRunner(
                 cancellationToken,
                 timeoutCancellation.Token);
         var waitCancellationToken = linkedCancellation?.Token ?? cancellationToken;
-        using var process = Process.Start(startInfo) ??
-            throw new InvalidOperationException("Docker command could not be started.");
-        var outputTask = process.StandardOutput.ReadToEndAsync(waitCancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(waitCancellationToken);
         try
         {
+            using var process = Process.Start(startInfo) ??
+                throw new InvalidOperationException("Docker command could not be started.");
+            using var cancellationRegistration = waitCancellationToken.Register(
+                static state => KillProcessTree((Process)state!),
+                process);
+            var outputTask = process.StandardOutput.ReadToEndAsync(waitCancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(waitCancellationToken);
             await process.WaitForExitAsync(waitCancellationToken);
+            var result = new LocalDockerContainerCommandResult(
+                process.ExitCode,
+                await outputTask,
+                await errorTask);
+            if (throwOnError && result.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Docker command '{startInfo.FileName} {string.Join(' ', arguments)}' failed with exit code {result.ExitCode.ToString(CultureInfo.InvariantCulture)}: {result.Error}");
+            }
+
+            return result;
         }
         catch (OperationCanceledException) when (
             timeoutCancellation?.IsCancellationRequested == true &&
             !cancellationToken.IsCancellationRequested)
         {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync(CancellationToken.None);
-            }
-
             return new(
                 LocalDockerContainerCommandResult.TimeoutExitCode,
                 string.Empty,
                 $"Docker command '{startInfo.FileName} {string.Join(' ', arguments)}' timed out.");
         }
-
-        var result = new LocalDockerContainerCommandResult(
-            process.ExitCode,
-            await outputTask,
-            await errorTask);
-        if (throwOnError && result.ExitCode != 0)
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
         {
-            throw new InvalidOperationException(
-                $"Docker command '{startInfo.FileName} {string.Join(' ', arguments)}' failed with exit code {result.ExitCode.ToString(CultureInfo.InvariantCulture)}: {result.Error}");
-        }
+            if (throwOnError)
+            {
+                throw;
+            }
 
-        return result;
+            return new(
+                LocalDockerContainerCommandResult.UnavailableExitCode,
+                string.Empty,
+                exception.Message);
+        }
     }
 
-    private static string ResolveExecutable(ContainerHostDescriptor? host) =>
-        host?.HostMetadata.TryGetValue("cloudshell.executable", out var executable) == true &&
-        !string.IsNullOrWhiteSpace(executable)
-            ? executable
-            : host?.Kind == ContainerHostKind.Podman ? "podman" : "docker";
-
-    private static void ConfigureEnvironment(
-        ProcessStartInfo startInfo,
-        ContainerHostDescriptor? host)
+    private static void KillProcessTree(Process process)
     {
-        if (host is null ||
-            string.IsNullOrWhiteSpace(host.Endpoint))
+        try
         {
-            return;
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit((int)TimeSpan.FromSeconds(1).TotalMilliseconds);
+            }
         }
-
-        if (host.Kind == ContainerHostKind.Podman)
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
         {
-            startInfo.Environment["CONTAINER_HOST"] = host.Endpoint;
-            return;
         }
-
-        startInfo.Environment["DOCKER_HOST"] = host.Endpoint;
     }
 }
 
@@ -396,4 +402,6 @@ public sealed record LocalDockerContainerCommandResult(
     string Error)
 {
     public const int TimeoutExitCode = -1;
+
+    public const int UnavailableExitCode = -2;
 }

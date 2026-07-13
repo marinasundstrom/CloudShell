@@ -1,4 +1,4 @@
-namespace CloudShell.ControlPlane.ResourceManager.Networking;
+namespace CloudShell.Abstractions.ResourceManager;
 
 public interface IHostToolResolver
 {

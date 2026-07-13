@@ -162,6 +162,18 @@ For MVP, cross-platform support is accepted when:
 20. Added deterministic tests for Linux resolver-cache tool selection,
     missing-tool diagnostics, unsupported-host planning, and Linux distribution
     descriptor normalization.
+21. Moved host tool availability into the shared Resource Manager abstractions
+    so provider runtimes and host networking use the same capability contract.
+22. Added a shared container-host command platform for Docker-compatible
+    runtimes that resolves Docker, Podman, and host-configured executables.
+23. Centralized Docker/Podman process environment setup so Docker-compatible
+    hosts use `DOCKER_HOST` and Podman hosts use `CONTAINER_HOST`.
+24. Routed Docker container, SQL Server, and RabbitMQ local Docker command
+    runners through the shared command platform and stable unavailable
+    diagnostics before process invocation.
+25. Added deterministic provider-runtime tests for Docker/Podman executable
+    selection, custom executable diagnostics, and missing runtime command
+    behavior without requiring Docker or Podman locally.
 
 ### Active
 
@@ -174,6 +186,8 @@ For MVP, cross-platform support is accepted when:
 4. Audit remaining direct process invocations and path construction in
    provider-owned runtime code, starting with Docker, Podman, and executable
    tool prerequisites.
+5. Move the larger local Docker container-application bridge to the shared
+   container-host command platform without changing its orchestration behavior.
 
 ### Next
 
@@ -194,6 +208,9 @@ For MVP, cross-platform support is accepted when:
 6. Add a provider prerequisite-check pattern for Docker/Podman/runtime-backed
    providers so missing host tools produce stable unavailable reasons before
    command execution.
+7. Add container-app runtime tests for missing Docker/Podman prerequisites and
+   custom executable metadata before promoting additional Docker integration
+   tests into the CI smoke subset.
 
 ### Deferred
 

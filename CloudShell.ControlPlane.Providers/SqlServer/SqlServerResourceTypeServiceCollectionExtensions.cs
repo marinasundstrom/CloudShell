@@ -107,6 +107,7 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
             services.Configure(configure);
         }
 
+        services.AddContainerHostCommandPlatform();
         services.TryAddSingleton<
             ILocalSqlServerDockerCommandRunner,
             ProcessLocalSqlServerDockerCommandRunner>();

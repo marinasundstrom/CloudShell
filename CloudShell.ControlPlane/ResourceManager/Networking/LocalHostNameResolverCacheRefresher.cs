@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager.Networking;
 
