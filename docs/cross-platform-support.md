@@ -30,10 +30,11 @@ Automated verification starts with a GitHub Actions matrix over:
 - `macos-latest`
 
 The baseline job checks committed patch whitespace, restores the solution,
-builds it, and runs non-integration tests with `Category!=Integration`.
-Docker-dependent and executable-backed smoke tests remain explicit jobs so a
-missing runtime prerequisite is reported as an environment issue rather than a
-product regression.
+builds it, and runs non-integration tests with
+`Category!=Integration&Category!=DockerIntegration`. Docker-dependent and
+executable-backed smoke tests remain explicit jobs so a missing runtime
+prerequisite is reported as an environment issue rather than a product
+regression.
 
 Local development on macOS remains useful for fast iteration, but a change is
 not cross-platform-ready until CI covers the relevant tier.
@@ -93,6 +94,9 @@ not cross-platform-ready until CI covers the relevant tier.
 14. Added sample-level C# launcher template smoke coverage for lightweight
     AppHost samples so emitted templates are applied in memory without shell
     scripts, host startup, or runtime processes.
+15. Split Docker-backed sample smoke coverage into an explicit Ubuntu Docker
+    integration job with Docker daemon, Compose, and image-pull prerequisite
+    checks before running `Category=DockerIntegration` tests.
 
 ### Active
 
@@ -111,8 +115,8 @@ not cross-platform-ready until CI covers the relevant tier.
    overrides.
 2. Broaden launcher smoke coverage to non-C# launcher entry points where
    language toolchains are available without shell scripts.
-3. Split Docker-backed sample smoke coverage into explicit Linux Docker CI and
-   prerequisite-reporting diagnostics for unavailable Docker daemons.
+3. Use the Linux Docker CI job as the first Tier 3 regression gate and improve
+   provider/runtime unavailable diagnostics where failures are still generic.
 4. Review host networking providers and document which operations are portable,
    macOS-specific, Linux-specific, or Windows-specific.
 5. Add Resource Manager diagnostics for unsupported host/network/runtime

@@ -66,7 +66,7 @@ belongs in `CHANGELOG.md`.
    Exclude executable-backed integration tests from routine local runs with:
 
    ```bash
-   dotnet test CloudShell.slnx --filter "Category!=Integration"
+   dotnet test CloudShell.slnx --filter "Category!=Integration&Category!=DockerIntegration"
    ```
 
    Run Docker-dependent integration tests explicitly with:

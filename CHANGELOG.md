@@ -50,6 +50,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added sample-level C# launcher template smoke coverage that runs lightweight
   AppHost projects in template mode and applies the emitted templates in
   memory without shell scripts or runtime startup.
+- Split Docker-backed sample smoke coverage into an explicit Ubuntu Docker
+  integration CI job with Docker daemon, Compose, and image-pull prerequisite
+  checks before running `Category=DockerIntegration` tests.
 
 ### 2026-07-11
 
