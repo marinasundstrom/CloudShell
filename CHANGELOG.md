@@ -25,6 +25,8 @@ on `git blame --follow`, and then by the broad type of change.
   wrapper selection without requiring those operating systems locally.
 - Added deterministic JavaScript app command tests for Windows `npm.cmd` and
   Unix `npm` executable selection.
+- Added deterministic Go app command tests for relative, Unix-rooted, and
+  Windows-rooted binary path resolution.
 
 ### 2026-07-11
 
