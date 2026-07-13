@@ -57,6 +57,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a testable host OS descriptor for the macOS host networking provider so
   unsupported-platform behavior reports a stable unavailable reason on non-macOS
   hosts.
+- Added a host tool resolver and resolver-cache refresh planner so local DNS
+  cache refresh commands are selected by host OS and available tools before
+  process invocation, with stable Linux missing-tool and unsupported-platform
+  diagnostics.
+- Expanded the cross-platform support tracker with the MVP support contract and
+  the next host-runtime abstraction queue.
 
 ### 2026-07-11
 

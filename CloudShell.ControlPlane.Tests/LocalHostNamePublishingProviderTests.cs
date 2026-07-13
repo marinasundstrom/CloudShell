@@ -256,6 +256,62 @@ public sealed class LocalHostNamePublishingProviderTests
     }
 
     [Fact]
+    public void ResolverCacheRefreshPlanner_SelectsOnlyAvailableLinuxTools()
+    {
+        var planner = new LocalHostNameResolverCacheRefreshCommandPlanner(
+            new HostOperatingSystem(HostOperatingSystemKind.Linux, "ubuntu"),
+            new TestHostToolResolver("nscd"));
+
+        var plan = planner.CreatePlan();
+
+        var command = Assert.Single(plan.Commands);
+        Assert.Equal("nscd", command.FileName);
+        Assert.Equal(new[] { "-i", "hosts" }, command.Arguments);
+        Assert.Equal(string.Empty, plan.UnavailableReason);
+    }
+
+    [Fact]
+    public async Task ResolverCacheRefresher_DoesNotRunWhenNoPlatformToolAvailable()
+    {
+        var runner = new TestResolverCacheRefreshCommandRunner(failCount: 0);
+        var planner = new LocalHostNameResolverCacheRefreshCommandPlanner(
+            new HostOperatingSystem(HostOperatingSystemKind.Linux, "ubuntu"),
+            new TestHostToolResolver());
+        var refresher = new LocalHostNameResolverCacheRefresher(runner, planner);
+
+        var result = await refresher.RefreshAsync();
+
+        Assert.False(result.Attempted);
+        Assert.False(result.Succeeded);
+        Assert.Empty(runner.Commands);
+        Assert.Contains("no supported Linux resolver cache tool", result.Message);
+        Assert.Contains("resolvectl", result.Message);
+    }
+
+    [Fact]
+    public void ResolverCacheRefreshPlanner_ReportsUnsupportedPlatform()
+    {
+        var planner = new LocalHostNameResolverCacheRefreshCommandPlanner(
+            new HostOperatingSystem(HostOperatingSystemKind.Unknown),
+            new TestHostToolResolver("ipconfig"));
+
+        var plan = planner.CreatePlan();
+
+        Assert.Empty(plan.Commands);
+        Assert.Contains("operating system has no configured refresh command", plan.UnavailableReason);
+    }
+
+    [Fact]
+    public void HostOperatingSystem_NormalizesLinuxDistributionId()
+    {
+        var operatingSystem = new HostOperatingSystem(HostOperatingSystemKind.Linux, " Ubuntu ");
+
+        Assert.True(operatingSystem.IsLinux);
+        Assert.Equal("ubuntu", operatingSystem.LinuxDistributionId);
+        Assert.Equal("linux/ubuntu", operatingSystem.DisplayName);
+    }
+
+    [Fact]
     public async Task ReconcileAsync_RejectsWildcardHostMappings()
     {
         var contentRoot = CreateTempDirectory();
@@ -399,6 +455,15 @@ public sealed class LocalHostNamePublishingProviderTests
                 ? LocalHostNameResolverCacheRefreshCommandResult.Failed($"`{command.DisplayName}` failed.")
                 : LocalHostNameResolverCacheRefreshCommandResult.Success($"`{command.DisplayName}` succeeded."));
         }
+    }
+
+    private sealed class TestHostToolResolver(params string[] availableToolNames) : IHostToolResolver
+    {
+        private readonly HashSet<string> availableTools = new(
+            availableToolNames,
+            StringComparer.OrdinalIgnoreCase);
+
+        public bool IsAvailable(string fileName) => availableTools.Contains(fileName);
     }
 
     private sealed class TestResourceManagerStore(IReadOnlyList<Resource> resources) : IResourceManagerStore

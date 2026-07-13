@@ -66,10 +66,34 @@ host. Linux distribution and installed-tool differences should be expressed as
 capabilities and provider availability, not as broad assumptions that all Linux
 hosts behave the same way.
 
+## MVP Support Contract
+
+The MVP target is not feature parity across every host mutation. It is a
+portable Resource Manager and launcher baseline that can run on macOS, Linux,
+and Windows while reporting clear unavailable reasons for host-specific
+operations.
+
+For MVP, cross-platform support is accepted when:
+
+1. Tier 0 restore, build, and non-integration tests are green on macOS, Linux,
+   and Windows.
+2. CLI and launcher command construction uses injected platform/path/command
+   descriptors instead of relying on the development host.
+3. Host-affecting Resource Manager behavior resolves small platform services
+   for OS, path target, tool availability, and command planning.
+4. Privileged networking operations either execute through a provider-specific
+   plan or return stable diagnostics without mutating host state.
+5. Linux behavior is capability-driven. Distribution and installed-tool
+   differences are detected through focused services such as tool resolvers,
+   not through a single "Linux means X" branch.
+6. Docker-backed sample smoke coverage has a deterministic Linux CI subset,
+   while heavier runtime suites remain explicit manual or later-stage gates.
+
 ## Current Known Gaps
 
-- There was no repository CI workflow before this tracking work, so failures on
-  Linux and Windows are expected until the new matrix has been exercised.
+- CI now verifies the Tier 0 matrix on macOS, Linux, and Windows, but
+  provider-owned runtime coverage is still uneven outside the current Linux
+  Docker smoke subset.
 - Several sample entry points still include `.sh` helper scripts. Launcher
   projects should own the normal cross-platform run path; shell scripts should
   remain convenience wrappers only.
@@ -128,6 +152,16 @@ hosts behave the same way.
 16. Moved macOS host-network provider support checks behind an injectable host
     OS descriptor and added deterministic tests for unsupported-platform
     diagnostics without requiring Linux or Windows locally.
+17. Expanded the host OS descriptor to include a platform kind and optional
+    Linux distribution ID for capability-specific planning.
+18. Added a host tool resolver abstraction and a resolver-cache refresh planner
+    so macOS, Windows, and Linux DNS refresh commands are selected by available
+    tools before process invocation.
+19. Moved Control Plane local hosts-file target selection behind the injected
+    host OS descriptor.
+20. Added deterministic tests for Linux resolver-cache tool selection,
+    missing-tool diagnostics, unsupported-host planning, and Linux distribution
+    descriptor normalization.
 
 ### Active
 
@@ -137,6 +171,9 @@ hosts behave the same way.
    where the behavior can be unit-tested from any development host.
 3. Continue the same testability pattern for remaining command factories and
    runtime prerequisites.
+4. Audit remaining direct process invocations and path construction in
+   provider-owned runtime code, starting with Docker, Podman, and executable
+   tool prerequisites.
 
 ### Next
 
@@ -154,6 +191,9 @@ hosts behave the same way.
    operations are portable, macOS-specific, Linux-specific, or Windows-specific.
 5. Add Resource Manager diagnostics for unsupported host/network/runtime
    operations before dispatch.
+6. Add a provider prerequisite-check pattern for Docker/Podman/runtime-backed
+   providers so missing host tools produce stable unavailable reasons before
+   command execution.
 
 ### Deferred
 
