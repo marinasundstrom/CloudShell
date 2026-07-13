@@ -1367,7 +1367,7 @@ public sealed class InProcessControlPlane(
         CloudShellNotificationStatus status)
     {
         if (string.IsNullOrWhiteSpace(resourceId) ||
-            status == CloudShellNotificationStatus.InProgress)
+            status is not (CloudShellNotificationStatus.Failed or CloudShellNotificationStatus.NeedsAttention))
         {
             return null;
         }

@@ -3783,22 +3783,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal("templateApply", notification.Attributes!["operationKind"]);
         Assert.Equal("CreateOrUpdate", notification.Attributes!["applyMode"]);
         Assert.Equal("1", notification.Attributes!["resourceCount"]);
-        Assert.NotNull(notification.Actions);
-        var actions = notification.Actions;
-        Assert.Collection(
-            actions,
-            action =>
-            {
-                Assert.Equal("open-resource", action.Id);
-                Assert.Equal("/resources/application.dotnet-app%3Aapi", action.Target!.Href);
-                Assert.True(action.IsPrimary);
-            },
-            action =>
-            {
-                Assert.Equal("view-activity", action.Id);
-                Assert.Equal("/resources/application.dotnet-app%3Aapi/activity", action.Target!.Href);
-                Assert.False(action.IsPrimary);
-            });
+        Assert.Null(notification.Actions);
         Assert.Equal(
             [
                 CloudShellNotificationChangeKind.Created,
@@ -3873,6 +3858,43 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Null(notification.Actions);
         Assert.Equal("templateApply", notification.Attributes!["operationKind"]);
         Assert.Equal("local", notification.Attributes!["templateName"]);
+    }
+
+    [Fact]
+    public async Task ApplyResourceTemplateAsync_AddsActionsForRejectedExistingResourceApply()
+    {
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("application.dotnet-app:api", ResourceState.Stopped)],
+            notifications: notifications,
+            allowLocalPathResourceDefinitions: false);
+
+        var result = await controlPlane.ApplyResourceTemplateAsync(
+            CreateDotnetAppTemplate(
+                new Dictionary<GraphResourceAttributeId, GraphResourceAttributeValue>
+                {
+                    [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/API/API.csproj"
+                }));
+
+        Assert.False(result.IsCommitted);
+        var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "user")));
+        Assert.Equal(CloudShellNotificationStatus.Failed, notification.Status);
+        Assert.Equal("application.dotnet-app:api", notification.ResourceId);
+        Assert.Collection(
+            notification.Actions!,
+            action =>
+            {
+                Assert.Equal("open-resource", action.Id);
+                Assert.Equal("/resources/application.dotnet-app%3Aapi", action.Target!.Href);
+                Assert.True(action.IsPrimary);
+            },
+            action =>
+            {
+                Assert.Equal("view-activity", action.Id);
+                Assert.Equal("/resources/application.dotnet-app%3Aapi/activity", action.Target!.Href);
+                Assert.False(action.IsPrimary);
+            });
     }
 
     [Fact]
