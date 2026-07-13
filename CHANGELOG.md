@@ -30,6 +30,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed .NET app process command construction to use discrete `dotnet`
   argument-list entries so project and assembly paths do not depend on
   platform-specific command-line quoting.
+- Added deterministic CLI daemon start-info tests for Windows direct host
+  launches and Unix detached shell launches without starting a Control Plane.
 
 ### 2026-07-11
 

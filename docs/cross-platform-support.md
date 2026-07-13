@@ -74,6 +74,8 @@ not cross-platform-ready until CI covers the relevant tier.
    resolution tests for relative, Unix-rooted, and Windows-rooted paths.
 7. Changed .NET app command construction to use discrete `dotnet`
    `ArgumentList` values and added path-with-spaces coverage.
+8. Added testable CLI Control Plane daemon start-info construction for Windows
+   direct launch and Unix detached shell launch.
 
 ### Active
 
@@ -81,8 +83,8 @@ not cross-platform-ready until CI covers the relevant tier.
    implementation tasks.
 2. Move more direct OS checks behind small injectable platform descriptors where
    the behavior can be unit-tested from any development host.
-3. Continue the same testability pattern for daemon startup, remaining command factories,
-   and runtime prerequisites.
+3. Continue the same testability pattern for remaining command factories and
+   runtime prerequisites.
 
 ### Next
 
