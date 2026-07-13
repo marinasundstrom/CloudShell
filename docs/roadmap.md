@@ -235,9 +235,13 @@ Future on-premise scale-out should allow multiple Control Plane API replicas
 while coordinating singleton duties through a primary controller lease and
 moving eligible subsystems, such as log readers, telemetry ingestion, health
 polling, notification fan-out, and provider reconciliation, into independent
-workers. This is important platform direction, but it should not displace the
-current local-development MVP stabilization unless a new subsystem would
-otherwise bake in single-process assumptions.
+workers. The broader direction also includes CloudShell agents for scaling
+CloudShell-managed services across hosts, regions, and provider-specific
+runtime boundaries; see
+[CloudShell agents and clustering](future/agents-and-clustering.md). This is
+important platform direction, but it should not displace the current
+local-development MVP stabilization unless a new subsystem would otherwise
+bake in single-process assumptions.
 
 The main stabilization lens is now the UI foundation that the MVP already
 uses. The priority is to make shell chrome, Resource Manager pages, resource
