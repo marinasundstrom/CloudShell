@@ -35,6 +35,43 @@ public sealed class ExecutableApplicationProcessRuntimeControllerTests
     }
 
     [Fact]
+    public void CreateStartInfo_PreservesExecutablePathWithSpaces()
+    {
+        var resource = CreateResource(
+            "/repo/tools/My Tool/run-app",
+            new ExecutableApplicationConfiguration(
+                "/repo/tools/My Tool/run-app",
+                "--config appsettings.Development.json",
+                "/repo/tools/My Tool"));
+
+        var startInfo = CreateStartInfo(
+            resource,
+            "/repo/tools/My Tool/run-app",
+            resource.Attributes.GetObject<ExecutableApplicationConfiguration>(
+                ExecutableApplicationResourceTypeProvider.Attributes.Command));
+
+        Assert.Equal("/repo/tools/My Tool/run-app", startInfo.FileName);
+        Assert.Equal("--config appsettings.Development.json", startInfo.Arguments);
+        Assert.Equal("/repo/tools/My Tool", startInfo.WorkingDirectory);
+        Assert.False(startInfo.UseShellExecute);
+        Assert.True(startInfo.RedirectStandardOutput);
+        Assert.True(startInfo.RedirectStandardError);
+    }
+
+    [Fact]
+    public void CreateStartInfo_UsesEmptyArgumentsWhenNotConfigured()
+    {
+        var resource = CreateResource("/repo/tools/api");
+
+        var startInfo = CreateStartInfo(resource, "/repo/tools/api", configuration: null);
+
+        Assert.Equal("/repo/tools/api", startInfo.FileName);
+        Assert.Equal(string.Empty, startInfo.Arguments);
+        Assert.Equal(string.Empty, startInfo.WorkingDirectory);
+        Assert.False(startInfo.UseShellExecute);
+    }
+
+    [Fact]
     public async Task StartAsync_ReturnsDiagnosticWhenExecutablePathIsMissing()
     {
         var resource = CreateResource("");

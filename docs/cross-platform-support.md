@@ -76,6 +76,8 @@ not cross-platform-ready until CI covers the relevant tier.
    `ArgumentList` values and added path-with-spaces coverage.
 8. Added testable CLI Control Plane daemon start-info construction for Windows
    direct launch and Unix detached shell launch.
+9. Added executable app command tests for path-with-spaces and empty-argument
+   startup behavior.
 
 ### Active
 
@@ -88,8 +90,8 @@ not cross-platform-ready until CI covers the relevant tier.
 
 ### Next
 
-1. Add command-construction tests for Python and
-   executable app providers covering Windows and Unix quoting/path behavior.
+1. Decide whether Python app local runs should keep the documented `python3`
+   default on every OS or select a Windows-friendly default command.
 2. Add launcher smoke tests that emit templates and apply them to a test
    Control Plane without relying on shell scripts.
 3. Split Docker-backed sample smoke coverage into explicit Linux Docker CI and

@@ -32,6 +32,8 @@ on `git blame --follow`, and then by the broad type of change.
   platform-specific command-line quoting.
 - Added deterministic CLI daemon start-info tests for Windows direct host
   launches and Unix detached shell launches without starting a Control Plane.
+- Added executable app process command tests for executable paths with spaces
+  and empty argument defaults.
 
 ### 2026-07-11
 
