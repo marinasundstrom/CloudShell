@@ -43,7 +43,7 @@ public sealed class LocalDockerContainerApplicationReplicaSlotMaterializationPro
                     "container",
                     "inspect",
                     "--format",
-                    "{{.State.Status}}\t{{ index .Config.Labels \"cloudshell.replica-group-id\" }}",
+                    "{{.State.Status}}",
                     containerName
                 ],
                 cancellationToken,
@@ -54,12 +54,7 @@ public sealed class LocalDockerContainerApplicationReplicaSlotMaterializationPro
                 continue;
             }
 
-            var parts = result.Output
-                .Trim()
-                .Split('\t', StringSplitOptions.TrimEntries);
-            if (parts.Length >= 2 &&
-                string.Equals(parts[0], RunningStatus, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(parts[1], replicaGroup.Id, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(result.Output.Trim(), RunningStatus, StringComparison.OrdinalIgnoreCase))
             {
                 slots.Add(slot.Ordinal);
             }
