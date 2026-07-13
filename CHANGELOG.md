@@ -13,6 +13,15 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-13
+
+#### Changed
+
+- Added the cross-platform support tracker and CI verification baseline for
+  macOS, Linux, and Windows restore/build/non-integration test coverage.
+- Started hardening CLI host-affecting behavior by making host-name mapping
+  default path selection testable through an injectable platform descriptor.
+
 ### 2026-07-11
 
 #### Changed

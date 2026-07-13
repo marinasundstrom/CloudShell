@@ -5,6 +5,45 @@ namespace CloudShell.Cli.Tests;
 public sealed class HostNameMappingsTests
 {
     [Fact]
+    public void PlanAdd_UsesUnixHostsFileWhenNoOverride()
+    {
+        var mappings = new HostNameMappings(
+            new HostNameMappingPlatform(IsWindows: false, SystemDirectory: null));
+
+        var plan = mappings.PlanAdd("api.local.test", "127.0.0.1", hostsFile: null);
+
+        Assert.Equal("/etc/hosts", plan.HostsFile);
+    }
+
+    [Fact]
+    public void PlanAdd_UsesWindowsHostsFileWhenNoOverride()
+    {
+        var systemDirectory = Path.Combine("C:", "Windows", "System32");
+        var mappings = new HostNameMappings(
+            new HostNameMappingPlatform(IsWindows: true, systemDirectory));
+
+        var plan = mappings.PlanAdd("api.local.test", "127.0.0.1", hostsFile: null);
+
+        Assert.Equal(
+            Path.Combine(systemDirectory, "drivers", "etc", "hosts"),
+            plan.HostsFile);
+    }
+
+    [Fact]
+    public void PlanAdd_RequiresWindowsSystemDirectoryWhenNoOverride()
+    {
+        var mappings = new HostNameMappings(
+            new HostNameMappingPlatform(IsWindows: true, SystemDirectory: null));
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            mappings.PlanAdd("api.local.test", "127.0.0.1", hostsFile: null));
+
+        Assert.Equal(
+            "The Windows system directory could not be resolved.",
+            exception.Message);
+    }
+
+    [Fact]
     public async Task ApplyAsync_AddsAndRemovesCloudShellManagedHostName()
     {
         var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());

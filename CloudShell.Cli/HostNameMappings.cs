@@ -6,6 +6,17 @@ internal sealed class HostNameMappings
 {
     private const string BeginMarker = "# BEGIN CloudShell local hostnames";
     private const string EndMarker = "# END CloudShell local hostnames";
+    private readonly HostNameMappingPlatform _platform;
+
+    public HostNameMappings()
+        : this(HostNameMappingPlatform.Current)
+    {
+    }
+
+    internal HostNameMappings(HostNameMappingPlatform platform)
+    {
+        _platform = platform;
+    }
 
     public HostNameMappingPlan PlanAdd(string hostName, string address, string? hostsFile)
     {
@@ -156,20 +167,14 @@ internal sealed class HostNameMappings
             .ToArray();
     }
 
-    private static string ResolveHostsFile(string? hostsFile)
+    private string ResolveHostsFile(string? hostsFile)
     {
         if (!string.IsNullOrWhiteSpace(hostsFile))
         {
             return Path.GetFullPath(hostsFile);
         }
 
-        if (OperatingSystem.IsWindows())
-        {
-            var system = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            return Path.Combine(system, "drivers", "etc", "hosts");
-        }
-
-        return "/etc/hosts";
+        return _platform.GetDefaultHostsFile();
     }
 
     private static string NormalizeHostName(string hostName)
@@ -203,6 +208,30 @@ internal sealed record HostNameMappingPlan(
     string HostName,
     string? Address,
     bool Add);
+
+internal sealed record HostNameMappingPlatform(bool IsWindows, string? SystemDirectory)
+{
+    public static HostNameMappingPlatform Current =>
+        new(
+            OperatingSystem.IsWindows(),
+            Environment.GetFolderPath(Environment.SpecialFolder.System));
+
+    public string GetDefaultHostsFile()
+    {
+        if (!IsWindows)
+        {
+            return "/etc/hosts";
+        }
+
+        if (string.IsNullOrWhiteSpace(SystemDirectory))
+        {
+            throw new InvalidOperationException(
+                "The Windows system directory could not be resolved.");
+        }
+
+        return Path.Combine(SystemDirectory, "drivers", "etc", "hosts");
+    }
+}
 
 internal static class EnumerableExtensions
 {

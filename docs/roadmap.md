@@ -26,6 +26,7 @@ Useful references:
 - [Control Plane API](control-plane-api.md)
 - [CloudShell and Aspire](cloudshell-and-aspire.md)
 - [CloudShell CLI](cli.md)
+- [Cross-platform support](cross-platform-support.md)
 - [Resource Monitoring and Usage](monitoring-and-usage.md)
 - [Orchestration and Deployments](orchestration-and-deployments.md)
 - [Container Hosts](resources/container-hosts.md)
@@ -52,7 +53,8 @@ app-development loop before broader platform expansion.
 | 5 | Container app orchestration and runtime diagnostics | Container apps are the hardest proof of the resource/runtime boundary. | Consolidate first start, image update, replica-slot reconciliation, routing rebinding, cleanup, and readable failure diagnostics only where current samples expose them. |
 | 6 | ResourceDefinition apply/export convergence | The old provider path has mostly been retired; remaining compatibility should be explicit. | Remove or document remaining obsolete template/runtime bridges where graph-backed providers can round-trip definitions. |
 | 7 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool, but launchers, deployment artifact loading, and assistant drafting should not distract from MVP stabilization. | Keep CLI, launcher/profile, TypeScript/JavaScript, Java, SDK, deployment artifacts, and future intent-first authoring aligned with the same ResourceDefinition and Control Plane boundary; defer packaging polish and generated-draft workflows that do not improve supported local runs. |
-| 8 | CoreShell, UI composition, and shell structure | Useful only when it reduces current Resource Manager, Settings, notification, or shell drift. | Use the CoreShell Fluent UI sample as the reference shell and extract only proven common shell building blocks; pause persistence, marketplace, and user-personalized shell-platform work. |
+| 8 | Cross-platform support baseline | CloudShell has been developed primarily on macOS, so Linux and Windows support need automated evidence before broader provider claims. | Maintain the cross-platform CI matrix, document support tiers, and harden CLI, launcher, app-runtime, container-host, and host-networking behavior through capability-driven tests and diagnostics. |
+| 9 | CoreShell, UI composition, and shell structure | Useful only when it reduces current Resource Manager, Settings, notification, or shell drift. | Use the CoreShell Fluent UI sample as the reference shell and extract only proven common shell building blocks; pause persistence, marketplace, and user-personalized shell-platform work. |
 
 ## Authoritative Milestones
 
