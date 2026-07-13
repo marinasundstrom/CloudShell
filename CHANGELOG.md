@@ -27,6 +27,9 @@ on `git blame --follow`, and then by the broad type of change.
   Unix `npm` executable selection.
 - Added deterministic Go app command tests for relative, Unix-rooted, and
   Windows-rooted binary path resolution.
+- Changed .NET app process command construction to use discrete `dotnet`
+  argument-list entries so project and assembly paths do not depend on
+  platform-specific command-line quoting.
 
 ### 2026-07-11
 

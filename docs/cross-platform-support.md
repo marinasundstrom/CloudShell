@@ -72,6 +72,8 @@ not cross-platform-ready until CI covers the relevant tier.
    executable selection tests for Windows and Unix behavior.
 6. Added a Go app command-platform seam and deterministic binary-path
    resolution tests for relative, Unix-rooted, and Windows-rooted paths.
+7. Changed .NET app command construction to use discrete `dotnet`
+   `ArgumentList` values and added path-with-spaces coverage.
 
 ### Active
 
@@ -84,7 +86,7 @@ not cross-platform-ready until CI covers the relevant tier.
 
 ### Next
 
-1. Add command-construction tests for .NET, Python, and
+1. Add command-construction tests for Python and
    executable app providers covering Windows and Unix quoting/path behavior.
 2. Add launcher smoke tests that emit templates and apply them to a test
    Control Plane without relying on shell scripts.

@@ -25,8 +25,8 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
 
         Assert.Equal("dotnet", command.FileName);
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" --no-build --no-launch-profile -- --urls http://localhost:5229",
-            command.Arguments);
+            ["run", "--project", "/repo/src/Api/Api.csproj", "--no-build", "--no-launch-profile", "--", "--urls", "http://localhost:5229"],
+            command.ArgumentList.ToArray());
         Assert.Equal("/repo/src/Api", command.WorkingDirectory);
         Assert.False(command.UseShellExecute);
         Assert.True(command.RedirectStandardOutput);
@@ -46,8 +46,8 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "watch --non-interactive --project \"/repo/src/Api/Api.csproj\" run --no-launch-profile",
-            command.Arguments);
+            ["watch", "--non-interactive", "--project", "/repo/src/Api/Api.csproj", "run", "--no-launch-profile"],
+            command.ArgumentList.ToArray());
         Assert.Equal(
             "true",
             command.Environment[AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit]);
@@ -73,8 +73,25 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" --no-build --no-launch-profile -- --urls http://127.0.0.1:5229",
-            command.Arguments);
+            ["run", "--project", "/repo/src/Api/Api.csproj", "--no-build", "--no-launch-profile", "--", "--urls", "http://127.0.0.1:5229"],
+            command.ArgumentList.ToArray());
+    }
+
+    [Fact]
+    public void CommandFactory_PreservesProjectPathWithSpacesAsSingleArgument()
+    {
+        var resource = CreateResource(
+            "src/My Api/Api.csproj",
+            hotReload: false,
+            useLaunchSettings: false);
+
+        var command = new AspNetCoreProjectProcessCommandFactory()
+            .CreateStartInfo(resource, "/repo/src/My Api/Api.csproj");
+
+        Assert.Equal(
+            ["run", "--project", "/repo/src/My Api/Api.csproj", "--no-build", "--no-launch-profile"],
+            command.ArgumentList.ToArray());
+        Assert.Equal("/repo/src/My Api", command.WorkingDirectory);
     }
 
     [Fact]
@@ -380,8 +397,8 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" --no-build --no-launch-profile -- --urls http://localhost:5010",
-            command.Arguments);
+            ["run", "--project", "/repo/src/Api/Api.csproj", "--no-build", "--no-launch-profile", "--", "--urls", "http://localhost:5010"],
+            command.ArgumentList.ToArray());
     }
 
     [Fact]
@@ -396,7 +413,9 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreatePublishedOutputStartInfo(resource, "/repo/publish/Api.dll");
 
         Assert.Equal("dotnet", command.FileName);
-        Assert.Equal("\"/repo/publish/Api.dll\" --urls http://localhost:5229", command.Arguments);
+        Assert.Equal(
+            ["/repo/publish/Api.dll", "--urls", "http://localhost:5229"],
+            command.ArgumentList.ToArray());
         Assert.Equal("/repo/publish", command.WorkingDirectory);
         Assert.False(command.Environment.ContainsKey(AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit));
     }
@@ -414,7 +433,9 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateExecutableStartInfo(resource, "/repo/bin/Release/net11.0/Api.dll");
 
         Assert.Equal("dotnet", command.FileName);
-        Assert.Equal("\"/repo/bin/Release/net11.0/Api.dll\" --urls http://localhost:5229", command.Arguments);
+        Assert.Equal(
+            ["/repo/bin/Release/net11.0/Api.dll", "--urls", "http://localhost:5229"],
+            command.ArgumentList.ToArray());
         Assert.Equal("/repo/bin/Release/net11.0", command.WorkingDirectory);
         Assert.False(command.Environment.ContainsKey(AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit));
     }

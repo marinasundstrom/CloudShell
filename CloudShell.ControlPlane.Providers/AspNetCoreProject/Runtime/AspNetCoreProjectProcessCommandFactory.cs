@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -13,23 +12,28 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         ArgumentNullException.ThrowIfNull(resource);
         ArgumentException.ThrowIfNullOrWhiteSpace(fullProjectPath);
 
-        var arguments = new StringBuilder();
+        var startInfo = CreateBaseStartInfo(
+            "dotnet",
+            Path.GetDirectoryName(fullProjectPath) ?? Directory.GetCurrentDirectory());
         if (GetBoolean(
                 resource,
                 AspNetCoreProjectResourceTypeProvider.Attributes.HotReload,
                 defaultValue: true))
         {
-            arguments.Append("watch --non-interactive --project ");
-            arguments.Append(Quote(fullProjectPath));
-            arguments.Append(" run");
-            AppendLaunchSettings(arguments, resource);
+            startInfo.ArgumentList.Add("watch");
+            startInfo.ArgumentList.Add("--non-interactive");
+            startInfo.ArgumentList.Add("--project");
+            startInfo.ArgumentList.Add(fullProjectPath);
+            startInfo.ArgumentList.Add("run");
+            AppendLaunchSettings(startInfo, resource);
         }
         else
         {
-            arguments.Append("run --project ");
-            arguments.Append(Quote(fullProjectPath));
-            arguments.Append(" --no-build");
-            AppendLaunchSettings(arguments, resource);
+            startInfo.ArgumentList.Add("run");
+            startInfo.ArgumentList.Add("--project");
+            startInfo.ArgumentList.Add(fullProjectPath);
+            startInfo.ArgumentList.Add("--no-build");
+            AppendLaunchSettings(startInfo, resource);
         }
 
         var projectArguments = resource.Attributes.GetString(
@@ -39,18 +43,10 @@ public sealed class AspNetCoreProjectProcessCommandFactory
             : projectArguments;
         if (!string.IsNullOrWhiteSpace(projectArguments))
         {
-            arguments.Append(" -- ");
-            arguments.Append(projectArguments);
+            startInfo.ArgumentList.Add("--");
+            AddArguments(startInfo, projectArguments);
         }
 
-        var startInfo = new ProcessStartInfo("dotnet", arguments.ToString())
-        {
-            WorkingDirectory = Path.GetDirectoryName(fullProjectPath) ?? Directory.GetCurrentDirectory(),
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
         startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceId] =
             resource.EffectiveResourceId;
         startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceName] =
@@ -78,8 +74,10 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         ArgumentNullException.ThrowIfNull(resource);
         ArgumentException.ThrowIfNullOrWhiteSpace(applicationAssemblyPath);
 
-        var arguments = new StringBuilder();
-        arguments.Append(Quote(applicationAssemblyPath));
+        var startInfo = CreateBaseStartInfo(
+            "dotnet",
+            Path.GetDirectoryName(applicationAssemblyPath) ?? Directory.GetCurrentDirectory());
+        startInfo.ArgumentList.Add(applicationAssemblyPath);
 
         var projectArguments = resource.Attributes.GetString(
             AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments);
@@ -88,18 +86,9 @@ public sealed class AspNetCoreProjectProcessCommandFactory
             : projectArguments;
         if (!string.IsNullOrWhiteSpace(projectArguments))
         {
-            arguments.Append(' ');
-            arguments.Append(projectArguments);
+            AddArguments(startInfo, projectArguments);
         }
 
-        var startInfo = new ProcessStartInfo("dotnet", arguments.ToString())
-        {
-            WorkingDirectory = Path.GetDirectoryName(applicationAssemblyPath) ?? Directory.GetCurrentDirectory(),
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
         startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceId] =
             resource.EffectiveResourceId;
         startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceName] =
@@ -125,8 +114,20 @@ public sealed class AspNetCoreProjectProcessCommandFactory
             ? value
             : defaultValue;
 
+    private static ProcessStartInfo CreateBaseStartInfo(
+        string fileName,
+        string workingDirectory) =>
+        new(fileName)
+        {
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
     private static void AppendLaunchSettings(
-        StringBuilder arguments,
+        ProcessStartInfo startInfo,
         Resource resource)
     {
         if (!GetBoolean(
@@ -134,7 +135,7 @@ public sealed class AspNetCoreProjectProcessCommandFactory
                 AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings,
                 defaultValue: true))
         {
-            arguments.Append(" --no-launch-profile");
+            startInfo.ArgumentList.Add("--no-launch-profile");
         }
     }
 
@@ -214,6 +215,12 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         }
     }
 
-    private static string Quote(string value) =>
-        "\"" + value.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+    private static void AddArguments(ProcessStartInfo startInfo, string arguments)
+    {
+        foreach (var argument in arguments
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+    }
 }
