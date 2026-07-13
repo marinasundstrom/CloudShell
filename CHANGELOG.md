@@ -47,6 +47,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a C# launcher smoke test that writes a YAML ResourceTemplate,
   deserializes the emitted file, and applies it to an in-memory Resource Model
   Control Plane path without relying on shell scripts.
+- Added sample-level C# launcher template smoke coverage that runs lightweight
+  AppHost projects in template mode and applies the emitted templates in
+  memory without shell scripts or runtime startup.
 
 ### 2026-07-11
 

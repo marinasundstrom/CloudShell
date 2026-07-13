@@ -90,6 +90,9 @@ not cross-platform-ready until CI covers the relevant tier.
 13. Added a C# launcher smoke test that writes a YAML ResourceTemplate,
     deserializes the emitted file, and applies it through an in-memory Resource
     Model Control Plane path without invoking shell scripts.
+14. Added sample-level C# launcher template smoke coverage for lightweight
+    AppHost samples so emitted templates are applied in memory without shell
+    scripts, host startup, or runtime processes.
 
 ### Active
 
@@ -106,8 +109,8 @@ not cross-platform-ready until CI covers the relevant tier.
    default on every OS or select a Windows-friendly default command. The
    current seam and tests preserve `python3` while allowing explicit `py`
    overrides.
-2. Broaden launcher smoke coverage beyond the C# launcher parity path to
-   sample-specific launcher entry points where they exist.
+2. Broaden launcher smoke coverage to non-C# launcher entry points where
+   language toolchains are available without shell scripts.
 3. Split Docker-backed sample smoke coverage into explicit Linux Docker CI and
    prerequisite-reporting diagnostics for unavailable Docker daemons.
 4. Review host networking providers and document which operations are portable,

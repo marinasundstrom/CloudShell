@@ -309,6 +309,29 @@ public sealed class SampleSmokeTests
         };
     }
 
+    public static IEnumerable<object[]> CSharpLauncherTemplateSampleProjects()
+    {
+        yield return new object[]
+        {
+            "samples/JavaScriptApp/AppHost/CloudShell.JavaScriptAppHost.csproj",
+            new[]
+            {
+                "configuration.store:javascript-app-settings",
+                "application.javascript-app:javascript-frontend"
+            }
+        };
+        yield return new object[]
+        {
+            "samples/CSharpAppHost/AppHost/CloudShell.CSharpAppHost.csproj",
+            new[]
+            {
+                "configuration.store:csharp-app-settings",
+                "secrets.vault:csharp-app-secrets",
+                "application.javascript-app:csharp-declared-frontend"
+            }
+        };
+    }
+
     [Theory]
     [MemberData(nameof(SupportedSwitchReadinessSampleHostProjects))]
     public async Task SupportedSwitchReadinessSampleHosts_StartAndRenderResources(
@@ -362,6 +385,43 @@ public sealed class SampleSmokeTests
         {
             host.Dispose();
             await CleanupSwitchReadinessRuntimeArtifactsAsync(projectPath);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(CSharpLauncherTemplateSampleProjects))]
+    public async Task CSharpLauncherSamples_EmitTemplatesThatApplyInMemory(
+        string projectPath,
+        string[] expectedResourceIds)
+    {
+        var document = await SampleProcess.RunCSharpLauncherTemplateAsync(projectPath);
+        var template = CloudShell.ResourceModel.ResourceTemplateSerializer.DeserializeTemplate(document);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddBuiltInResourceModelProviderTypes();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyTemplateAsync(
+                template,
+                new CloudShell.ResourceModel.ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 7, 13, 12, 30, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        var snapshot = await serviceProvider
+            .GetRequiredService<CloudShell.ResourceModel.ResourceGraphModel>()
+            .GetSnapshotAsync();
+        var resourceIds = snapshot.Resources
+            .Select(resource => resource.EffectiveResourceId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var expectedResourceId in expectedResourceIds)
+        {
+            Assert.Contains(expectedResourceId, resourceIds);
         }
     }
 
@@ -5991,6 +6051,72 @@ public sealed class SampleSmokeTests
             {
                 sample.Dispose();
                 throw;
+            }
+        }
+
+        public static async Task<string> RunCSharpLauncherTemplateAsync(
+            string projectPath,
+            IReadOnlyList<(string Key, string Value)>? environment = null)
+        {
+            var root = FindRepositoryRoot();
+            var launcherPath = Path.Combine(root, projectPath);
+            var output = new StringBuilder();
+            var error = new StringBuilder();
+            var startInfo = new ProcessStartInfo("dotnet")
+            {
+                WorkingDirectory = root,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            };
+            startInfo.ArgumentList.Add("run");
+            startInfo.ArgumentList.Add("--no-build");
+            startInfo.ArgumentList.Add("--project");
+            startInfo.ArgumentList.Add(launcherPath);
+            startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+
+            if (environment is not null)
+            {
+                foreach (var (key, value) in environment)
+                {
+                    startInfo.Environment[key] = value;
+                }
+            }
+
+            using var process = Process.Start(startInfo) ??
+                throw new InvalidOperationException($"Could not start sample launcher '{projectPath}'.");
+            var outputTask = CaptureAsync(process.StandardOutput, output);
+            var errorTask = CaptureAsync(process.StandardError, error);
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+            }
+            catch (TimeoutException)
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+
+                throw;
+            }
+
+            await Task.WhenAll(outputTask, errorTask);
+            if (process.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Sample launcher '{projectPath}' failed with exit code {process.ExitCode}." +
+                    $"{Environment.NewLine}{output}{error}");
+            }
+
+            return output.ToString();
+
+            static async Task CaptureAsync(StreamReader reader, StringBuilder builder)
+            {
+                while (await reader.ReadLineAsync() is { } line)
+                {
+                    builder.AppendLine(line);
+                }
             }
         }
 
