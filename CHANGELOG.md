@@ -44,6 +44,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added deterministic Python app command tests for the current `python3`
   default, explicit command overrides such as Windows `py`, script paths with
   spaces, and endpoint/environment precedence.
+- Added a C# launcher smoke test that writes a YAML ResourceTemplate,
+  deserializes the emitted file, and applies it to an in-memory Resource Model
+  Control Plane path without relying on shell scripts.
 
 ### 2026-07-11
 

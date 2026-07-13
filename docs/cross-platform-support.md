@@ -87,6 +87,9 @@ not cross-platform-ready until CI covers the relevant tier.
 12. Added a Python app command-platform seam and deterministic command tests
     for the current `python3` default, explicit Windows-friendly command
     overrides, script paths with spaces, and endpoint/environment precedence.
+13. Added a C# launcher smoke test that writes a YAML ResourceTemplate,
+    deserializes the emitted file, and applies it through an in-memory Resource
+    Model Control Plane path without invoking shell scripts.
 
 ### Active
 
@@ -103,8 +106,8 @@ not cross-platform-ready until CI covers the relevant tier.
    default on every OS or select a Windows-friendly default command. The
    current seam and tests preserve `python3` while allowing explicit `py`
    overrides.
-2. Add launcher smoke tests that emit templates and apply them to a test
-   Control Plane without relying on shell scripts.
+2. Broaden launcher smoke coverage beyond the C# launcher parity path to
+   sample-specific launcher entry points where they exist.
 3. Split Docker-backed sample smoke coverage into explicit Linux Docker CI and
    prerequisite-reporting diagnostics for unavailable Docker daemons.
 4. Review host networking providers and document which operations are portable,
