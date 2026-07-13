@@ -66,19 +66,21 @@ not cross-platform-ready until CI covers the relevant tier.
 2. Added a first injectable platform descriptor for CLI host-name mapping path
    selection.
 3. Added focused tests around Unix and Windows default hosts-file resolution.
+4. Added a Java app command-platform seam and deterministic Maven/Gradle
+   wrapper selection tests for Windows and Unix behavior.
 
 ### Active
 
 1. Exercise the new CI matrix and turn Linux or Windows failures into focused
    implementation tasks.
-2. Move more direct OS checks behind small injectable platform descriptors where the
-   behavior can be unit-tested from any development host.
-3. Continue the same testability pattern for daemon startup, command factories,
+2. Move more direct OS checks behind small injectable platform descriptors where
+   the behavior can be unit-tested from any development host.
+3. Continue the same testability pattern for daemon startup, remaining command factories,
    and runtime prerequisites.
 
 ### Next
 
-1. Add command-construction tests for .NET, JavaScript, Java, Go, Python, and
+1. Add command-construction tests for .NET, JavaScript, Go, Python, and
    executable app providers covering Windows and Unix quoting/path behavior.
 2. Add launcher smoke tests that emit templates and apply them to a test
    Control Plane without relying on shell scripts.

@@ -21,6 +21,8 @@ on `git blame --follow`, and then by the broad type of change.
   macOS, Linux, and Windows restore/build/non-integration test coverage.
 - Started hardening CLI host-affecting behavior by making host-name mapping
   default path selection testable through an injectable platform descriptor.
+- Added deterministic Java app build-command tests for Windows and Unix Maven
+  wrapper selection without requiring those operating systems locally.
 
 ### 2026-07-11
 
