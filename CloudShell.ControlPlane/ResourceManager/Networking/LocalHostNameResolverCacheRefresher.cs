@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager.Networking;
 
@@ -9,21 +10,40 @@ public interface ILocalHostNameResolverCacheRefresher
         CancellationToken cancellationToken = default);
 }
 
-public sealed class LocalHostNameResolverCacheRefresher(
-    ILocalHostNameResolverCacheRefreshCommandRunner? commandRunner = null) : ILocalHostNameResolverCacheRefresher
+public sealed class LocalHostNameResolverCacheRefresher : ILocalHostNameResolverCacheRefresher
 {
-    private readonly ILocalHostNameResolverCacheRefreshCommandRunner commandRunner =
-        commandRunner ?? new ProcessLocalHostNameResolverCacheRefreshCommandRunner();
+    private readonly ILocalHostNameResolverCacheRefreshCommandRunner commandRunner;
+    private readonly ILocalHostNameResolverCacheRefreshCommandPlanner commandPlanner;
+
+    public LocalHostNameResolverCacheRefresher(
+        ILocalHostNameResolverCacheRefreshCommandRunner? commandRunner = null,
+        ILocalHostNameResolverCacheRefreshCommandPlanner? commandPlanner = null)
+    {
+        this.commandRunner = commandRunner ?? new ProcessLocalHostNameResolverCacheRefreshCommandRunner();
+        this.commandPlanner = commandPlanner ??
+            new LocalHostNameResolverCacheRefreshCommandPlanner(
+                HostOperatingSystem.Current,
+                new PathHostToolResolver());
+    }
 
     public Task<LocalHostNameResolverRefreshResult> RefreshAsync(
-        CancellationToken cancellationToken = default) =>
-        RefreshAsync(GetCurrentPlatform(), cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var plan = commandPlanner.CreatePlan();
+        return plan.Commands.Count == 0
+            ? Task.FromResult(LocalHostNameResolverRefreshResult.NotAttempted(plan.UnavailableReason))
+            : RefreshAsync(plan.Commands, cancellationToken);
+    }
 
     public async Task<LocalHostNameResolverRefreshResult> RefreshAsync(
         LocalHostNameResolverRefreshPlatform platform,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await RefreshAsync(GetPlatformCommands(platform), cancellationToken).ConfigureAwait(false);
+
+    private async Task<LocalHostNameResolverRefreshResult> RefreshAsync(
+        IReadOnlyList<LocalHostNameResolverCacheRefreshCommand> commands,
+        CancellationToken cancellationToken)
     {
-        var commands = GetPlatformCommands(platform);
         if (commands.Count == 0)
         {
             return LocalHostNameResolverRefreshResult.NotAttempted(
@@ -68,26 +88,53 @@ public sealed class LocalHostNameResolverCacheRefresher(
             ],
             _ => []
         };
+}
 
-    private static LocalHostNameResolverRefreshPlatform GetCurrentPlatform()
+public interface ILocalHostNameResolverCacheRefreshCommandPlanner
+{
+    LocalHostNameResolverCacheRefreshPlan CreatePlan();
+}
+
+public sealed class LocalHostNameResolverCacheRefreshCommandPlanner(
+    HostOperatingSystem hostOperatingSystem,
+    IHostToolResolver toolResolver) : ILocalHostNameResolverCacheRefreshCommandPlanner
+{
+    public LocalHostNameResolverCacheRefreshPlan CreatePlan()
     {
-        if (OperatingSystem.IsMacOS())
+        var platform = GetPlatform(hostOperatingSystem);
+        var commands = LocalHostNameResolverCacheRefresher
+            .GetPlatformCommands(platform)
+            .Where(command => toolResolver.IsAvailable(command.FileName))
+            .ToArray();
+        if (commands.Length > 0)
         {
-            return LocalHostNameResolverRefreshPlatform.MacOS;
+            return LocalHostNameResolverCacheRefreshPlan.Available(commands);
         }
 
-        if (OperatingSystem.IsWindows())
-        {
-            return LocalHostNameResolverRefreshPlatform.Windows;
-        }
-
-        if (OperatingSystem.IsLinux())
-        {
-            return LocalHostNameResolverRefreshPlatform.Linux;
-        }
-
-        return LocalHostNameResolverRefreshPlatform.Unsupported;
+        return LocalHostNameResolverCacheRefreshPlan.Unavailable(GetUnavailableReason(platform));
     }
+
+    private static LocalHostNameResolverRefreshPlatform GetPlatform(HostOperatingSystem operatingSystem) =>
+        operatingSystem.Kind switch
+        {
+            HostOperatingSystemKind.MacOS => LocalHostNameResolverRefreshPlatform.MacOS,
+            HostOperatingSystemKind.Windows => LocalHostNameResolverRefreshPlatform.Windows,
+            HostOperatingSystemKind.Linux => LocalHostNameResolverRefreshPlatform.Linux,
+            _ => LocalHostNameResolverRefreshPlatform.Unsupported
+        };
+
+    private static string GetUnavailableReason(LocalHostNameResolverRefreshPlatform platform) =>
+        platform switch
+        {
+            LocalHostNameResolverRefreshPlatform.MacOS =>
+                "Resolver cache was not refreshed because no supported macOS resolver cache tool is available.",
+            LocalHostNameResolverRefreshPlatform.Windows =>
+                "Resolver cache was not refreshed because no supported Windows resolver cache tool is available.",
+            LocalHostNameResolverRefreshPlatform.Linux =>
+                "Resolver cache was not refreshed because no supported Linux resolver cache tool is available. Install resolvectl, systemd-resolve, or nscd, or disable resolver refresh.",
+            _ =>
+                "Resolver cache was not refreshed because this operating system has no configured refresh command."
+        };
 }
 
 public interface ILocalHostNameResolverCacheRefreshCommandRunner
@@ -164,6 +211,18 @@ public enum LocalHostNameResolverRefreshPlatform
     MacOS,
     Windows,
     Linux
+}
+
+public sealed record LocalHostNameResolverCacheRefreshPlan(
+    IReadOnlyList<LocalHostNameResolverCacheRefreshCommand> Commands,
+    string UnavailableReason)
+{
+    public static LocalHostNameResolverCacheRefreshPlan Available(
+        IReadOnlyList<LocalHostNameResolverCacheRefreshCommand> commands) =>
+        new(commands, string.Empty);
+
+    public static LocalHostNameResolverCacheRefreshPlan Unavailable(string reason) =>
+        new([], reason);
 }
 
 public sealed record LocalHostNameResolverCacheRefreshCommand(

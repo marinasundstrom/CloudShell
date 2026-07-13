@@ -2,8 +2,10 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using CloudShell.AppHost.Launcher;
 using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using CloudShell.ResourceModel;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.AppHost.Launcher.Tests;
 
@@ -265,6 +267,66 @@ public sealed class CloudShellDistributedApplicationTests
         Assert.True(File.Exists(result.TemplatePath));
         Assert.Contains("name: empty", await File.ReadAllTextAsync(result.TemplatePath));
         Assert.Equal("dotnet", runner.Command);
+    }
+
+    [Fact]
+    public async Task BuildTemplate_WritesTemplateThatAppliesToInMemoryControlPlane()
+    {
+        using var directory = new TemporaryDirectory();
+        var app = CloudShellDistributedApplication
+            .CreateBuilder("launcher-smoke")
+            .WithMetadata("cloudshell.smoke", "template-apply");
+
+        app.DefineResources(resources =>
+        {
+            var settings = resources
+                .AddConfigurationStore("settings")
+                .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings")
+                .WithSeed(seed => seed.Setting("Sample--Message", "Hello from launcher smoke"));
+
+            resources
+                .AddJavaScriptApp("frontend", "samples/LauncherParity/App")
+                .WithPackageManager("npm")
+                .WithScript("dev")
+                .WithReference(settings)
+                .WithEnvironmentVariable("Sample__Message", settings.Setting("Sample--Message"))
+                .WithHttpEndpoint(host: "localhost", port: 5173, targetPort: 5173);
+        });
+
+        var templatePath = Path.Combine(directory.Path, "resources.yaml");
+        await CloudShellHostLauncher.WriteTemplateAsync(
+            app.BuildTemplate(environmentId: "local"),
+            templatePath,
+            ResourceTemplateFormat.Yaml);
+
+        var document = await File.ReadAllTextAsync(templatePath);
+        var roundTripped = ResourceTemplateSerializer.DeserializeTemplate(document);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddJavaScriptAppResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyTemplateAsync(
+                roundTripped,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 7, 13, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == "configuration.store:settings");
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == "application.javascript-app:frontend");
     }
 
     private sealed class RecordingCommandRunner : ICloudShellHostLauncherCommandRunner

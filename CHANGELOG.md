@@ -13,6 +13,71 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-13
+
+#### Changed
+
+- Added the cross-platform support tracker and CI verification baseline for
+  macOS, Linux, and Windows restore/build/non-integration test coverage.
+- Started hardening CLI host-affecting behavior by making host-name mapping
+  default path selection testable through an injectable platform descriptor.
+- Added deterministic Java app build-command tests for Windows and Unix Maven
+  wrapper selection without requiring those operating systems locally.
+- Added deterministic JavaScript app command tests for Windows `npm.cmd` and
+  Unix `npm` executable selection.
+- Added deterministic Go app command tests for relative, Unix-rooted, and
+  Windows-rooted binary path resolution.
+- Changed .NET app process command construction to use discrete `dotnet`
+  argument-list entries so project and assembly paths do not depend on
+  platform-specific command-line quoting.
+- Added deterministic CLI daemon start-info tests for Windows direct host
+  launches and Unix detached shell launches without starting a Control Plane.
+- Added executable app process command tests for executable paths with spaces
+  and empty argument defaults.
+- Changed the cross-platform verification workflow to run on `codex/**`
+  development branches and check committed patch whitespace before restore,
+  build, and test.
+- Fixed the first Windows matrix failures by making Go app path-root detection
+  depend on the injected command platform, using platform-qualified paths in
+  path-sensitive command tests, and clearing SQLite pools before deleting
+  persistence test databases.
+- Added deterministic Python app command tests for the current `python3`
+  default, explicit command overrides such as Windows `py`, script paths with
+  spaces, and endpoint/environment precedence.
+- Added a C# launcher smoke test that writes a YAML ResourceTemplate,
+  deserializes the emitted file, and applies it to an in-memory Resource Model
+  Control Plane path without relying on shell scripts.
+- Added sample-level C# launcher template smoke coverage that runs lightweight
+  AppHost projects in template mode and applies the emitted templates in
+  memory without shell scripts or runtime startup.
+- Split Docker-backed sample smoke coverage into an explicit Ubuntu Docker
+  integration CI job with Docker daemon, Compose, and image-pull prerequisite
+  checks before running the explicit `Category=DockerIntegration&DockerCi=true`
+  smoke subset.
+- Added a testable host OS descriptor for the macOS host networking provider so
+  unsupported-platform behavior reports a stable unavailable reason on non-macOS
+  hosts.
+- Added a host tool resolver and resolver-cache refresh planner so local DNS
+  cache refresh commands are selected by host OS and available tools before
+  process invocation, with stable Linux missing-tool and unsupported-platform
+  diagnostics.
+- Expanded the cross-platform support tracker with the MVP support contract and
+  the next host-runtime abstraction queue.
+- Moved host tool availability into shared Resource Manager abstractions and
+  added a shared container-host command platform for Docker-compatible provider
+  runtimes.
+- Routed local Docker container, SQL Server, and RabbitMQ Docker command
+  runners through the shared command platform so Docker/Podman executable
+  selection, environment setup, and missing-runtime diagnostics are
+  deterministic before process invocation.
+- Routed the local container-app process command runner through the shared
+  container-host command platform for Docker-compatible commands and made
+  missing Docker/Podman prerequisites report stable unavailable results and
+  unknown runtime status.
+- Added deterministic container-app runtime coverage for custom Docker/Podman
+  executable metadata plus missing-runtime behavior in logs, monitoring, and
+  replica-slot materialization.
+
 ### 2026-07-11
 
 #### Changed

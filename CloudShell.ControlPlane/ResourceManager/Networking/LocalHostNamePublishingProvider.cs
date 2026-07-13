@@ -8,7 +8,8 @@ namespace CloudShell.ControlPlane.ResourceManager.Networking;
 
 public sealed class LocalHostNamePublishingProvider(
     PlatformResourceOptions options,
-    ILocalHostNameResolverCacheRefresher? resolverCacheRefresher = null) :
+    ILocalHostNameResolverCacheRefresher? resolverCacheRefresher = null,
+    HostOperatingSystem? hostOperatingSystem = null) :
     INamePublishingProvider,
     INamePublishingActionAvailabilityProvider,
     INamePublishingObservationAttributeProvider
@@ -26,6 +27,7 @@ public sealed class LocalHostNamePublishingProvider(
 
     public const string DefaultProviderName = "local-hostnames";
 
+    private readonly HostOperatingSystem hostOperatingSystem = hostOperatingSystem ?? HostOperatingSystem.Current;
     private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, string>> observationAttributes =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -199,7 +201,7 @@ public sealed class LocalHostNamePublishingProvider(
             return new HostsFileTarget(Path.GetFullPath(options.LocalHostNameHostsFilePath), false);
         }
 
-        if (OperatingSystem.IsWindows())
+        if (hostOperatingSystem.IsWindows)
         {
             var system = Environment.GetFolderPath(Environment.SpecialFolder.System);
             return new HostsFileTarget(Path.Combine(system, "drivers", "etc", "hosts"), true);

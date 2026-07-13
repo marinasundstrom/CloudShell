@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 
@@ -27,9 +28,12 @@ public sealed record LocalContainerApplicationCommandResult(
     string Error)
 {
     public const int TimeoutExitCode = -1;
+
+    public const int UnavailableExitCode = -2;
 }
 
-public sealed class ProcessLocalContainerApplicationCommandRunner :
+public sealed class ProcessLocalContainerApplicationCommandRunner(
+    IContainerHostCommandPlatform containerHostCommandPlatform) :
     ILocalContainerApplicationCommandRunner
 {
     public LocalContainerApplicationCommandResult Run(
@@ -51,24 +55,17 @@ public sealed class ProcessLocalContainerApplicationCommandRunner :
         TimeSpan? timeout = null,
         string? workingDirectory = null)
     {
-        var startInfo = new ProcessStartInfo(fileName)
+        var startInfo = CreateStartInfo(fileName, arguments, throwOnError, out var unavailableResult);
+        if (unavailableResult is not null)
         {
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false
-        };
+            return unavailableResult;
+        }
+
         if (!string.IsNullOrWhiteSpace(workingDirectory))
         {
             startInfo.WorkingDirectory = workingDirectory;
         }
 
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        using var process = Process.Start(startInfo) ??
-            throw new InvalidOperationException($"Command '{fileName}' could not be started.");
         using var timeoutCancellation = timeout is null
             ? null
             : new CancellationTokenSource(timeout.Value);
@@ -78,38 +75,121 @@ public sealed class ProcessLocalContainerApplicationCommandRunner :
                 cancellationToken,
                 timeoutCancellation.Token);
         var waitCancellationToken = linkedCancellation?.Token ?? cancellationToken;
-        var outputTask = process.StandardOutput.ReadToEndAsync(waitCancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(waitCancellationToken);
+        Process? process = null;
         try
         {
+            process = Process.Start(startInfo) ??
+                throw new InvalidOperationException($"Command '{startInfo.FileName}' could not be started.");
+            using var cancellationRegistration = waitCancellationToken.Register(
+                static state => KillProcessTree((Process)state!),
+                process);
+            var outputTask = process.StandardOutput.ReadToEndAsync(waitCancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(waitCancellationToken);
             await process.WaitForExitAsync(waitCancellationToken).ConfigureAwait(false);
+            var result = new LocalContainerApplicationCommandResult(
+                process.ExitCode,
+                await outputTask.ConfigureAwait(false),
+                await errorTask.ConfigureAwait(false));
+            if (throwOnError && result.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Command '{startInfo.FileName} {string.Join(' ', arguments)}' failed with exit code {result.ExitCode.ToString(CultureInfo.InvariantCulture)}: {result.Error}");
+            }
+
+            return result;
         }
         catch (OperationCanceledException) when (
             timeoutCancellation?.IsCancellationRequested == true &&
             !cancellationToken.IsCancellationRequested)
         {
-            if (!process.HasExited)
+            if (process is not null)
             {
-                process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                KillProcessTree(process);
             }
 
             return new LocalContainerApplicationCommandResult(
                 LocalContainerApplicationCommandResult.TimeoutExitCode,
                 string.Empty,
-                $"Command '{fileName} {string.Join(' ', arguments)}' timed out.");
+                $"Command '{startInfo.FileName} {string.Join(' ', arguments)}' timed out.");
         }
-
-        var result = new LocalContainerApplicationCommandResult(
-            process.ExitCode,
-            await outputTask.ConfigureAwait(false),
-            await errorTask.ConfigureAwait(false));
-        if (throwOnError && result.ExitCode != 0)
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
         {
-            throw new InvalidOperationException(
-                $"Command '{fileName} {string.Join(' ', arguments)}' failed with exit code {result.ExitCode.ToString(CultureInfo.InvariantCulture)}: {result.Error}");
+            if (throwOnError)
+            {
+                throw;
+            }
+
+            return new LocalContainerApplicationCommandResult(
+                LocalContainerApplicationCommandResult.UnavailableExitCode,
+                string.Empty,
+                exception.Message);
+        }
+        finally
+        {
+            process?.Dispose();
+        }
+    }
+
+    private ProcessStartInfo CreateStartInfo(
+        string fileName,
+        IReadOnlyList<string> arguments,
+        bool throwOnError,
+        out LocalContainerApplicationCommandResult? unavailableResult)
+    {
+        unavailableResult = null;
+        if (IsContainerRuntimeCommand(fileName))
+        {
+            var plan = containerHostCommandPlatform.CreatePlan();
+            if (!plan.IsAvailable)
+            {
+                if (throwOnError)
+                {
+                    throw new InvalidOperationException(plan.UnavailableReason);
+                }
+
+                unavailableResult = new LocalContainerApplicationCommandResult(
+                    LocalContainerApplicationCommandResult.UnavailableExitCode,
+                    string.Empty,
+                    plan.UnavailableReason ?? "Container runtime command is unavailable.");
+                return new ProcessStartInfo(fileName);
+            }
+
+            return plan.CreateStartInfo(arguments);
         }
 
-        return result;
+        var startInfo = new ProcessStartInfo(fileName)
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false
+        };
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        return startInfo;
+    }
+
+    private static bool IsContainerRuntimeCommand(string fileName)
+    {
+        var name = Path.GetFileNameWithoutExtension(fileName);
+        return string.Equals(name, "docker", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "podman", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void KillProcessTree(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit((int)TimeSpan.FromSeconds(1).TotalMilliseconds);
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
+        {
+        }
     }
 }

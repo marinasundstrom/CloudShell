@@ -15,19 +15,21 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     [Fact]
     public void CommandFactory_CreatesRunCommandFromGraphAttributes()
     {
+        var projectPath = CreateFullPath("repo", "src", "Api", "Api.csproj");
+        var projectDirectory = Path.GetDirectoryName(projectPath)!;
         var resource = CreateResource(
             "src/Api/Api.csproj",
             arguments: "--urls http://localhost:5229",
             hotReload: false,
             useLaunchSettings: false);
         var command = new AspNetCoreProjectProcessCommandFactory()
-            .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
+            .CreateStartInfo(resource, projectPath);
 
         Assert.Equal("dotnet", command.FileName);
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" --no-build --no-launch-profile -- --urls http://localhost:5229",
-            command.Arguments);
-        Assert.Equal("/repo/src/Api", command.WorkingDirectory);
+            ["run", "--project", projectPath, "--no-build", "--no-launch-profile", "--", "--urls", "http://localhost:5229"],
+            command.ArgumentList.ToArray());
+        Assert.Equal(projectDirectory, command.WorkingDirectory);
         Assert.False(command.UseShellExecute);
         Assert.True(command.RedirectStandardOutput);
         Assert.True(command.RedirectStandardError);
@@ -46,8 +48,8 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "watch --non-interactive --project \"/repo/src/Api/Api.csproj\" run --no-launch-profile",
-            command.Arguments);
+            ["watch", "--non-interactive", "--project", "/repo/src/Api/Api.csproj", "run", "--no-launch-profile"],
+            command.ArgumentList.ToArray());
         Assert.Equal(
             "true",
             command.Environment[AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit]);
@@ -73,8 +75,27 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" --no-build --no-launch-profile -- --urls http://127.0.0.1:5229",
-            command.Arguments);
+            ["run", "--project", "/repo/src/Api/Api.csproj", "--no-build", "--no-launch-profile", "--", "--urls", "http://127.0.0.1:5229"],
+            command.ArgumentList.ToArray());
+    }
+
+    [Fact]
+    public void CommandFactory_PreservesProjectPathWithSpacesAsSingleArgument()
+    {
+        var projectPath = CreateFullPath("repo", "src", "My Api", "Api.csproj");
+        var projectDirectory = Path.GetDirectoryName(projectPath)!;
+        var resource = CreateResource(
+            "src/My Api/Api.csproj",
+            hotReload: false,
+            useLaunchSettings: false);
+
+        var command = new AspNetCoreProjectProcessCommandFactory()
+            .CreateStartInfo(resource, projectPath);
+
+        Assert.Equal(
+            ["run", "--project", projectPath, "--no-build", "--no-launch-profile"],
+            command.ArgumentList.ToArray());
+        Assert.Equal(projectDirectory, command.WorkingDirectory);
     }
 
     [Fact]
@@ -380,30 +401,36 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" --no-build --no-launch-profile -- --urls http://localhost:5010",
-            command.Arguments);
+            ["run", "--project", "/repo/src/Api/Api.csproj", "--no-build", "--no-launch-profile", "--", "--urls", "http://localhost:5010"],
+            command.ArgumentList.ToArray());
     }
 
     [Fact]
     public void CommandFactory_CreatesPublishedOutputCommand()
     {
+        var assemblyPath = CreateFullPath("repo", "publish", "Api.dll");
+        var publishDirectory = Path.GetDirectoryName(assemblyPath)!;
         var resource = CreateResource(
             "src/Api/Api.csproj",
             arguments: "--urls http://localhost:5229",
             hotReload: true,
             useLaunchSettings: true);
         var command = new AspNetCoreProjectProcessCommandFactory()
-            .CreatePublishedOutputStartInfo(resource, "/repo/publish/Api.dll");
+            .CreatePublishedOutputStartInfo(resource, assemblyPath);
 
         Assert.Equal("dotnet", command.FileName);
-        Assert.Equal("\"/repo/publish/Api.dll\" --urls http://localhost:5229", command.Arguments);
-        Assert.Equal("/repo/publish", command.WorkingDirectory);
+        Assert.Equal(
+            [assemblyPath, "--urls", "http://localhost:5229"],
+            command.ArgumentList.ToArray());
+        Assert.Equal(publishDirectory, command.WorkingDirectory);
         Assert.False(command.Environment.ContainsKey(AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit));
     }
 
     [Fact]
     public void CommandFactory_CreatesExecutableCommand()
     {
+        var executablePath = CreateFullPath("repo", "bin", "Release", "net11.0", "Api.dll");
+        var executableDirectory = Path.GetDirectoryName(executablePath)!;
         var resource = CreateResource(
             projectPath: null,
             executablePath: "bin/Release/net11.0/Api.dll",
@@ -411,11 +438,13 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             hotReload: true,
             useLaunchSettings: true);
         var command = new AspNetCoreProjectProcessCommandFactory()
-            .CreateExecutableStartInfo(resource, "/repo/bin/Release/net11.0/Api.dll");
+            .CreateExecutableStartInfo(resource, executablePath);
 
         Assert.Equal("dotnet", command.FileName);
-        Assert.Equal("\"/repo/bin/Release/net11.0/Api.dll\" --urls http://localhost:5229", command.Arguments);
-        Assert.Equal("/repo/bin/Release/net11.0", command.WorkingDirectory);
+        Assert.Equal(
+            [executablePath, "--urls", "http://localhost:5229"],
+            command.ArgumentList.ToArray());
+        Assert.Equal(executableDirectory, command.WorkingDirectory);
         Assert.False(command.Environment.ContainsKey(AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit));
     }
 
@@ -726,6 +755,17 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             environmentVariables,
             references,
             serviceDiscoveryName));
+    }
+
+    private static string CreateFullPath(params string[] paths) =>
+        Path.GetFullPath(Path.Combine(PrependTempPath(paths)));
+
+    private static string[] PrependTempPath(string[] paths)
+    {
+        var segments = new string[paths.Length + 1];
+        segments[0] = Path.GetTempPath();
+        Array.Copy(paths, 0, segments, 1, paths.Length);
+        return segments;
     }
 
     private static Resource CreateArtifactResource(

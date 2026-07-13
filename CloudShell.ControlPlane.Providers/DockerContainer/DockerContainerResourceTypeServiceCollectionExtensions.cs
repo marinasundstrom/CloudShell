@@ -77,6 +77,7 @@ public static class DockerContainerResourceTypeServiceCollectionExtensions
             services.Configure(configure);
         }
 
+        services.AddContainerHostCommandPlatform();
         services.TryAddSingleton<
             ILocalDockerContainerCommandRunner,
             ProcessLocalDockerContainerCommandRunner>();

@@ -43,6 +43,61 @@ public sealed class JavaAppProcessRuntimeControllerTests
     }
 
     [Fact]
+    public void CommandFactory_UsesWindowsMavenWrapperWhenSimulated()
+    {
+        using var project = TemporaryProjectDirectory.Create();
+        File.WriteAllText(Path.Combine(project.Path, "mvnw"), "unix wrapper");
+        File.WriteAllText(Path.Combine(project.Path, "mvnw.cmd"), "windows wrapper");
+        var resource = CreateResource(
+            project.Path,
+            buildTool: JavaAppBuildTools.Maven);
+
+        var command = new JavaAppProcessCommandFactory(
+                new JavaAppProcessCommandPlatform(IsWindows: true))
+            .CreateBuildStartInfo(resource, project.Path);
+
+        Assert.NotNull(command);
+        Assert.Equal(Path.Combine(project.Path, "mvnw.cmd"), command.FileName);
+        Assert.Equal(["package"], command.ArgumentList.ToArray());
+    }
+
+    [Fact]
+    public void CommandFactory_UsesUnixMavenWrapperWhenSimulated()
+    {
+        using var project = TemporaryProjectDirectory.Create();
+        File.WriteAllText(Path.Combine(project.Path, "mvnw"), "unix wrapper");
+        File.WriteAllText(Path.Combine(project.Path, "mvnw.cmd"), "windows wrapper");
+        var resource = CreateResource(
+            project.Path,
+            buildTool: JavaAppBuildTools.Maven);
+
+        var command = new JavaAppProcessCommandFactory(
+                new JavaAppProcessCommandPlatform(IsWindows: false))
+            .CreateBuildStartInfo(resource, project.Path);
+
+        Assert.NotNull(command);
+        Assert.Equal(Path.Combine(project.Path, "mvnw"), command.FileName);
+        Assert.Equal(["package"], command.ArgumentList.ToArray());
+    }
+
+    [Fact]
+    public void CommandFactory_FallsBackToGradleCommandWhenWrapperIsMissing()
+    {
+        using var project = TemporaryProjectDirectory.Create();
+        var resource = CreateResource(
+            project.Path,
+            buildTool: JavaAppBuildTools.Gradle);
+
+        var command = new JavaAppProcessCommandFactory(
+                new JavaAppProcessCommandPlatform(IsWindows: true))
+            .CreateBuildStartInfo(resource, project.Path);
+
+        Assert.NotNull(command);
+        Assert.Equal("gradle", command.FileName);
+        Assert.Equal(["build"], command.ArgumentList.ToArray());
+    }
+
+    [Fact]
     public void CommandFactory_CreatesGradleBuildCommandWithDefaultArguments()
     {
         var resource = CreateResource(

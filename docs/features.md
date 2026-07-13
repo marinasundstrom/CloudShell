@@ -65,6 +65,7 @@ Use these terms when summarizing feature and proposal state:
 | Architecture and domain model | [Architecture](architecture.md), [Domain model](domain-model.md), [System design guidelines](system-design-guidelines.md), [Terminology](terminology.md) | Ownership boundaries, Control Plane/WebUI split, domain terms, and design rules. |
 | Hosting | [Hosting model](hosting-model.md), [Launchers](launchers-and-app-hosts.md), [Integration story](integration-story.md) | Combined hosts, split hosting, local development hosts, launchers, host-profile responsibilities, and cross-language integration expectations. |
 | Control Plane API | [Control Plane API](control-plane-api.md), [SDK clients](sdk-clients.md), [CloudShell CLI](cli.md), [Integration story](integration-story.md) | HTTP API shape, remote client behavior, generated/handwritten clients, runtime service clients, and CLI apply/host workflows. |
+| Cross-platform support | [Cross-platform support](cross-platform-support.md), [Launchers](launchers-and-app-hosts.md), [CloudShell CLI](cli.md), [Container Hosts](resources/container-hosts.md) | OS/runtime support tiers, verification baseline, provider parity expectations, and known non-parity for macOS, Linux, and Windows. |
 
 ## Resource Model
 

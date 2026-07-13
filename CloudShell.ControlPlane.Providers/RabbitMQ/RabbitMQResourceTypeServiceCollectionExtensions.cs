@@ -108,6 +108,7 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
             services.Configure(configure);
         }
 
+        services.AddContainerHostCommandPlatform();
         services.TryAddSingleton<
             ILocalRabbitMQDockerCommandRunner,
             ProcessLocalRabbitMQDockerCommandRunner>();

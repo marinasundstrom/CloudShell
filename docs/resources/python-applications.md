@@ -41,6 +41,12 @@ Python web framework part of the CloudShell resource model. When
 `python.module` is configured, the runtime starts `python3 -m <module>` instead
 of a script path.
 
+The default command is currently `python3` on every operating system. Windows
+hosts that use the Python launcher convention can set `python.command` to `py`
+or another interpreter command explicitly; CloudShell passes the selected
+command and each argument as discrete process values rather than shell-quoted
+text.
+
 Python app resources can declare endpoint requests, environment variables,
 service references, health checks, log sources, and volume mounts using the
 same Resource model patterns as other application resources. The default local

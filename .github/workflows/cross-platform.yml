@@ -1,0 +1,113 @@
+name: Cross-platform verification
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/**
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check patch whitespace
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+
+          zero_sha="0000000000000000000000000000000000000000"
+
+          if [ -n "${BASE_SHA:-}" ] && [ "$BASE_SHA" != "$zero_sha" ]; then
+            git diff --check "$BASE_SHA..HEAD"
+          elif git rev-parse HEAD^ >/dev/null 2>&1; then
+            git diff --check HEAD^..HEAD
+          else
+            git diff --check --root HEAD
+          fi
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Show .NET info
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore CloudShell.slnx
+
+      - name: Build
+        run: dotnet build CloudShell.slnx --no-restore
+
+      - name: Test non-integration suite
+        run: dotnet test CloudShell.slnx --no-build --filter "Category!=Integration&Category!=DockerIntegration" --logger "trx;LogFilePrefix=test-results" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore
+
+  docker-integration:
+    name: Docker integration (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Docker prerequisites
+        run: |
+          docker info
+          docker compose version
+
+      - name: Pull Docker test images
+        run: |
+          docker pull mcr.microsoft.com/mssql/server:2022-latest
+          docker pull registry:2
+          docker pull quay.io/keycloak/keycloak:26.2
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore CloudShell.slnx
+
+      - name: Build
+        run: dotnet build CloudShell.slnx --no-restore
+
+      - name: Test Docker CI smoke suite
+        run: dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-build --filter "Category=DockerIntegration&DockerCi=true" --logger "trx;LogFilePrefix=docker-test-results" --results-directory TestResults
+
+      - name: Upload Docker test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-test-results-ubuntu-latest
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore

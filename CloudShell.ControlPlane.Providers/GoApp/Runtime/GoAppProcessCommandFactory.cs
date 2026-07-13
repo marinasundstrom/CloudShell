@@ -4,6 +4,18 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class GoAppProcessCommandFactory
 {
+    private readonly GoAppProcessCommandPlatform _platform;
+
+    public GoAppProcessCommandFactory()
+        : this(GoAppProcessCommandPlatform.Current)
+    {
+    }
+
+    internal GoAppProcessCommandFactory(GoAppProcessCommandPlatform platform)
+    {
+        _platform = platform;
+    }
+
     public ProcessStartInfo CreateStartInfo(
         Resource resource,
         string fullProjectPath,
@@ -53,14 +65,12 @@ public sealed class GoAppProcessCommandFactory
         return startInfo;
     }
 
-    private static ProcessStartInfo CreateBinaryStartInfo(
+    private ProcessStartInfo CreateBinaryStartInfo(
         Resource resource,
         string fullProjectPath,
         string binaryPath)
     {
-        var effectiveBinaryPath = Path.IsPathRooted(binaryPath)
-            ? binaryPath.Trim()
-            : Path.GetFullPath(binaryPath.Trim(), fullProjectPath);
+        var effectiveBinaryPath = _platform.ResolveBinaryPath(binaryPath, fullProjectPath);
         var startInfo = CreateBaseStartInfo(effectiveBinaryPath, fullProjectPath);
         AddApplicationArguments(resource, startInfo);
 
@@ -155,6 +165,34 @@ public sealed class GoAppProcessCommandFactory
             ? []
             : arguments
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+internal sealed record GoAppProcessCommandPlatform(bool IsWindows)
+{
+    public static GoAppProcessCommandPlatform Current => new(OperatingSystem.IsWindows());
+
+    public string ResolveBinaryPath(string binaryPath, string fullProjectPath)
+    {
+        var trimmed = binaryPath.Trim();
+        return IsRootedPath(trimmed)
+            ? trimmed
+            : Path.GetFullPath(trimmed, fullProjectPath);
+    }
+
+    private bool IsRootedPath(string path) =>
+        IsWindows
+            ? IsWindowsRootedPath(path) || IsWindowsUncPath(path)
+            : path.StartsWith('/', StringComparison.Ordinal);
+
+    private static bool IsWindowsRootedPath(string path) =>
+        path.Length >= 3 &&
+        char.IsAsciiLetter(path[0]) &&
+        path[1] == ':' &&
+        (path[2] == '\\' || path[2] == '/');
+
+    private static bool IsWindowsUncPath(string path) =>
+        path.StartsWith(@"\\", StringComparison.Ordinal) ||
+        path.StartsWith("//", StringComparison.Ordinal);
 }
 
 public static class GoAppEnvironmentNames

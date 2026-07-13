@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Net;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace CloudShell.Cli;
@@ -142,7 +141,7 @@ internal sealed class ControlPlaneDaemon
                 targetPath);
         }
 
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (!OperatingSystem.IsWindows())
         {
             return await StartDetachedUnixHostProcessAsync(
                 targetPath,
@@ -170,6 +169,66 @@ internal sealed class ControlPlaneDaemon
         string? hostSettingsPath,
         Uri url)
     {
+        var startInfo = CreateWindowsHostStartInfo(
+            targetPath,
+            workingDirectory,
+            dataDirectory,
+            hostSettingsPath,
+            url);
+        return Process.Start(startInfo) ??
+            throw new InvalidOperationException("Failed to start the CloudShell host process.");
+    }
+
+    private static async Task<int> StartDetachedUnixHostProcessAsync(
+        string targetPath,
+        string workingDirectory,
+        string? dataDirectory,
+        string? hostSettingsPath,
+        Uri url,
+        string stateDirectory,
+        CancellationToken cancellationToken)
+    {
+        var startInfo = CreateUnixHostLauncherStartInfo(
+            targetPath,
+            workingDirectory,
+            dataDirectory,
+            hostSettingsPath,
+            url,
+            stateDirectory);
+
+        using var launcher = Process.Start(startInfo) ??
+            throw new InvalidOperationException("Failed to start the CloudShell host process.");
+        var outputTask = launcher.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = launcher.StandardError.ReadToEndAsync(cancellationToken);
+        await launcher.WaitForExitAsync(cancellationToken);
+
+        var output = await outputTask;
+        var error = await errorTask;
+        if (launcher.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"Failed to start the CloudShell host process. {error}".Trim());
+        }
+
+        var pidText = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault();
+        if (!int.TryParse(pidText, out var processId))
+        {
+            throw new InvalidOperationException(
+                $"Failed to read the CloudShell host process id. {output}".Trim());
+        }
+
+        return processId;
+    }
+
+    internal static ProcessStartInfo CreateWindowsHostStartInfo(
+        string targetPath,
+        string workingDirectory,
+        string? dataDirectory,
+        string? hostSettingsPath,
+        Uri url)
+    {
         var startInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
@@ -183,18 +242,16 @@ internal sealed class ControlPlaneDaemon
         AddDataDirectoryArguments(startInfo.ArgumentList, dataDirectory);
         AddHostSettingsArguments(startInfo.ArgumentList, hostSettingsPath);
 
-        return Process.Start(startInfo) ??
-            throw new InvalidOperationException("Failed to start the CloudShell host process.");
+        return startInfo;
     }
 
-    private static async Task<int> StartDetachedUnixHostProcessAsync(
+    internal static ProcessStartInfo CreateUnixHostLauncherStartInfo(
         string targetPath,
         string workingDirectory,
         string? dataDirectory,
         string? hostSettingsPath,
         Uri url,
-        string stateDirectory,
-        CancellationToken cancellationToken)
+        string stateDirectory)
     {
         var logFile = Path.Combine(Path.GetFullPath(stateDirectory), "control-plane.log");
         var arguments = new List<string>
@@ -236,30 +293,7 @@ internal sealed class ControlPlaneDaemon
         startInfo.ArgumentList.Add("-c");
         startInfo.ArgumentList.Add(command);
 
-        using var launcher = Process.Start(startInfo) ??
-            throw new InvalidOperationException("Failed to start the CloudShell host process.");
-        var outputTask = launcher.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = launcher.StandardError.ReadToEndAsync(cancellationToken);
-        await launcher.WaitForExitAsync(cancellationToken);
-
-        var output = await outputTask;
-        var error = await errorTask;
-        if (launcher.ExitCode != 0)
-        {
-            throw new InvalidOperationException(
-                $"Failed to start the CloudShell host process. {error}".Trim());
-        }
-
-        var pidText = output
-            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .LastOrDefault();
-        if (!int.TryParse(pidText, out var processId))
-        {
-            throw new InvalidOperationException(
-                $"Failed to read the CloudShell host process id. {output}".Trim());
-        }
-
-        return processId;
+        return startInfo;
     }
 
     private static async Task BuildHostProjectAsync(

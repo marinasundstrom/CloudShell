@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -7,6 +6,17 @@ public sealed class JavaAppProcessCommandFactory
 {
     private const string MavenDefaultArguments = "package";
     private const string GradleDefaultArguments = "build";
+    private readonly JavaAppProcessCommandPlatform _platform;
+
+    public JavaAppProcessCommandFactory()
+        : this(JavaAppProcessCommandPlatform.Current)
+    {
+    }
+
+    internal JavaAppProcessCommandFactory(JavaAppProcessCommandPlatform platform)
+    {
+        _platform = platform;
+    }
 
     public ProcessStartInfo CreateStartInfo(
         Resource resource,
@@ -188,27 +198,37 @@ public sealed class JavaAppProcessCommandFactory
             : arguments
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    private static string ResolveBuildCommand(
+    private string ResolveBuildCommand(
         string buildTool,
         string fullProjectPath)
     {
         if (string.Equals(buildTool, JavaAppBuildTools.Maven, StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveWrapperOrCommand(
+            return _platform.ResolveWrapperOrCommand(
                 fullProjectPath,
                 windowsWrapper: "mvnw.cmd",
                 unixWrapper: "mvnw",
                 command: "mvn");
         }
 
-        return ResolveWrapperOrCommand(
+        return _platform.ResolveWrapperOrCommand(
             fullProjectPath,
             windowsWrapper: "gradlew.bat",
             unixWrapper: "gradlew",
             command: "gradle");
     }
 
-    private static string ResolveWrapperOrCommand(
+    private static string DefaultBuildArguments(string buildTool) =>
+        string.Equals(buildTool, JavaAppBuildTools.Maven, StringComparison.OrdinalIgnoreCase)
+            ? MavenDefaultArguments
+            : GradleDefaultArguments;
+}
+
+internal sealed record JavaAppProcessCommandPlatform(bool IsWindows)
+{
+    public static JavaAppProcessCommandPlatform Current => new(OperatingSystem.IsWindows());
+
+    public string ResolveWrapperOrCommand(
         string fullProjectPath,
         string windowsWrapper,
         string unixWrapper,
@@ -216,19 +236,12 @@ public sealed class JavaAppProcessCommandFactory
     {
         var wrapper = Path.Combine(
             fullProjectPath,
-            RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? windowsWrapper
-                : unixWrapper);
+            IsWindows ? windowsWrapper : unixWrapper);
 
         return File.Exists(wrapper)
             ? wrapper
             : command;
     }
-
-    private static string DefaultBuildArguments(string buildTool) =>
-        string.Equals(buildTool, JavaAppBuildTools.Maven, StringComparison.OrdinalIgnoreCase)
-            ? MavenDefaultArguments
-            : GradleDefaultArguments;
 }
 
 public static class JavaAppEnvironmentNames

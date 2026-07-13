@@ -26,6 +26,7 @@ Useful references:
 - [Control Plane API](control-plane-api.md)
 - [CloudShell and Aspire](cloudshell-and-aspire.md)
 - [CloudShell CLI](cli.md)
+- [Cross-platform support](cross-platform-support.md)
 - [Resource Monitoring and Usage](monitoring-and-usage.md)
 - [Orchestration and Deployments](orchestration-and-deployments.md)
 - [Container Hosts](resources/container-hosts.md)
@@ -52,7 +53,8 @@ app-development loop before broader platform expansion.
 | 5 | Container app orchestration and runtime diagnostics | Container apps are the hardest proof of the resource/runtime boundary. | Consolidate first start, image update, replica-slot reconciliation, routing rebinding, cleanup, and readable failure diagnostics only where current samples expose them. |
 | 6 | ResourceDefinition apply/export convergence | The old provider path has mostly been retired; remaining compatibility should be explicit. | Remove or document remaining obsolete template/runtime bridges where graph-backed providers can round-trip definitions. |
 | 7 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool, but launchers, deployment artifact loading, and assistant drafting should not distract from MVP stabilization. | Keep CLI, launcher/profile, TypeScript/JavaScript, Java, SDK, deployment artifacts, and future intent-first authoring aligned with the same ResourceDefinition and Control Plane boundary; defer packaging polish and generated-draft workflows that do not improve supported local runs. |
-| 8 | CoreShell, UI composition, and shell structure | Useful only when it reduces current Resource Manager, Settings, notification, or shell drift. | Use the CoreShell Fluent UI sample as the reference shell and extract only proven common shell building blocks; pause persistence, marketplace, and user-personalized shell-platform work. |
+| 8 | Cross-platform support baseline | CloudShell has been developed primarily on macOS, so Linux and Windows support need automated evidence before broader provider claims. | Maintain the cross-platform CI matrix, document support tiers, and harden CLI, launcher, app-runtime, container-host, and host-networking behavior through capability-driven tests and diagnostics. |
+| 9 | CoreShell, UI composition, and shell structure | Useful only when it reduces current Resource Manager, Settings, notification, or shell drift. | Use the CoreShell Fluent UI sample as the reference shell and extract only proven common shell building blocks; pause persistence, marketplace, and user-personalized shell-platform work. |
 
 ## Authoritative Milestones
 
@@ -233,9 +235,15 @@ Future on-premise scale-out should allow multiple Control Plane API replicas
 while coordinating singleton duties through a primary controller lease and
 moving eligible subsystems, such as log readers, telemetry ingestion, health
 polling, notification fan-out, and provider reconciliation, into independent
-workers. This is important platform direction, but it should not displace the
-current local-development MVP stabilization unless a new subsystem would
-otherwise bake in single-process assumptions.
+workers. The broader direction also includes CloudShell agents for scaling
+CloudShell-managed services across hosts, regions, and provider-specific
+runtime boundaries; see
+[CloudShell agents and clustering](future/agents-and-clustering.md). This is
+important platform direction, but MVP relevance should stay limited to the
+agent and reconciliation foundation: typed assignments, leases, heartbeats,
+observed state, and one provider operation moved behind an agent-side handler.
+It should not displace the current local-development MVP stabilization unless
+a new subsystem would otherwise bake in single-process assumptions.
 
 The main stabilization lens is now the UI foundation that the MVP already
 uses. The priority is to make shell chrome, Resource Manager pages, resource
