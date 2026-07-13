@@ -30,6 +30,12 @@ public sealed record CloudShellNotificationAction(
     CloudShellNotificationTarget? Target = null,
     bool IsPrimary = false);
 
+public static class CloudShellNotificationActionIds
+{
+    public const string OpenResource = "open-resource";
+    public const string ViewActivity = "view-activity";
+}
+
 public sealed record CloudShellNotificationQuery(
     string? RecipientKey = null,
     bool IncludeDismissed = false,

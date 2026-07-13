@@ -144,6 +144,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Distinguished Resource Manager application artifact apply notifications
   from generic resource template applies with an artifact-specific operation
   kind and template key.
+- Added public notification action ID constants for standard resource
+  navigation actions.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

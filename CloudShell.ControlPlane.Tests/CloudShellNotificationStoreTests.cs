@@ -603,14 +603,14 @@ public sealed class CloudShellNotificationStoreTests
             actions,
             action =>
             {
-                Assert.Equal("open-resource", action.Id);
+                Assert.Equal(CloudShellNotificationActionIds.OpenResource, action.Id);
                 Assert.Equal("Open resource", action.Label);
                 Assert.True(action.IsPrimary);
                 Assert.Equal("/resources/application%3Aapi", action.Target!.Href);
             },
             action =>
             {
-                Assert.Equal("view-activity", action.Id);
+                Assert.Equal(CloudShellNotificationActionIds.ViewActivity, action.Id);
                 Assert.Equal("View activity", action.Label);
                 Assert.False(action.IsPrimary);
                 Assert.Equal("/resources/application%3Aapi/activity", action.Target!.Href);

@@ -27,8 +27,6 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
 {
     private const string LocalSystemNotificationRecipientKey = "user";
     private const string ResourceStartMaterializationCause = "Resource start requested runtime materialization";
-    private const string OpenResourceActionId = "open-resource";
-    private const string ViewActivityActionId = "view-activity";
 
     public CreateCloudShellNotificationCommand? CreateNotification(ResourceEvent resourceEvent)
     {
@@ -228,14 +226,14 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         return
         [
             new CloudShellNotificationAction(
-                OpenResourceActionId,
+                CloudShellNotificationActionIds.OpenResource,
                 "Open resource",
                 new CloudShellNotificationTarget(
                     ResourceManagerRoutes.ResourceOverview(resourceEvent.ResourceId),
                     "Open resource"),
                 IsPrimary: true),
             new CloudShellNotificationAction(
-                ViewActivityActionId,
+                CloudShellNotificationActionIds.ViewActivity,
                 "View activity",
                 new CloudShellNotificationTarget(
                     ResourceManagerRoutes.ResourceDetails(

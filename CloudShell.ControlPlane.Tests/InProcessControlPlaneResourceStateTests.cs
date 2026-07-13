@@ -3885,13 +3885,13 @@ public sealed class InProcessControlPlaneResourceStateTests
             notification.Actions!,
             action =>
             {
-                Assert.Equal("open-resource", action.Id);
+                Assert.Equal(CloudShellNotificationActionIds.OpenResource, action.Id);
                 Assert.Equal("/resources/application.dotnet-app%3Aapi", action.Target!.Href);
                 Assert.True(action.IsPrimary);
             },
             action =>
             {
-                Assert.Equal("view-activity", action.Id);
+                Assert.Equal(CloudShellNotificationActionIds.ViewActivity, action.Id);
                 Assert.Equal("/resources/application.dotnet-app%3Aapi/activity", action.Target!.Href);
                 Assert.False(action.IsPrimary);
             });

@@ -1375,14 +1375,14 @@ public sealed class InProcessControlPlane(
         return
         [
             new CloudShellNotificationAction(
-                "open-resource",
+                CloudShellNotificationActionIds.OpenResource,
                 "Open resource",
                 new CloudShellNotificationTarget(
                     ResourceManagerRoutes.ResourceOverview(resourceId),
                     "Open resource"),
                 IsPrimary: true),
             new CloudShellNotificationAction(
-                "view-activity",
+                CloudShellNotificationActionIds.ViewActivity,
                 "View activity",
                 new CloudShellNotificationTarget(
                     ResourceManagerRoutes.ResourceDetails(
