@@ -34,6 +34,9 @@ on `git blame --follow`, and then by the broad type of change.
   launches and Unix detached shell launches without starting a Control Plane.
 - Added executable app process command tests for executable paths with spaces
   and empty argument defaults.
+- Changed the cross-platform verification workflow to run on `codex/**`
+  development branches and check committed patch whitespace before restore,
+  build, and test.
 
 ### 2026-07-11
 

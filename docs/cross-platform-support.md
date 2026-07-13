@@ -29,10 +29,11 @@ Automated verification starts with a GitHub Actions matrix over:
 - `windows-latest`
 - `macos-latest`
 
-The baseline job restores the solution, builds it, and runs non-integration
-tests with `Category!=Integration`. Docker-dependent and executable-backed
-smoke tests remain explicit jobs so a missing runtime prerequisite is reported
-as an environment issue rather than a product regression.
+The baseline job checks committed patch whitespace, restores the solution,
+builds it, and runs non-integration tests with `Category!=Integration`.
+Docker-dependent and executable-backed smoke tests remain explicit jobs so a
+missing runtime prerequisite is reported as an environment issue rather than a
+product regression.
 
 Local development on macOS remains useful for fast iteration, but a change is
 not cross-platform-ready until CI covers the relevant tier.
@@ -61,8 +62,8 @@ not cross-platform-ready until CI covers the relevant tier.
 
 ### Completed initial slice
 
-1. Added the cross-platform CI matrix for restore, build, and non-integration
-   tests.
+1. Added the cross-platform CI matrix for patch whitespace, restore, build, and
+   non-integration tests on pull requests, `main`, and `codex/**` branches.
 2. Added a first injectable platform descriptor for CLI host-name mapping path
    selection.
 3. Added focused tests around Unix and Windows default hosts-file resolution.
@@ -81,8 +82,8 @@ not cross-platform-ready until CI covers the relevant tier.
 
 ### Active
 
-1. Exercise the new CI matrix and turn Linux or Windows failures into focused
-   implementation tasks.
+1. Exercise the new CI matrix from the `codex/x-plat-work` branch and turn
+   Linux or Windows failures into focused implementation tasks.
 2. Move more direct OS checks behind small injectable platform descriptors where
    the behavior can be unit-tested from any development host.
 3. Continue the same testability pattern for remaining command factories and

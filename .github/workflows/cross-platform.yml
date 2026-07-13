@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - codex/**
   workflow_dispatch:
 
 jobs:
@@ -22,6 +23,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check patch whitespace
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+
+          zero_sha="0000000000000000000000000000000000000000"
+
+          if [ -n "${BASE_SHA:-}" ] && [ "$BASE_SHA" != "$zero_sha" ]; then
+            git diff --check "$BASE_SHA..HEAD"
+          elif git rev-parse HEAD^ >/dev/null 2>&1; then
+            git diff --check HEAD^..HEAD
+          else
+            git diff --check --root HEAD
+          fi
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
