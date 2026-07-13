@@ -74,6 +74,9 @@ on `git blame --follow`, and then by the broad type of change.
   container-host command platform for Docker-compatible commands and made
   missing Docker/Podman prerequisites report stable unavailable results and
   unknown runtime status.
+- Added deterministic container-app runtime coverage for custom Docker/Podman
+  executable metadata plus missing-runtime behavior in logs, monitoring, and
+  replica-slot materialization.
 
 ### 2026-07-11
 

@@ -189,6 +189,17 @@ For MVP, cross-platform support is accepted when:
     the app as stopped.
 30. Added deterministic tests for missing Docker and Podman command behavior in
     the container-app command runner and bridge status path.
+31. Added deterministic coverage for custom Docker and Podman executable
+    metadata in the shared container-host command platform.
+32. Verified container-app runtime log reads surface missing container runtime
+    diagnostics as provider log entries.
+33. Verified container-app runtime monitoring reports missing Docker/Podman
+    prerequisites through unavailable monitoring snapshots.
+34. Verified replica-slot materialization ignores missing Docker/Podman
+    command prerequisites instead of marking slots materialized.
+35. Kept container-app log, monitoring, and materialization helpers on the
+    shared command-runner path so Docker/Podman command planning applies
+    consistently across lifecycle, status, logs, metrics, and repair checks.
 
 ### Active
 
@@ -201,9 +212,9 @@ For MVP, cross-platform support is accepted when:
 4. Audit remaining direct process invocations and path construction in
    provider-owned runtime code, starting with Docker, Podman, and executable
    tool prerequisites.
-5. Continue converting container-app Docker bridge helpers that still assume a
-   Docker CLI command name in tests, logs, and monitoring toward the shared
-   container-host command platform vocabulary.
+5. Continue replacing user-facing "Docker" wording in generic
+   Docker-compatible runtime diagnostics where the selected runtime is Podman
+   or a custom Docker-compatible executable.
 
 ### Next
 
@@ -224,9 +235,9 @@ For MVP, cross-platform support is accepted when:
 6. Add a provider prerequisite-check pattern for Docker/Podman/runtime-backed
    providers so missing host tools produce stable unavailable reasons before
    command execution.
-7. Add container-app runtime tests for custom executable metadata and
-   Docker/Podman log/monitoring prerequisite diagnostics before promoting
-   additional Docker integration tests into the CI smoke subset.
+7. Add container-app runtime tests for custom executable metadata in live
+   command-runner paths before promoting additional Docker integration tests
+   into the CI smoke subset.
 
 ### Deferred
 

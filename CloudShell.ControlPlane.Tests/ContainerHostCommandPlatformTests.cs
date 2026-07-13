@@ -90,6 +90,54 @@ public sealed class ContainerHostCommandPlatformTests
     }
 
     [Fact]
+    public void CreatePlan_UsesCustomExecutableMetadataWhenAvailable()
+    {
+        var host = new ContainerHostDescriptor(
+            "docker:custom",
+            "Custom Docker",
+            ContainerHostKind.Docker,
+            "tcp://docker.example.test:2376",
+            Metadata: new Dictionary<string, string>
+            {
+                [ContainerHostCommandPlatform.ExecutableMetadataKey] = "docker-custom"
+            });
+        var platform = new ContainerHostCommandPlatform(
+            [new StaticContainerHostProvider(host)],
+            new TestHostToolResolver("docker-custom"));
+
+        var plan = platform.CreatePlan();
+        var startInfo = plan.CreateStartInfo(["ps"]);
+
+        Assert.True(plan.IsAvailable);
+        Assert.Equal("docker-custom", startInfo.FileName);
+        Assert.Equal("tcp://docker.example.test:2376", startInfo.Environment["DOCKER_HOST"]);
+    }
+
+    [Fact]
+    public void CreatePlan_UsesCustomExecutableMetadataForPodmanHostWhenAvailable()
+    {
+        var host = new ContainerHostDescriptor(
+            "podman:custom",
+            "Custom Podman",
+            ContainerHostKind.Podman,
+            "unix:///run/user/501/podman/podman.sock",
+            Metadata: new Dictionary<string, string>
+            {
+                [ContainerHostCommandPlatform.ExecutableMetadataKey] = "podman-custom"
+            });
+        var platform = new ContainerHostCommandPlatform(
+            [new StaticContainerHostProvider(host)],
+            new TestHostToolResolver("podman-custom"));
+
+        var plan = platform.CreatePlan();
+        var startInfo = plan.CreateStartInfo(["ps"]);
+
+        Assert.True(plan.IsAvailable);
+        Assert.Equal("podman-custom", startInfo.FileName);
+        Assert.Equal("unix:///run/user/501/podman/podman.sock", startInfo.Environment["CONTAINER_HOST"]);
+    }
+
+    [Fact]
     public void DockerCommandRunner_ReturnsUnavailableResultWithoutStartingProcess()
     {
         var runner = new ProcessLocalDockerContainerCommandRunner(

@@ -103,6 +103,10 @@ platform, so Docker, Podman, host-configured executable metadata, and missing
 runtime diagnostics are resolved before process invocation. Non-container
 commands such as `dotnet` and Java build tools continue to use direct process
 start information.
+The same command-runner path is used by runtime lifecycle, status, log,
+monitoring, and replica-slot materialization helpers, so missing container
+runtime prerequisites produce consistent unavailable or unknown-runtime
+outcomes across those surfaces.
 
 Projected runtime container replicas with `runtime.container` type and
 `containerReplica` runtime metadata automatically get provider-owned Docker

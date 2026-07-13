@@ -921,6 +921,29 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeLogProvider_ReturnsRuntimeUnavailableDiagnosticEntry()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(
+            LocalContainerApplicationCommandResult.UnavailableExitCode,
+            string.Empty,
+            "Docker executable 'docker' is unavailable."));
+        var provider = new LocalContainerApplicationRuntimeLogProvider(
+            commandRunner,
+            new RecordingResourceManagerStore(
+                CreateResourceManagerGraphAppResource(replicas: 1),
+                CreateGraphReplicaResource(replica: 1)));
+
+        var entries = await provider.ReadLogSourceAsync(
+            LocalContainerApplicationRuntimeLogProvider.CreateLogSourceId(CreateGraphReplicaResource(replica: 1)),
+            maxEntries: 10);
+
+        var entry = Assert.Single(entries);
+        Assert.Contains("Docker executable 'docker' is unavailable", entry.Message);
+        Assert.Equal("cloudshell-replicated-health-api-replica-1", entry.Source);
+    }
+
+    [Fact]
     public async Task RuntimeMonitoringProvider_ReadsReplicaContainerStats()
     {
         var commandRunner = new RecordingCommandRunner();
@@ -958,6 +981,56 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Contains(snapshot.Metrics, metric =>
             metric.Name == "resource.process.count" &&
             metric.Value == 12);
+    }
+
+    [Fact]
+    public async Task RuntimeMonitoringProvider_ReportsRuntimeUnavailableReason()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(
+            LocalContainerApplicationCommandResult.UnavailableExitCode,
+            string.Empty,
+            "Docker executable 'docker' is unavailable."));
+        var provider = new LocalContainerApplicationRuntimeMonitoringProvider(commandRunner);
+        var replica = CreateGraphReplicaResource(replica: 2);
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(replica);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal("Unavailable", snapshot.Status);
+        Assert.Empty(snapshot.Metrics);
+        Assert.Equal("Docker executable 'docker' is unavailable.", snapshot.Message);
+    }
+
+    [Fact]
+    public async Task ReplicaSlotMaterializationProvider_IgnoresUnavailableContainerRuntime()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(
+            LocalContainerApplicationCommandResult.UnavailableExitCode,
+            string.Empty,
+            "Docker executable 'docker' is unavailable."));
+        commandRunner.Enqueue(new(
+            LocalContainerApplicationCommandResult.UnavailableExitCode,
+            string.Empty,
+            "Docker executable 'docker' is unavailable."));
+        var provider = new LocalDockerContainerApplicationReplicaSlotMaterializationProvider(
+            commandRunner,
+            Options.Create(CreateRuntimeOptions()));
+        var resource = CreateResourceManagerGraphAppResource(replicas: 2);
+        var graphResource = await CreateGraphAppResourceAsync(replicas: 2);
+        var service = CreateOrchestratorService(graphResource, replicas: 2);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-test");
+
+        var slots = await provider.GetMaterializedReplicaSlotsAsync(resource, replicaGroup);
+
+        Assert.Empty(slots);
+        Assert.Collection(
+            commandRunner.Commands,
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-1"),
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-2"));
     }
 
     [Fact]
