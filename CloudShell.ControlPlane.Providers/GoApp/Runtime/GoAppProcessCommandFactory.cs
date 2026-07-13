@@ -174,16 +174,25 @@ internal sealed record GoAppProcessCommandPlatform(bool IsWindows)
     public string ResolveBinaryPath(string binaryPath, string fullProjectPath)
     {
         var trimmed = binaryPath.Trim();
-        return Path.IsPathRooted(trimmed) || (IsWindows && IsWindowsRootedPath(trimmed))
+        return IsRootedPath(trimmed)
             ? trimmed
             : Path.GetFullPath(trimmed, fullProjectPath);
     }
+
+    private bool IsRootedPath(string path) =>
+        IsWindows
+            ? IsWindowsRootedPath(path) || IsWindowsUncPath(path)
+            : path.StartsWith('/', StringComparison.Ordinal);
 
     private static bool IsWindowsRootedPath(string path) =>
         path.Length >= 3 &&
         char.IsAsciiLetter(path[0]) &&
         path[1] == ':' &&
         (path[2] == '\\' || path[2] == '/');
+
+    private static bool IsWindowsUncPath(string path) =>
+        path.StartsWith(@"\\", StringComparison.Ordinal) ||
+        path.StartsWith("//", StringComparison.Ordinal);
 }
 
 public static class GoAppEnvironmentNames

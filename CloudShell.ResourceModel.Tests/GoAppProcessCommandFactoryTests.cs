@@ -25,14 +25,15 @@ public sealed class GoAppProcessCommandFactoryTests
     public void CreateStartInfo_ResolvesRelativeBinaryPathAgainstProjectPath()
     {
         var resource = CreateResource(binaryPath: "bin/api", arguments: "--verbose");
+        var projectPath = CreateFullPath("repo", "api");
 
         var startInfo = new GoAppProcessCommandFactory(
                 new GoAppProcessCommandPlatform(IsWindows: false))
-            .CreateStartInfo(resource, "/repo/api");
+            .CreateStartInfo(resource, projectPath);
 
-        Assert.Equal(Path.GetFullPath("bin/api", "/repo/api"), startInfo.FileName);
+        Assert.Equal(Path.GetFullPath("bin/api", projectPath), startInfo.FileName);
         Assert.Equal(["--verbose"], startInfo.ArgumentList.ToArray());
-        Assert.Equal("/repo/api", startInfo.WorkingDirectory);
+        Assert.Equal(projectPath, startInfo.WorkingDirectory);
     }
 
     [Fact]
@@ -63,14 +64,26 @@ public sealed class GoAppProcessCommandFactoryTests
     public void CreateStartInfo_TreatsWindowsRootedBinaryPathAsRelativeOnUnix()
     {
         var resource = CreateResource(binaryPath: @"C:\cloudshell\api.exe");
+        var projectPath = CreateFullPath("repo", "api");
 
         var startInfo = new GoAppProcessCommandFactory(
                 new GoAppProcessCommandPlatform(IsWindows: false))
-            .CreateStartInfo(resource, "/repo/api");
+            .CreateStartInfo(resource, projectPath);
 
         Assert.Equal(
-            Path.GetFullPath(@"C:\cloudshell\api.exe", "/repo/api"),
+            Path.GetFullPath(@"C:\cloudshell\api.exe", projectPath),
             startInfo.FileName);
+    }
+
+    private static string CreateFullPath(params string[] paths) =>
+        Path.GetFullPath(Path.Combine(PrependTempPath(paths)));
+
+    private static string[] PrependTempPath(string[] paths)
+    {
+        var segments = new string[paths.Length + 1];
+        segments[0] = Path.GetTempPath();
+        Array.Copy(paths, 0, segments, 1, paths.Length);
+        return segments;
     }
 
     private static Resource CreateResource(

@@ -37,6 +37,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed the cross-platform verification workflow to run on `codex/**`
   development branches and check committed patch whitespace before restore,
   build, and test.
+- Fixed the first Windows matrix failures by making Go app path-root detection
+  depend on the injected command platform, using platform-qualified paths in
+  path-sensitive command tests, and clearing SQLite pools before deleting
+  persistence test databases.
 
 ### 2026-07-11
 

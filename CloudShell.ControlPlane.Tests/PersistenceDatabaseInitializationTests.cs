@@ -65,7 +65,7 @@ public sealed class PersistenceDatabaseInitializationTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            DeleteDatabaseDirectory(directory);
         }
     }
 
@@ -111,7 +111,7 @@ public sealed class PersistenceDatabaseInitializationTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            DeleteDatabaseDirectory(directory);
         }
     }
 
@@ -162,7 +162,7 @@ public sealed class PersistenceDatabaseInitializationTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            DeleteDatabaseDirectory(directory);
         }
     }
 
@@ -214,7 +214,7 @@ public sealed class PersistenceDatabaseInitializationTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            DeleteDatabaseDirectory(directory);
         }
     }
 
@@ -268,7 +268,7 @@ public sealed class PersistenceDatabaseInitializationTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            DeleteDatabaseDirectory(directory);
         }
     }
 
@@ -321,6 +321,35 @@ public sealed class PersistenceDatabaseInitializationTests
         });
 
         return services.BuildServiceProvider();
+    }
+
+    private static void DeleteDatabaseDirectory(string directory)
+    {
+        SqliteConnection.ClearAllPools();
+
+        const int attempts = 5;
+        for (var attempt = 1; attempt <= attempts; attempt++)
+        {
+            try
+            {
+                if (Directory.Exists(directory))
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+
+                return;
+            }
+            catch (IOException) when (attempt < attempts)
+            {
+                Thread.Sleep(TimeSpan.FromMilliseconds(50));
+                SqliteConnection.ClearAllPools();
+            }
+            catch (UnauthorizedAccessException) when (attempt < attempts)
+            {
+                Thread.Sleep(TimeSpan.FromMilliseconds(50));
+                SqliteConnection.ClearAllPools();
+            }
+        }
     }
 
     private static TraceSpan CreateSpan(
@@ -438,7 +467,7 @@ public sealed class PersistenceDatabaseInitializationTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            DeleteDatabaseDirectory(directory);
         }
     }
 

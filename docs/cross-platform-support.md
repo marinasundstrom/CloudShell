@@ -79,11 +79,14 @@ not cross-platform-ready until CI covers the relevant tier.
    direct launch and Unix detached shell launch.
 9. Added executable app command tests for path-with-spaces and empty-argument
    startup behavior.
+10. Enabled `codex/**` branch pushes to exercise the matrix before PRs and
+    fixed the first Windows test failures for SQLite cleanup and path-shaped
+    command assertions.
 
 ### Active
 
-1. Exercise the new CI matrix from the `codex/x-plat-work` branch and turn
-   Linux or Windows failures into focused implementation tasks.
+1. Re-run the `codex/x-plat-work` matrix after the first Windows fixes and
+   turn any remaining Windows failures into focused implementation tasks.
 2. Move more direct OS checks behind small injectable platform descriptors where
    the behavior can be unit-tested from any development host.
 3. Continue the same testability pattern for remaining command factories and
