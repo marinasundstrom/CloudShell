@@ -36,6 +36,18 @@ public static class CloudShellNotificationActionIds
     public const string ViewActivity = "view-activity";
 }
 
+public static class CloudShellNotificationTemplateKeys
+{
+    public const string ResourceLifecycleOperation = "cloudshell.resource-lifecycle-operation";
+    public const string ResourceCreateOperation = "cloudshell.resource-create-operation";
+    public const string ResourceUpdateOperation = "cloudshell.resource-update-operation";
+    public const string DeploymentApplyOperation = "cloudshell.deployment-apply-operation";
+    public const string ResourceRecoveryOperation = "cloudshell.resource-recovery-operation";
+    public const string ReplicaRepairOperation = "cloudshell.replica-repair-operation";
+    public const string ResourceTemplateApplyOperation = "cloudshell.resource-template-apply-operation";
+    public const string ApplicationArtifactApplyOperation = "cloudshell.application-artifact-apply-operation";
+}
+
 public sealed record CloudShellNotificationQuery(
     string? RecipientKey = null,
     bool IncludeDismissed = false,

@@ -347,7 +347,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return new NotificationOperation(
                 "lifecycle",
                 lifecycleActionId,
-                "cloudshell.resource-lifecycle-operation");
+                CloudShellNotificationTemplateKeys.ResourceLifecycleOperation);
         }
 
         if (IsStartMaterializationDeploymentEvent(resourceEvent))
@@ -355,7 +355,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return new NotificationOperation(
                 "lifecycle",
                 ResourceActionIds.Start,
-                "cloudshell.resource-lifecycle-operation");
+                CloudShellNotificationTemplateKeys.ResourceLifecycleOperation);
         }
 
         if (IsResourceCreateEvent(resourceEvent.EventType))
@@ -363,7 +363,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return new NotificationOperation(
                 "create",
                 "create",
-                "cloudshell.resource-create-operation");
+                CloudShellNotificationTemplateKeys.ResourceCreateOperation);
         }
 
         if (GetDeploymentUpdateKind(resourceEvent.EventType) is { } updateKind)
@@ -371,7 +371,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return new NotificationOperation(
                 "update",
                 updateKind,
-                "cloudshell.resource-update-operation");
+                CloudShellNotificationTemplateKeys.ResourceUpdateOperation);
         }
 
         if (IsDeploymentApplyEvent(resourceEvent.EventType))
@@ -379,7 +379,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return new NotificationOperation(
                 "deployment",
                 "apply",
-                "cloudshell.deployment-apply-operation");
+                CloudShellNotificationTemplateKeys.DeploymentApplyOperation);
         }
 
         if (IsResourceRecoveryNotificationEvent(resourceEvent.EventType))
@@ -387,14 +387,14 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return new NotificationOperation(
                 "recovery",
                 "resource",
-                "cloudshell.resource-recovery-operation");
+                CloudShellNotificationTemplateKeys.ResourceRecoveryOperation);
         }
 
         return IsReplicaRepairNotificationEvent(resourceEvent.EventType)
             ? new NotificationOperation(
                 "replica-repair",
                 "replica",
-                "cloudshell.replica-repair-operation")
+                CloudShellNotificationTemplateKeys.ReplicaRepairOperation)
             : null;
     }
 

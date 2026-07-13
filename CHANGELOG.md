@@ -146,6 +146,8 @@ on `git blame --follow`, and then by the broad type of change.
   kind and template key.
 - Added public notification action ID constants for standard resource
   navigation actions.
+- Added public CloudShell notification template key constants for resource,
+  deployment, recovery, repair, template apply, and artifact apply renderers.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

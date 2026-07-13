@@ -97,12 +97,30 @@ For toast-only progress:
    auto-dismiss override, the reusable in-memory CoreShell toast service
    returns it to normal time-to-live auto-dismiss.
 
+## CloudShell template keys
+
+CloudShell-owned notification producers use stable template keys so shell
+hosts can opt into richer renderers while keeping the default CoreShell
+notification layout as the fallback.
+
+| Constant | Template key | Producer |
+| --- | --- | --- |
+| `CloudShellNotificationTemplateKeys.ResourceLifecycleOperation` | `cloudshell.resource-lifecycle-operation` | Resource start, stop, pause, and restart events. |
+| `CloudShellNotificationTemplateKeys.ResourceCreateOperation` | `cloudshell.resource-create-operation` | Resource creation events. |
+| `CloudShellNotificationTemplateKeys.ResourceUpdateOperation` | `cloudshell.resource-update-operation` | Resource image, replica, and update events. |
+| `CloudShellNotificationTemplateKeys.DeploymentApplyOperation` | `cloudshell.deployment-apply-operation` | Deployment apply events. |
+| `CloudShellNotificationTemplateKeys.ResourceRecoveryOperation` | `cloudshell.resource-recovery-operation` | Resource recovery events. |
+| `CloudShellNotificationTemplateKeys.ReplicaRepairOperation` | `cloudshell.replica-repair-operation` | Replica repair events. |
+| `CloudShellNotificationTemplateKeys.ResourceTemplateApplyOperation` | `cloudshell.resource-template-apply-operation` | Resource template apply operations. |
+| `CloudShellNotificationTemplateKeys.ApplicationArtifactApplyOperation` | `cloudshell.application-artifact-apply-operation` | Resource Manager application artifact apply operations. |
+
 ## Current gaps
 
 - Notification records are in-memory in the local-development path.
 - Split-hosting notification change delivery still needs a SignalR-backed
   adapter.
 - Audience resolution is still local/default-operator oriented.
-- Artifact upload, validation, and apply notification producers are planned.
+- Durable artifact upload and validation notification producers are deferred;
+  local upload and validation progress currently uses toast-only feedback.
 - Provider diagnostics notifications need safe summary and authorization rules.
 - Rich CloudShell-specific notification templates are not implemented yet.

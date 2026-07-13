@@ -73,8 +73,6 @@ public sealed class InProcessControlPlane(
     private const string LivenessTriggeredBy = "liveness";
     private const string ReplicaManagementTriggeredBy = "replica-management";
     private const string ResourceTemplateApplySource = "Control Plane";
-    private const string ResourceTemplateApplyTemplateKey = "cloudshell.resource-template-apply-operation";
-    private const string ApplicationArtifactApplyTemplateKey = "cloudshell.application-artifact-apply-operation";
     private const string ApplicationDotnetAppType = "application.dotnet-app";
     private const string ApplicationPythonAppType = "application.python-app";
     private const string ApplicationJavaAppType = "application.java-app";
@@ -1334,8 +1332,8 @@ public sealed class InProcessControlPlane(
             ResourceId: resourceId,
             CorrelationId: CreateTemplateApplyCorrelationId(operationId, triggeredBy),
             TemplateKey: isApplicationArtifactApply
-                ? ApplicationArtifactApplyTemplateKey
-                : ResourceTemplateApplyTemplateKey,
+                ? CloudShellNotificationTemplateKeys.ApplicationArtifactApplyOperation
+                : CloudShellNotificationTemplateKeys.ResourceTemplateApplyOperation,
             Actions: CreateTemplateApplyActions(resourceId, status),
             Attributes: attributes));
     }

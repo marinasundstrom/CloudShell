@@ -131,7 +131,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal("application:api", notification.ResourceId);
         Assert.Equal(ResourceEventTypes.Events.Lifecycle.Started, notification.EventType);
         Assert.Equal("resource-lifecycle|application:api|start|operator", notification.CorrelationId);
-        Assert.Equal("cloudshell.resource-lifecycle-operation", notification.TemplateKey);
+        Assert.Equal(CloudShellNotificationTemplateKeys.ResourceLifecycleOperation, notification.TemplateKey);
         Assert.NotEmpty(notification.EventId!);
         Assert.Equal("trace-1", notification.Attributes!["traceId"]);
         Assert.Equal("span-1", notification.Attributes!["spanId"]);
@@ -247,7 +247,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
         Assert.Equal(ResourceEventTypes.Events.Lifecycle.Started, notification.EventType);
         Assert.Equal("resource-lifecycle|application:api|start|operator", notification.CorrelationId);
-        Assert.Equal("cloudshell.resource-lifecycle-operation", notification.TemplateKey);
+        Assert.Equal(CloudShellNotificationTemplateKeys.ResourceLifecycleOperation, notification.TemplateKey);
         Assert.Equal("start", notification.Attributes!["actionId"]);
         Assert.Equal("lifecycle", notification.Attributes!["operationKind"]);
         Assert.Equal(6, changes.Count);
@@ -286,7 +286,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
         Assert.Equal(ResourceEventTypes.Events.Resource.Created, notification.EventType);
         Assert.Equal("resource-create|application:api|create|operator", notification.CorrelationId);
-        Assert.Equal("cloudshell.resource-create-operation", notification.TemplateKey);
+        Assert.Equal(CloudShellNotificationTemplateKeys.ResourceCreateOperation, notification.TemplateKey);
         Assert.Equal("create", notification.Attributes!["operationKind"]);
     }
 
@@ -321,7 +321,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, notification.EventType);
         Assert.Equal("resource-update|application:api|image|operator", notification.CorrelationId);
-        Assert.Equal("cloudshell.resource-update-operation", notification.TemplateKey);
+        Assert.Equal(CloudShellNotificationTemplateKeys.ResourceUpdateOperation, notification.TemplateKey);
         Assert.Equal("update", notification.Attributes!["operationKind"]);
         Assert.Equal("image", notification.Attributes!["updateKind"]);
     }
@@ -358,7 +358,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
         Assert.Equal(ResourceEventTypes.Events.Deployment.Applied, notification.EventType);
         Assert.Equal("resource-deployment|application:api|apply|operator", notification.CorrelationId);
-        Assert.Equal("cloudshell.deployment-apply-operation", notification.TemplateKey);
+        Assert.Equal(CloudShellNotificationTemplateKeys.DeploymentApplyOperation, notification.TemplateKey);
         Assert.Equal("deployment", notification.Attributes!["operationKind"]);
         Assert.Equal("apply", notification.Attributes!["deploymentKind"]);
         Assert.Equal(
@@ -421,7 +421,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
         Assert.Equal(ResourceEventTypes.Events.Recovery.RestartSucceeded, notification.EventType);
         Assert.Equal("resource-recovery|application:api|resource|user", notification.CorrelationId);
-        Assert.Equal("cloudshell.resource-recovery-operation", notification.TemplateKey);
+        Assert.Equal(CloudShellNotificationTemplateKeys.ResourceRecoveryOperation, notification.TemplateKey);
         Assert.Equal("recovery", notification.Attributes!["operationKind"]);
         Assert.Equal("resource", notification.Attributes!["recoveryKind"]);
         Assert.Equal("recovery", notification.Attributes!["triggeredBy"]);
@@ -499,7 +499,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
         Assert.Equal(ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized, notification.EventType);
         Assert.Equal("resource-replica-repair|application:api|replica|user", notification.CorrelationId);
-        Assert.Equal("cloudshell.replica-repair-operation", notification.TemplateKey);
+        Assert.Equal(CloudShellNotificationTemplateKeys.ReplicaRepairOperation, notification.TemplateKey);
         Assert.Equal("replicaRepair", notification.Attributes!["operationKind"]);
         Assert.Equal("replica", notification.Attributes!["repairKind"]);
         Assert.Equal("replica-management", notification.Attributes!["triggeredBy"]);
@@ -531,7 +531,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal("Resource recovery", notification.Title);
         Assert.Equal(CloudShellNotificationStatus.Failed, notification.Status);
         Assert.Equal("resource-recovery|application:api|resource|user", notification.CorrelationId);
-        Assert.Equal("cloudshell.resource-recovery-operation", notification.TemplateKey);
+        Assert.Equal(CloudShellNotificationTemplateKeys.ResourceRecoveryOperation, notification.TemplateKey);
     }
 
     [Fact]
