@@ -82,11 +82,13 @@ not cross-platform-ready until CI covers the relevant tier.
 10. Enabled `codex/**` branch pushes to exercise the matrix before PRs and
     fixed the first Windows test failures for SQLite cleanup and path-shaped
     command assertions.
+11. Verified the Tier 0 matrix is green for patch whitespace, restore, build,
+    and non-integration tests on Ubuntu, macOS, and Windows.
 
 ### Active
 
-1. Re-run the `codex/x-plat-work` matrix after the first Windows fixes and
-   turn any remaining Windows failures into focused implementation tasks.
+1. Use the green Tier 0 matrix as the regression gate for the remaining
+   cross-platform slices.
 2. Move more direct OS checks behind small injectable platform descriptors where
    the behavior can be unit-tested from any development host.
 3. Continue the same testability pattern for remaining command factories and
