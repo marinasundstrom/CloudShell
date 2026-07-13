@@ -57,6 +57,12 @@ through `AddCoreShellModule(...)`:
 - `ICoreShellToastService` for transient toast-only signals that should not
   create notification-center history. `PublishAsync` returns the created toast
   so the caller can update, dismiss, or replace it by ID.
+- A CoreShell settings service contract for settings consumed or managed
+  through the shell UI. CoreShell should own the UI-facing read/write contract
+  and extension-owned settings surface; hosts decide whether the backing store
+  is local, Control Plane-backed, remote, or custom. The current CloudShell
+  environment settings provider is the implementation to migrate behind that
+  CoreShell boundary.
 - `CoreShell.Blazor` helpers such as `CoreShellBlazorContent.For<TComponent>()`
   and `AddSection<TComponent>(...)` for Blazor-backed content.
 
@@ -177,11 +183,15 @@ CloudShell does not currently support per-user customization. Start-route and vi
 
 CloudShell does support per-user persisted environment preferences that are not
 part of any Control Plane workload or resource domain model. The built-in theme
-selector and collapsed navigation state use `ICloudShellUserSettingsProvider`
-instead of browser local storage. Settings are keyed by the authenticated
-user's stable claim (`NameIdentifier`, `sub`, or name). When authentication is
-not enabled, or a host has no authenticated principal, the provider uses a
-local profile so settings still persist predictably.
+selector and collapsed navigation state currently use
+`ICloudShellUserSettingsProvider` instead of browser local storage. That
+provider is CloudShell's current implementation path; the CoreShell boundary
+should define the reusable UI settings interface so a CoreShell-only host can
+consume and manage shell UI settings without depending on CloudShell. Settings
+are keyed by the authenticated user's stable claim (`NameIdentifier`, `sub`,
+or name). When authentication is not enabled, or a host has no authenticated
+principal, the provider uses a local profile so settings still persist
+predictably.
 
 The host selects exactly one storage backend with `Shell:EnvironmentSettings:Storage`:
 

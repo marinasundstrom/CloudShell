@@ -74,8 +74,12 @@ only provided a host area.
 
 ## Status
 
-Deferred strategic direction, not an active proposal. This is post-MVP
-platform direction. MVP work should keep Resource Manager and supported
+Deferred strategic direction, not the active extraction plan. Active CoreShell
+boundary and reference-sample work now lives in the
+[CoreShell platform boundary proposal](../proposals/core/coreshell-platform.md).
+Keep this document for deferred platform ideas such as persisted shell
+configuration, extension marketplace policy, user personalization, and broader
+post-MVP shell composition. MVP work should keep Resource Manager and supported
 local-development samples stable while avoiding short-term UI decisions that
 would prevent this model.
 

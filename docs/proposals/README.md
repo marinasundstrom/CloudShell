@@ -70,12 +70,13 @@ keep only the delta that affects remaining work.
 | 16 | [Remote Docker hosts](containers/remote-docker-hosts.md) | Partially implemented | Medium; useful but should not block local/default host MVP. | Keep behind shared host abstraction. Take concrete slices only when they validate the host boundary or unblock samples. |
 | 17 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress | High; supports replica/resource diagnostics and cleanup. | Use [Provider-created and runtime-managed resources](../runtime-managed-resources.md) as the landed spec. Continue provider-observed IDs, health, placement, ownership traversal, and materialization diagnostics. |
 | 18 | [Orchestrator deployments and environment revisions](deployment/deployments-and-revisions.md) | In progress | High for container app internals; later for public rollout history. | Finish controller/reconciliation boundary for first start, routing rebinding, service tear-down, and cleanup. Keep rich rollout history deferred. |
-| 19 | [UI composition library](core/ui-composition.md) | Current implementation working document | Medium-high; active only where it stabilizes current UI surfaces. | Avoid broadening for MVP. Use it to reduce current shell, Settings, and Resource Manager drift; keep generic library behavior in [UI composition](../ui-composition.md). |
-| 20 | [Shell notifications and toasts](core/shell-notifications.md) | Proposed | Medium-high; supports Azure-like operation feedback and strengthens CoreShell as a common shell layer. | Define CoreShell notification event/instance contracts and prove them in the CoreShell Fluent UI sample before adding CloudShell adapters. |
-| 21 | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) | Migration in progress; active migration anchor | High; foundational to templates, graph apply, and orchestration. | Continue ResourceDefinition-based templates, graph-backed provider migration, and retirement of obsolete provider-template paths. |
-| 22 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Prioritize the installed CLI plus default local-development host daemon path, then keep launcher/profile, TypeScript/JavaScript, Java, and SDK hardening aligned with that boundary. |
-| 23 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
-| 24 | [Intent-first resource authoring](core/intent-first-resource-authoring.md) | Proposed | Medium-high; broadens authoring without making CloudShell code-centric. | Defer until ResourceDefinition apply, provider diagnostics, and Resource Manager review/apply surfaces are stable; then start with draft-template review rather than autonomous apply. |
+| 19 | [CoreShell platform boundary](core/coreshell-platform.md) | Proposed | Medium-high; keeps common shell infrastructure reusable while CloudShell remains a Control Plane product shell. | Use the CoreShell Fluent UI sample as the reference app and extract only proven common shell building blocks from CloudShell Hosting. |
+| 20 | [UI composition library](core/ui-composition.md) | Current implementation working document | Medium-high; active only where it stabilizes current UI surfaces. | Avoid broadening for MVP. Use it to reduce current shell, Settings, and Resource Manager drift; keep generic library behavior in [UI composition](../ui-composition.md). |
+| 21 | [Shell notifications and toasts](core/shell-notifications.md) | Partially implemented | Medium-high; supports Azure-like operation feedback and strengthens CoreShell as a common shell layer. | Continue through the CoreShell platform boundary: keep generic behavior in the CoreShell Fluent UI sample and adapt CloudShell to Control Plane-backed producers. |
+| 22 | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) | Migration in progress; active migration anchor | High; foundational to templates, graph apply, and orchestration. | Continue ResourceDefinition-based templates, graph-backed provider migration, and retirement of obsolete provider-template paths. |
+| 23 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Prioritize the installed CLI plus default local-development host daemon path, then keep launcher/profile, TypeScript/JavaScript, Java, and SDK hardening aligned with that boundary. |
+| 24 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
+| 25 | [Intent-first resource authoring](core/intent-first-resource-authoring.md) | Proposed | Medium-high; broadens authoring without making CloudShell code-centric. | Defer until ResourceDefinition apply, provider diagnostics, and Resource Manager review/apply surfaces are stable; then start with draft-template review rather than autonomous apply. |
 
 ## Deferred Strategy Notes
 
@@ -87,7 +88,7 @@ incremental implementation slice with near-term value.
 | --- | --- | --- |
 | [Deployment projection](../future/deployment-projection.md) | High long-term fit for portability and target-specific deployment output. | Defer until ResourceDefinition apply, container app orchestration, networking, storage, identity, and on-premise target boundaries are stable. |
 | [Resource graph import and code generation](../future/resource-graph-import-and-code-generation.md) | High adoption fit for Docker Compose and existing local app topologies. | Defer implementation; revisit after container apps, volumes, networking, and import/read-only UX are stable. |
-| [Shell composition](../future/shell-composition.md) | High strategic fit for the post-MVP extensible shell platform. | Defer broad shell-platform contracts; only extract proven patterns when current Resource Manager, Settings, or shell work needs them. |
+| [Shell composition](../future/shell-composition.md) | High strategic fit for the post-MVP extensible shell platform. | Use [CoreShell platform boundary](core/coreshell-platform.md) for active extraction slices; keep this future note for deferred persistence, marketplace, and user-personalization ideas. |
 | [Resource Manager project structure](../future/resource-manager-project-structure.md) | Medium-high structural fit once Resource Manager UI and CoreShell boundaries are proven. | Defer physical project/assembly restructuring until current UI and shell composition paths are stable. |
 | [IoT device provisioning](../future/iot-device-provisioning.md) | Plausible later fit for edge/device environments. | No action now; revisit after local and initial on-premise control-plane flows are credible. |
 
@@ -111,7 +112,7 @@ own documentation slice instead of folding into this overview cleanup.
 | Provider-created and runtime-managed resources | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) and changelog entries | [Provider-created and runtime-managed resources](../runtime-managed-resources.md), [Resource model](../resource-model.md), [Container Apps](../resources/container-apps.md), and [Orchestration and Deployments](../orchestration-and-deployments.md) | Initial spec extracted for source, management mode, visibility, ownership, cleanup behavior, Resource Manager filtering, API/client projection, container app runtime replicas, storage-owned hidden volumes, and provider/launcher parity. Later pass should drain provider-created durable-resource examples as they land. |
 | Cross-language local development | [Cross-language local development](core/cross-language-local-development.md) and changelog entries | [Launchers](../launchers-and-app-hosts.md), [CloudShell CLI](../cli.md), [SDK clients](../sdk-clients.md), and language resource docs | Initial drain done for C# launcher, TypeScript/JavaScript, Java launcher, CLI `--data-dir`, SDK-client, and sample behavior. Later pass should verify package status and generated-client guidance. |
 | Resource model providers | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) provider sections and diagrams | [Resource model providers](../resource-model-providers.md), [ResourceDefinition structure](../resource-definition-structure.md), and [Extensions](../extensions.md) | Initial spec extracted for type providers, class/type definitions, capability and operation providers, graph validators, apply providers, projection providers, provider package shape, and parity expectations. Proposal diagrams that still mention generated wrappers or persistence strategies are now marked proposal-only. |
-| UI/CoreShell composition | [UI composition library](core/ui-composition.md), [Shell composition](../future/shell-composition.md), and changelog entries | [UI composition](../ui-composition.md), [Shell customization](../shell-customization.md), and extension docs | Initial proposal cleanup done; current package split and CloudShell/CoreShell consumption now live in feature docs. Later pass should verify landed CoreShell services, Blazor adapter, route/link resolution, Settings, and navigation behavior against code and changelog entries. |
+| UI/CoreShell composition | [CoreShell platform boundary](core/coreshell-platform.md), [UI composition library](core/ui-composition.md), [Shell composition](../future/shell-composition.md), and changelog entries | [Architecture](../architecture.md), [UI composition](../ui-composition.md), [Shell customization](../shell-customization.md), and extension docs | Initial proposal cleanup done; current package split and CloudShell/CoreShell consumption now live in feature docs. Later pass should verify landed CoreShell services, Blazor adapter, route/link resolution, Settings, navigation, notifications, and reference-sample behavior against code and changelog entries. |
 
 ## Current proposal order
 
@@ -173,15 +174,20 @@ hardening.
    the local/default host path
 12. Runtime ownership decisions through
    [Runtime-managed resources](core/provider-created-and-runtime-managed-resources.md)
-13. [UI composition library](core/ui-composition.md), only where it fixes
+13. [CoreShell platform boundary](core/coreshell-platform.md), starting with
+    the CoreShell Fluent UI sample as the reference shell and extracting only
+    proven common building blocks from CloudShell Hosting. Keep CloudShell
+    Resource Manager, Control Plane adapters, and provider UI out of
+    CoreShell.
+14. [UI composition library](core/ui-composition.md), only where it fixes
     regressions or directly supports the current shell, Resource Manager, and
-    Settings experience. Broader CoreShell shell contracts and Resource Manager
-    project restructuring remain [future directions](../future/).
-14. [Shell notifications and toasts](core/shell-notifications.md), starting
-    with a CoreShell contract and sample proof for per-user notification
-    instances, a notification center, and toast presentation before adding
-    CloudShell Resource Manager and Control Plane producers.
-15. Cross-language local-development hardening through
+    Settings experience. Broader persistence, marketplace, and user-personalized
+    shell composition remain [future directions](../future/).
+15. [Shell notifications and toasts](core/shell-notifications.md), continuing
+    through the CoreShell platform boundary: prove generic behavior in the
+    CoreShell Fluent UI sample and keep CloudShell-specific producers backed by
+    the Control Plane.
+16. Cross-language local-development hardening through
     [Cross-language local development](core/cross-language-local-development.md)
     only where it keeps the local-development model ecosystem-neutral without
     distracting from MVP stabilization. The first distribution slice is the
