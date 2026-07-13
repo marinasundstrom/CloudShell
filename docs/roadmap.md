@@ -536,58 +536,40 @@ resources, shell-composition implementation, provider-backed DNS propagation,
 network-level service registries, external deployment projection,
 external-format import/code generation, and initial on-premise hosting.
 
-For the next run, prefer these loose-end slices in order:
+Active MVP tie-off queue:
 
-1. **Inventory the exposed seams.** Run or inspect Application Topology,
-   ReplicatedContainerHealth, ContainerAppDeployment, HostVirtualNetwork,
-   LoadBalancer, ThirdPartyIdentity, SettingsAndSecrets, and SplitHosting.
-   Record only seams that are visible to users, required by smoke coverage, or
-   likely to confuse contributors: sample-local DNS/CoreDNS publishing,
-   sample-local Traefik/load-balancer materialization,
-   deferred container-app runtimes, compatibility routes, legacy link shapes,
-   experimental launcher/package labels, and provider README gaps.
-2. **Classify every seam.** Mark each one as fix-now, accepted MVP bridge, or
-   post-MVP deferred. Fix-now items are exposed in the supported local run and
-   make the product feel broken. Accepted MVP bridges are narrow, documented,
-   and covered by tests. Deferred items belong in proposals or future docs, not
-   in the active execution queue.
-3. **Tie off Application Topology first.** Keep the sample as the broad proof
-   for storage-backed SQL, Configuration Store, Secrets Vault, identity grants,
+1. **Classify exposed seams in supported samples.** Inspect Application
+   Topology, ReplicatedContainerHealth, ContainerAppDeployment,
+   HostVirtualNetwork, LoadBalancer, ThirdPartyIdentity, SettingsAndSecrets,
+   and SplitHosting. Record only user-visible or smoke-critical seams, and mark
+   each one as fix-now, accepted MVP bridge, or post-MVP deferred.
+2. **Tie off Application Topology first.** Keep it as the broad proof for
+   storage-backed SQL, Configuration Store, Secrets Vault, identity grants,
    project-backed apps, local exposure, DNS/name mapping, logs, traces,
-   metrics, failure responses, and host shutdown cleanup. The SQL credential
-   endpoint is now provider-owned and injected from graph references, so focus
-   the next pass on DNS/name mapping, local exposure, and any remaining
-   sample-local identity bridges.
-4. **Make container-app runtime behavior coherent where exposed.** Keep rich
-   rollout history, autoscaling, traffic splitting, and public deployment
-   semantics deferred, but do not leave start, stop, restart, image update,
-   replica update, readiness, route rebinding, and cleanup split across
-   incompatible paths for the supported samples. Deferred runtime adapters
-   should be named as migration bridges and should not look like production
-   providers.
-5. **Close routing and name-mapping rough edges.** For the local/default path,
-   DNS/name mappings, load-balancer routes, endpoint mappings, and generated
-   links should lead to concrete reachable endpoints when one exists and
-   explain provider gaps when one does not. Provider-backed DNS propagation and
-   network-level discovery remain out of scope.
-6. **Harden expected-failure diagnostics.** Start/restart, SQL Server,
-   storage/volume mounts, settings/secrets, identity grants, DNS/name mapping,
-   load-balancer routes, occupied ports, missing Docker, and provider command
-   failures should surface stable diagnostics, capability reasons, or
-   ProblemDetails instead of raw provider exceptions.
-7. **Smooth the Resource Manager path.** Use readable resource labels in
-   routine UI, preserve resource IDs in canonical details, keep app-scoped
-   health/logs/traces/monitoring/activity/relationships coherent, and fix
-   inconsistent empty/error/loading/read-only states where current samples
-   expose them. Do not broaden shell composition or add new global workspaces.
-8. **Document intentional incompleteness.** Update provider READMEs, sample
-   READMEs, proposal status, and feature docs so accepted MVP bridges and
-   deferred capabilities are explicit. Avoid language that presents an
-   experimental package, compatibility adapter, or sample-local helper as a
-   finished platform contract.
-9. **Verify the tie-off.** Run targeted tests for each fixed seam, the relevant
-   sample smoke coverage, and `git diff --check`. Docker-dependent smoke tests
-   remain conditional on a healthy local Docker daemon.
+   metrics, failure responses, and host shutdown cleanup. Focus the next pass
+   on DNS/name mapping, local exposure, and any remaining sample-local identity
+   bridge that is visible in the app-management loop.
+3. **Make exposed container-app runtime behavior coherent.** Keep rich rollout
+   history, autoscaling, traffic splitting, and public deployment semantics
+   deferred, but make start, stop, restart, image update, replica update,
+   readiness, route rebinding, cleanup, and diagnostics read as one local
+   provider path for supported samples.
+4. **Close routing, name, and readiness rough edges.** For the local/default
+   path, DNS/name mappings, load-balancer routes, endpoint mappings, and
+   generated links should lead to reachable endpoints when one exists and
+   explain provider gaps when one does not. Expected failures should surface
+   stable diagnostics, capability reasons, or ProblemDetails instead of raw
+   provider exceptions.
+5. **Smooth the Resource Manager path and document bridges.** Use readable
+   labels in routine UI, preserve resource IDs in canonical details, keep
+   app-scoped health/logs/traces/monitoring/activity/relationships coherent,
+   and update provider READMEs, sample READMEs, proposal status, and feature
+   docs where behavior is intentionally incomplete. Do not broaden shell
+   composition or add new global workspaces.
+
+Verify each tie-off slice with targeted tests, relevant sample smoke coverage
+when practical, and `git diff --check`. Docker-dependent smoke tests remain
+conditional on a healthy local Docker daemon.
 
 ### Immediate Proposal Order
 
