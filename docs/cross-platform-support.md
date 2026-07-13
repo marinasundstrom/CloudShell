@@ -174,6 +174,21 @@ For MVP, cross-platform support is accepted when:
 25. Added deterministic provider-runtime tests for Docker/Podman executable
     selection, custom executable diagnostics, and missing runtime command
     behavior without requiring Docker or Podman locally.
+26. Routed the local container-app process command runner through the shared
+    container-host command platform for Docker-compatible commands while
+    leaving non-container commands such as `dotnet` and Java build tools on the
+    direct process path.
+27. Added a stable unavailable result code for local container-app command
+    execution so Docker/Podman prerequisite failures can be distinguished from
+    ordinary non-zero runtime exits.
+28. Registered the shared container-host command platform from the
+    container-app provider registration so normal hosts get Docker/Podman
+    executable planning by default.
+29. Changed local container-app runtime status probing so an unavailable
+    Docker/Podman executable reports unknown runtime status instead of treating
+    the app as stopped.
+30. Added deterministic tests for missing Docker and Podman command behavior in
+    the container-app command runner and bridge status path.
 
 ### Active
 
@@ -186,8 +201,9 @@ For MVP, cross-platform support is accepted when:
 4. Audit remaining direct process invocations and path construction in
    provider-owned runtime code, starting with Docker, Podman, and executable
    tool prerequisites.
-5. Move the larger local Docker container-application bridge to the shared
-   container-host command platform without changing its orchestration behavior.
+5. Continue converting container-app Docker bridge helpers that still assume a
+   Docker CLI command name in tests, logs, and monitoring toward the shared
+   container-host command platform vocabulary.
 
 ### Next
 
@@ -208,9 +224,9 @@ For MVP, cross-platform support is accepted when:
 6. Add a provider prerequisite-check pattern for Docker/Podman/runtime-backed
    providers so missing host tools produce stable unavailable reasons before
    command execution.
-7. Add container-app runtime tests for missing Docker/Podman prerequisites and
-   custom executable metadata before promoting additional Docker integration
-   tests into the CI smoke subset.
+7. Add container-app runtime tests for custom executable metadata and
+   Docker/Podman log/monitoring prerequisite diagnostics before promoting
+   additional Docker integration tests into the CI smoke subset.
 
 ### Deferred
 

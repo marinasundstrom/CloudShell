@@ -373,6 +373,23 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_GetStatusReturnsUnknownWhenContainerRuntimeIsUnavailable()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(
+            LocalContainerApplicationCommandResult.UnavailableExitCode,
+            string.Empty,
+            "Docker executable 'docker' is unavailable."));
+        var bridge = CreateRuntimeBridge(
+            commandRunner,
+            CreateConfiguration());
+
+        var status = bridge.GetStatus(await CreateGraphAppResourceAsync(replicas: 1));
+
+        Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, status);
+    }
+
+    [Fact]
     public async Task RuntimeBridge_GetStatusKeepsLastStableStateWhenDockerProbeTimesOut()
     {
         var commandRunner = new RecordingCommandRunner();

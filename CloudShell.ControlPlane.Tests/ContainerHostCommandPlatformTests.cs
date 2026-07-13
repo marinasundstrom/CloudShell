@@ -137,6 +137,49 @@ public sealed class ContainerHostCommandPlatformTests
         Assert.Contains("Docker executable 'docker' is unavailable", result.Error);
     }
 
+    [Fact]
+    public void ContainerApplicationCommandRunner_ReturnsUnavailableResultForDockerCommand()
+    {
+        var runner = new ProcessLocalContainerApplicationCommandRunner(
+            new ContainerHostCommandPlatform([], new TestHostToolResolver()));
+
+        var result = runner.Run("docker", ["ps"], throwOnError: false);
+
+        Assert.Equal(LocalContainerApplicationCommandResult.UnavailableExitCode, result.ExitCode);
+        Assert.Contains("Docker executable 'docker' is unavailable", result.Error);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationCommandRunner_ThrowsStableUnavailableReasonForDockerCommand()
+    {
+        var runner = new ProcessLocalContainerApplicationCommandRunner(
+            new ContainerHostCommandPlatform([], new TestHostToolResolver()));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            runner.RunAsync("docker", ["ps"], CancellationToken.None));
+
+        Assert.Contains("Docker executable 'docker' is unavailable", exception.Message);
+    }
+
+    [Fact]
+    public void ContainerApplicationCommandRunner_UsesPodmanUnavailableReasonForPodmanHost()
+    {
+        var host = new ContainerHostDescriptor(
+            "podman:default",
+            "Default Podman",
+            ContainerHostKind.Podman,
+            "unix:///run/user/501/podman/podman.sock");
+        var runner = new ProcessLocalContainerApplicationCommandRunner(
+            new ContainerHostCommandPlatform(
+                [new StaticContainerHostProvider(host)],
+                new TestHostToolResolver()));
+
+        var result = runner.Run("docker", ["ps"], throwOnError: false);
+
+        Assert.Equal(LocalContainerApplicationCommandResult.UnavailableExitCode, result.ExitCode);
+        Assert.Contains("Podman executable 'podman' is unavailable", result.Error);
+    }
+
     private sealed class TestHostToolResolver(params string[] availableTools) : IHostToolResolver
     {
         private readonly HashSet<string> availableTools = new(

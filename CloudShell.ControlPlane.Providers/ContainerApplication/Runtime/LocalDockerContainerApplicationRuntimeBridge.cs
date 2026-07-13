@@ -127,6 +127,11 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
                 return RuntimeStatusProbeResult.Transient();
             }
 
+            if (result.ExitCode == LocalContainerApplicationCommandResult.UnavailableExitCode)
+            {
+                return RuntimeStatusProbeResult.Unknown();
+            }
+
             if (result.ExitCode != 0)
             {
                 stopped++;

@@ -70,6 +70,10 @@ on `git blame --follow`, and then by the broad type of change.
   runners through the shared command platform so Docker/Podman executable
   selection, environment setup, and missing-runtime diagnostics are
   deterministic before process invocation.
+- Routed the local container-app process command runner through the shared
+  container-host command platform for Docker-compatible commands and made
+  missing Docker/Podman prerequisites report stable unavailable results and
+  unknown runtime status.
 
 ### 2026-07-11
 

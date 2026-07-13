@@ -68,6 +68,7 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<
             IContainerApplicationRuntimeHandler,
             NoopContainerApplicationRuntimeHandler>();
+        services.AddContainerHostCommandPlatform();
         services.TryAddSingleton<
             ILocalContainerApplicationCommandRunner,
             ProcessLocalContainerApplicationCommandRunner>();
