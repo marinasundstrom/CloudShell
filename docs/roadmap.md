@@ -38,6 +38,44 @@ Useful references:
 - [Container applications proposal](proposals/containers/container-applications.md)
 - [Future directions](future/)
 
+## Current Direction
+
+CloudShell should now move in one clear line:
+
+1. **Ship a coherent local-development MVP.** The user should be able to run a
+   realistic app locally, understand it from Resource Manager, operate it,
+   diagnose expected failures, and decide whether the graph is ready to
+   persist.
+2. **Tie off the app-centric Resource Manager loop.** Prioritize application
+   overview, endpoints, discovery, names, storage, identity, configuration,
+   secrets, logs, traces, monitoring, lifecycle actions, and diagnostics in the
+   context of the app.
+3. **Keep cross-platform support as a release guardrail.** The platform
+   abstraction, command planning, host capability checks, and CI matrix should
+   prevent new macOS-only assumptions while the product remains local-first.
+4. **Prepare for agents and reconciliation only where it prevents a dead end.**
+   The MVP-relevant direction is to push host-local execution and observation
+   down behind typed, provider-owned execution boundaries. Do not build
+   clustering, remote placement, regions, or multi-host replica scheduling as
+   MVP work.
+5. **Move to on-premise hosting after the MVP is stable.** The first
+   post-MVP on-premise scenario should reuse the same resource model,
+   Control Plane boundary, provider contracts, and cross-platform host
+   capability model instead of introducing a parallel product shape.
+
+Use this decision filter for new work:
+
+- If it makes the primary app-management loop clearer or more reliable, it is
+  a candidate for the active MVP queue.
+- If it only expands future platform scope, defer it unless a supported sample
+  exposes a blocking gap.
+- If it touches host-local execution, prefer the platform abstraction and
+  assignment/reconciliation-shaped boundaries over direct Control Plane calls
+  into OS tools or provider runtimes.
+- If it introduces a new resource concept, first decide whether the concept is
+  user-authored, Control Plane operational data, provider-owned runtime state,
+  or a future direction.
+
 ## Current Focus Stack
 
 Use this focus stack when choosing the next implementation slice. The roadmap
@@ -53,8 +91,9 @@ app-development loop before broader platform expansion.
 | 5 | Container app orchestration and runtime diagnostics | Container apps are the hardest proof of the resource/runtime boundary. | Consolidate first start, image update, replica-slot reconciliation, routing rebinding, cleanup, and readable failure diagnostics only where current samples expose them. |
 | 6 | ResourceDefinition apply/export convergence | The old provider path has mostly been retired; remaining compatibility should be explicit. | Remove or document remaining obsolete template/runtime bridges where graph-backed providers can round-trip definitions. |
 | 7 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool, but launchers, deployment artifact loading, and assistant drafting should not distract from MVP stabilization. | Keep CLI, launcher/profile, TypeScript/JavaScript, Java, SDK, deployment artifacts, and future intent-first authoring aligned with the same ResourceDefinition and Control Plane boundary; defer packaging polish and generated-draft workflows that do not improve supported local runs. |
-| 8 | Cross-platform support baseline | CloudShell has been developed primarily on macOS, so Linux and Windows support need automated evidence before broader provider claims. | Maintain the cross-platform CI matrix, document support tiers, and harden CLI, launcher, app-runtime, container-host, and host-networking behavior through capability-driven tests and diagnostics. |
-| 9 | CoreShell, UI composition, and shell structure | Useful only when it reduces current Resource Manager, Settings, notification, or shell drift. | Use the CoreShell Fluent UI sample as the reference shell and extract only proven common shell building blocks; pause persistence, marketplace, and user-personalized shell-platform work. |
+| 8 | Cross-platform support guardrail | The baseline CI and platform abstraction are now in place; they must keep future MVP work portable. | Maintain the cross-platform CI matrix, support-tier docs, command planning, host capability checks, and diagnostics as guardrails around CLI, launcher, app-runtime, container-host, and host-networking changes. |
+| 9 | Agent/reconciliation preparation | Agents are the future execution boundary, but the MVP should not become a distributed-systems project. | When host-local execution changes, shape it as typed provider work with desired/observed state, leases, diagnostics, and idempotency in mind; defer remote agents, placement, regions, and clustering. |
+| 10 | CoreShell, UI composition, and shell structure | Useful only when it reduces current Resource Manager, Settings, notification, or shell drift. | Use the CoreShell Fluent UI sample as the reference shell and extract only proven common shell building blocks; pause persistence, marketplace, and user-personalized shell-platform work. |
 
 ## Authoritative Milestones
 
@@ -244,6 +283,13 @@ agent and reconciliation foundation: typed assignments, leases, heartbeats,
 observed state, and one provider operation moved behind an agent-side handler.
 It should not displace the current local-development MVP stabilization unless
 a new subsystem would otherwise bake in single-process assumptions.
+
+The cross-platform baseline is now part of the foundation rather than a
+separate discovery track. Keep the CI matrix, support-tier documentation,
+host operating-system detection, command planning, and host capability
+diagnostics healthy as guardrails around MVP work. New provider, launcher,
+CLI, and host-runtime changes should prove their behavior through those
+abstractions instead of adding OS-specific branches in higher layers.
 
 The main stabilization lens is now the UI foundation that the MVP already
 uses. The priority is to make shell chrome, Resource Manager pages, resource
@@ -545,7 +591,10 @@ For the next run, prefer these loose-end slices in order:
 
 ### Immediate Proposal Order
 
-Work the current proposals in this order. For MVP, implement only the slice
+Treat this as an active queue plus an ordered backlog. The active queue is the
+first five items. Items after that remain ordered, but they should not displace
+the active queue unless a supported sample, security issue, or broken
+cross-platform guardrail makes them urgent. For MVP, implement only the slice
 listed here before pulling in broader proposal work.
 
 1. MVP convergence and Resource Manager reliability: keep supported samples
@@ -623,6 +672,10 @@ listed here before pulling in broader proposal work.
    resolution, missing or unavailable credentials, route and port conflicts,
    unsupported storage media, unsafe replica-volume combinations, unresolved
    references, missing identity grants, and DNS/name provider gaps.
+   Where these diagnostics touch host-local execution, shape the provider
+   boundary so the same operation can later run from an agent-side assignment
+   handler instead of baking direct Control Plane execution deeper into the
+   product.
 6. Configuration, secrets, and identity polish: keep the app runtime story
    clear when settings, secrets, identities, and grants affect whether the app
    starts or can call backing services. Keep identity opt-in for early
