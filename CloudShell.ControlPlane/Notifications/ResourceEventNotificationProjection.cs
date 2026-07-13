@@ -27,6 +27,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
 {
     private const string LocalSystemNotificationRecipientKey = "user";
     private const string ResourceStartMaterializationCause = "Resource start requested runtime materialization";
+    private const string ReplicaRepairOperationCorrelationKind = "replica-repair";
 
     public CreateCloudShellNotificationCommand? CreateNotification(ResourceEvent resourceEvent)
     {
@@ -247,55 +248,63 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
     {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["resourceId"] = resourceEvent.ResourceId,
-            ["eventType"] = resourceEvent.EventType
+            [CloudShellNotificationAttributeNames.ResourceId] = resourceEvent.ResourceId,
+            [CloudShellNotificationAttributeNames.EventType] = resourceEvent.EventType
         };
 
         var lifecycleActionId = GetLifecycleActionId(resourceEvent.EventType);
         if (lifecycleActionId is not null ||
             IsStartMaterializationDeploymentEvent(resourceEvent))
         {
-            attributes["actionId"] = lifecycleActionId ?? ResourceActionIds.Start;
-            attributes["operationKind"] = "lifecycle";
+            attributes[CloudShellNotificationAttributeNames.ActionId] =
+                lifecycleActionId ?? ResourceActionIds.Start;
+            attributes[CloudShellNotificationAttributeNames.OperationKind] =
+                CloudShellNotificationOperationKinds.Lifecycle;
         }
         else if (IsResourceCreateEvent(resourceEvent.EventType))
         {
-            attributes["operationKind"] = "create";
+            attributes[CloudShellNotificationAttributeNames.OperationKind] =
+                CloudShellNotificationOperationKinds.Create;
         }
         else if (GetDeploymentUpdateKind(resourceEvent.EventType) is { } updateKind)
         {
-            attributes["operationKind"] = "update";
-            attributes["updateKind"] = updateKind;
+            attributes[CloudShellNotificationAttributeNames.OperationKind] =
+                CloudShellNotificationOperationKinds.Update;
+            attributes[CloudShellNotificationAttributeNames.UpdateKind] = updateKind;
         }
         else if (IsDeploymentApplyEvent(resourceEvent.EventType))
         {
-            attributes["operationKind"] = "deployment";
-            attributes["deploymentKind"] = "apply";
+            attributes[CloudShellNotificationAttributeNames.OperationKind] =
+                CloudShellNotificationOperationKinds.Deployment;
+            attributes[CloudShellNotificationAttributeNames.DeploymentKind] = "apply";
         }
         else if (IsResourceRecoveryNotificationEvent(resourceEvent.EventType))
         {
-            attributes["operationKind"] = "recovery";
-            attributes["recoveryKind"] = "resource";
+            attributes[CloudShellNotificationAttributeNames.OperationKind] =
+                CloudShellNotificationOperationKinds.Recovery;
+            attributes[CloudShellNotificationAttributeNames.RecoveryKind] = "resource";
         }
         else if (IsReplicaRepairNotificationEvent(resourceEvent.EventType))
         {
-            attributes["operationKind"] = "replicaRepair";
-            attributes["repairKind"] = "replica";
+            attributes[CloudShellNotificationAttributeNames.OperationKind] =
+                CloudShellNotificationOperationKinds.ReplicaRepair;
+            attributes[CloudShellNotificationAttributeNames.RepairKind] = "replica";
         }
 
         if (!string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy))
         {
-            attributes["triggeredBy"] = resourceEvent.TriggeredBy.Trim();
+            attributes[CloudShellNotificationAttributeNames.TriggeredBy] =
+                resourceEvent.TriggeredBy.Trim();
         }
 
         if (!string.IsNullOrWhiteSpace(resourceEvent.TraceId))
         {
-            attributes["traceId"] = resourceEvent.TraceId;
+            attributes[CloudShellNotificationAttributeNames.TraceId] = resourceEvent.TraceId;
         }
 
         if (!string.IsNullOrWhiteSpace(resourceEvent.SpanId))
         {
-            attributes["spanId"] = resourceEvent.SpanId;
+            attributes[CloudShellNotificationAttributeNames.SpanId] = resourceEvent.SpanId;
         }
 
         return attributes;
@@ -345,7 +354,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         if (lifecycleActionId is not null)
         {
             return new NotificationOperation(
-                "lifecycle",
+                CloudShellNotificationOperationKinds.Lifecycle,
                 lifecycleActionId,
                 CloudShellNotificationTemplateKeys.ResourceLifecycleOperation);
         }
@@ -353,7 +362,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         if (IsStartMaterializationDeploymentEvent(resourceEvent))
         {
             return new NotificationOperation(
-                "lifecycle",
+                CloudShellNotificationOperationKinds.Lifecycle,
                 ResourceActionIds.Start,
                 CloudShellNotificationTemplateKeys.ResourceLifecycleOperation);
         }
@@ -361,7 +370,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         if (IsResourceCreateEvent(resourceEvent.EventType))
         {
             return new NotificationOperation(
-                "create",
+                CloudShellNotificationOperationKinds.Create,
                 "create",
                 CloudShellNotificationTemplateKeys.ResourceCreateOperation);
         }
@@ -369,7 +378,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         if (GetDeploymentUpdateKind(resourceEvent.EventType) is { } updateKind)
         {
             return new NotificationOperation(
-                "update",
+                CloudShellNotificationOperationKinds.Update,
                 updateKind,
                 CloudShellNotificationTemplateKeys.ResourceUpdateOperation);
         }
@@ -377,7 +386,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         if (IsDeploymentApplyEvent(resourceEvent.EventType))
         {
             return new NotificationOperation(
-                "deployment",
+                CloudShellNotificationOperationKinds.Deployment,
                 "apply",
                 CloudShellNotificationTemplateKeys.DeploymentApplyOperation);
         }
@@ -385,14 +394,14 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         if (IsResourceRecoveryNotificationEvent(resourceEvent.EventType))
         {
             return new NotificationOperation(
-                "recovery",
+                CloudShellNotificationOperationKinds.Recovery,
                 "resource",
                 CloudShellNotificationTemplateKeys.ResourceRecoveryOperation);
         }
 
         return IsReplicaRepairNotificationEvent(resourceEvent.EventType)
             ? new NotificationOperation(
-                "replica-repair",
+                ReplicaRepairOperationCorrelationKind,
                 "replica",
                 CloudShellNotificationTemplateKeys.ReplicaRepairOperation)
             : null;

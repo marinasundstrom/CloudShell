@@ -114,6 +114,13 @@ notification layout as the fallback.
 | `CloudShellNotificationTemplateKeys.ResourceTemplateApplyOperation` | `cloudshell.resource-template-apply-operation` | Resource template apply operations. |
 | `CloudShellNotificationTemplateKeys.ApplicationArtifactApplyOperation` | `cloudshell.application-artifact-apply-operation` | Resource Manager application artifact apply operations. |
 
+Template data should use `CloudShellNotificationAttributeNames` for shared
+attribute names such as `operationKind`, `resourceId`, `eventType`,
+`templateName`, `applyMode`, `traceId`, and `spanId`. Use
+`CloudShellNotificationOperationKinds` for shared operation-kind values such as
+`lifecycle`, `create`, `update`, `deployment`, `recovery`, `replicaRepair`,
+`templateApply`, and `applicationArtifactApply`.
+
 ## Current gaps
 
 - Notification records are in-memory in the local-development path.

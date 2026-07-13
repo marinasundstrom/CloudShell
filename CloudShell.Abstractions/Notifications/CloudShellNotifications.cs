@@ -48,6 +48,38 @@ public static class CloudShellNotificationTemplateKeys
     public const string ApplicationArtifactApplyOperation = "cloudshell.application-artifact-apply-operation";
 }
 
+public static class CloudShellNotificationAttributeNames
+{
+    public const string ResourceId = "resourceId";
+    public const string EventType = "eventType";
+    public const string ActionId = "actionId";
+    public const string OperationKind = "operationKind";
+    public const string OperationId = "operationId";
+    public const string UpdateKind = "updateKind";
+    public const string DeploymentKind = "deploymentKind";
+    public const string RecoveryKind = "recoveryKind";
+    public const string RepairKind = "repairKind";
+    public const string TriggeredBy = "triggeredBy";
+    public const string TraceId = "traceId";
+    public const string SpanId = "spanId";
+    public const string TemplateName = "templateName";
+    public const string ApplyMode = "applyMode";
+    public const string ResourceCount = "resourceCount";
+    public const string EnvironmentId = "environmentId";
+}
+
+public static class CloudShellNotificationOperationKinds
+{
+    public const string Lifecycle = "lifecycle";
+    public const string Create = "create";
+    public const string Update = "update";
+    public const string Deployment = "deployment";
+    public const string Recovery = "recovery";
+    public const string ReplicaRepair = "replicaRepair";
+    public const string TemplateApply = "templateApply";
+    public const string ApplicationArtifactApply = "applicationArtifactApply";
+}
+
 public sealed record CloudShellNotificationQuery(
     string? RecipientKey = null,
     bool IncludeDismissed = false,

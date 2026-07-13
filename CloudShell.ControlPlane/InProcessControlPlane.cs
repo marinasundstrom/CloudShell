@@ -1306,17 +1306,19 @@ public sealed class InProcessControlPlane(
         var isApplicationArtifactApply = IsApplicationArtifactApply(request);
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["operationKind"] = isApplicationArtifactApply
-                ? "applicationArtifactApply"
-                : "templateApply",
-            ["operationId"] = operationId,
-            ["templateName"] = request.Template.Name,
-            ["applyMode"] = request.Mode.ToString(),
-            ["resourceCount"] = resourceCount.ToString(CultureInfo.InvariantCulture)
+            [CloudShellNotificationAttributeNames.OperationKind] = isApplicationArtifactApply
+                ? CloudShellNotificationOperationKinds.ApplicationArtifactApply
+                : CloudShellNotificationOperationKinds.TemplateApply,
+            [CloudShellNotificationAttributeNames.OperationId] = operationId,
+            [CloudShellNotificationAttributeNames.TemplateName] = request.Template.Name,
+            [CloudShellNotificationAttributeNames.ApplyMode] = request.Mode.ToString(),
+            [CloudShellNotificationAttributeNames.ResourceCount] =
+                resourceCount.ToString(CultureInfo.InvariantCulture)
         };
         if (!string.IsNullOrWhiteSpace(request.Template.EnvironmentId))
         {
-            attributes["environmentId"] = request.Template.EnvironmentId.Trim();
+            attributes[CloudShellNotificationAttributeNames.EnvironmentId] =
+                request.Template.EnvironmentId.Trim();
         }
 
         var resourceId = ResolveTemplateNotificationResourceId(request, status);

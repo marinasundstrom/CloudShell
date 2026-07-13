@@ -3007,8 +3007,10 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, notification.EventType);
         Assert.Equal("resource-update|target|image|build-server", notification.CorrelationId);
         Assert.Equal(CloudShellNotificationTemplateKeys.ResourceUpdateOperation, notification.TemplateKey);
-        Assert.Equal("update", notification.Attributes!["operationKind"]);
-        Assert.Equal("image", notification.Attributes!["updateKind"]);
+        Assert.Equal(
+            CloudShellNotificationOperationKinds.Update,
+            notification.Attributes![CloudShellNotificationAttributeNames.OperationKind]);
+        Assert.Equal("image", notification.Attributes![CloudShellNotificationAttributeNames.UpdateKind]);
     }
 
     [Fact]
@@ -3424,8 +3426,10 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(ResourceEventTypes.Events.Deployment.ReplicasUpdated, notification.EventType);
         Assert.Equal("resource-update|target|replicas|operator", notification.CorrelationId);
         Assert.Equal(CloudShellNotificationTemplateKeys.ResourceUpdateOperation, notification.TemplateKey);
-        Assert.Equal("update", notification.Attributes!["operationKind"]);
-        Assert.Equal("replicas", notification.Attributes!["updateKind"]);
+        Assert.Equal(
+            CloudShellNotificationOperationKinds.Update,
+            notification.Attributes![CloudShellNotificationAttributeNames.OperationKind]);
+        Assert.Equal("replicas", notification.Attributes![CloudShellNotificationAttributeNames.UpdateKind]);
     }
 
     [Fact]
@@ -3780,9 +3784,11 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
         Assert.Equal("application.dotnet-app:api", notification.ResourceId);
         Assert.Equal(CloudShellNotificationTemplateKeys.ResourceTemplateApplyOperation, notification.TemplateKey);
-        Assert.Equal("templateApply", notification.Attributes!["operationKind"]);
-        Assert.Equal("CreateOrUpdate", notification.Attributes!["applyMode"]);
-        Assert.Equal("1", notification.Attributes!["resourceCount"]);
+        Assert.Equal(
+            CloudShellNotificationOperationKinds.TemplateApply,
+            notification.Attributes![CloudShellNotificationAttributeNames.OperationKind]);
+        Assert.Equal("CreateOrUpdate", notification.Attributes![CloudShellNotificationAttributeNames.ApplyMode]);
+        Assert.Equal("1", notification.Attributes![CloudShellNotificationAttributeNames.ResourceCount]);
         Assert.Null(notification.Actions);
         Assert.Equal(
             [
@@ -3826,8 +3832,12 @@ public sealed class InProcessControlPlaneResourceStateTests
             new CloudShellNotificationQuery(RecipientKey: "user")));
         Assert.Equal("Apply application artifact", notification.Title);
         Assert.Equal(CloudShellNotificationTemplateKeys.ApplicationArtifactApplyOperation, notification.TemplateKey);
-        Assert.Equal("applicationArtifactApply", notification.Attributes!["operationKind"]);
-        Assert.Equal("application-artifact:application.dotnet-app:api", notification.Attributes["templateName"]);
+        Assert.Equal(
+            CloudShellNotificationOperationKinds.ApplicationArtifactApply,
+            notification.Attributes![CloudShellNotificationAttributeNames.OperationKind]);
+        Assert.Equal(
+            "application-artifact:application.dotnet-app:api",
+            notification.Attributes[CloudShellNotificationAttributeNames.TemplateName]);
         Assert.Equal("application.dotnet-app:api", notification.ResourceId);
     }
 
@@ -3856,8 +3866,10 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(CloudShellNotificationStatus.Failed, notification.Status);
         Assert.Null(notification.ResourceId);
         Assert.Null(notification.Actions);
-        Assert.Equal("templateApply", notification.Attributes!["operationKind"]);
-        Assert.Equal("local", notification.Attributes!["templateName"]);
+        Assert.Equal(
+            CloudShellNotificationOperationKinds.TemplateApply,
+            notification.Attributes![CloudShellNotificationAttributeNames.OperationKind]);
+        Assert.Equal("local", notification.Attributes![CloudShellNotificationAttributeNames.TemplateName]);
     }
 
     [Fact]
@@ -3984,7 +3996,9 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(ResourceEventTypes.Events.Resource.Created, notification.EventType);
         Assert.Equal("resource-create|target|create|operator", notification.CorrelationId);
         Assert.Equal(CloudShellNotificationTemplateKeys.ResourceCreateOperation, notification.TemplateKey);
-        Assert.Equal("create", notification.Attributes!["operationKind"]);
+        Assert.Equal(
+            CloudShellNotificationOperationKinds.Create,
+            notification.Attributes![CloudShellNotificationAttributeNames.OperationKind]);
     }
 
     [Fact]
