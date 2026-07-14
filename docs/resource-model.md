@@ -734,7 +734,10 @@ public sealed record ResourceAttributeDefinition
 
 The current metadata contract exists on the definition object. Import/export
 logic still needs to be migrated incrementally so templates prefer `Path` and
-accept `Aliases` before falling back to dotted-ID grouping.
+accept `Aliases` before falling back to dotted-ID grouping. The Resource model
+includes a schema-local `ResourceAttributePathResolver` that can resolve
+canonical IDs, authored paths, and aliases to canonical `ResourceAttributeId`
+values and report ambiguous paths before a caller applies them.
 
 The desired compatibility model is:
 

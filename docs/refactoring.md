@@ -581,6 +581,10 @@ preserving old provider seams:
     input; new schema work should not rely on the ID string alone to encode
     hierarchy or grouping. Import/export behavior still needs to consume the
     new metadata.
+  - [x] Add a schema-local resource attribute path resolver that maps
+    canonical IDs, authored paths, and aliases to canonical
+    `ResourceAttributeId` values while reporting ambiguous paths instead of
+    guessing.
 - [ ] Define provider validation contracts for attributes and capabilities.
   Providers should be able to validate whether a declared or deployed resource
   state conforms to the provider-supported schema and capability set.

@@ -146,6 +146,66 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void AttributePathResolver_ResolvesPathAliasAndCanonicalId()
+    {
+        var definitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["application.containerImage"] = new(
+                ValueType: ResourceAttributeValueType.String,
+                Path: "container.image",
+                Aliases:
+                [
+                    "containerImage",
+                    "image"
+                ])
+        };
+
+        var resolver = ResourceAttributePathResolver.FromDefinitions(definitions);
+
+        Assert.True(resolver.TryResolve("container.image", out var pathId));
+        Assert.Equal("application.containerImage", pathId);
+        Assert.True(resolver.TryResolve("containerImage", out var aliasId));
+        Assert.Equal("application.containerImage", aliasId);
+        Assert.True(resolver.TryResolve("application.containerImage", out var canonicalId));
+        Assert.Equal("application.containerImage", canonicalId);
+        Assert.Equal(
+            ResourceAttributeId.Create("application.containerImage"),
+            resolver.ResolveOrCreate("container.image"));
+        Assert.Equal(
+            ResourceAttributeId.Create("custom.attribute"),
+            resolver.ResolveOrCreate("custom.attribute"));
+        Assert.Empty(resolver.Conflicts);
+    }
+
+    [Fact]
+    public void AttributePathResolver_ReportsAmbiguousAuthoredPaths()
+    {
+        var definitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["providerA.containerImage"] = new(
+                ValueType: ResourceAttributeValueType.String,
+                Path: "container.image"),
+            ["providerB.containerImage"] = new(
+                ValueType: ResourceAttributeValueType.String,
+                Path: "container.image")
+        };
+
+        var resolver = ResourceAttributePathResolver.FromDefinitions(definitions);
+
+        Assert.False(resolver.TryResolve("container.image", out _));
+        var conflict = Assert.Single(resolver.Conflicts);
+        Assert.Equal("container.image", conflict.Path);
+        Assert.Equal(
+            [
+                ResourceAttributeId.Create("providerA.containerImage"),
+                ResourceAttributeId.Create("providerB.containerImage")
+            ],
+            conflict.AttributeIds);
+        Assert.True(resolver.TryResolve("providerA.containerImage", out var canonicalId));
+        Assert.Equal("providerA.containerImage", canonicalId);
+    }
+
+    [Fact]
     public void ResourceTypeDefinition_CanReferenceReusableComplexAttributeShapeAsJsonTarget()
     {
         var typeDefinition = new ResourceTypeDefinition(

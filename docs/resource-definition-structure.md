@@ -307,6 +307,10 @@ Resource-type-local attributes should prefer stable canonical IDs that make
 sense to provider code. Shared capabilities may still use stable dotted IDs
 when the namespace itself is part of the schema identity, but the exported
 document hierarchy should come from attribute-definition metadata over time.
+Schema-aware import/export paths should use the Resource model's
+`ResourceAttributePathResolver` to resolve authored paths and aliases to
+canonical IDs and to reject or report ambiguous paths before applying
+attributes.
 
 ```yaml
 container:

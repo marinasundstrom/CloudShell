@@ -42,6 +42,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Added optional authoring metadata to `ResourceAttributeDefinition` so
   attribute definitions can declare document paths, display names, and aliases
   separately from canonical attribute IDs.
+- Added a schema-local resource attribute path resolver for mapping authored
+  paths and aliases back to canonical `ResourceAttributeId` values.
 
 ### 2026-07-13
 
