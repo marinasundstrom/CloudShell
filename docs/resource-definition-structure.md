@@ -316,6 +316,9 @@ resource type, and selected capability attribute definitions for one resource.
 That means two resource types, or two capabilities used in different resource
 schemas, can expose the same authored path while resolving it to different
 canonical IDs owned by their respective schemas.
+Inside one composed schema, a shared authored path or alias is reported as
+ambiguous rather than guessed. Full canonical IDs remain valid in that case and
+are the explicit escape hatch for choosing the intended attribute.
 
 ```yaml
 container:

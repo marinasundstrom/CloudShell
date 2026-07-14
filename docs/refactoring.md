@@ -596,6 +596,9 @@ preserving old provider seams:
     ResourceDefinition resolution so selected class/type/resource capabilities
     can contribute inherited attribute definitions, path canonicalization, and
     value validation.
+  - [x] Preserve canonical attribute IDs as the disambiguation form when
+    authored paths or aliases collide, while keeping authored-path reuse local
+    to the composed resource schema.
 - [ ] Define provider validation contracts for attributes and capabilities.
   Providers should be able to validate whether a declared or deployed resource
   state conforms to the provider-supported schema and capability set.

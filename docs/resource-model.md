@@ -747,6 +747,10 @@ Because the resolver is built from one composed schema at a time, the same
 authored path can be reused by another schema and resolve to a different
 canonical attribute ID there. The owning schema is what gives the path meaning;
 the canonical ID is what provider and runtime code use after resolution.
+Full canonical IDs are always valid inside the composed schema and act as the
+disambiguation form when authored paths or aliases collide. If two definitions
+claim the same authored path, that path is ambiguous, but authors can still use
+the canonical `ResourceAttributeId` to select the intended attribute.
 
 The desired compatibility model is:
 

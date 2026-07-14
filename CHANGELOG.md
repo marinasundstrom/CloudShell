@@ -53,6 +53,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Added capability attribute providers to ResourceDefinition resolution so
   selected capabilities can contribute behavior-specific attribute schemas,
   path canonicalization, and value validation.
+- Preserved canonical attribute IDs as the disambiguation form when authored
+  paths or aliases collide inside a composed resource schema.
 
 ### 2026-07-13
 

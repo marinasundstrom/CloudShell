@@ -206,6 +206,26 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void AttributePathResolver_ResolvesCanonicalIdWhenAuthoredPathCollidesWithIt()
+    {
+        var definitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["application.image"] = new(Path: "image"),
+            ["image"] = new(Path: "display.image")
+        };
+
+        var resolver = ResourceAttributePathResolver.FromDefinitions(definitions);
+
+        Assert.True(resolver.TryResolve("image", out var canonicalId));
+        Assert.Equal("image", canonicalId);
+        Assert.True(resolver.TryResolve("display.image", out var displayPathId));
+        Assert.Equal("image", displayPathId);
+        Assert.True(resolver.TryResolve("application.image", out var applicationCanonicalId));
+        Assert.Equal("application.image", applicationCanonicalId);
+        Assert.Empty(resolver.Conflicts);
+    }
+
+    [Fact]
     public void CanonicalizeAttributePaths_MapsAuthoredPathsToCanonicalIds()
     {
         var definitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
@@ -285,6 +305,32 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributePathAmbiguous, diagnostic.Code);
         Assert.Equal("container.image", diagnostic.Target);
         Assert.Empty(result.Definition.ResourceAttributes);
+    }
+
+    [Fact]
+    public void CanonicalizeAttributePaths_UsesCanonicalIdWhenAuthoredPathCollidesWithIt()
+    {
+        var definitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["application.image"] = new(Path: "image"),
+            ["image"] = new(Path: "display.image")
+        };
+        var definition = new ResourceDefinition(
+            "api",
+            "application.container-app",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["image"] = "literal-canonical",
+                ["application.image"] = "app-image"
+            });
+
+        var result = definition.CanonicalizeAttributePaths(
+            ResourceAttributePathResolver.FromDefinitions(definitions));
+
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal("literal-canonical", result.Definition.ResourceAttributes["image"]);
+        Assert.Equal("app-image", result.Definition.ResourceAttributes["application.image"]);
     }
 
     [Fact]

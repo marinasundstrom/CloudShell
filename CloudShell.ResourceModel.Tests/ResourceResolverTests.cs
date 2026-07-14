@@ -894,6 +894,140 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
+    public void Resolve_AllowsSameAuthoredPathAcrossDifferentResourceTypeSchemas()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new("application"),
+                new("package")
+            ],
+            [
+                new(
+                    "application.container-app",
+                    "application",
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["application.containerImage"] = new(Path: "image")
+                    }),
+                new(
+                    "package.container-image",
+                    "package",
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["package.imageReference"] = new(Path: "image")
+                    })
+            ]);
+
+        var app = resolver.Resolve(new ResourceDefinition(
+            "api",
+            "application.container-app",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["image"] = "api:latest"
+            }));
+        var package = resolver.Resolve(new ResourceDefinition(
+            "api-image",
+            "package.container-image",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["image"] = "api:latest"
+            }));
+
+        Assert.Empty(app.Diagnostics);
+        Assert.Empty(package.Diagnostics);
+        Assert.Equal("api:latest", app.Attributes.GetString("application.containerImage"));
+        Assert.Equal("api:latest", package.Attributes.GetString("package.imageReference"));
+        Assert.Null(app.Attributes.Resolve("package.imageReference"));
+        Assert.Null(package.Attributes.Resolve("application.containerImage"));
+    }
+
+    [Fact]
+    public void Resolve_ReportsAmbiguousAuthoredPathWithinComposedSchema()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new("application")
+            ],
+            [
+                new(
+                    "application.container-app",
+                    "application",
+                    Capabilities:
+                    [
+                        new("runtime.health")
+                    ],
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["application.healthChecks"] = new(Path: "health.checks")
+                    })
+            ],
+            capabilityAttributeProviders:
+            [
+                new TestCapabilityAttributeProvider(
+                    "runtime.health",
+                    "capability.healthChecks",
+                    new(Path: "health.checks"))
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            "application.container-app",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["health.checks"] = "enabled"
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributePathAmbiguous, diagnostic.Code);
+        Assert.Equal("health.checks", diagnostic.Target);
+        Assert.Null(resolved.Attributes.Resolve("health.checks"));
+    }
+
+    [Fact]
+    public void Resolve_CanonicalIdsDisambiguateComposedSchemaPathCollisions()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new("application")
+            ],
+            [
+                new(
+                    "application.container-app",
+                    "application",
+                    Capabilities:
+                    [
+                        new("runtime.health")
+                    ],
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["application.healthChecks"] = new(Path: "health.checks")
+                    })
+            ],
+            capabilityAttributeProviders:
+            [
+                new TestCapabilityAttributeProvider(
+                    "runtime.health",
+                    "capability.healthChecks",
+                    new(Path: "health.checks"))
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            "application.container-app",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["application.healthChecks"] = "app-health",
+                ["capability.healthChecks"] = "capability-health"
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        Assert.Empty(resolved.Diagnostics);
+        Assert.Equal("app-health", resolved.Attributes.GetString("application.healthChecks"));
+        Assert.Equal("capability-health", resolved.Attributes.GetString("capability.healthChecks"));
+    }
+
+    [Fact]
     public void ResourceDefinition_CanRoundTripPlainJsonPayloads()
     {
         var definition = new ResourceDefinition(

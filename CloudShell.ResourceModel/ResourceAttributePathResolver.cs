@@ -31,6 +31,8 @@ public sealed class ResourceAttributePathResolver
             return Empty;
         }
 
+        var canonicalPaths = new Dictionary<string, ResourceAttributeId>(
+            StringComparer.OrdinalIgnoreCase);
         var candidates = new Dictionary<string, List<ResourceAttributeId>>(
             StringComparer.OrdinalIgnoreCase);
 
@@ -43,7 +45,7 @@ public sealed class ResourceAttributePathResolver
 
             foreach (var (attributeId, definition) in definitions)
             {
-                AddCandidate(candidates, attributeId.ToString(), attributeId);
+                canonicalPaths[attributeId.ToString()] = attributeId;
                 AddCandidate(candidates, definition.Path, attributeId);
 
                 foreach (var alias in definition.Aliases ?? [])
@@ -56,8 +58,19 @@ public sealed class ResourceAttributePathResolver
         var paths = new Dictionary<string, ResourceAttributeId>(StringComparer.OrdinalIgnoreCase);
         var conflicts = new List<ResourceAttributePathConflict>();
 
+        foreach (var (path, attributeId) in canonicalPaths)
+        {
+            paths[path] = attributeId;
+        }
+
         foreach (var (path, attributeIds) in candidates)
         {
+            if (canonicalPaths.TryGetValue(path, out var canonicalAttributeId))
+            {
+                paths[path] = canonicalAttributeId;
+                continue;
+            }
+
             var distinctAttributeIds = attributeIds
                 .Distinct()
                 .OrderBy(attributeId => attributeId.ToString(), StringComparer.Ordinal)
