@@ -530,6 +530,55 @@ preserving old provider seams:
     descriptor registration into provider-owned runtime registration overloads
     so samples do not wire descriptor providers separately for the same
     resource id.
+- [ ] Define a provider execution boundary for host-local runtime work. The
+  boundary should describe typed provider operations, desired generation,
+  observed state, diagnostics, idempotency, and lease-friendly execution
+  metadata without introducing remote agents yet. The goal is to let current
+  in-process runtimes and future agents execute the same provider-side
+  assignment shape.
+  - [x] Inventory current execution boundaries. Public domain contracts live
+    in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
+    Plane owns stores, managers, API projection, orchestration, and platform
+    reconciliation; built-in provider packages own resource semantics plus
+    local runtime handlers; host projects install concrete runtime
+    integrations. This is directionally correct.
+  - [x] Identify weak seams. Runtime operation interfaces such as
+    `IContainerApplicationRuntimeHandler`, `IDockerContainerRuntimeHandler`,
+    `ISqlServerRuntimeHandler`, `IVirtualNetworkEndpointMappingReconciler`,
+    and `IDnsZoneNameMappingReconciler` already separate operation providers
+    from runtime execution, but most still accept broad `Resource` input and
+    return only diagnostics. They do not yet expose typed execution requests,
+    desired generation, observed state, idempotency keys, or lease metadata.
+  - [x] Inventory direct runtime command paths that should stay behind this
+    boundary: local Docker container app runtime bridge and command runner,
+    Docker container runtime handler, SQL Server local Docker runtime,
+    RabbitMQ local Docker runtime, Traefik/load-balancer runtime, local
+    hostname publishing/resolver refresh, virtual-network endpoint mapping,
+    and process-backed ASP.NET Core, executable, JavaScript, Java, Go, Python,
+    configuration-store, secrets-vault, event-broker, and device-registry
+    runtime controllers.
+  - [ ] Introduce a small execution contract in the provider/runtime layer,
+    not as an agent API yet. A first version should model operation type,
+    target resource id, desired generation or revision, capability
+    requirements, idempotency key, and provider-owned payload, with a result
+    that carries observed status, observed generation, diagnostics, and
+    provider-owned observations.
+  - [ ] Pick one low-risk operation and introduce the first typed execution
+    request/result contract around the existing handler without changing user
+    behavior. Good candidates are DNS/name-mapping reconcile or virtual-network
+    endpoint-mapping reconcile because they already have explicit reconcile
+    operations, observation attributes, and provider boundaries.
+  - [ ] Make the first contract report observed generation/status and stable
+    diagnostics so Resource Manager can reason about desired-versus-observed
+    state before any remote agent exists.
+  - [ ] After the first networking-style operation proves the shape, adapt one
+    container-backed lifecycle operation, such as SQL Server local Docker
+    Start/Stop or Docker container lifecycle, so Docker command execution
+    moves behind the same typed request/result pattern.
+  - [ ] Only after two local in-process handlers use the shape, decide whether
+    to persist assignments in Control Plane operational state. Do not introduce
+    remote agents, host placement, or distributed leases before the local
+    boundary is proven.
 - [ ] Feed the schema/validation/apply model into orchestrator deployment
   planning so accepted ResourceDefinition state can be translated consistently
   across resource types while leaving type-specific reconciliation to the

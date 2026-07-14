@@ -156,6 +156,14 @@ Orchestrators are execution adapters inside Resource Manager: they materialize
 runtime state for resources and services, but they do not own the resource
 graph or replace Resource Manager as the authority.
 
+As CloudShell moves toward shared and on-premise hosting, host-local execution
+and observation should be pushed behind typed provider execution boundaries
+instead of requiring the Control Plane process to directly invoke every host
+tool or runtime. The Control Plane remains authoritative for desired state,
+identity, policy, operation history, and diagnostics; future agents can run
+the provider-side operation on the machine where the capability exists and
+report observed state back for reconciliation.
+
 The architecture should allow more than one Control Plane deployment shape. A
 small environment can run one in-process Control Plane. A shared environment
 can run a standalone Control Plane. Future clustered environments can split
@@ -325,6 +333,12 @@ A clustered Control Plane deployment still represents one environment
 authority. It can split request-serving API replicas, primary-controller or
 lease-owned reconciliation duties, background workers, and provider adapters
 without changing the resource model exposed to users.
+
+The first scale-out step should remain a normal shared environment, not a
+multi-region cluster: one environment authority, one logical region, and one
+or more execution participants that report observed state while the Control
+Plane coordinates reconciliation. Regions, data-center boundaries, and
+multi-host placement policies can layer on later.
 
 A multi-Control Plane or federated deployment represents several environment
 authorities. CoreShell and Resource Manager should be able to present those

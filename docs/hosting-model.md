@@ -445,6 +445,13 @@ the same resource/provider boundaries as in-process services and should use
 leases, work assignments, or subscriptions to prevent duplicate polling,
 duplicate log ingestion, and conflicting provider actions.
 
+Future agents extend this shape for host-local execution and observation. An
+agent is an execution participant in the same environment authority: it can
+receive typed assignments, run provider-side operations near the runtime host,
+renew leases, and report observed state. Agents do not own the resource graph
+or global placement decisions; the Control Plane remains responsible for
+desired state, identity, policy, operation history, and reconciliation.
+
 The local-development and simple on-premise shapes can continue to run these
 roles in one combined process. New Control Plane subsystems should still avoid
 assuming that every API host owns every stateful background loop.
