@@ -595,6 +595,7 @@ public static class ProviderExecutionCapabilities
     public const string Storage = "storage";
     public const string SqlServerAccess = "sqlServerAccess";
     public const string RabbitMQAccess = "rabbitMQAccess";
+    public const string IdentityProvisioning = "identityProvisioning";
     public const string HostCommands = "hostCommands";
     public const string RuntimeObservation = "runtimeObservation";
 }
@@ -656,6 +657,7 @@ public static class ProviderExecutionInstructionTypes
     public const string DnsNameMappingReconcile = "dns.nameMapping.reconcile";
     public const string LoadBalancerConfigurationApply = "loadBalancer.configuration.apply";
     public const string StorageVolumeProvision = "storage.volume.provision";
+    public const string IdentityProvisioningSetup = "identityProvisioning.setup";
     public const string SqlServerAccessReconcile = "sqlServer.access.reconcile";
     public const string SqlServerStart = "sqlServer.start";
     public const string SqlServerStop = "sqlServer.stop";

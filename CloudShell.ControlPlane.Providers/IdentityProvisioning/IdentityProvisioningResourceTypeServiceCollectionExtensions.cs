@@ -22,6 +22,8 @@ public static class IdentityProvisioningResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -40,6 +42,8 @@ public static class IdentityProvisioningResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProvider, IdentityProvisioningSetupOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, IdentityProvisioningSetupOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, IdentityProvisioningSetupExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, IdentityProvisioningResourceProjectionProvider>());
         services.TryAddSingleton<

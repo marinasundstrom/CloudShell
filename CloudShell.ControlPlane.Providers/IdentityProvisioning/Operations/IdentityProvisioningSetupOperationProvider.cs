@@ -1,12 +1,21 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class IdentityProvisioningSetupOperationProvider(
-    IIdentityProvisioningSetupHandler? setupHandler = null) :
+public sealed class IdentityProvisioningSetupOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IIdentityProvisioningSetupHandler _setupHandler =
-        setupHandler ?? new NoopIdentityProvisioningSetupHandler();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public IdentityProvisioningSetupOperationProvider(
+        IIdentityProvisioningSetupHandler? setupHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        var handler = setupHandler ?? new NoopIdentityProvisioningSetupHandler();
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new IdentityProvisioningSetupExecutionHandler(handler)
+            ]);
+    }
 
     public ResourceOperationId OperationId =>
         IdentityProvisioningResourceTypeProvider.Operations.Setup;
@@ -41,17 +50,17 @@ public sealed class IdentityProvisioningSetupOperationProvider(
             new IdentityProvisioningSetupOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _setupHandler));
+                _dispatcher));
 }
 
 public sealed class IdentityProvisioningSetupOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IIdentityProvisioningSetupHandler setupHandler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IIdentityProvisioningSetupHandler _setupHandler = setupHandler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -90,14 +99,19 @@ public sealed class IdentityProvisioningSetupOperation(
                 ]);
         }
 
-        var diagnostics = await _setupHandler.SetupAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.IdentityProvisioningSetup,
+                [ProviderExecutionCapabilities.IdentityProvisioning],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 

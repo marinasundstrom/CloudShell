@@ -1525,6 +1525,69 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task IdentityProvisioningSetupOperation_DispatchesSetupInstruction()
+    {
+        var identityProvisioning = CreateGraphResource(
+            "cloudshell.identity-provisioning:keycloak",
+            "keycloak",
+            revision: 37);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new IdentityProvisioningSetupOperation(
+            new ResourceProjectionExecutionContext(identityProvisioning, [identityProvisioning]),
+            new ResourceOperationResolution(
+                IdentityProvisioningResourceTypeProvider.Operations.Setup,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.IdentityProvisioningSetup, request.InstructionType);
+        Assert.Equal(identityProvisioning.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(37, request.DesiredGeneration);
+        Assert.Equal(
+            $"{identityProvisioning.EffectiveResourceId}:{IdentityProvisioningResourceTypeProvider.Operations.Setup}:37",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.IdentityProvisioning, request.RequiredCapabilities);
+        Assert.Same(identityProvisioning, request.TargetResourceSnapshot);
+        Assert.Equal([identityProvisioning], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task IdentityProvisioningSetupHandler_ReturnsSetupDiagnostics()
+    {
+        var identityProvisioning = CreateGraphResource(
+            "cloudshell.identity-provisioning:keycloak",
+            "keycloak");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "identityProvisioning.setup.test",
+            "Identity provider setup completed.",
+            identityProvisioning.EffectiveResourceId);
+        var setupHandler = new RecordingIdentityProvisioningSetupHandler([diagnostic]);
+        var handler = new IdentityProvisioningSetupExecutionHandler(setupHandler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.IdentityProvisioningSetup,
+            TargetResourceId = identityProvisioning.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "cloudshell.identity-provisioning:keycloak:setup:1",
+            TargetResourceSnapshot = identityProvisioning,
+            ResourceSnapshot = [identityProvisioning]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(identityProvisioning, Assert.Single(setupHandler.SetupInvocations));
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -2592,6 +2655,22 @@ public sealed class ProviderExecutionContractTests
             CancellationToken cancellationToken = default)
         {
             LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingIdentityProvisioningSetupHandler(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
+        : IIdentityProvisioningSetupHandler
+    {
+        public List<GraphResource> SetupInvocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default)
+        {
+            SetupInvocations.Add(resource);
 
             return ValueTask.FromResult(diagnostics ?? []);
         }

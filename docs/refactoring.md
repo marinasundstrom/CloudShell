@@ -798,8 +798,9 @@ preserving old provider seams:
     hostname publishing/resolver refresh, virtual-network endpoint mapping,
     and provider-specific process runtime controllers. ASP.NET Core,
     JavaScript, Java, Go, Python, Device Registry, executable,
-    configuration-store, secrets-vault, and event-broker runtime controllers
-    now have dispatched entry points for their MVP lifecycle paths.
+    configuration-store, secrets-vault, event-broker, and identity
+    provisioning setup controllers now have dispatched entry points for their
+    MVP execution paths.
   - [x] Introduce a small execution contract in the provider/runtime layer,
     not as an agent API yet. A first version should model instruction type,
     target resource id, desired generation or revision, capability
