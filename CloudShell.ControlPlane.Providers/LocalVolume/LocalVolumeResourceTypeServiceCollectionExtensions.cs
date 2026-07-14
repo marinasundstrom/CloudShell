@@ -10,6 +10,8 @@ public static class LocalVolumeResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -30,6 +32,8 @@ public static class LocalVolumeResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, LocalVolumeProvisionOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, LocalVolumeResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, LocalVolumeProvisionExecutionHandler>());
         services.TryAddSingleton<ILocalVolumeProvisioner, NoopLocalVolumeProvisioner>();
 
         return services;

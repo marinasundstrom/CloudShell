@@ -1,12 +1,19 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class LocalVolumeProvisionOperationProvider(
-    ILocalVolumeProvisioner? provisioner = null) :
+public sealed class LocalVolumeProvisionOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly ILocalVolumeProvisioner _provisioner =
-        provisioner ?? new NoopLocalVolumeProvisioner();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public LocalVolumeProvisionOperationProvider(
+        IProviderExecutionDispatcher? dispatcher = null,
+        ILocalVolumeProvisioner? provisioner = null)
+    {
+        _dispatcher = dispatcher ??
+            new InProcessProviderExecutionDispatcher(
+                [new LocalVolumeProvisionExecutionHandler(provisioner)]);
+    }
 
     public ResourceOperationId OperationId =>
         LocalVolumeResourceTypeProvider.Operations.Provision;
@@ -55,17 +62,17 @@ public sealed class LocalVolumeProvisionOperationProvider(
             new LocalVolumeProvisionOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _provisioner));
+                _dispatcher));
 }
 
 public sealed class LocalVolumeProvisionOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ILocalVolumeProvisioner provisioner) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly ILocalVolumeProvisioner _provisioner = provisioner;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -106,14 +113,25 @@ public sealed class LocalVolumeProvisionOperation(
                 ]);
         }
 
-        var diagnostics = await _provisioner.ProvisionAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.FileSystemProvision,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.FileSystem],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     internal static bool HasRequiredState(Resource resource) =>

@@ -299,6 +299,71 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal([diagnostic], result.Diagnostics);
     }
 
+    [Fact]
+    public async Task LocalVolumeProvisionOperation_DispatchesFileSystemProvisionInstruction()
+    {
+        var volume = CreateGraphResource(
+            "volume:data",
+            "data",
+            revision: 2,
+            attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [LocalVolumeResourceTypeProvider.Attributes.StorageMedium] =
+                    CloudShell.Abstractions.ResourceManager.StorageMedia.FileSystem
+            });
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new LocalVolumeProvisionOperation(
+            new ResourceProjectionExecutionContext(volume, [volume]),
+            new ResourceOperationResolution(
+                LocalVolumeResourceTypeProvider.Operations.Provision,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.FileSystemProvision, request.InstructionType);
+        Assert.Equal(volume.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(2, request.DesiredGeneration);
+        Assert.Equal(
+            $"{volume.EffectiveResourceId}:{LocalVolumeResourceTypeProvider.Operations.Provision}:2",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.FileSystem, request.RequiredCapabilities);
+        Assert.Same(volume, request.TargetResourceSnapshot);
+        Assert.Equal([volume], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task LocalVolumeProvisionHandler_ReturnsProvisionerDiagnostics()
+    {
+        var volume = CreateGraphResource("volume:data", "data");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "volume.test",
+            "Volume provisioned.",
+            volume.EffectiveResourceId);
+        var handler = new LocalVolumeProvisionExecutionHandler(
+            new RecordingLocalVolumeProvisioner([diagnostic]));
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.FileSystemProvision,
+            TargetResourceId = volume.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "volume:data:1",
+            TargetResourceSnapshot = volume,
+            ResourceSnapshot = [volume]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+    }
+
     private sealed class RecordingExecutionHandler(
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler
@@ -353,25 +418,42 @@ public sealed class ProviderExecutionContractTests
             ValueTask.FromResult(diagnostics);
     }
 
+    private sealed class RecordingLocalVolumeProvisioner(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : ILocalVolumeProvisioner
+    {
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(diagnostics);
+    }
+
     private static GraphResource CreateGraphResource(
         string resourceId,
         string name,
-        long revision = 0)
+        long revision = 0,
+        IReadOnlyDictionary<ResourceAttributeId, string>? attributes = null)
     {
         var classId = ResourceClassId.Create("test");
         var typeId = ResourceTypeId.Create("test.resource");
-        var attributes = new ResourceAttributeSet([]);
+        var attributeValues = attributes?.ToDictionary(
+            pair => pair.Key,
+            pair => ResourceAttributeValue.String(pair.Value));
+        var attributeSet = new ResourceAttributeSet(
+            attributeValues?.Select(pair => new ResourceAttributeResolution(
+                pair.Key,
+                pair.Value,
+                ResourceDefinitionValueSource.TypeDefinition)) ?? []);
         var capabilities = new ResourceCapabilitySet([]);
         var operations = new ResourceOperationSet([]);
         var resourceClass = new ResourceClass(
             new ResourceClassDefinition(classId),
-            attributes,
+            attributeSet,
             capabilities,
             operations);
         var resourceType = new ResourceType(
             new ResourceTypeDefinition(typeId, classId),
             resourceClass,
-            attributes,
+            attributeSet,
             capabilities,
             operations);
 
@@ -380,10 +462,11 @@ public sealed class ProviderExecutionContractTests
                 name,
                 typeId,
                 ResourceId: resourceId,
-                Version: new ResourceRevision(revision).ToString()),
+                Version: new ResourceRevision(revision).ToString(),
+                Attributes: attributeValues is null ? null : new ResourceAttributeValueMap(attributeValues)),
             resourceClass,
             resourceType,
-            attributes,
+            attributeSet,
             capabilities,
             operations,
             []);

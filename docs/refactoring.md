@@ -613,6 +613,10 @@ preserving old provider seams:
   - [x] Route the DNS zone name-mapping reconcile operation through the
     provider execution dispatcher with the same snapshot-backed instruction
     pattern and a DNS-specific in-process execution handler.
+  - [x] Route Local Volume provisioning through the provider execution
+    dispatcher as the first filesystem/materialization instruction. The
+    operation now targets the same assignment-shaped request model and the
+    in-process handler adapts that request to the existing volume provisioner.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
