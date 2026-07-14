@@ -1669,6 +1669,64 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ServiceReconcileOperation_DispatchesReconcileInstruction()
+    {
+        var service = CreateGraphResource("service:orders", "orders", revision: 43);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new ServiceReconcileOperation(
+            new ResourceProjectionExecutionContext(service, [service]),
+            new ResourceOperationResolution(
+                ServiceResourceTypeProvider.Operations.Reconcile,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.ServiceReconcile, request.InstructionType);
+        Assert.Equal(service.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(43, request.DesiredGeneration);
+        Assert.Equal(
+            $"{service.EffectiveResourceId}:{ServiceResourceTypeProvider.Operations.Reconcile}:43",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.ServiceReconciliation, request.RequiredCapabilities);
+        Assert.Same(service, request.TargetResourceSnapshot);
+        Assert.Equal([service], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task ServiceReconcileHandler_ReturnsReconcilerDiagnostics()
+    {
+        var service = CreateGraphResource("service:orders", "orders");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "service.reconcile.test",
+            "Service reconciled.",
+            service.EffectiveResourceId);
+        var reconciler = new RecordingServiceReconciler([diagnostic]);
+        var handler = new ServiceReconcileExecutionHandler(reconciler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ServiceReconcile,
+            TargetResourceId = service.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "service:orders:reconcile:1",
+            TargetResourceSnapshot = service,
+            ResourceSnapshot = [service]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(service, Assert.Single(reconciler.ReconcileInvocations));
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -2768,6 +2826,22 @@ public sealed class ProviderExecutionContractTests
             CancellationToken cancellationToken = default)
         {
             CreationInvocations.Add(context);
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingServiceReconciler(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
+        : IServiceReconciler
+    {
+        public List<GraphResource> ReconcileInvocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default)
+        {
+            ReconcileInvocations.Add(resource);
 
             return ValueTask.FromResult(diagnostics ?? []);
         }

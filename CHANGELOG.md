@@ -135,6 +135,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Routed SQL Database ensure-created execution through the provider execution
   dispatcher with graph-snapshot server resolution and an in-process creation
   handler.
+- Routed Service reconcile execution through the provider execution dispatcher
+  with an in-process service reconciliation handler.
 - Documented the future execution handler strategy by resource category,
   including generic execution capabilities, provider-specific adapters, and
   initial volume placement rules for host-bound versus shared storage.

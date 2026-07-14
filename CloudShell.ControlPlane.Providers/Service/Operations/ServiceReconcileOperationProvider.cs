@@ -1,12 +1,20 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class ServiceReconcileOperationProvider(
-    IServiceReconciler? reconciler = null) :
+public sealed class ServiceReconcileOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IServiceReconciler _reconciler =
-        reconciler ?? new NoopServiceReconciler();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public ServiceReconcileOperationProvider(
+        IServiceReconciler? reconciler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new ServiceReconcileExecutionHandler(reconciler)
+            ]);
+    }
 
     public ResourceOperationId OperationId =>
         ServiceResourceTypeProvider.Operations.Reconcile;
@@ -41,17 +49,17 @@ public sealed class ServiceReconcileOperationProvider(
             new ServiceReconcileOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _reconciler));
+                _dispatcher));
 }
 
 public sealed class ServiceReconcileOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IServiceReconciler reconciler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IServiceReconciler _reconciler = reconciler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -89,14 +97,19 @@ public sealed class ServiceReconcileOperation(
                 ]);
         }
 
-        var diagnostics = await _reconciler.ReconcileAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.ServiceReconcile,
+                [ProviderExecutionCapabilities.ServiceReconciliation],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 
