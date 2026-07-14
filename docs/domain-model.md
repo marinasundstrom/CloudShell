@@ -897,6 +897,11 @@ dispatcher records observations under the request assignment ID and rejects a
 handler result that reports a different assignment ID, because handlers observe
 or realize assigned work; they do not retarget it.
 
+Provider execution requests are validated at the dispatcher boundary. A request
+must provide assignment identity, instruction type, target resource identity,
+idempotency key, a non-negative desired generation, and non-empty capability
+requirements before any handler is selected.
+
 Provider execution payloads are provider-owned execution contracts. They carry
 the narrow runtime context an execution handler needs, such as an orchestrator
 service, replica instance, action, or routing binding list. They are not

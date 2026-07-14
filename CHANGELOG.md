@@ -82,6 +82,9 @@ on `git blame --follow`, and then by the broad type of change.
   drift across resource categories.
 - Enforced provider execution result assignment correlation so handlers cannot
   report observations for a different assignment than the requested one.
+- Added dispatcher-side provider execution request validation so malformed
+  assignment, instruction, target, idempotency, generation, or capability data
+  fails before handler resolution.
 - Routed Container Application lifecycle execution through the provider
   execution dispatcher with in-process start, stop, and restart handlers.
 - Routed Container Application image and replica materialization through the

@@ -546,6 +546,9 @@ preserving old provider seams:
     the normal local and single-host case; the Control Plane derives the
     execution target from the host profile, provider capability, and later
     placement policy only when more than one participant exists.
+  - [x] Validate provider execution requests at the dispatcher boundary before
+    handler selection. Invalid requests fail with stable diagnostics instead
+    of falling through to missing-handler or runtime-specific behavior.
   - [x] Defer explicit region and data-center topology until after the agent
     transition. The first execution boundary should assume one implicit
     default execution target; later placement metadata can add regions,
@@ -645,6 +648,10 @@ preserving old provider seams:
     keeping the default target implicit. The in-process dispatcher executes the
     implicit/default and local in-process targets, and returns unavailable for
     future agent targets until an agent transport is introduced.
+  - [x] Validate provider execution requests before resolving handlers.
+    Assignment id, instruction type, target resource id, idempotency key,
+    desired generation, and required capabilities now fail with a
+    provider-execution diagnostic when malformed.
   - [x] Add a resource-scoped provider execution request factory so assignment
     ids, idempotency keys, desired generation, snapshots, payloads, targets,
     and metadata are composed consistently before callers reach the dispatcher.

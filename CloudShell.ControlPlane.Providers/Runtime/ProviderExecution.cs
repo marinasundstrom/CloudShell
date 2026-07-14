@@ -52,6 +52,21 @@ public sealed class InProcessProviderExecutionDispatcher(
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var validationDiagnostics = ValidateRequest(request);
+        if (validationDiagnostics.Count > 0)
+        {
+            var result = new ProviderExecutionResult
+            {
+                AssignmentId = request.AssignmentId ?? string.Empty,
+                Status = ProviderExecutionStatus.Failed,
+                Diagnostics = validationDiagnostics
+            };
+
+            return string.IsNullOrWhiteSpace(request.AssignmentId)
+                ? result
+                : await CompleteAsync(request, result, cancellationToken);
+        }
+
         if (request.Target.Kind is not ProviderExecutionTargetKind.Default
             and not ProviderExecutionTargetKind.InProcess)
         {
@@ -101,6 +116,58 @@ public sealed class InProcessProviderExecutionDispatcher(
             request,
             await handler.ExecuteAsync(request, cancellationToken),
             cancellationToken);
+    }
+
+    private static IReadOnlyList<ResourceDefinitionDiagnostic> ValidateRequest(
+        ProviderExecutionRequest request)
+    {
+        List<ResourceDefinitionDiagnostic>? diagnostics = null;
+
+        AddRequiredDiagnostic(
+            string.IsNullOrWhiteSpace(request.AssignmentId),
+            "Provider execution assignment id is required.");
+        AddRequiredDiagnostic(
+            string.IsNullOrWhiteSpace(request.InstructionType),
+            "Provider execution instruction type is required.");
+        AddRequiredDiagnostic(
+            string.IsNullOrWhiteSpace(request.TargetResourceId),
+            "Provider execution target resource id is required.");
+        AddRequiredDiagnostic(
+            string.IsNullOrWhiteSpace(request.IdempotencyKey),
+            "Provider execution idempotency key is required.");
+
+        if (request.DesiredGeneration < 0)
+        {
+            AddDiagnostic("Provider execution desired generation cannot be negative.");
+        }
+
+        if (request.RequiredCapabilities.Any(string.IsNullOrWhiteSpace))
+        {
+            AddDiagnostic("Provider execution required capabilities cannot contain empty values.");
+        }
+
+        return diagnostics ?? [];
+
+        void AddRequiredDiagnostic(
+            bool condition,
+            string message)
+        {
+            if (condition)
+            {
+                AddDiagnostic(message);
+            }
+        }
+
+        void AddDiagnostic(string message)
+        {
+            diagnostics ??= [];
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ProviderExecutionDiagnosticCodes.RequestInvalid,
+                message,
+                string.IsNullOrWhiteSpace(request.TargetResourceId)
+                    ? null
+                    : request.TargetResourceId));
+        }
     }
 
     private async ValueTask<ProviderExecutionResult> CompleteAsync(
@@ -534,6 +601,7 @@ public static class ProviderExecutionInstructionTypes
 
 public static class ProviderExecutionDiagnosticCodes
 {
+    public const string RequestInvalid = "providerExecution.requestInvalid";
     public const string HandlerMissing = "providerExecution.handlerMissing";
     public const string RequiredCapabilityMissing =
         "providerExecution.requiredCapabilityMissing";

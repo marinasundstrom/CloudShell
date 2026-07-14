@@ -231,6 +231,82 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task InProcessDispatcher_ReturnsFailedWhenRequestIsInvalid()
+    {
+        var handler = new RecordingExecutionHandler(
+            ProviderExecutionInstructionTypes.ProcessStart,
+            [ProviderExecutionCapabilities.Processes]);
+        var observations = new InMemoryProviderExecutionObservationStore();
+        var dispatcher = new InProcessProviderExecutionDispatcher([handler], observations);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = " ",
+            TargetResourceId = "application:worker",
+            DesiredGeneration = -1,
+            IdempotencyKey = "",
+            RequiredCapabilities = [ProviderExecutionCapabilities.Processes, ""]
+        };
+
+        var result = await dispatcher.ExecuteAsync(request);
+        var observation = await observations.GetAsync(request.AssignmentId);
+
+        Assert.Equal(request.AssignmentId, result.AssignmentId);
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        Assert.Null(result.ObservedGeneration);
+        Assert.Null(handler.Request);
+        Assert.All(
+            result.Diagnostics,
+            diagnostic =>
+            {
+                Assert.Equal(ProviderExecutionDiagnosticCodes.RequestInvalid, diagnostic.Code);
+                Assert.Equal(request.TargetResourceId, diagnostic.Target);
+            });
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Message == "Provider execution instruction type is required.");
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Message == "Provider execution desired generation cannot be negative.");
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Message == "Provider execution idempotency key is required.");
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Message == "Provider execution required capabilities cannot contain empty values.");
+
+        Assert.NotNull(observation);
+        Assert.Equal(ProviderExecutionStatus.Failed, observation.Status);
+        Assert.Equal(result.Diagnostics, observation.Diagnostics);
+    }
+
+    [Fact]
+    public async Task InProcessDispatcher_DoesNotRecordInvalidRequestWithoutAssignment()
+    {
+        var observations = new InMemoryProviderExecutionObservationStore();
+        var dispatcher = new InProcessProviderExecutionDispatcher([], observations);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "",
+            InstructionType = ProviderExecutionInstructionTypes.ProcessStart,
+            TargetResourceId = "application:worker",
+            DesiredGeneration = 1,
+            IdempotencyKey = "application:worker:1"
+        };
+
+        var result = await dispatcher.ExecuteAsync(request);
+        var recorded = await observations.ListAsync();
+
+        Assert.Equal("", result.AssignmentId);
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ProviderExecutionDiagnosticCodes.RequestInvalid, diagnostic.Code);
+        Assert.Equal(request.TargetResourceId, diagnostic.Target);
+        Assert.Equal("Provider execution assignment id is required.", diagnostic.Message);
+        Assert.Empty(recorded);
+    }
+
+    [Fact]
     public async Task InProcessDispatcher_ReturnsUnavailableWhenTargetIsAgent()
     {
         var handler = new RecordingExecutionHandler(
