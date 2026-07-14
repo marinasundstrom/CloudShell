@@ -72,6 +72,8 @@ on `git blame --follow`, and then by the broad type of change.
   execution dispatcher with in-process start, stop, and restart handlers.
 - Routed Secrets Vault lifecycle execution through the provider execution
   dispatcher with in-process start, stop, and restart handlers.
+- Added in-memory provider execution observations so dispatcher results can be
+  inspected by assignment id before durable agent assignment persistence exists.
 
 ### 2026-07-13
 

@@ -681,6 +681,11 @@ preserving old provider seams:
     restart, matching the Event Broker process-backed boundary shape.
   - [x] Route Secrets Vault lifecycle execution through the provider execution
     dispatcher with in-process process handlers for start, stop, and restart.
+  - [x] Add in-memory provider execution observations for dispatched
+    instructions. The dispatcher records assignment id, target resource,
+    instruction type, desired generation, target, observed status, diagnostics,
+    observations, and timestamps for successful and unavailable in-process
+    execution results.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
@@ -720,10 +725,10 @@ preserving old provider seams:
     container-backed lifecycle operation, such as SQL Server local Docker
     Start/Stop or Docker container lifecycle, so Docker command execution
     moves behind the same typed request/result pattern.
-  - [ ] Only after two local in-process handlers use the shape, decide whether
-    to persist assignments in Control Plane operational state. Do not introduce
-    remote agents, host placement, or distributed leases before the local
-    boundary is proven.
+  - [x] Decide not to persist assignments in Control Plane operational state
+    yet. Keep observations in memory while the local boundary is still being
+    proven; do not introduce remote agents, host placement, or distributed
+    leases before Container Application execution also crosses this boundary.
 - [ ] Feed the schema/validation/apply model into orchestrator deployment
   planning so accepted ResourceDefinition state can be translated consistently
   across resource types while leaving type-specific reconciliation to the

@@ -94,6 +94,45 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task InProcessDispatcher_RecordsSuccessfulExecutionObservation()
+    {
+        var handler = new RecordingExecutionHandler(
+            ProviderExecutionInstructionTypes.ProcessStart,
+            [ProviderExecutionCapabilities.Processes]);
+        var observations = new InMemoryProviderExecutionObservationStore();
+        var dispatcher = new InProcessProviderExecutionDispatcher([handler], observations);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ProcessStart,
+            TargetResourceId = "application:worker",
+            DesiredGeneration = 3,
+            IdempotencyKey = "application:worker:3",
+            Target = ProviderExecutionTarget.InProcess,
+            RequiredCapabilities = [ProviderExecutionCapabilities.Processes],
+            RequestedAt = new DateTimeOffset(2026, 7, 14, 12, 0, 0, TimeSpan.Zero)
+        };
+
+        await dispatcher.ExecuteAsync(request);
+
+        var observation = await observations.GetAsync(request.AssignmentId);
+
+        Assert.NotNull(observation);
+        Assert.Equal(request.AssignmentId, observation.AssignmentId);
+        Assert.Equal(request.InstructionType, observation.InstructionType);
+        Assert.Equal(request.TargetResourceId, observation.TargetResourceId);
+        Assert.Equal(request.DesiredGeneration, observation.DesiredGeneration);
+        Assert.Equal(request.IdempotencyKey, observation.IdempotencyKey);
+        Assert.Equal(request.Target, observation.Target);
+        Assert.Equal(request.RequiredCapabilities, observation.RequiredCapabilities);
+        Assert.Equal(request.RequestedAt, observation.RequestedAt);
+        Assert.Equal(ProviderExecutionStatus.Succeeded, observation.Status);
+        Assert.Equal(request.DesiredGeneration, observation.ObservedGeneration);
+        Assert.Empty(observation.Diagnostics);
+        Assert.NotEqual(default, observation.RecordedAt);
+    }
+
+    [Fact]
     public async Task InProcessDispatcher_ReturnsUnavailableWhenTargetIsAgent()
     {
         var handler = new RecordingExecutionHandler(
@@ -141,6 +180,32 @@ public sealed class ProviderExecutionContractTests
 
         Assert.Equal(ProviderExecutionStatus.Unavailable, result.Status);
         var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ProviderExecutionDiagnosticCodes.HandlerMissing, diagnostic.Code);
+        Assert.Equal(request.TargetResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task InProcessDispatcher_RecordsUnavailableExecutionObservation()
+    {
+        var observations = new InMemoryProviderExecutionObservationStore();
+        var dispatcher = new InProcessProviderExecutionDispatcher([], observations);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerStart,
+            TargetResourceId = "container-app:orders",
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:1"
+        };
+
+        await dispatcher.ExecuteAsync(request);
+
+        var observation = await observations.GetAsync(request.AssignmentId);
+
+        Assert.NotNull(observation);
+        Assert.Equal(ProviderExecutionStatus.Unavailable, observation.Status);
+        Assert.Null(observation.ObservedGeneration);
+        var diagnostic = Assert.Single(observation.Diagnostics);
         Assert.Equal(ProviderExecutionDiagnosticCodes.HandlerMissing, diagnostic.Code);
         Assert.Equal(request.TargetResourceId, diagnostic.Target);
     }
@@ -198,6 +263,7 @@ public sealed class ProviderExecutionContractTests
             });
 
         Assert.NotNull(serviceProvider.GetRequiredService<IProviderExecutionDispatcher>());
+        Assert.NotNull(serviceProvider.GetRequiredService<IProviderExecutionObservationStore>());
     }
 
     [Fact]

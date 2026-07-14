@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Text.Json;
 
@@ -21,13 +22,31 @@ public interface IProviderExecutionHandler
         CancellationToken cancellationToken = default);
 }
 
+public interface IProviderExecutionObservationStore
+{
+    ValueTask RecordAsync(
+        ProviderExecutionRequest request,
+        ProviderExecutionResult result,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<ProviderExecutionObservation?> GetAsync(
+        string assignmentId,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<IReadOnlyList<ProviderExecutionObservation>> ListAsync(
+        CancellationToken cancellationToken = default);
+}
+
 public sealed class InProcessProviderExecutionDispatcher(
-    IEnumerable<IProviderExecutionHandler> handlers) : IProviderExecutionDispatcher
+    IEnumerable<IProviderExecutionHandler> handlers,
+    IProviderExecutionObservationStore? observations = null) : IProviderExecutionDispatcher
 {
     private readonly IReadOnlyList<IProviderExecutionHandler> _handlers =
         handlers.ToArray();
 
-    public ValueTask<ProviderExecutionResult> ExecuteAsync(
+    private readonly IProviderExecutionObservationStore? _observations = observations;
+
+    public async ValueTask<ProviderExecutionResult> ExecuteAsync(
         ProviderExecutionRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -36,10 +55,13 @@ public sealed class InProcessProviderExecutionDispatcher(
         if (request.Target.Kind is not ProviderExecutionTargetKind.Default
             and not ProviderExecutionTargetKind.InProcess)
         {
-            return ValueTask.FromResult(Unavailable(
+            return await CompleteAsync(
                 request,
-                ProviderExecutionDiagnosticCodes.ExecutionTargetUnsupported,
-                $"The in-process provider execution dispatcher cannot execute instruction '{request.InstructionType}' for target '{request.Target.Kind}'."));
+                Unavailable(
+                    request,
+                    ProviderExecutionDiagnosticCodes.ExecutionTargetUnsupported,
+                    $"The in-process provider execution dispatcher cannot execute instruction '{request.InstructionType}' for target '{request.Target.Kind}'."),
+                cancellationToken);
         }
 
         var candidates = _handlers
@@ -51,10 +73,13 @@ public sealed class InProcessProviderExecutionDispatcher(
 
         if (candidates.Length == 0)
         {
-            return ValueTask.FromResult(Unavailable(
+            return await CompleteAsync(
                 request,
-                ProviderExecutionDiagnosticCodes.HandlerMissing,
-                $"No provider execution handler is registered for instruction '{request.InstructionType}'."));
+                Unavailable(
+                    request,
+                    ProviderExecutionDiagnosticCodes.HandlerMissing,
+                    $"No provider execution handler is registered for instruction '{request.InstructionType}'."),
+                cancellationToken);
         }
 
         var handler = candidates.FirstOrDefault(handler =>
@@ -63,13 +88,32 @@ public sealed class InProcessProviderExecutionDispatcher(
 
         if (handler is null)
         {
-            return ValueTask.FromResult(Unavailable(
+            return await CompleteAsync(
                 request,
-                ProviderExecutionDiagnosticCodes.RequiredCapabilityMissing,
-                $"No provider execution handler for instruction '{request.InstructionType}' has all required capabilities."));
+                Unavailable(
+                    request,
+                    ProviderExecutionDiagnosticCodes.RequiredCapabilityMissing,
+                    $"No provider execution handler for instruction '{request.InstructionType}' has all required capabilities."),
+                cancellationToken);
         }
 
-        return handler.ExecuteAsync(request, cancellationToken);
+        return await CompleteAsync(
+            request,
+            await handler.ExecuteAsync(request, cancellationToken),
+            cancellationToken);
+    }
+
+    private async ValueTask<ProviderExecutionResult> CompleteAsync(
+        ProviderExecutionRequest request,
+        ProviderExecutionResult result,
+        CancellationToken cancellationToken)
+    {
+        if (_observations is not null)
+        {
+            await _observations.RecordAsync(request, result, cancellationToken);
+        }
+
+        return result;
     }
 
     private static ProviderExecutionResult Unavailable(
@@ -88,6 +132,114 @@ public sealed class InProcessProviderExecutionDispatcher(
                     request.TargetResourceId)
             ]
         };
+}
+
+public sealed record ProviderExecutionObservation
+{
+    public required string AssignmentId { get; init; }
+
+    public required string InstructionType { get; init; }
+
+    public required string TargetResourceId { get; init; }
+
+    public required long DesiredGeneration { get; init; }
+
+    public required string IdempotencyKey { get; init; }
+
+    public required ProviderExecutionTarget Target { get; init; }
+
+    public IReadOnlyList<string> RequiredCapabilities { get; init; } = [];
+
+    public IReadOnlyDictionary<string, string> Metadata { get; init; } =
+        ProviderExecutionDefaults.EmptyStringDictionary;
+
+    public required ProviderExecutionStatus Status { get; init; }
+
+    public long? ObservedGeneration { get; init; }
+
+    public IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics { get; init; } = [];
+
+    public IReadOnlyDictionary<string, string> Observations { get; init; } =
+        ProviderExecutionDefaults.EmptyStringDictionary;
+
+    public DateTimeOffset? RequestedAt { get; init; }
+
+    public DateTimeOffset? ObservedAt { get; init; }
+
+    public required DateTimeOffset RecordedAt { get; init; }
+
+    public static ProviderExecutionObservation From(
+        ProviderExecutionRequest request,
+        ProviderExecutionResult result,
+        DateTimeOffset recordedAt) =>
+        new()
+        {
+            AssignmentId = request.AssignmentId,
+            InstructionType = request.InstructionType,
+            TargetResourceId = request.TargetResourceId,
+            DesiredGeneration = request.DesiredGeneration,
+            IdempotencyKey = request.IdempotencyKey,
+            Target = request.Target,
+            RequiredCapabilities = request.RequiredCapabilities,
+            Metadata = request.Metadata,
+            Status = result.Status,
+            ObservedGeneration = result.ObservedGeneration,
+            Diagnostics = result.Diagnostics,
+            Observations = result.Observations,
+            RequestedAt = request.RequestedAt,
+            ObservedAt = result.ObservedAt,
+            RecordedAt = recordedAt
+        };
+}
+
+public sealed class InMemoryProviderExecutionObservationStore :
+    IProviderExecutionObservationStore
+{
+    private readonly ConcurrentDictionary<string, ProviderExecutionObservation> _observations =
+        new(StringComparer.Ordinal);
+
+    public ValueTask RecordAsync(
+        ProviderExecutionRequest request,
+        ProviderExecutionResult result,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(result);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _observations[request.AssignmentId] = ProviderExecutionObservation.From(
+            request,
+            result,
+            DateTimeOffset.UtcNow);
+
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<ProviderExecutionObservation?> GetAsync(
+        string assignmentId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(assignmentId);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _observations.TryGetValue(assignmentId, out var observation);
+
+        return ValueTask.FromResult(observation);
+    }
+
+    public ValueTask<IReadOnlyList<ProviderExecutionObservation>> ListAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return ValueTask.FromResult<IReadOnlyList<ProviderExecutionObservation>>(
+            _observations.Values
+                .OrderBy(observation => observation.RecordedAt)
+                .ThenBy(observation => observation.AssignmentId, StringComparer.Ordinal)
+                .ToArray());
+    }
 }
 
 public sealed record ProviderExecutionRequest

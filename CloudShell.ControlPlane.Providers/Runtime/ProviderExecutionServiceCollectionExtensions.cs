@@ -10,6 +10,9 @@ public static class ProviderExecutionServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.TryAddSingleton<
+            IProviderExecutionObservationStore,
+            InMemoryProviderExecutionObservationStore>();
         services.TryAddSingleton<IProviderExecutionDispatcher, InProcessProviderExecutionDispatcher>();
 
         return services;
