@@ -33,6 +33,15 @@ public sealed class InProcessProviderExecutionDispatcher(
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (request.Target.Kind is not ProviderExecutionTargetKind.Default
+            and not ProviderExecutionTargetKind.InProcess)
+        {
+            return ValueTask.FromResult(Unavailable(
+                request,
+                ProviderExecutionDiagnosticCodes.ExecutionTargetUnsupported,
+                $"The in-process provider execution dispatcher cannot execute instruction '{request.InstructionType}' for target '{request.Target.Kind}'."));
+        }
+
         var candidates = _handlers
             .Where(handler => string.Equals(
                 handler.InstructionType,
@@ -93,6 +102,8 @@ public sealed record ProviderExecutionRequest
 
     public required string IdempotencyKey { get; init; }
 
+    public ProviderExecutionTarget Target { get; init; } = ProviderExecutionTarget.Default;
+
     public IReadOnlyList<string> RequiredCapabilities { get; init; } = [];
 
     public IReadOnlyDictionary<string, string> Metadata { get; init; } =
@@ -123,6 +134,34 @@ public sealed record ProviderExecutionRequest
             targetResource,
             ResourceSnapshot.Count == 0 ? [targetResource] : ResourceSnapshot);
     }
+}
+
+public sealed record ProviderExecutionTarget
+{
+    public static ProviderExecutionTarget Default { get; } = new()
+    {
+        Kind = ProviderExecutionTargetKind.Default
+    };
+
+    public static ProviderExecutionTarget InProcess { get; } = new()
+    {
+        Kind = ProviderExecutionTargetKind.InProcess,
+        TargetId = "local"
+    };
+
+    public required ProviderExecutionTargetKind Kind { get; init; }
+
+    public string? TargetId { get; init; }
+
+    public IReadOnlyDictionary<string, string> Metadata { get; init; } =
+        ProviderExecutionDefaults.EmptyStringDictionary;
+}
+
+public enum ProviderExecutionTargetKind
+{
+    Default = 0,
+    InProcess,
+    Agent
 }
 
 public sealed record ProviderExecutionResult
@@ -245,6 +284,8 @@ public static class ProviderExecutionDiagnosticCodes
     public const string RequiredCapabilityMissing =
         "providerExecution.requiredCapabilityMissing";
     public const string ResourceSnapshotMissing = "providerExecution.resourceSnapshotMissing";
+    public const string ExecutionTargetUnsupported =
+        "providerExecution.executionTargetUnsupported";
 }
 
 file static class ProviderExecutionDefaults

@@ -631,6 +631,10 @@ preserving old provider seams:
     Missing operation handlers and missing required capabilities return
     unavailable observed results with diagnostics instead of requiring callers
     to know concrete runtime services.
+  - [x] Add execution target metadata to provider execution requests while
+    keeping the default target implicit. The in-process dispatcher executes the
+    implicit/default and local in-process targets, and returns unavailable for
+    future agent targets until an agent transport is introduced.
   - [x] Route the Network endpoint-mapping reconcile operation through the
     provider execution dispatcher. The operation now creates an
     assignment-shaped instruction with the current resource graph snapshot,

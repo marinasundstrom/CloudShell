@@ -34,6 +34,7 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal("container-app:orders", request.TargetResourceId);
         Assert.Equal(42, request.DesiredGeneration);
         Assert.Equal("container-app:orders:42", request.IdempotencyKey);
+        Assert.Equal(ProviderExecutionTargetKind.Default, request.Target.Kind);
         Assert.Contains(ProviderExecutionCapabilities.Containers, request.RequiredCapabilities);
         Assert.Contains(ProviderExecutionCapabilities.VolumeMounts, request.RequiredCapabilities);
         Assert.Equal("local-docker", request.Metadata["provider"]);
@@ -82,6 +83,7 @@ public sealed class ProviderExecutionContractTests
             TargetResourceId = "application:worker",
             DesiredGeneration = 3,
             IdempotencyKey = "application:worker:3",
+            Target = ProviderExecutionTarget.InProcess,
             RequiredCapabilities = [ProviderExecutionCapabilities.Processes]
         };
 
@@ -89,6 +91,37 @@ public sealed class ProviderExecutionContractTests
 
         Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
         Assert.Same(request, handler.Request);
+    }
+
+    [Fact]
+    public async Task InProcessDispatcher_ReturnsUnavailableWhenTargetIsAgent()
+    {
+        var handler = new RecordingExecutionHandler(
+            ProviderExecutionInstructionTypes.ProcessStart,
+            [ProviderExecutionCapabilities.Processes]);
+        var dispatcher = new InProcessProviderExecutionDispatcher([handler]);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ProcessStart,
+            TargetResourceId = "application:worker",
+            DesiredGeneration = 3,
+            IdempotencyKey = "application:worker:3",
+            Target = new ProviderExecutionTarget
+            {
+                Kind = ProviderExecutionTargetKind.Agent,
+                TargetId = "agent-a"
+            },
+            RequiredCapabilities = [ProviderExecutionCapabilities.Processes]
+        };
+
+        var result = await dispatcher.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Unavailable, result.Status);
+        Assert.Null(handler.Request);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ProviderExecutionDiagnosticCodes.ExecutionTargetUnsupported, diagnostic.Code);
+        Assert.Equal(request.TargetResourceId, diagnostic.Target);
     }
 
     [Fact]

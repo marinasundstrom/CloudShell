@@ -55,6 +55,8 @@ on `git blame --follow`, and then by the broad type of change.
   path canonicalization, and value validation.
 - Preserved canonical attribute IDs as the disambiguation form when authored
   paths or aliases collide inside a composed resource schema.
+- Added provider execution target metadata so instructions can stay implicit
+  for local MVP use while remaining targetable for future agent dispatch.
 
 ### 2026-07-13
 

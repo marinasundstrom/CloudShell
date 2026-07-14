@@ -215,6 +215,10 @@ an in-process handler, and later it can send the same instruction to an agent.
 The handler realizes the instruction through local capabilities such as
 containers, processes, filesystem materialization, mounts, host networking, or
 runtime observation, then returns observed state and diagnostics.
+Execution requests may carry target metadata, but the default target remains
+implicit. The in-process dispatcher accepts the implicit/default target and an
+explicit local in-process target; agent targets are representable for the
+future transport but are not executable until an agent-backed dispatcher exists.
 
 The architecture should allow more than one Control Plane deployment shape. A
 small environment can run one in-process Control Plane. A shared environment
