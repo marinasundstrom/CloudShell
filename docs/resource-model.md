@@ -738,6 +738,11 @@ accept `Aliases` before falling back to dotted-ID grouping. The Resource model
 includes a schema-local `ResourceAttributePathResolver` that can resolve
 canonical IDs, authored paths, and aliases to canonical `ResourceAttributeId`
 values and report ambiguous paths before a caller applies them.
+Because the resolver is built from one resource type, class, or capability
+schema at a time, the same authored path can be reused by another schema and
+resolve to a different canonical attribute ID there. The owning schema is what
+gives the path meaning; the canonical ID is what provider and runtime code use
+after resolution.
 
 The desired compatibility model is:
 

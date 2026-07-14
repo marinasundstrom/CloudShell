@@ -81,6 +81,30 @@ public sealed class ResourceAttributePathResolver
         return _paths.TryGetValue(path.Trim(), out attributeId);
     }
 
+    public bool TryGetConflict(
+        string path,
+        out ResourceAttributePathConflict conflict)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            conflict = default!;
+            return false;
+        }
+
+        var normalizedPath = path.Trim();
+        foreach (var candidate in Conflicts)
+        {
+            if (string.Equals(candidate.Path, normalizedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                conflict = candidate;
+                return true;
+            }
+        }
+
+        conflict = default!;
+        return false;
+    }
+
     public ResourceAttributeId ResolveOrCreate(string path) =>
         TryResolve(path, out var attributeId)
             ? attributeId

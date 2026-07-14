@@ -1056,6 +1056,8 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceOperationProjectionMissing = "resourceDefinition.operationProjectionMissing";
     public const string AttributeDefinitionDefaultInvalid = "resourceDefinition.attributeDefinitionDefaultInvalid";
     public const string AttributeValueInvalid = "resourceDefinition.attributeValueInvalid";
+    public const string AttributePathAmbiguous = "resourceDefinition.attributePathAmbiguous";
+    public const string DuplicateAttributePath = "resourceDefinition.duplicateAttributePath";
     public const string ReadOnlyAttributeChange = "resourceDefinition.readOnlyAttributeChange";
     public const string ResourceDefinitionTargetMismatch = "resourceDefinition.targetMismatch";
 }

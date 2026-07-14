@@ -311,6 +311,9 @@ Schema-aware import/export paths should use the Resource model's
 `ResourceAttributePathResolver` to resolve authored paths and aliases to
 canonical IDs and to reject or report ambiguous paths before applying
 attributes.
+The resolver is schema-local, so two resource types can expose the same
+authored path while resolving it to different canonical IDs owned by their
+respective schemas.
 
 ```yaml
 container:

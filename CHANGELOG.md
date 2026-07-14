@@ -44,6 +44,8 @@ on `git blame --follow`, and then by the broad type of change.
   separately from canonical attribute IDs.
 - Added a schema-local resource attribute path resolver for mapping authored
   paths and aliases back to canonical `ResourceAttributeId` values.
+- Added opt-in resource definition attribute-path canonicalization with
+  diagnostics for ambiguous paths and duplicate inputs.
 
 ### 2026-07-13
 

@@ -206,6 +206,108 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void CanonicalizeAttributePaths_MapsAuthoredPathsToCanonicalIds()
+    {
+        var definitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["application.containerImage"] = new(
+                ValueType: ResourceAttributeValueType.String,
+                Path: "container.image",
+                Aliases: ["image"])
+        };
+        var definition = new ResourceDefinition(
+            "api",
+            "application.container-app",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["container.image"] = "api:latest"
+            });
+
+        var result = definition.CanonicalizeAttributePaths(
+            ResourceAttributePathResolver.FromDefinitions(definitions));
+
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal("api:latest", result.Definition.ResourceAttributes["application.containerImage"]);
+        Assert.False(result.Definition.ResourceAttributes.ContainsKey("container.image"));
+    }
+
+    [Fact]
+    public void CanonicalizeAttributePaths_ReportsDuplicateInputsForSameCanonicalId()
+    {
+        var definitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["application.containerImage"] = new(
+                ValueType: ResourceAttributeValueType.String,
+                Path: "container.image",
+                Aliases: ["image"])
+        };
+        var definition = new ResourceDefinition(
+            "api",
+            "application.container-app",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["container.image"] = "api:latest",
+                ["image"] = "api:duplicate"
+            });
+
+        var result = definition.CanonicalizeAttributePaths(
+            ResourceAttributePathResolver.FromDefinitions(definitions));
+
+        Assert.True(result.HasErrors);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.DuplicateAttributePath, diagnostic.Code);
+        Assert.Equal("image", diagnostic.Target);
+        Assert.Equal("api:latest", result.Definition.ResourceAttributes["application.containerImage"]);
+    }
+
+    [Fact]
+    public void CanonicalizeAttributePaths_ReportsAmbiguousAuthoredPath()
+    {
+        var definitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["providerA.containerImage"] = new(Path: "container.image"),
+            ["providerB.containerImage"] = new(Path: "container.image")
+        };
+        var definition = new ResourceDefinition(
+            "api",
+            "application.container-app",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["container.image"] = "api:latest"
+            });
+
+        var result = definition.CanonicalizeAttributePaths(
+            ResourceAttributePathResolver.FromDefinitions(definitions));
+
+        Assert.True(result.HasErrors);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributePathAmbiguous, diagnostic.Code);
+        Assert.Equal("container.image", diagnostic.Target);
+        Assert.Empty(result.Definition.ResourceAttributes);
+    }
+
+    [Fact]
+    public void AttributePathResolver_ResolvesSameAuthoredPathWithinDifferentSchemas()
+    {
+        var containerResolver = ResourceAttributePathResolver.FromDefinitions(
+            new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["application.containerImage"] = new(Path: "image")
+            });
+        var packageResolver = ResourceAttributePathResolver.FromDefinitions(
+            new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["application.packageImage"] = new(Path: "image")
+            });
+
+        Assert.True(containerResolver.TryResolve("image", out var containerAttributeId));
+        Assert.True(packageResolver.TryResolve("image", out var packageAttributeId));
+        Assert.Equal("application.containerImage", containerAttributeId);
+        Assert.Equal("application.packageImage", packageAttributeId);
+    }
+
+    [Fact]
     public void ResourceTypeDefinition_CanReferenceReusableComplexAttributeShapeAsJsonTarget()
     {
         var typeDefinition = new ResourceTypeDefinition(

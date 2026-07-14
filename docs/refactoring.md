@@ -585,6 +585,9 @@ preserving old provider seams:
     canonical IDs, authored paths, and aliases to canonical
     `ResourceAttributeId` values while reporting ambiguous paths instead of
     guessing.
+  - [x] Add opt-in resource definition canonicalization that rewrites
+    schema-local authored attribute paths to canonical IDs and reports
+    ambiguous paths or duplicate inputs as diagnostics.
 - [ ] Define provider validation contracts for attributes and capabilities.
   Providers should be able to validate whether a declared or deployed resource
   state conforms to the provider-supported schema and capability set.
