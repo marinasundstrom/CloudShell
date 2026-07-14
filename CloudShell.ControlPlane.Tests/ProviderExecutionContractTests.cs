@@ -1959,6 +1959,64 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ConfigurationStoreInspectOperation_DispatchesInspectInstruction()
+    {
+        var configurationStore = CreateGraphResource("configuration.store:settings", "settings", revision: 61);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new ConfigurationStoreInspectOperation(
+            new ResourceProjectionExecutionContext(configurationStore, [configurationStore]),
+            new ResourceOperationResolution(
+                ConfigurationStoreResourceTypeProvider.Operations.Inspect,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.ConfigurationStoreInspect, request.InstructionType);
+        Assert.Equal(configurationStore.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(61, request.DesiredGeneration);
+        Assert.Equal(
+            $"{configurationStore.EffectiveResourceId}:{ConfigurationStoreResourceTypeProvider.Operations.Inspect}:61",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.RuntimeObservation, request.RequiredCapabilities);
+        Assert.Same(configurationStore, request.TargetResourceSnapshot);
+        Assert.Equal([configurationStore], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task ConfigurationStoreInspectHandler_ReturnsInspectorDiagnostics()
+    {
+        var configurationStore = CreateGraphResource("configuration.store:settings", "settings");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "configurationStore.inspect.test",
+            "Configuration Store inspected.",
+            configurationStore.EffectiveResourceId);
+        var inspector = new RecordingConfigurationStoreInspector([diagnostic]);
+        var handler = new ConfigurationStoreInspectExecutionHandler(inspector);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ConfigurationStoreInspect,
+            TargetResourceId = configurationStore.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "configuration.store:settings:inspect:1",
+            TargetResourceSnapshot = configurationStore,
+            ResourceSnapshot = [configurationStore]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(configurationStore, Assert.Single(inspector.InspectInvocations));
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -3130,6 +3188,22 @@ public sealed class ProviderExecutionContractTests
     private sealed class RecordingHostConfigurationSourceInspector(
         IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
         : IHostConfigurationSourceInspector
+    {
+        public List<GraphResource> InspectInvocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default)
+        {
+            InspectInvocations.Add(resource);
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingConfigurationStoreInspector(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
+        : IConfigurationStoreInspector
     {
         public List<GraphResource> InspectInvocations { get; } = [];
 

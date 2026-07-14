@@ -1,12 +1,20 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class ConfigurationStoreInspectOperationProvider(
-    IConfigurationStoreInspector? inspector = null) :
+public sealed class ConfigurationStoreInspectOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IConfigurationStoreInspector _inspector =
-        inspector ?? new NoopConfigurationStoreInspector();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public ConfigurationStoreInspectOperationProvider(
+        IConfigurationStoreInspector? inspector = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new ConfigurationStoreInspectExecutionHandler(inspector)
+            ]);
+    }
 
     public ResourceOperationId OperationId =>
         ConfigurationStoreResourceTypeProvider.Operations.Inspect;
@@ -41,17 +49,17 @@ public sealed class ConfigurationStoreInspectOperationProvider(
             new ConfigurationStoreInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _inspector));
+                _dispatcher));
 }
 
 public sealed class ConfigurationStoreInspectOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IConfigurationStoreInspector inspector) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IConfigurationStoreInspector _inspector = inspector;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -89,14 +97,19 @@ public sealed class ConfigurationStoreInspectOperation(
                 ]);
         }
 
-        var diagnostics = await _inspector.InspectAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.ConfigurationStoreInspect,
+                [ProviderExecutionCapabilities.RuntimeObservation],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private static int GetSettingCount(Resource resource) =>

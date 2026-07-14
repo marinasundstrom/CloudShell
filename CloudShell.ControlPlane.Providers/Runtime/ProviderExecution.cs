@@ -662,6 +662,7 @@ public static class ProviderExecutionInstructionTypes
     public const string IdentityProvisioningSetup = "identityProvisioning.setup";
     public const string ServiceReconcile = "service.reconcile";
     public const string ContainerHostInspect = "containerHost.inspect";
+    public const string ConfigurationStoreInspect = "configurationStore.inspect";
     public const string DockerHostInspect = "dockerHost.inspect";
     public const string HostConfigurationSourceInspect = "hostConfigurationSource.inspect";
     public const string StorageInspect = "storage.inspect";

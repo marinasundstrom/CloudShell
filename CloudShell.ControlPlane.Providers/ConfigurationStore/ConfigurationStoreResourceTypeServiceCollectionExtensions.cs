@@ -72,6 +72,8 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IProviderExecutionHandler, ConfigurationStoreStopExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IProviderExecutionHandler, ConfigurationStoreRestartExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, ConfigurationStoreInspectExecutionHandler>());
         services.TryAddSingleton<ConfigurationStoreRuntimeOptions>();
         services.TryAddSingleton<
             IConfigurationStoreRuntimeSettingManager,
