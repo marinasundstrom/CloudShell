@@ -650,8 +650,8 @@ preserving old provider seams:
     future agent targets until an agent transport is introduced.
   - [x] Validate provider execution requests before resolving handlers.
     Assignment id, instruction type, target resource id, idempotency key,
-    desired generation, and required capabilities now fail with a
-    provider-execution diagnostic when malformed.
+    desired generation, required capabilities, and inconsistent resource
+    snapshots now fail with a provider-execution diagnostic when malformed.
   - [x] Add a resource-scoped provider execution request factory so assignment
     ids, idempotency keys, desired generation, snapshots, payloads, targets,
     and metadata are composed consistently before callers reach the dispatcher.

@@ -900,7 +900,9 @@ or realize assigned work; they do not retarget it.
 Provider execution requests are validated at the dispatcher boundary. A request
 must provide assignment identity, instruction type, target resource identity,
 idempotency key, a non-negative desired generation, and non-empty capability
-requirements before any handler is selected.
+requirements before any handler is selected. If a request includes a target
+resource snapshot or graph snapshot, those snapshots must point at and contain
+the target resource.
 
 Provider execution payloads are provider-owned execution contracts. They carry
 the narrow runtime context an execution handler needs, such as an orchestrator

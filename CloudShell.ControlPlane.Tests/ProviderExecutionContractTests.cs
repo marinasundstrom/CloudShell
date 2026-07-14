@@ -281,6 +281,47 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task InProcessDispatcher_ReturnsFailedWhenSnapshotsDoNotMatchTarget()
+    {
+        var target = CreateGraphResource("network:private", "private");
+        var other = CreateGraphResource("application:api", "api");
+        var handler = new RecordingExecutionHandler(
+            ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
+            [ProviderExecutionCapabilities.HostNetworking]);
+        var dispatcher = new InProcessProviderExecutionDispatcher([handler]);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
+            TargetResourceId = target.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "network:private:1",
+            RequiredCapabilities = [ProviderExecutionCapabilities.HostNetworking],
+            TargetResourceSnapshot = other,
+            ResourceSnapshot = [other]
+        };
+
+        var result = await dispatcher.ExecuteAsync(request);
+
+        Assert.Equal(request.AssignmentId, result.AssignmentId);
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        Assert.Null(handler.Request);
+        Assert.All(
+            result.Diagnostics,
+            diagnostic =>
+            {
+                Assert.Equal(ProviderExecutionDiagnosticCodes.RequestInvalid, diagnostic.Code);
+                Assert.Equal(request.TargetResourceId, diagnostic.Target);
+            });
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Message == "Provider execution target resource snapshot must match the target resource id.");
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Message == "Provider execution resource snapshot must include the target resource when provided.");
+    }
+
+    [Fact]
     public async Task InProcessDispatcher_DoesNotRecordInvalidRequestWithoutAssignment()
     {
         var observations = new InMemoryProviderExecutionObservationStore();
@@ -460,6 +501,29 @@ public sealed class ProviderExecutionContractTests
         Assert.NotNull(context);
         Assert.Same(network, context.Resource);
         Assert.Equal([api, network], context.Resources);
+    }
+
+    [Fact]
+    public void Request_IgnoresMismatchedTargetSnapshotWhenCreatingProjectionExecutionContext()
+    {
+        var network = CreateGraphResource("network:private", "private");
+        var api = CreateGraphResource("application:api", "api");
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
+            TargetResourceId = network.EffectiveResourceId,
+            DesiredGeneration = 5,
+            IdempotencyKey = "network:private:5",
+            TargetResourceSnapshot = api,
+            ResourceSnapshot = [network, api]
+        };
+
+        var context = request.TryCreateProjectionExecutionContext();
+
+        Assert.NotNull(context);
+        Assert.Same(network, context.Resource);
+        Assert.Equal([network, api], context.Resources);
     }
 
     [Fact]

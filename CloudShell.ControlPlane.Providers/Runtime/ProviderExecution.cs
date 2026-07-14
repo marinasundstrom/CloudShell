@@ -141,9 +141,41 @@ public sealed class InProcessProviderExecutionDispatcher(
             AddDiagnostic("Provider execution desired generation cannot be negative.");
         }
 
-        if (request.RequiredCapabilities.Any(string.IsNullOrWhiteSpace))
+        if (request.RequiredCapabilities is null)
+        {
+            AddDiagnostic("Provider execution required capabilities cannot be null.");
+        }
+        else if (request.RequiredCapabilities.Any(string.IsNullOrWhiteSpace))
         {
             AddDiagnostic("Provider execution required capabilities cannot contain empty values.");
+        }
+
+        if (request.TargetResourceSnapshot is not null &&
+            !string.IsNullOrWhiteSpace(request.TargetResourceId) &&
+            !string.Equals(
+                request.TargetResourceSnapshot.EffectiveResourceId,
+                request.TargetResourceId,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            AddDiagnostic("Provider execution target resource snapshot must match the target resource id.");
+        }
+
+        if (request.ResourceSnapshot is null)
+        {
+            AddDiagnostic("Provider execution resource snapshot cannot be null.");
+        }
+        else if (request.ResourceSnapshot.Any(resource => resource is null))
+        {
+            AddDiagnostic("Provider execution resource snapshot cannot contain null resources.");
+        }
+        else if (request.ResourceSnapshot.Count > 0 &&
+            !string.IsNullOrWhiteSpace(request.TargetResourceId) &&
+            !request.ResourceSnapshot.Any(resource => string.Equals(
+                resource.EffectiveResourceId,
+                request.TargetResourceId,
+                StringComparison.OrdinalIgnoreCase)))
+        {
+            AddDiagnostic("Provider execution resource snapshot must include the target resource when provided.");
         }
 
         return diagnostics ?? [];
@@ -368,20 +400,37 @@ public sealed record ProviderExecutionRequest
 
     public ResourceProjectionExecutionContext? TryCreateProjectionExecutionContext()
     {
-        var targetResource = TargetResourceSnapshot ??
-            ResourceSnapshot.FirstOrDefault(resource => string.Equals(
-                resource.EffectiveResourceId,
+        var resourceSnapshot = ResourceSnapshot ?? [];
+        var targetResource =
+            TargetResourceSnapshot is not null &&
+            string.Equals(
+                TargetResourceSnapshot.EffectiveResourceId,
                 TargetResourceId,
-                StringComparison.OrdinalIgnoreCase));
+                StringComparison.OrdinalIgnoreCase)
+                ? TargetResourceSnapshot
+                : resourceSnapshot.FirstOrDefault(resource => string.Equals(
+                    resource.EffectiveResourceId,
+                    TargetResourceId,
+                    StringComparison.OrdinalIgnoreCase));
 
         if (targetResource is null)
         {
             return null;
         }
 
-        return new ResourceProjectionExecutionContext(
-            targetResource,
-            ResourceSnapshot.Count == 0 ? [targetResource] : ResourceSnapshot);
+        if (resourceSnapshot.Count == 0)
+        {
+            return new ResourceProjectionExecutionContext(targetResource);
+        }
+
+        var resources = resourceSnapshot.Any(resource => string.Equals(
+            resource.EffectiveResourceId,
+            TargetResourceId,
+            StringComparison.OrdinalIgnoreCase))
+                ? resourceSnapshot
+                : [targetResource, .. resourceSnapshot];
+
+        return new ResourceProjectionExecutionContext(targetResource, resources);
     }
 }
 

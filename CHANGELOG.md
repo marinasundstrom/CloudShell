@@ -85,6 +85,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Added dispatcher-side provider execution request validation so malformed
   assignment, instruction, target, idempotency, generation, or capability data
   fails before handler resolution.
+- Validated provider execution resource snapshots so dispatcher requests cannot
+  pair a target resource id with mismatched target or graph snapshots.
 - Routed Container Application lifecycle execution through the provider
   execution dispatcher with in-process start, stop, and restart handlers.
 - Routed Container Application image and replica materialization through the
