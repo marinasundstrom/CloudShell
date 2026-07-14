@@ -95,7 +95,7 @@ environment policy.
 Examples:
 
 - a local development agent that runs in the same process as the combined host
-- a normal shared environment with one region and one or two agents across a
+- a normal shared environment with one region and one or more agents across a
   small set of machines
 - a data-center environment with many agents grouped by region, zone, rack,
   hardware profile, network boundary, and provider capability
@@ -143,7 +143,7 @@ The expected baseline is:
 - one environment authority
 - one logical region
 - one Control Plane deployment, possibly with more than one API replica later
-- one or two agents across one or more machines
+- one or more agents across one or more machines, often just one or a few
 - one default agent pool for general workload placement
 - provider-owned routing for the services that need an endpoint
 

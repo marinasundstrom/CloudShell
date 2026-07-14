@@ -2,8 +2,8 @@
 
 Future direction documents capture product ideas that fit CloudShell's long
 term strategy but are not active implementation proposals. They should not
-drive MVP work or appear in the proposal order until a concrete near-term slice
-is accepted.
+drive MVP work, appear in the roadmap active queue, or become active proposals
+until a concrete near-term slice is accepted.
 
 Use these documents for strategic fit, vocabulary, and later proposal
 extraction. When a direction becomes actionable, create or move a focused

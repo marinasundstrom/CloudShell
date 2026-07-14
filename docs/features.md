@@ -112,7 +112,7 @@ Use these terms when summarizing feature and proposal state:
 
 | Area | Canonical docs | Current scope |
 | --- | --- | --- |
-| Active proposals | [Proposals](proposals/README.md) | Actionable proposal index, fit, next action, current proposal order, and feature-doc migration queue. |
+| Active proposals | [Proposals](proposals/README.md) | Actionable proposal catalog, fit, next action, roadmap execution alignment, and feature-doc migration queue. |
 | Future directions | [Future directions](future/) | Deferred strategic ideas that are not active roadmap work. |
 | Refactoring | [Refactoring tracker](refactoring.md) | Active cross-cutting cleanup and boundary work that is not itself a feature proposal. |
 | Decisions and history | [ADR](../ADR.md), [Changelog](../CHANGELOG.md) | Durable decisions and landed change history. |

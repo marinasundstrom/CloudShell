@@ -135,11 +135,18 @@ small on-premise environment with acceptable UI management, provider-backed
 networking on more than one operating-system/runtime target, and integration
 points that are good enough for real platform experimentation.
 
+This scenario should still use the normal shared-environment shape: one
+environment authority, one logical region, and one or more host execution
+participants. It should prove the agent/reconciliation boundary for host-local
+execution before attempting multi-region placement, clustering, or broad
+distributed scheduling.
+
 Required outcome:
 
 | Area | Required outcome |
 | --- | --- |
 | On-premise host scenario | A deployable combined or split Control Plane/UI setup can manage resources against a team-owned host or host runtime, not only a developer workstation. |
+| Agent/reconciliation boundary | Host-local provider execution can run through typed assignments, leases, heartbeats, and observed state while the Control Plane remains the authority for desired state, identity, policy, operation history, and diagnostics. |
 | Management UI | Resource Manager can inspect and operate the environment well enough for platform operators, with permission-aware controls and a read-only mode for environments where UI writes must be disabled. |
 | Cross-platform networking | Virtual networks, ingress/gateway/load-balancer providers, public endpoint mapping, and DNS/name mapping work through provider capabilities rather than OS-specific assumptions. |
 | Network-level discovery | Services can be discovered through network or provider-level mechanisms such as DNS, service registries, or Eureka-like systems, separate from the Aspire-compatible app environment-variable mapping. |
@@ -571,7 +578,7 @@ Verify each tie-off slice with targeted tests, relevant sample smoke coverage
 when practical, and `git diff --check`. Docker-dependent smoke tests remain
 conditional on a healthy local Docker daemon.
 
-### Immediate Proposal Order
+### Immediate Execution Alignment
 
 Treat this as an active queue plus an ordered backlog. The active queue is the
 first five items. Items after that remain ordered, but they should not displace
@@ -1028,7 +1035,11 @@ listed here before pulling in broader proposal work.
   deployment-history scope unless the missing piece blocks the supported MVP
   samples.
 
-### Next: Configuration, Secrets, and Identity Polish
+The sections below preserve ordered backlog detail for areas that frequently
+touch MVP work. They are not the active queue by themselves; pull from them
+only when the active MVP tie-off queue or a supported sample exposes the need.
+
+### Backlog Detail: Configuration, Secrets, and Identity Polish
 
 - Keep [Resource identity and permissions](resource-identity-and-permissions.md)
   as the current-state feature documentation and
@@ -1084,7 +1095,7 @@ listed here before pulling in broader proposal work.
   not block MVP on a full Entra provider if the provider-neutral contract and
   compatibility tests are clear.
 
-### Next: Lifecycle, Traceability, and Audit
+### Backlog Detail: Lifecycle, Traceability, and Audit
 
 - Expose transient lifecycle state such as `Starting` while start/restart
   operations are in progress. Application resources now project a fresh
@@ -1180,7 +1191,7 @@ listed here before pulling in broader proposal work.
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.
 
-### Next: Host and Runtime Foundation
+### Backlog Detail: Host and Runtime Foundation
 
 - Add host-oriented descriptors, provider contracts, host registration, and
   builder/settings names. These host-oriented names are now in place for
@@ -1222,7 +1233,7 @@ listed here before pulling in broader proposal work.
   orchestrator or resource recovery policy instead of a side effect of
   runtime-state recovery.
 
-### Next: Remote Docker Host Completion
+### Backlog Detail: Remote Docker Host Completion
 
 - Continue the remote Docker hosts proposal on top of the shared host model:
   persist provider-owned UI host configuration, wire supported credential
@@ -1237,7 +1248,7 @@ listed here before pulling in broader proposal work.
   proves the host abstraction, but the MVP should still be useful with the
   local Docker host and programmatic declarations.
 
-### Next: Network and Routing Hardening
+### Backlog Detail: Network and Routing Hardening
 
 - Harden local host-provided virtual networking by deciding how reconciled
   mappings should be persisted or stopped. Reconcile actions now report
