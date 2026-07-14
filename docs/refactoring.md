@@ -696,8 +696,13 @@ preserving old provider seams:
     reconciliation paths that previously called the runtime handler directly.
   - [x] Route Container Application orchestrator routing reconciliation
     through the provider execution dispatcher with a typed routing payload,
-    leaving prepare, teardown, and replica-instance execution as follow-up
-    slices.
+    establishing the payload shape for the remaining Container Application
+    orchestration hooks.
+  - [x] Route Container Application orchestrator service prepare and routing
+    teardown through the provider execution dispatcher with the same typed
+    orchestrator-service payload. Replica-instance execution remains the next
+    Container Application orchestration hook still calling the runtime handler
+    directly.
   - [x] Route Load Balancer configuration apply through the provider
     execution dispatcher with an in-process handler for the existing
     configuration applier, keeping Traefik/file-provider materialization behind

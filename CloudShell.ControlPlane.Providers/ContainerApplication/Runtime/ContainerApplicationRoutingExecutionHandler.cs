@@ -3,13 +3,72 @@ using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Providers;
 
+public sealed class ContainerApplicationOrchestratorServicePrepareExecutionHandler(
+    IContainerApplicationOrchestratorRuntimeHandler? runtimeHandler = null)
+    : ContainerApplicationOrchestratorServiceExecutionHandler(runtimeHandler)
+{
+    public override string InstructionType =>
+        ProviderExecutionInstructionTypes.ContainerApplicationOrchestratorServicePrepare;
+
+    protected override ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteCoreAsync(
+        IContainerApplicationOrchestratorRuntimeHandler runtimeHandler,
+        Resource resource,
+        ContainerApplicationOrchestratorServiceExecutionPayload payload,
+        CancellationToken cancellationToken) =>
+        runtimeHandler.PrepareOrchestratorServiceAsync(
+            resource,
+            payload.Service,
+            payload.ReplicaGroup,
+            payload.RoutingBindings,
+            cancellationToken);
+}
+
 public sealed class ContainerApplicationRoutingReconcileExecutionHandler(
-    IContainerApplicationOrchestratorRuntimeHandler? runtimeHandler = null) : IProviderExecutionHandler
+    IContainerApplicationOrchestratorRuntimeHandler? runtimeHandler = null)
+    : ContainerApplicationOrchestratorServiceExecutionHandler(runtimeHandler)
+{
+    public override string InstructionType =>
+        ProviderExecutionInstructionTypes.ContainerApplicationRoutingReconcile;
+
+    protected override ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteCoreAsync(
+        IContainerApplicationOrchestratorRuntimeHandler runtimeHandler,
+        Resource resource,
+        ContainerApplicationOrchestratorServiceExecutionPayload payload,
+        CancellationToken cancellationToken) =>
+        runtimeHandler.ReconcileOrchestratorServiceRoutingAsync(
+            resource,
+            payload.Service,
+            payload.ReplicaGroup,
+            payload.RoutingBindings,
+            cancellationToken);
+}
+
+public sealed class ContainerApplicationRoutingTearDownExecutionHandler(
+    IContainerApplicationOrchestratorRuntimeHandler? runtimeHandler = null)
+    : ContainerApplicationOrchestratorServiceExecutionHandler(runtimeHandler)
+{
+    public override string InstructionType =>
+        ProviderExecutionInstructionTypes.ContainerApplicationRoutingTearDown;
+
+    protected override ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteCoreAsync(
+        IContainerApplicationOrchestratorRuntimeHandler runtimeHandler,
+        Resource resource,
+        ContainerApplicationOrchestratorServiceExecutionPayload payload,
+        CancellationToken cancellationToken) =>
+        runtimeHandler.TearDownOrchestratorServiceRoutingAsync(
+            resource,
+            payload.Service,
+            payload.ReplicaGroup,
+            payload.RoutingBindings,
+            cancellationToken);
+}
+
+public abstract class ContainerApplicationOrchestratorServiceExecutionHandler(
+    IContainerApplicationOrchestratorRuntimeHandler? runtimeHandler) : IProviderExecutionHandler
 {
     private readonly IContainerApplicationOrchestratorRuntimeHandler? _runtimeHandler = runtimeHandler;
 
-    public string InstructionType =>
-        ProviderExecutionInstructionTypes.ContainerApplicationRoutingReconcile;
+    public abstract string InstructionType { get; }
 
     public IReadOnlyList<string> Capabilities =>
     [
@@ -35,20 +94,19 @@ public sealed class ContainerApplicationRoutingReconcileExecutionHandler(
             return ProviderExecutionResult.Succeeded(request);
         }
 
-        var payload = request.Payload?.Deserialize<ContainerApplicationRoutingReconcileExecutionPayload>();
+        var payload = request.Payload?.Deserialize<ContainerApplicationOrchestratorServiceExecutionPayload>();
         if (payload is null)
         {
             return ProviderExecutionResult.Unavailable(
                 request,
                 ProviderExecutionDiagnosticCodes.PayloadMissing,
-                $"Provider execution instruction '{request.InstructionType}' requires routing reconciliation payload.");
+                $"Provider execution instruction '{request.InstructionType}' requires orchestrator service payload.");
         }
 
-        var diagnostics = await _runtimeHandler.ReconcileOrchestratorServiceRoutingAsync(
+        var diagnostics = await ExecuteCoreAsync(
+            _runtimeHandler,
             context.Resource,
-            payload.Service,
-            payload.ReplicaGroup,
-            payload.RoutingBindings,
+            payload,
             cancellationToken);
 
         return diagnostics.Any(diagnostic =>
@@ -64,9 +122,15 @@ public sealed class ContainerApplicationRoutingReconcileExecutionHandler(
                     ["hasReplicaGroup"] = payload.ReplicaGroup is null ? "false" : "true"
                 });
     }
+
+    protected abstract ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteCoreAsync(
+        IContainerApplicationOrchestratorRuntimeHandler runtimeHandler,
+        Resource resource,
+        ContainerApplicationOrchestratorServiceExecutionPayload payload,
+        CancellationToken cancellationToken);
 }
 
-public sealed record ContainerApplicationRoutingReconcileExecutionPayload(
+public sealed record ContainerApplicationOrchestratorServiceExecutionPayload(
     ResourceOrchestratorService Service,
     ResourceOrchestratorReplicaGroup? ReplicaGroup,
     IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> RoutingBindings);

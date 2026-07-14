@@ -39,22 +39,25 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
     {
         if (_orchestratorRuntimeHandler is not null)
         {
-            var orchestratorDiagnostics = action.Kind switch
+            var instructionType = action.Kind switch
             {
-                ResourceActionKind.Start => await _orchestratorRuntimeHandler.PrepareOrchestratorServiceAsync(
-                    context.GraphResource,
-                    context.Service,
-                    context.ReplicaGroup,
-                    context.ServiceRoutingBindings,
-                    cancellationToken),
-                ResourceActionKind.Stop => await _orchestratorRuntimeHandler.TearDownOrchestratorServiceRoutingAsync(
-                    context.GraphResource,
-                    context.Service,
-                    context.ReplicaGroup,
-                    context.ServiceRoutingBindings,
-                    cancellationToken),
-                _ => []
+                ResourceActionKind.Start => ProviderExecutionInstructionTypes.ContainerApplicationOrchestratorServicePrepare,
+                ResourceActionKind.Stop => ProviderExecutionInstructionTypes.ContainerApplicationRoutingTearDown,
+                _ => null
             };
+
+            if (instructionType is null)
+            {
+                return;
+            }
+
+            var orchestratorDiagnostics = await ExecuteRuntimeInstructionAsync(
+                context.GraphResource,
+                instructionType,
+                instructionType,
+                cancellationToken,
+                GetOrchestratorServiceInstructionCapabilities(instructionType),
+                CreateOrchestratorServicePayload(context));
             ThrowIfErrors(orchestratorDiagnostics);
             return;
         }
@@ -97,7 +100,7 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
                 ProviderExecutionCapabilities.LoadBalancing
             ],
             JsonSerializer.SerializeToElement(
-                new ContainerApplicationRoutingReconcileExecutionPayload(
+                new ContainerApplicationOrchestratorServiceExecutionPayload(
                     context.Service,
                     context.ReplicaGroup,
                     context.ServiceRoutingBindings)));
@@ -181,6 +184,23 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         return context.Instance.ReplicaOrdinal == minimumOrdinal;
     }
 
+    private static JsonElement CreateOrchestratorServicePayload(
+        ResourceModelGraphOrchestratorServiceProcedureContext context) =>
+        JsonSerializer.SerializeToElement(
+            new ContainerApplicationOrchestratorServiceExecutionPayload(
+                context.Service,
+                context.ReplicaGroup,
+                context.ServiceRoutingBindings));
+
+    private static IReadOnlyList<string> GetOrchestratorServiceInstructionCapabilities(
+        string instructionType) =>
+        instructionType == ProviderExecutionInstructionTypes.ContainerApplicationOrchestratorServicePrepare
+            ? [ProviderExecutionCapabilities.Containers]
+            : [
+                ProviderExecutionCapabilities.Containers,
+                ProviderExecutionCapabilities.LoadBalancing
+            ];
+
     private static void ThrowIfErrors(
         IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics)
     {
@@ -209,6 +229,8 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
                 new ContainerApplicationStopExecutionHandler(runtimeHandler),
                 new ContainerApplicationImageApplyExecutionHandler(runtimeHandler),
                 new ContainerApplicationReplicasApplyExecutionHandler(runtimeHandler),
-                new ContainerApplicationRoutingReconcileExecutionHandler(orchestratorRuntimeHandler)
+                new ContainerApplicationOrchestratorServicePrepareExecutionHandler(orchestratorRuntimeHandler),
+                new ContainerApplicationRoutingReconcileExecutionHandler(orchestratorRuntimeHandler),
+                new ContainerApplicationRoutingTearDownExecutionHandler(orchestratorRuntimeHandler)
             ]);
 }

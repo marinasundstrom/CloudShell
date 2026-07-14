@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Clarified the naming boundary between resource-domain operations and
   provider execution instructions, and stopped modeling Container Application
   routing reconciliation as an internal resource operation.
+- Routed Container Application orchestrator service prepare and routing
+  teardown through provider execution instructions with a typed
+  orchestrator-service payload.
 - Routed Load Balancer configuration apply through the provider execution
   dispatcher with an in-process configuration-apply handler.
 - Routed CloudShell Volume provisioning through the provider execution

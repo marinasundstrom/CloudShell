@@ -1116,7 +1116,7 @@ public sealed class ProviderExecutionContractTests
             TargetResourceSnapshot = containerApp,
             ResourceSnapshot = [containerApp],
             Payload = JsonSerializer.SerializeToElement(
-                new ContainerApplicationRoutingReconcileExecutionPayload(
+                new ContainerApplicationOrchestratorServiceExecutionPayload(
                     service,
                     replicaGroup,
                     []))
@@ -1137,6 +1137,66 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal(replicaGroup.RequestedReplicaSlots, invocation.ReplicaGroup.RequestedReplicaSlots);
         Assert.Equal(replicaGroup.Instances.Count, invocation.ReplicaGroup.Instances.Count);
         Assert.Empty(invocation.RoutingBindings);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationOrchestratorServicePrepareHandler_ReturnsRuntimeDiagnostics()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var service = CreateContainerApplicationOrchestratorService(containerApp);
+        var replicaGroup = RMResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "containerApplication.prepare.test",
+            "Container Application service prepared.",
+            containerApp.EffectiveResourceId);
+        var runtimeHandler = new RecordingContainerApplicationOrchestratorRuntimeHandler([diagnostic]);
+        var handler = new ContainerApplicationOrchestratorServicePrepareExecutionHandler(runtimeHandler);
+        var request = CreateContainerApplicationOrchestratorServiceRequest(
+            containerApp,
+            ProviderExecutionInstructionTypes.ContainerApplicationOrchestratorServicePrepare,
+            service,
+            replicaGroup);
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeHandler.PrepareInvocations);
+        Assert.Same(containerApp, invocation.Resource);
+        Assert.Equal(service, invocation.Service);
+        Assert.NotNull(invocation.ReplicaGroup);
+        Assert.Equal(replicaGroup.Id, invocation.ReplicaGroup.Id);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationRoutingTearDownHandler_ReturnsRuntimeDiagnostics()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var service = CreateContainerApplicationOrchestratorService(containerApp);
+        var replicaGroup = RMResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "containerApplication.routingTeardown.test",
+            "Container Application routing torn down.",
+            containerApp.EffectiveResourceId);
+        var runtimeHandler = new RecordingContainerApplicationOrchestratorRuntimeHandler([diagnostic]);
+        var handler = new ContainerApplicationRoutingTearDownExecutionHandler(runtimeHandler);
+        var request = CreateContainerApplicationOrchestratorServiceRequest(
+            containerApp,
+            ProviderExecutionInstructionTypes.ContainerApplicationRoutingTearDown,
+            service,
+            replicaGroup);
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeHandler.TearDownInvocations);
+        Assert.Same(containerApp, invocation.Resource);
+        Assert.Equal(service, invocation.Service);
+        Assert.NotNull(invocation.ReplicaGroup);
+        Assert.Equal(replicaGroup.Id, invocation.ReplicaGroup.Id);
     }
 
     [Fact]
@@ -1739,13 +1799,29 @@ public sealed class ProviderExecutionContractTests
             RMResourceOrchestratorReplicaGroup? ReplicaGroup,
             IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> RoutingBindings)> RoutingInvocations { get; } = [];
 
+        public List<(
+            GraphResource Resource,
+            RMResourceOrchestratorService Service,
+            RMResourceOrchestratorReplicaGroup? ReplicaGroup,
+            IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> RoutingBindings)> PrepareInvocations { get; } = [];
+
+        public List<(
+            GraphResource Resource,
+            RMResourceOrchestratorService Service,
+            RMResourceOrchestratorReplicaGroup? ReplicaGroup,
+            IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> RoutingBindings)> TearDownInvocations { get; } = [];
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> PrepareOrchestratorServiceAsync(
             GraphResource resource,
             RMResourceOrchestratorService service,
             RMResourceOrchestratorReplicaGroup? replicaGroup,
             IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+            CancellationToken cancellationToken = default)
+        {
+            PrepareInvocations.Add((resource, service, replicaGroup, routingBindings));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileOrchestratorServiceRoutingAsync(
             GraphResource resource,
@@ -1764,8 +1840,12 @@ public sealed class ProviderExecutionContractTests
             RMResourceOrchestratorService service,
             RMResourceOrchestratorReplicaGroup? replicaGroup,
             IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+            CancellationToken cancellationToken = default)
+        {
+            TearDownInvocations.Add((resource, service, replicaGroup, routingBindings));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
             GraphResource resource,
@@ -1918,6 +1998,27 @@ public sealed class ProviderExecutionContractTests
                 Image: "orders:1",
                 Replicas: 2,
                 ReplicasEnabled: true));
+
+    private static ProviderExecutionRequest CreateContainerApplicationOrchestratorServiceRequest(
+        GraphResource resource,
+        string instructionType,
+        RMResourceOrchestratorService service,
+        RMResourceOrchestratorReplicaGroup? replicaGroup) =>
+        new()
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = instructionType,
+            TargetResourceId = resource.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = $"{resource.EffectiveResourceId}:{instructionType}:1",
+            TargetResourceSnapshot = resource,
+            ResourceSnapshot = [resource],
+            Payload = JsonSerializer.SerializeToElement(
+                new ContainerApplicationOrchestratorServiceExecutionPayload(
+                    service,
+                    replicaGroup,
+                    []))
+        };
 
     private static GraphResource CreateGraphResource(
         string resourceId,

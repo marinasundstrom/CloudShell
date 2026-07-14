@@ -427,7 +427,9 @@ public static class ProviderExecutionInstructionTypes
     public const string ContainerApplicationRestart = "containerApplication.restart";
     public const string ContainerApplicationImageApply = "containerApplication.image.apply";
     public const string ContainerApplicationReplicasApply = "containerApplication.replicas.apply";
+    public const string ContainerApplicationOrchestratorServicePrepare = "containerApplication.service.prepare";
     public const string ContainerApplicationRoutingReconcile = "containerApplication.routing.reconcile";
+    public const string ContainerApplicationRoutingTearDown = "containerApplication.routing.tearDown";
     public const string ExecutableApplicationStart = "executableApplication.start";
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";
