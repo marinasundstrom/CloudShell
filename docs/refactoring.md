@@ -799,8 +799,9 @@ preserving old provider seams:
     and provider-specific process runtime controllers. ASP.NET Core,
     JavaScript, Java, Go, Python, Device Registry, executable,
     configuration-store, secrets-vault, event-broker, identity provisioning
-    setup, SQL Database ensure-created, and Service reconcile controllers now
-    have dispatched entry points for their MVP execution paths.
+    setup, SQL Database ensure-created, Service reconcile, and Docker Host
+    inspect controllers now have dispatched entry points for their MVP
+    execution paths.
   - [x] Introduce a small execution contract in the provider/runtime layer,
     not as an agent API yet. A first version should model instruction type,
     target resource id, desired generation or revision, capability

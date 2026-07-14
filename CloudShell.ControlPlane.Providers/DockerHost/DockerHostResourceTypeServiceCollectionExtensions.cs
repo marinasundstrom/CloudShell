@@ -22,6 +22,8 @@ public static class DockerHostResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -40,6 +42,8 @@ public static class DockerHostResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProvider, DockerHostInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, DockerHostInspectOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, DockerHostInspectExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, DockerHostResourceProjectionProvider>());
         services.TryAddSingleton<IDockerHostInspector, NoopDockerHostInspector>();

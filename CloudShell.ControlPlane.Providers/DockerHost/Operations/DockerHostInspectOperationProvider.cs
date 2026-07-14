@@ -1,12 +1,20 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class DockerHostInspectOperationProvider(
-    IDockerHostInspector? inspector = null) :
+public sealed class DockerHostInspectOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IDockerHostInspector _inspector =
-        inspector ?? new NoopDockerHostInspector();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public DockerHostInspectOperationProvider(
+        IDockerHostInspector? inspector = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new DockerHostInspectExecutionHandler(inspector)
+            ]);
+    }
 
     public ResourceOperationId OperationId =>
         DockerHostResourceTypeProvider.Operations.Inspect;
@@ -41,17 +49,17 @@ public sealed class DockerHostInspectOperationProvider(
             new DockerHostInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _inspector));
+                _dispatcher));
 }
 
 public sealed class DockerHostInspectOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IDockerHostInspector inspector) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IDockerHostInspector _inspector = inspector;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -90,14 +98,19 @@ public sealed class DockerHostInspectOperation(
                 ]);
         }
 
-        var diagnostics = await _inspector.InspectAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.DockerHostInspect,
+                [ProviderExecutionCapabilities.RuntimeObservation],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 
