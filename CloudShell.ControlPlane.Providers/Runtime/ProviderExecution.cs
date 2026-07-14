@@ -214,6 +214,7 @@ public static class ProviderExecutionCapabilities
     public const string FileSystem = "filesystem";
     public const string VolumeMounts = "volumeMounts";
     public const string HostNetworking = "hostNetworking";
+    public const string VirtualNetworking = "virtualNetworking";
     public const string DnsNameMappings = "dnsNameMappings";
     public const string SqlServerAccess = "sqlServerAccess";
     public const string RabbitMQAccess = "rabbitMQAccess";
@@ -232,6 +233,7 @@ public static class ProviderExecutionInstructionTypes
     public const string FileSystemProvision = "filesystem.provision";
     public const string VolumeMountMaterialize = "volumeMount.materialize";
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";
+    public const string VirtualNetworkEndpointReconcile = "virtualNetwork.endpoint.reconcile";
     public const string DnsNameMappingReconcile = "dns.nameMapping.reconcile";
     public const string SqlServerAccessReconcile = "sqlServer.access.reconcile";
     public const string RabbitMQAccessReconcile = "rabbitMQ.access.reconcile";

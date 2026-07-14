@@ -242,6 +242,64 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task VirtualNetworkReconcileOperation_DispatchesEndpointReconcileInstruction()
+    {
+        var network = CreateGraphResource("virtual-network:private", "private", revision: 8);
+        var endpoint = CreateGraphResource("endpoint:api", "api");
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new VirtualNetworkReconcileEndpointMappingsOperation(
+            new ResourceProjectionExecutionContext(network, [network, endpoint]),
+            new ResourceOperationResolution(
+                VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.VirtualNetworkEndpointReconcile, request.InstructionType);
+        Assert.Equal(network.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(8, request.DesiredGeneration);
+        Assert.Equal(
+            $"{network.EffectiveResourceId}:{VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings}:8",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.VirtualNetworking, request.RequiredCapabilities);
+        Assert.Same(network, request.TargetResourceSnapshot);
+        Assert.Equal([network, endpoint], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task VirtualNetworkEndpointMappingHandler_ReturnsReconcilerDiagnostics()
+    {
+        var network = CreateGraphResource("virtual-network:private", "private");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "virtualNetwork.test",
+            "Virtual network reconciled.",
+            network.EffectiveResourceId);
+        var handler = new VirtualNetworkEndpointMappingExecutionHandler(
+            new RecordingVirtualNetworkEndpointMappingReconciler([diagnostic]));
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.VirtualNetworkEndpointReconcile,
+            TargetResourceId = network.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "virtual-network:private:1",
+            TargetResourceSnapshot = network,
+            ResourceSnapshot = [network]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+    }
+
+    [Fact]
     public async Task DnsZoneReconcileOperation_DispatchesNameMappingInstruction()
     {
         var zone = CreateGraphResource("dns-zone:private", "private", revision: 6);
@@ -539,6 +597,16 @@ public sealed class ProviderExecutionContractTests
         IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : IDnsZoneNameMappingReconciler
     {
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileNameMappingsAsync(
+            GraphResource resource,
+            ResourceProjectionExecutionContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(diagnostics);
+    }
+
+    private sealed class RecordingVirtualNetworkEndpointMappingReconciler(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : IVirtualNetworkEndpointMappingReconciler
+    {
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
             GraphResource resource,
             ResourceProjectionExecutionContext context,
             CancellationToken cancellationToken = default) =>

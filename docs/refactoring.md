@@ -624,6 +624,9 @@ preserving old provider seams:
   - [x] Route RabbitMQ access reconciliation through the provider execution
     dispatcher with grant data carried as instruction payload, exercising the
     payload path needed for future agent-backed execution.
+  - [x] Route Virtual Network endpoint-mapping reconciliation through the
+    provider execution dispatcher with a distinct virtual-network instruction
+    so multiple endpoint handlers can coexist without dispatcher ambiguity.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

@@ -35,6 +35,8 @@ on `git blame --follow`, and then by the broad type of change.
   dispatcher with an in-process execution handler.
 - Routed RabbitMQ access reconciliation through the provider execution
   dispatcher with grant data carried in the instruction payload.
+- Routed Virtual Network endpoint-mapping reconciliation through the provider
+  execution dispatcher with a distinct virtual-network instruction.
 
 ### 2026-07-13
 

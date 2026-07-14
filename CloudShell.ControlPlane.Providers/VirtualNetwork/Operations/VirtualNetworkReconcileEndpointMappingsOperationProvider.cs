@@ -1,12 +1,19 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider(
-    IVirtualNetworkEndpointMappingReconciler? reconciler = null) :
+public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IVirtualNetworkEndpointMappingReconciler _reconciler =
-        reconciler ?? new NoopVirtualNetworkEndpointMappingReconciler();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public VirtualNetworkReconcileEndpointMappingsOperationProvider(
+        IProviderExecutionDispatcher? dispatcher = null,
+        IVirtualNetworkEndpointMappingReconciler? reconciler = null)
+    {
+        _dispatcher = dispatcher ??
+            new InProcessProviderExecutionDispatcher(
+                [new VirtualNetworkEndpointMappingExecutionHandler(reconciler)]);
+    }
 
     public ResourceOperationId OperationId =>
         VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
@@ -41,18 +48,17 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider(
             new VirtualNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _reconciler));
+                _dispatcher));
 }
 
 public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IVirtualNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IVirtualNetworkEndpointMappingReconciler _reconciler =
-        reconciler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -90,15 +96,25 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
                 ]);
         }
 
-        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
-            Resource,
-            Context,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.VirtualNetworkEndpointReconcile,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.VirtualNetworking],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 

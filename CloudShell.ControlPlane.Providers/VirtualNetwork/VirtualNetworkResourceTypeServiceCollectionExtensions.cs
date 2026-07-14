@@ -23,6 +23,7 @@ public static class VirtualNetworkResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddNetworkingEndpointGraphShapes();
+        services.AddProviderExecutionDispatcher();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -44,6 +45,8 @@ public static class VirtualNetworkResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, VirtualNetworkReconcileEndpointMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, VirtualNetworkResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, VirtualNetworkEndpointMappingExecutionHandler>());
         services.TryAddSingleton<
             IVirtualNetworkEndpointMappingReconciler,
             NoopVirtualNetworkEndpointMappingReconciler>();
