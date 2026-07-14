@@ -1,12 +1,14 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ExecutableStartOperationProvider(
-    IExecutableApplicationRuntimeController? runtimeController = null) :
+    IExecutableApplicationRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IExecutableApplicationRuntimeController _runtimeController =
-        runtimeController ?? new NoopExecutableApplicationRuntimeController();
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [new ExecutableApplicationStartExecutionHandler(runtimeController)]);
 
     public ResourceOperationId OperationId =>
         ExecutableApplicationResourceTypeProvider.Operations.Start;
@@ -41,18 +43,17 @@ public sealed class ExecutableStartOperationProvider(
             new ExecutableStartOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _dispatcher));
 }
 
 public sealed class ExecutableStartOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IExecutableApplicationRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IExecutableApplicationRuntimeController _runtimeController =
-        runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -91,13 +92,24 @@ public sealed class ExecutableStartOperation(
             ]);
         }
 
-        var diagnostics = await _runtimeController.StartAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.ExecutableApplicationStart,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Processes],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }

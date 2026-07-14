@@ -701,6 +701,9 @@ preserving old provider seams:
   - [x] Route CloudShell Volume provisioning through the provider execution
     dispatcher with an in-process storage provision handler, while keeping
     volume intent validation in the operation provider.
+  - [x] Route Executable Application start through the provider execution
+    dispatcher with an in-process process handler, keeping process startup
+    behind the same boundary without introducing remote agents.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
@@ -744,6 +747,10 @@ preserving old provider seams:
     yet. Keep observations in memory while the local boundary is still being
     proven; do not introduce remote agents, host placement, or distributed
     leases before Container Application execution also crosses this boundary.
+  - [x] Document future execution handler strategy by resource category,
+    including which behaviors should become generic execution capabilities and
+    which should remain provider-specific adapters, plus the first
+    storage/volume placement rules for host-bound versus shared volumes.
 - [ ] Feed the schema/validation/apply model into orchestrator deployment
   planning so accepted ResourceDefinition state can be translated consistently
   across resource types while leaving type-specific reconciliation to the

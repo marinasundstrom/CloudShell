@@ -186,6 +186,41 @@ there.
 Storage and volume resources can also project runtime status with
 `storage.runtimeStatus` and `storage.runtimeStatusReason`.
 
+## Future Agent Placement Strategy
+
+The current implementation is still local-first, but volume design must leave
+room for agents and multi-host placement.
+
+A volume resource represents logical storage intent. The actual data location
+is execution-plane state owned by the storage provider or agent that
+materializes it. Resource Manager should treat that materialized location as a
+placement constraint for consumers.
+
+Initial strategy:
+
+- local filesystem-backed volumes are host-bound after materialization
+- writable consumers of a host-bound volume must run on the same host or
+  agent that owns the materialized data
+- read-only consumers can move only when the storage provider declares that
+  the data is available from the target host
+- shared or external volumes require an explicit provider capability and
+  access-mode contract before the scheduler may place consumers on several
+  hosts
+- stateless resources have no storage locality constraint and can be placed
+  independently
+- cleanup must respect retention policy and active consumer references
+
+Do not assume that a requested replica count implies cross-host distribution
+when the app mounts a local writable volume. The scheduler must either place
+the workload where the volume lives, provision storage according to provider
+policy, or report placement as unavailable.
+
+Distributed storage replication, volume migration, backup, snapshotting, and
+cross-region failover are future storage-provider features, not part of the
+first agent transition. See
+[CloudShell agents and clustering](../future/agents-and-clustering.md) for the
+broader execution and placement direction.
+
 ## Resource Manager Experience
 
 Current Resource Manager behavior includes:

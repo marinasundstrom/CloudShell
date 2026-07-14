@@ -10,6 +10,8 @@ public static class ExecutableApplicationResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -43,6 +45,8 @@ public static class ExecutableApplicationResourceTypeServiceCollectionExtensions
                     is IExecutableApplicationRuntimeMonitor monitor
                         ? monitor
                         : new NoopExecutableApplicationRuntimeController());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, ExecutableApplicationStartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ExecutableStartOperationProvider>());
         services.TryAddEnumerable(

@@ -82,6 +82,11 @@ on `git blame --follow`, and then by the broad type of change.
   dispatcher with an in-process configuration-apply handler.
 - Routed CloudShell Volume provisioning through the provider execution
   dispatcher with an in-process storage provision handler.
+- Routed Executable Application start through the provider execution
+  dispatcher with an in-process process-start handler.
+- Documented the future execution handler strategy by resource category,
+  including generic execution capabilities, provider-specific adapters, and
+  initial volume placement rules for host-bound versus shared storage.
 
 ### 2026-07-13
 

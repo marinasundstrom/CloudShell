@@ -851,6 +851,64 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ExecutableStartOperation_DispatchesStartInstruction()
+    {
+        var executable = CreateGraphResource("executable:worker", "worker", revision: 14);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new ExecutableStartOperation(
+            new ResourceProjectionExecutionContext(executable, [executable]),
+            new ResourceOperationResolution(
+                ExecutableApplicationResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.ExecutableApplicationStart, request.InstructionType);
+        Assert.Equal(executable.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(14, request.DesiredGeneration);
+        Assert.Equal(
+            $"{executable.EffectiveResourceId}:{ExecutableApplicationResourceTypeProvider.Operations.Start}:14",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Processes, request.RequiredCapabilities);
+        Assert.Same(executable, request.TargetResourceSnapshot);
+        Assert.Equal([executable], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task ExecutableApplicationStartHandler_ReturnsRuntimeDiagnostics()
+    {
+        var executable = CreateGraphResource("executable:worker", "worker");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "executable.start.test",
+            "Executable application started.",
+            executable.EffectiveResourceId);
+        var runtimeController = new RecordingExecutableApplicationRuntimeController([diagnostic]);
+        var handler = new ExecutableApplicationStartExecutionHandler(runtimeController);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ExecutableApplicationStart,
+            TargetResourceId = executable.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "executable:worker:start:1",
+            TargetResourceSnapshot = executable,
+            ResourceSnapshot = [executable]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(executable, Assert.Single(runtimeController.StartInvocations));
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -1531,6 +1589,21 @@ public sealed class ProviderExecutionContractTests
             CancellationToken cancellationToken = default)
         {
             Invocations.Add(resource);
+
+            return ValueTask.FromResult(diagnostics);
+        }
+    }
+
+    private sealed class RecordingExecutableApplicationRuntimeController(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : IExecutableApplicationRuntimeController
+    {
+        public List<GraphResource> StartInvocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default)
+        {
+            StartInvocations.Add(resource);
 
             return ValueTask.FromResult(diagnostics);
         }

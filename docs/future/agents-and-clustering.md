@@ -385,6 +385,127 @@ replica count alone should not automatically mean cross-host or cross-region
 distribution until placement policy, health aggregation, ingress, storage,
 identity, and data-locality semantics are defined.
 
+## Resource Execution Strategy
+
+Agent work should be organized by resource behavior, not by creating one
+agent handler per resource type when the behavior is really shared. The
+Control Plane still owns resource semantics, validation, desired state,
+placement decisions, operation history, and policy. Agents own local execution
+and observation for capabilities available where the agent runs.
+
+The general strategy is:
+
+- logical resources stay Control Plane-owned unless they need provider-side
+  materialization
+- host-local runtime resources become typed execution assignments
+- provider configuration resources become reconcile/apply assignments
+- storage resources carry placement and data-locality constraints
+- routing and discovery resources publish observations from placed workloads
+- identity and secret resources resolve sensitive inputs through protected
+  channels instead of projecting secret material to agents or resources
+
+The default local-development path should still have one implicit execution
+target. Resource definitions should not name an agent unless the environment
+has multiple eligible execution targets and a user, operator, or scheduler
+needs to constrain placement.
+
+### Resource Category Strategy
+
+| Resource category | Control Plane responsibility | Agent responsibility | Generic agent capability | Provider-specific behavior |
+| --- | --- | --- | --- | --- |
+| Container apps and containers | Accept app intent, deployment history, replica intent, lifecycle operations, placement, health aggregation, and routing relationships. | Pull images, create/update/delete containers, inspect local runtime state, apply lifecycle operations, report observed generation and endpoints. | Container runtime operations, image/materialization observation, log reading, health probing. | Docker, Podman, Kubernetes, Nomad, or provider-native translation and command execution. |
+| Process-backed applications and managed services | Own resource lifecycle, dependency policy, environment/configuration resolution, operation history, and diagnostics. | Start/stop/restart processes or services, prepare working directories, observe process state, stream logs. | Process execution, service management, environment injection, filesystem preparation, log reading. | systemd, Windows Service Control Manager, launchd, shell/process runner, language/runtime-specific startup. |
+| Storage and volumes | Own volume definitions, access mode, retention policy, references from consumers, delete guards, and placement constraints. | Provision local data paths or provider volumes, set permissions, materialize mounts, observe existence and mount state. | Filesystem operations, mount management, storage observation. | Local filesystem, Docker volume, NFS/SMB, Kubernetes PVC, cloud/provider storage adapters. |
+| Networks and endpoint mappings | Own network resources, endpoint assignment intent, conflict detection, topology projection, and policy. | Apply host networking, port mappings, private endpoint bindings, route entries, or local hosts/DNS updates when the capability is local. | Host networking, endpoint mapping, prerequisite diagnostics. | macOS host networking, Linux networking, Windows networking, container network drivers, virtual-network providers. |
+| Load balancers and ingress | Own stable endpoint/routing intent, backend membership from healthy placements, TLS/certificate references, and route policy. | Apply local or provider-native load-balancer configuration and report applied backend/route state. | Configuration apply, certificate materialization boundary, health-aware backend observation. | Traefik file provider, appliance APIs, Kubernetes ingress/service, cloud load balancers. |
+| DNS and service discovery | Own name-mapping intent, target relationships, and visibility in the resource graph. | Publish/update/remove records in the local or provider-specific discovery system and report applied records. | Name-mapping reconciliation and local resolver refresh. | hosts file, CoreDNS zone files, cloud DNS APIs, service mesh/discovery providers. |
+| Databases and brokers | Own service resource intent, child resource declarations, access grants, lifecycle operations, and user-facing diagnostics. | Run the service runtime where applicable, reconcile databases/queues/topics/users/permissions, observe health and logs. | Container/process lifecycle, provider access reconciliation, log reading, health probing. | SQL Server, RabbitMQ, PostgreSQL, Kafka, or managed provider-specific APIs. |
+| Configuration, secrets, certificates, and identity | Own protected state, authorization, references, and audit history. Resolve sensitive values just-in-time for assignments. | Receive only the sensitive inputs required for the assignment over protected channels, never persist or project them. | Protected input delivery, environment injection, certificate/materialization staging. | Vault, Key Vault-like storage, identity provider APIs, certificate format conversion. |
+| Logs, health, telemetry, and usage | Own query APIs, retention policy, correlation, authorization, and projection into Resource Manager. | Collect or stream observations from local runtimes and provider APIs. | Log source reading, health probing, telemetry forwarding, usage observation. | Runtime-specific log drivers, OpenTelemetry collectors, provider-native metrics APIs. |
+
+This table is guidance for handler design. A resource type may still have a
+provider-specific instruction when its behavior is unique, but common runtime
+behaviors should converge on shared capability components.
+
+### Generic Versus Specialized Execution Handlers
+
+Execution handlers should be generic when the instruction is about a common
+runtime capability. Today those handlers can run in process behind the
+dispatcher; later the same handler shape can move into an agent component:
+
+- start, stop, restart, and inspect a process
+- start, stop, restart, and inspect a container
+- materialize a filesystem path or mount
+- apply endpoint mappings
+- apply load-balancer configuration from a normalized route model
+- publish DNS/name mappings
+- read logs or probe health
+
+Execution handlers should be specialized when the instruction needs
+resource-type-specific semantics:
+
+- reconciling SQL Server database users and grants
+- reconciling RabbitMQ vhosts, users, queues, exchanges, and permissions
+- translating a container app deployment into replica-level runtime state
+- materializing TLS certificates into a provider-specific format
+- applying a provider-native load-balancer or appliance configuration
+- interpreting a provider-owned artifact layout
+
+The split should be:
+
+```text
+Control Plane planner
+    resource semantics, validation, placement constraints, desired state
+
+Provider execution instruction
+    typed assignment with schema, idempotency, target, generation, payload
+
+Agent capability handler
+    generic local capability when possible
+
+Provider adapter
+    provider/runtime-specific translation and commands
+```
+
+This avoids a future where every resource gets a bespoke execution plugin that
+duplicates process, filesystem, container, log, and networking behavior. It
+also avoids the opposite problem: a single generic handler that must
+understand every CloudShell resource type. The current goal is only to make
+these boundaries explicit while everything still runs inside the Control
+Plane host.
+
+### Storage and Volume Placement
+
+Volumes need explicit data-locality semantics before multi-agent scheduling.
+A volume resource is logical storage intent. Its materialized data location is
+execution-plane state and must influence placement.
+
+For the first agent-capable model:
+
+- local volumes are host-bound after materialization
+- workloads that require a host-bound writable volume must be placed on the
+  host or agent that owns the materialized volume
+- read-only mounts may be eligible for broader placement only when the storage
+  provider advertises that capability
+- shared or external volumes can be scheduled across multiple hosts only when
+  the storage provider declares the supported access mode and failure-domain
+  behavior
+- stateless workloads remain movable because they do not create data-locality
+  constraints
+- delete and cleanup behavior must respect retention policy and active
+  consumer references
+
+This means a container app with a local writable volume should not be freely
+spread across agents. The scheduler must either place the workload where the
+volume already lives, provision a new eligible volume according to policy, or
+report that the requested placement is unavailable.
+
+CloudShell should not attempt distributed storage replication in the first
+agent implementation. The initial supported choices should be local
+host-bound storage and explicitly shared/external storage. Replication,
+snapshotting, migration, backup, and cross-region failover are separate
+storage-provider features.
+
 ## Load Distribution
 
 Load distribution should be modeled in layers:
