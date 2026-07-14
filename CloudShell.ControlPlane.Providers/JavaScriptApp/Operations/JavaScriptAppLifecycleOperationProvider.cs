@@ -4,10 +4,12 @@ public sealed class JavaScriptAppStartOperationProvider :
     JavaScriptAppLifecycleOperationProvider
 {
     public JavaScriptAppStartOperationProvider(
-        IJavaScriptAppRuntimeController? runtimeController = null)
+        IJavaScriptAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             JavaScriptAppResourceTypeProvider.Operations.Start,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -16,10 +18,12 @@ public sealed class JavaScriptAppRestartOperationProvider :
     JavaScriptAppLifecycleOperationProvider
 {
     public JavaScriptAppRestartOperationProvider(
-        IJavaScriptAppRuntimeController? runtimeController = null)
+        IJavaScriptAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             JavaScriptAppResourceTypeProvider.Operations.Restart,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -28,24 +32,39 @@ public sealed class JavaScriptAppStopOperationProvider :
     JavaScriptAppLifecycleOperationProvider
 {
     public JavaScriptAppStopOperationProvider(
-        IJavaScriptAppRuntimeController? runtimeController = null)
+        IJavaScriptAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             JavaScriptAppResourceTypeProvider.Operations.Stop,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
 
-public abstract class JavaScriptAppLifecycleOperationProvider(
-    ResourceOperationId operationId,
-    IJavaScriptAppRuntimeController? runtimeController = null) :
+public abstract class JavaScriptAppLifecycleOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IJavaScriptAppRuntimeController _runtimeController =
-        runtimeController ?? new NoopJavaScriptAppRuntimeController();
+    private readonly IJavaScriptAppRuntimeController _runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher;
 
-    public ResourceOperationId OperationId { get; } = operationId;
+    protected JavaScriptAppLifecycleOperationProvider(
+        ResourceOperationId operationId,
+        IJavaScriptAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        OperationId = operationId;
+        _runtimeController = runtimeController ?? new NoopJavaScriptAppRuntimeController();
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new JavaScriptAppStartExecutionHandler(_runtimeController),
+                new JavaScriptAppStopExecutionHandler(_runtimeController),
+                new JavaScriptAppRestartExecutionHandler(_runtimeController)
+            ]);
+    }
+
+    public ResourceOperationId OperationId { get; }
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -77,18 +96,21 @@ public abstract class JavaScriptAppLifecycleOperationProvider(
             new JavaScriptAppLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _runtimeController,
+                _dispatcher));
 }
 
 public sealed class JavaScriptAppLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IJavaScriptAppRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    IJavaScriptAppRuntimeController runtimeController,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
     private readonly IJavaScriptAppRuntimeController _runtimeController =
         runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -123,15 +145,19 @@ public sealed class JavaScriptAppLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeController.ExecuteAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                GetInstructionType(OperationId),
+                [ProviderExecutionCapabilities.Processes],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(JavaScriptAppRuntimeStatus status) =>
@@ -144,4 +170,25 @@ public sealed class JavaScriptAppLifecycleOperation(
                 OperationId == JavaScriptAppResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == JavaScriptAppResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.JavaScriptAppStart;
+        }
+
+        if (operationId == JavaScriptAppResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.JavaScriptAppStop;
+        }
+
+        if (operationId == JavaScriptAppResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.JavaScriptAppRestart;
+        }
+
+        throw new InvalidOperationException(
+            $"JavaScript app lifecycle operation '{operationId}' does not have a provider execution instruction.");
+    }
 }

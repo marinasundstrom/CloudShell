@@ -1210,6 +1210,69 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task JavaScriptAppLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var app = CreateGraphResource("application.javascript-app:frontend", "frontend", revision: 19);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var runtimeController = new RecordingJavaScriptAppRuntimeController(
+            status: JavaScriptAppRuntimeStatus.Stopped);
+        var operation = new JavaScriptAppLifecycleOperation(
+            new ResourceProjectionExecutionContext(app, [app]),
+            new ResourceOperationResolution(
+                JavaScriptAppResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            runtimeController,
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.JavaScriptAppStart, request.InstructionType);
+        Assert.Equal(app.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(19, request.DesiredGeneration);
+        Assert.Equal(
+            $"{app.EffectiveResourceId}:{JavaScriptAppResourceTypeProvider.Operations.Start}:19",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Processes, request.RequiredCapabilities);
+        Assert.Same(app, request.TargetResourceSnapshot);
+        Assert.Equal([app], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task JavaScriptAppLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var app = CreateGraphResource("application.javascript-app:frontend", "frontend");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "javascriptApp.start.test",
+            "JavaScript app started.",
+            app.EffectiveResourceId);
+        var runtimeController = new RecordingJavaScriptAppRuntimeController([diagnostic]);
+        var handler = new JavaScriptAppStartExecutionHandler(runtimeController);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.JavaScriptAppStart,
+            TargetResourceId = app.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application.javascript-app:frontend:start:1",
+            TargetResourceSnapshot = app,
+            ResourceSnapshot = [app]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeController.LifecycleInvocations);
+        Assert.Same(app, invocation.Resource);
+        Assert.Equal(JavaScriptAppResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -2164,6 +2227,27 @@ public sealed class ProviderExecutionContractTests
         public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
 
         public AspNetCoreProjectRuntimeStatus GetStatus(GraphResource resource) =>
+            status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingJavaScriptAppRuntimeController(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null,
+        JavaScriptAppRuntimeStatus status = JavaScriptAppRuntimeStatus.Unknown)
+        : IJavaScriptAppRuntimeController
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public JavaScriptAppRuntimeStatus GetStatus(GraphResource resource) =>
             status;
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(

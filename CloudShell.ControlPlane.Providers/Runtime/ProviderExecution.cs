@@ -619,6 +619,9 @@ public static class ProviderExecutionInstructionTypes
     public const string AspNetCoreProjectStart = "aspNetCoreProject.start";
     public const string AspNetCoreProjectStop = "aspNetCoreProject.stop";
     public const string AspNetCoreProjectRestart = "aspNetCoreProject.restart";
+    public const string JavaScriptAppStart = "javaScriptApp.start";
+    public const string JavaScriptAppStop = "javaScriptApp.stop";
+    public const string JavaScriptAppRestart = "javaScriptApp.restart";
     public const string ExecutableApplicationStart = "executableApplication.start";
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";
