@@ -33,7 +33,10 @@ public sealed record ResourceAttributeDefinition(
     [property: JsonPropertyName("collection")]
     ResourceAttributeCollectionDefinition? CollectionOptions = null,
     bool? ReadOnly = null,
-    ResourceAttributeMutability? Mutability = null)
+    ResourceAttributeMutability? Mutability = null,
+    string? Path = null,
+    string? DisplayName = null,
+    IReadOnlyList<string>? Aliases = null)
 {
     [JsonIgnore]
     public ResourceAttributeValueShapeId? ItemShapeId => IsCollection ? ValueShapeId : null;
@@ -47,7 +50,10 @@ public sealed record ResourceAttributeDefinition(
         bool required = false,
         string? requiredMessage = null,
         bool? readOnly = null,
-        ResourceAttributeMutability? mutability = null) =>
+        ResourceAttributeMutability? mutability = null,
+        string? path = null,
+        string? displayName = null,
+        IReadOnlyList<string>? aliases = null) =>
         new(
             Required: required,
             RequiredMessage: requiredMessage,
@@ -58,7 +64,10 @@ public sealed record ResourceAttributeDefinition(
             IsCollection: true,
             CollectionOptions: collection,
             ReadOnly: readOnly,
-            Mutability: mutability);
+            Mutability: mutability,
+            Path: path,
+            DisplayName: displayName,
+            Aliases: aliases);
 }
 
 public sealed record ResourceAttributeValueShapeDefinition(

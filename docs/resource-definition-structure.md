@@ -294,10 +294,9 @@ Attribute IDs are canonical schema keys. They must not be the only mechanism
 for document hierarchy. The in-memory model still resolves current canonical
 IDs such as `container.image`, `logs.sources`, and `health.checks`, and
 YAML/JSON templates may continue projecting those IDs into hoisted nested
-objects for compatibility. New schema work should let
-`ResourceAttributeDefinition` describe the authored path separately from the
-canonical ID, so a resource type can export a clear document shape without
-making the ID string carry grouping semantics.
+objects for compatibility. `ResourceAttributeDefinition` can describe the
+authored path separately from the canonical ID, so a resource type can export a
+clear document shape without making the ID string carry grouping semantics.
 
 The `attributes` wrapper and full canonical IDs remain valid input forms for
 compatibility and for fixed-field name collisions. When an attribute definition
@@ -410,13 +409,13 @@ owned by the resource type, resource class, or a deliberately shared
 definition. They can be scalar values, `ResourceReference` values, complex
 objects, or collections when the attribute definition allows it.
 
-Attribute definitions should separate canonical identity from authored shape.
-The canonical `ResourceAttributeId` is what providers, validators, stores, and
+Attribute definitions separate canonical identity from authored shape. The
+canonical `ResourceAttributeId` is what providers, validators, stores, and
 runtime adapters use. An optional authored path describes where that value
 appears in templates and exports. Aliases can accept legacy dotted IDs or older
-paths during import. This keeps two resource types free to expose the same
-logical field name or document path while keeping distinct provider-owned
-schema identities.
+paths during import once import/export uses the metadata. This keeps two
+resource types free to expose the same logical field name or document path
+while keeping distinct provider-owned schema identities.
 
 ```json
 {

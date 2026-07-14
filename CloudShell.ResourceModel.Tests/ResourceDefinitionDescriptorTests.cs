@@ -85,6 +85,67 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void ResourceTypeDefinition_CanDescribeAttributeAuthoringMetadata()
+    {
+        var typeDefinition = new ResourceTypeDefinition(
+            "application.container-app",
+            ExecutableApplicationResourceTypeProvider.ClassId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["application.containerImage"] = new(
+                    Description: "Container image reference.",
+                    ValueType: ResourceAttributeValueType.String,
+                    Path: "container.image",
+                    DisplayName: "Container image",
+                    Aliases:
+                    [
+                        "container.image",
+                        "image"
+                    ])
+            });
+
+        var (attributeId, attribute) = Assert.Single(typeDefinition.Attributes!);
+        Assert.Equal("application.containerImage", attributeId);
+        Assert.Equal("container.image", attribute.Path);
+        Assert.Equal("Container image", attribute.DisplayName);
+        Assert.Equal(["container.image", "image"], attribute.Aliases);
+    }
+
+    [Fact]
+    public void ResourceTypeDefinition_CanRoundTripAttributeAuthoringMetadataAsJsonTarget()
+    {
+        var typeDefinition = new ResourceTypeDefinition(
+            "application.container-app",
+            ExecutableApplicationResourceTypeProvider.ClassId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["application.containerImage"] = new(
+                    ValueType: ResourceAttributeValueType.String,
+                    Path: "container.image",
+                    DisplayName: "Container image",
+                    Aliases:
+                    [
+                        "container.image",
+                        "image"
+                    ])
+            });
+
+        var json = JsonSerializer.Serialize(typeDefinition, JsonSerializerOptions.Web);
+        var roundTrip = JsonSerializer.Deserialize<ResourceTypeDefinition>(json, JsonSerializerOptions.Web);
+
+        Assert.NotNull(roundTrip);
+        Assert.Contains("\"path\":\"container.image\"", json);
+        Assert.Contains("\"displayName\":\"Container image\"", json);
+        Assert.Contains("\"aliases\":[\"container.image\",\"image\"]", json);
+
+        var (attributeId, attribute) = Assert.Single(roundTrip.Attributes!);
+        Assert.Equal("application.containerImage", attributeId);
+        Assert.Equal("container.image", attribute.Path);
+        Assert.Equal("Container image", attribute.DisplayName);
+        Assert.Equal(["container.image", "image"], attribute.Aliases);
+    }
+
+    [Fact]
     public void ResourceTypeDefinition_CanReferenceReusableComplexAttributeShapeAsJsonTarget()
     {
         var typeDefinition = new ResourceTypeDefinition(
@@ -96,7 +157,10 @@ public sealed class ResourceDefinitionDescriptorTests
                     itemType: ResourceAttributeValueType.ComplexType,
                     itemShapeId: "runtime:healthCheck",
                     description: "Declared health checks evaluated by the runtime provider.",
-                    collection: new(MinSize: 1))
+                    collection: new(MinSize: 1),
+                    path: "health.checks",
+                    displayName: "Health checks",
+                    aliases: ["runtime:healthChecks"])
             },
             AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
             {
@@ -124,6 +188,9 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.True(attribute.IsCollection);
         Assert.NotNull(attribute.CollectionOptions);
         Assert.Equal(1, attribute.CollectionOptions.MinSize);
+        Assert.Equal("health.checks", attribute.Path);
+        Assert.Equal("Health checks", attribute.DisplayName);
+        Assert.Equal(["runtime:healthChecks"], attribute.Aliases);
         Assert.DoesNotContain("itemShapeId", json, StringComparison.OrdinalIgnoreCase);
         var (shapeId, shapeDefinition) = Assert.Single(roundTrip.AttributeValueShapes!);
         Assert.Equal("runtime:healthCheck", shapeId);

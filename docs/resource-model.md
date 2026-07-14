@@ -718,9 +718,8 @@ type may need two attributes with the same logical field name under different
 contexts, or two providers may expose the same authored path for different
 resource types while keeping distinct canonical schema IDs.
 
-Future `ResourceAttributeDefinition` metadata should therefore be able to
-declare optional authoring/projection names separately from the canonical ID,
-for example:
+`ResourceAttributeDefinition` metadata can therefore declare optional
+authoring/projection names separately from the canonical ID:
 
 ```csharp
 public sealed record ResourceAttributeDefinition
@@ -732,6 +731,10 @@ public sealed record ResourceAttributeDefinition
     public IReadOnlyList<string> Aliases { get; init; } = [];
 }
 ```
+
+The current metadata contract exists on the definition object. Import/export
+logic still needs to be migrated incrementally so templates prefer `Path` and
+accept `Aliases` before falling back to dotted-ID grouping.
 
 The desired compatibility model is:
 

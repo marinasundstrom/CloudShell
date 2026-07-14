@@ -573,12 +573,14 @@ preserving old provider seams:
   type/kind/class boundaries, including scalar and complex values, so
   Resource Manager can understand resource intent without hard-coding
   provider-specific attributes.
-  - [ ] Split canonical attribute identity from authored/projection path.
+  - [x] Split canonical attribute identity from authored/projection path at
+    the attribute-definition contract level.
     `ResourceAttributeId` should remain the provider/runtime schema key, while
-    `ResourceAttributeDefinition` should be able to declare optional document
-    paths, aliases, display names, and descriptions. Existing dotted IDs remain
-    compatibility input; new schema work should not rely on the ID string alone
-    to encode hierarchy or grouping.
+    `ResourceAttributeDefinition` can declare optional document paths, aliases,
+    display names, and descriptions. Existing dotted IDs remain compatibility
+    input; new schema work should not rely on the ID string alone to encode
+    hierarchy or grouping. Import/export behavior still needs to consume the
+    new metadata.
 - [ ] Define provider validation contracts for attributes and capabilities.
   Providers should be able to validate whether a declared or deployed resource
   state conforms to the provider-supported schema and capability set.

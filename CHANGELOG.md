@@ -39,6 +39,9 @@ on `git blame --follow`, and then by the broad type of change.
   execution dispatcher with a distinct virtual-network instruction.
 - Documented the resource attribute schema direction: canonical attribute IDs
   stay separate from authored/projection paths, aliases, and display labels.
+- Added optional authoring metadata to `ResourceAttributeDefinition` so
+  attribute definitions can declare document paths, display names, and aliases
+  separately from canonical attribute IDs.
 
 ### 2026-07-13
 
