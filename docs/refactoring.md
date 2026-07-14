@@ -641,6 +641,11 @@ preserving old provider seams:
     keeping the default target implicit. The in-process dispatcher executes the
     implicit/default and local in-process targets, and returns unavailable for
     future agent targets until an agent transport is introduced.
+  - [x] Add a resource-scoped provider execution request factory so assignment
+    ids, idempotency keys, desired generation, snapshots, payloads, targets,
+    and metadata are composed consistently before callers reach the dispatcher.
+    This keeps today's in-process dispatch identity in one place and gives the
+    future agent/placement transition a single construction point to evolve.
   - [x] Route the Network endpoint-mapping reconcile operation through the
     provider execution dispatcher. The operation now creates an
     assignment-shaped instruction with the current resource graph snapshot,

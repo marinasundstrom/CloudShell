@@ -288,6 +288,44 @@ public sealed record ProviderExecutionRequest
     }
 }
 
+public static class ProviderExecutionRequests
+{
+    public static ProviderExecutionRequest CreateForResource(
+        Resource resource,
+        string executionKey,
+        string instructionType,
+        IReadOnlyList<string>? requiredCapabilities = null,
+        IReadOnlyList<Resource>? resourceSnapshot = null,
+        JsonElement? payload = null,
+        ProviderExecutionTarget? target = null,
+        IReadOnlyDictionary<string, string>? metadata = null,
+        long? desiredGeneration = null,
+        DateTimeOffset? requestedAt = null)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(executionKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(instructionType);
+
+        var generation = desiredGeneration ?? resource.Revision.Value;
+
+        return new ProviderExecutionRequest
+        {
+            AssignmentId = $"{resource.EffectiveResourceId}:{executionKey}",
+            InstructionType = instructionType,
+            TargetResourceId = resource.EffectiveResourceId,
+            DesiredGeneration = generation,
+            IdempotencyKey = $"{resource.EffectiveResourceId}:{executionKey}:{generation}",
+            Target = target ?? ProviderExecutionTarget.Default,
+            RequiredCapabilities = requiredCapabilities ?? [],
+            Metadata = metadata ?? ProviderExecutionDefaults.EmptyStringDictionary,
+            TargetResourceSnapshot = resource,
+            ResourceSnapshot = resourceSnapshot ?? [resource],
+            Payload = payload,
+            RequestedAt = requestedAt ?? DateTimeOffset.UtcNow
+        };
+    }
+}
+
 public sealed record ProviderExecutionTarget
 {
     public static ProviderExecutionTarget Default { get; } = new()

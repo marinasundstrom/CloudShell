@@ -168,19 +168,12 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         JsonElement? payload = null)
     {
         var result = await _dispatcher.ExecuteAsync(
-            new ProviderExecutionRequest
-            {
-                AssignmentId = $"{resource.EffectiveResourceId}:{executionKey}",
-                InstructionType = instructionType,
-                TargetResourceId = resource.EffectiveResourceId,
-                DesiredGeneration = resource.Revision.Value,
-                IdempotencyKey = $"{resource.EffectiveResourceId}:{executionKey}:{resource.Revision.Value}",
-                RequiredCapabilities = requiredCapabilities ?? [ProviderExecutionCapabilities.Containers],
-                TargetResourceSnapshot = resource,
-                ResourceSnapshot = [resource],
-                Payload = payload,
-                RequestedAt = DateTimeOffset.UtcNow
-            },
+            ProviderExecutionRequests.CreateForResource(
+                resource,
+                executionKey,
+                instructionType,
+                requiredCapabilities ?? [ProviderExecutionCapabilities.Containers],
+                payload: payload),
             cancellationToken);
 
         return result.Diagnostics;

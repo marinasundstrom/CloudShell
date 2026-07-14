@@ -50,6 +50,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public void Requests_CreateForResource_CreatesResourceScopedExecutionIdentity()
+    {
+        var requestedAt = new DateTimeOffset(2026, 7, 14, 12, 15, 0, TimeSpan.Zero);
+        var resource = CreateGraphResource("container-app:orders", "orders", revision: 12);
+        var dependency = CreateGraphResource("volume:data", "data");
+        var payload = JsonSerializer.SerializeToElement(new { image = "orders:42" });
+        var target = new ProviderExecutionTarget
+        {
+            Kind = ProviderExecutionTargetKind.Agent,
+            TargetId = "agent-a",
+            Metadata = new Dictionary<string, string>
+            {
+                ["region"] = "local"
+            }
+        };
+        var metadata = new Dictionary<string, string>
+        {
+            ["source"] = "test"
+        };
+
+        var request = ProviderExecutionRequests.CreateForResource(
+            resource,
+            "image.apply",
+            ProviderExecutionInstructionTypes.ContainerApplicationImageApply,
+            [ProviderExecutionCapabilities.Containers],
+            [resource, dependency],
+            payload,
+            target,
+            metadata,
+            requestedAt: requestedAt);
+
+        Assert.Equal("container-app:orders:image.apply", request.AssignmentId);
+        Assert.Equal(
+            ProviderExecutionInstructionTypes.ContainerApplicationImageApply,
+            request.InstructionType);
+        Assert.Equal(resource.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(12, request.DesiredGeneration);
+        Assert.Equal("container-app:orders:image.apply:12", request.IdempotencyKey);
+        Assert.Same(target, request.Target);
+        Assert.Equal([ProviderExecutionCapabilities.Containers], request.RequiredCapabilities);
+        Assert.Same(metadata, request.Metadata);
+        Assert.Same(resource, request.TargetResourceSnapshot);
+        Assert.Equal([resource, dependency], request.ResourceSnapshot);
+        Assert.Equal(payload.GetRawText(), request.Payload?.GetRawText());
+        Assert.Equal(requestedAt, request.RequestedAt);
+    }
+
+    [Fact]
     public void Succeeded_CorrelatesObservedGenerationWithRequestedAssignment()
     {
         var request = new ProviderExecutionRequest

@@ -74,6 +74,9 @@ on `git blame --follow`, and then by the broad type of change.
   dispatcher with in-process start, stop, and restart handlers.
 - Added in-memory provider execution observations so dispatcher results can be
   inspected by assignment id before durable agent assignment persistence exists.
+- Added a resource-scoped provider execution request factory so assignment ids,
+  idempotency keys, target metadata, snapshots, and payloads are composed
+  consistently before dispatch.
 - Routed Container Application lifecycle execution through the provider
   execution dispatcher with in-process start, stop, and restart handlers.
 - Routed Container Application image and replica materialization through the

@@ -96,18 +96,12 @@ public sealed class ContainerApplicationReplicasUpdateOperation(
         }
 
         var result = await _dispatcher.ExecuteAsync(
-            new ProviderExecutionRequest
-            {
-                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
-                InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationReplicasApply,
-                TargetResourceId = Resource.EffectiveResourceId,
-                DesiredGeneration = Resource.Revision.Value,
-                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
-                RequiredCapabilities = [ProviderExecutionCapabilities.Containers],
-                TargetResourceSnapshot = Resource,
-                ResourceSnapshot = Context.Resources,
-                RequestedAt = DateTimeOffset.UtcNow
-            },
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.ContainerApplicationReplicasApply,
+                [ProviderExecutionCapabilities.Containers],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
