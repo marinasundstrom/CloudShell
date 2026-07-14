@@ -783,6 +783,122 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ContainerApplicationImageUpdateOperation_DispatchesImageApplyInstruction()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 10);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new ContainerApplicationImageUpdateOperation(
+            new ResourceProjectionExecutionContext(containerApp, [containerApp]),
+            new ResourceOperationResolution(
+                ContainerApplicationResourceTypeProvider.Operations.UpdateImage,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.ContainerApplicationImageApply, request.InstructionType);
+        Assert.Equal(containerApp.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(10, request.DesiredGeneration);
+        Assert.Equal(
+            $"{containerApp.EffectiveResourceId}:{ContainerApplicationResourceTypeProvider.Operations.UpdateImage}:10",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Containers, request.RequiredCapabilities);
+        Assert.Same(containerApp, request.TargetResourceSnapshot);
+        Assert.Equal([containerApp], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationReplicasUpdateOperation_DispatchesReplicasApplyInstruction()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 11);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new ContainerApplicationReplicasUpdateOperation(
+            new ResourceProjectionExecutionContext(containerApp, [containerApp]),
+            new ResourceOperationResolution(
+                ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.ContainerApplicationReplicasApply, request.InstructionType);
+        Assert.Equal(containerApp.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(11, request.DesiredGeneration);
+        Assert.Equal(
+            $"{containerApp.EffectiveResourceId}:{ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas}:11",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Containers, request.RequiredCapabilities);
+        Assert.Same(containerApp, request.TargetResourceSnapshot);
+        Assert.Equal([containerApp], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationImageApplyHandler_ReturnsRuntimeDiagnostics()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "containerApplication.image.test",
+            "Container Application image applied.",
+            containerApp.EffectiveResourceId);
+        var runtimeHandler = new RecordingContainerApplicationRuntimeHandler([diagnostic]);
+        var handler = new ContainerApplicationImageApplyExecutionHandler(runtimeHandler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationImageApply,
+            TargetResourceId = containerApp.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:image:1",
+            TargetResourceSnapshot = containerApp,
+            ResourceSnapshot = [containerApp]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(containerApp, Assert.Single(runtimeHandler.ImageInvocations));
+    }
+
+    [Fact]
+    public async Task ContainerApplicationReplicasApplyHandler_ReturnsRuntimeDiagnostics()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "containerApplication.replicas.test",
+            "Container Application replicas applied.",
+            containerApp.EffectiveResourceId);
+        var runtimeHandler = new RecordingContainerApplicationRuntimeHandler([diagnostic]);
+        var handler = new ContainerApplicationReplicasApplyExecutionHandler(runtimeHandler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationReplicasApply,
+            TargetResourceId = containerApp.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:replicas:1",
+            TargetResourceSnapshot = containerApp,
+            ResourceSnapshot = [containerApp]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(containerApp, Assert.Single(runtimeHandler.ReplicaInvocations));
+    }
+
+    [Fact]
     public async Task SqlServerLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var sqlServer = CreateGraphResource("sql-server:app", "app", revision: 5);
@@ -1263,6 +1379,10 @@ public sealed class ProviderExecutionContractTests
     {
         public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
 
+        public List<GraphResource> ImageInvocations { get; } = [];
+
+        public List<GraphResource> ReplicaInvocations { get; } = [];
+
         public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) =>
             ContainerApplicationRuntimeStatus.Unknown;
 
@@ -1278,13 +1398,21 @@ public sealed class ProviderExecutionContractTests
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
             GraphResource resource,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+            CancellationToken cancellationToken = default)
+        {
+            ImageInvocations.Add(resource);
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
             GraphResource resource,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+            CancellationToken cancellationToken = default)
+        {
+            ReplicaInvocations.Add(resource);
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
     }
 
     private sealed class RecordingSqlServerRuntimeHandler(

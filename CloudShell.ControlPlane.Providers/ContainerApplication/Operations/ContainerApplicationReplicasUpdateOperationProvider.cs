@@ -1,12 +1,14 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ContainerApplicationReplicasUpdateOperationProvider(
-    IContainerApplicationRuntimeHandler? runtimeHandler = null) :
+    IContainerApplicationRuntimeHandler? runtimeHandler = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IContainerApplicationRuntimeHandler _runtimeHandler =
-        runtimeHandler ?? new NoopContainerApplicationRuntimeHandler();
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [new ContainerApplicationReplicasApplyExecutionHandler(runtimeHandler)]);
 
     public ResourceOperationId OperationId =>
         ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas;
@@ -41,17 +43,17 @@ public sealed class ContainerApplicationReplicasUpdateOperationProvider(
             new ContainerApplicationReplicasUpdateOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeHandler));
+                _dispatcher));
 }
 
 public sealed class ContainerApplicationReplicasUpdateOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IContainerApplicationRuntimeHandler runtimeHandler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IContainerApplicationRuntimeHandler _runtimeHandler = runtimeHandler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -93,13 +95,24 @@ public sealed class ContainerApplicationReplicasUpdateOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeHandler.ApplyReplicasAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationReplicasApply,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Containers],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }

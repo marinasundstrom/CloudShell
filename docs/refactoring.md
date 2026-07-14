@@ -690,6 +690,10 @@ preserving old provider seams:
     execution dispatcher with in-process handlers for start, stop, and restart.
     Image and replica updates remain separate follow-up slices because they
     use distinct runtime handler methods.
+  - [x] Route Container Application image and replica materialization through
+    the provider execution dispatcher with in-process handlers for
+    `ApplyImageAsync` and `ApplyReplicasAsync`, including deployment
+    reconciliation paths that previously called the runtime handler directly.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

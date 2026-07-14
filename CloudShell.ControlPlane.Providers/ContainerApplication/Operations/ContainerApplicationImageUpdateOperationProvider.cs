@@ -1,12 +1,14 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ContainerApplicationImageUpdateOperationProvider(
-    IContainerApplicationRuntimeHandler? runtimeHandler = null) :
+    IContainerApplicationRuntimeHandler? runtimeHandler = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IContainerApplicationRuntimeHandler _runtimeHandler =
-        runtimeHandler ?? new NoopContainerApplicationRuntimeHandler();
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [new ContainerApplicationImageApplyExecutionHandler(runtimeHandler)]);
 
     public ResourceOperationId OperationId =>
         ContainerApplicationResourceTypeProvider.Operations.UpdateImage;
@@ -41,17 +43,17 @@ public sealed class ContainerApplicationImageUpdateOperationProvider(
             new ContainerApplicationImageUpdateOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeHandler));
+                _dispatcher));
 }
 
 public sealed class ContainerApplicationImageUpdateOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IContainerApplicationRuntimeHandler runtimeHandler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IContainerApplicationRuntimeHandler _runtimeHandler = runtimeHandler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -102,13 +104,24 @@ public sealed class ContainerApplicationImageUpdateOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeHandler.ApplyImageAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationImageApply,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Containers],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }

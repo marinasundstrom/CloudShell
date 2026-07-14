@@ -423,6 +423,8 @@ public static class ProviderExecutionInstructionTypes
     public const string ContainerApplicationStart = "containerApplication.start";
     public const string ContainerApplicationStop = "containerApplication.stop";
     public const string ContainerApplicationRestart = "containerApplication.restart";
+    public const string ContainerApplicationImageApply = "containerApplication.image.apply";
+    public const string ContainerApplicationReplicasApply = "containerApplication.replicas.apply";
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";
     public const string ProcessRestart = "process.restart";

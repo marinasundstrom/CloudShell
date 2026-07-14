@@ -7,10 +7,14 @@ namespace CloudShell.ControlPlane.Providers;
 public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
     IContainerApplicationRuntimeHandler? runtimeHandler = null,
     IContainerApplicationOrchestratorRuntimeHandler? orchestratorRuntimeHandler = null,
-    IEnumerable<IDeferredContainerApplicationRuntimeSelector>? deferredRuntimeSelectors = null) : IResourceModelGraphOrchestratorServiceExecutor
+    IEnumerable<IDeferredContainerApplicationRuntimeSelector>? deferredRuntimeSelectors = null,
+    IProviderExecutionDispatcher? dispatcher = null) : IResourceModelGraphOrchestratorServiceExecutor
 {
     private readonly IContainerApplicationRuntimeHandler _runtimeHandler =
         runtimeHandler ?? new NoopContainerApplicationRuntimeHandler();
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? CreateDefaultDispatcher(
+            runtimeHandler ?? new NoopContainerApplicationRuntimeHandler());
     private readonly IContainerApplicationOrchestratorRuntimeHandler? _orchestratorRuntimeHandler =
         orchestratorRuntimeHandler;
     private readonly IReadOnlyList<IDeferredContainerApplicationRuntimeSelector> _deferredRuntimeSelectors =
@@ -59,12 +63,15 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         }
 
         var diagnostics = _runtimeHandler.GetStatus(context.GraphResource) == ContainerApplicationRuntimeStatus.Running
-            ? await _runtimeHandler.ApplyImageAsync(
+            ? await ExecuteRuntimeInstructionAsync(
                 context.GraphResource,
+                ContainerApplicationResourceTypeProvider.Operations.UpdateImage,
+                ProviderExecutionInstructionTypes.ContainerApplicationImageApply,
                 cancellationToken)
-            : await _runtimeHandler.ExecuteLifecycleAsync(
+            : await ExecuteRuntimeInstructionAsync(
                 context.GraphResource,
-                ResourceActionIds.Start,
+                ContainerApplicationResourceTypeProvider.Operations.Start,
+                ProviderExecutionInstructionTypes.ContainerApplicationStart,
                 cancellationToken);
         ThrowIfErrors(diagnostics);
     }
@@ -114,14 +121,41 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         var desiredReplicas = new ContainerApplicationResource(context.GraphResource).Replicas;
         var diagnostics = context.ReplicaGroup is not null &&
             context.ReplicaGroup.RequestedReplicas > desiredReplicas
-                ? await _runtimeHandler.ApplyReplicasAsync(
+                ? await ExecuteRuntimeInstructionAsync(
                     context.GraphResource,
+                    ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas,
+                    ProviderExecutionInstructionTypes.ContainerApplicationReplicasApply,
                     cancellationToken)
-                : await _runtimeHandler.ExecuteLifecycleAsync(
+                : await ExecuteRuntimeInstructionAsync(
                     context.GraphResource,
-                    ResourceActionIds.Stop,
+                    ContainerApplicationResourceTypeProvider.Operations.Stop,
+                    ProviderExecutionInstructionTypes.ContainerApplicationStop,
                     cancellationToken);
         ThrowIfErrors(diagnostics);
+    }
+
+    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteRuntimeInstructionAsync(
+        Resource resource,
+        ResourceOperationId operationId,
+        string instructionType,
+        CancellationToken cancellationToken)
+    {
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{resource.EffectiveResourceId}:{operationId}",
+                InstructionType = instructionType,
+                TargetResourceId = resource.EffectiveResourceId,
+                DesiredGeneration = resource.Revision.Value,
+                IdempotencyKey = $"{resource.EffectiveResourceId}:{operationId}:{resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Containers],
+                TargetResourceSnapshot = resource,
+                ResourceSnapshot = [resource],
+                RequestedAt = DateTimeOffset.UtcNow
+            },
+            cancellationToken);
+
+        return result.Diagnostics;
     }
 
     private static bool IsFirstInstanceInGroup(
@@ -152,4 +186,14 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
                     ? diagnostic.Message
                     : $"{diagnostic.Message} Target: {diagnostic.Target}.")));
     }
+
+    private static IProviderExecutionDispatcher CreateDefaultDispatcher(
+        IContainerApplicationRuntimeHandler runtimeHandler) =>
+        new InProcessProviderExecutionDispatcher(
+            [
+                new ContainerApplicationStartExecutionHandler(runtimeHandler),
+                new ContainerApplicationStopExecutionHandler(runtimeHandler),
+                new ContainerApplicationImageApplyExecutionHandler(runtimeHandler),
+                new ContainerApplicationReplicasApplyExecutionHandler(runtimeHandler)
+            ]);
 }
