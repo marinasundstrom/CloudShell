@@ -36,6 +36,7 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services
+            .AddProviderExecutionDispatcher()
             .AddResourceModelGraphEndpointMappingReconciler()
             .AddResourceModelGraphDnsZoneNameMappingReconciler();
 

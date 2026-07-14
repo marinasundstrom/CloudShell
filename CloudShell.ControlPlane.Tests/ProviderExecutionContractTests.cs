@@ -64,4 +64,97 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal("3", result.Observations["endpointMappings"]);
         Assert.Equal(observedAt, result.ObservedAt);
     }
+
+    [Fact]
+    public async Task InProcessDispatcher_RoutesRequestToMatchingCapableHandler()
+    {
+        var handler = new RecordingExecutionHandler(
+            ProviderExecutionOperationTypes.ProcessRun,
+            [ProviderExecutionCapabilities.Processes]);
+        var dispatcher = new InProcessProviderExecutionDispatcher([handler]);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            OperationType = ProviderExecutionOperationTypes.ProcessRun,
+            TargetResourceId = "application:worker",
+            DesiredGeneration = 3,
+            IdempotencyKey = "application:worker:3",
+            RequiredCapabilities = [ProviderExecutionCapabilities.Processes]
+        };
+
+        var result = await dispatcher.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Same(request, handler.Request);
+    }
+
+    [Fact]
+    public async Task InProcessDispatcher_ReturnsUnavailableWhenHandlerIsMissing()
+    {
+        var dispatcher = new InProcessProviderExecutionDispatcher([]);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            OperationType = ProviderExecutionOperationTypes.ContainerRun,
+            TargetResourceId = "container-app:orders",
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:1"
+        };
+
+        var result = await dispatcher.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Unavailable, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ProviderExecutionDiagnosticCodes.HandlerMissing, diagnostic.Code);
+        Assert.Equal(request.TargetResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task InProcessDispatcher_ReturnsUnavailableWhenCapabilitiesAreMissing()
+    {
+        var handler = new RecordingExecutionHandler(
+            ProviderExecutionOperationTypes.ContainerRun,
+            [ProviderExecutionCapabilities.Containers]);
+        var dispatcher = new InProcessProviderExecutionDispatcher([handler]);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            OperationType = ProviderExecutionOperationTypes.ContainerRun,
+            TargetResourceId = "container-app:orders",
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:1",
+            RequiredCapabilities =
+            [
+                ProviderExecutionCapabilities.Containers,
+                ProviderExecutionCapabilities.VolumeMounts
+            ]
+        };
+
+        var result = await dispatcher.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Unavailable, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ProviderExecutionDiagnosticCodes.RequiredCapabilityMissing, diagnostic.Code);
+        Assert.Equal(request.TargetResourceId, diagnostic.Target);
+    }
+
+    private sealed class RecordingExecutionHandler(
+        string operationType,
+        IReadOnlyList<string> capabilities) : IProviderExecutionHandler
+    {
+        public string OperationType { get; } = operationType;
+
+        public IReadOnlyList<string> Capabilities { get; } = capabilities;
+
+        public ProviderExecutionRequest? Request { get; private set; }
+
+        public ValueTask<ProviderExecutionResult> ExecuteAsync(
+            ProviderExecutionRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Request = request;
+
+            return ValueTask.FromResult(ProviderExecutionResult.Succeeded(request));
+        }
+    }
 }

@@ -21,6 +21,66 @@ public interface IProviderExecutionHandler
         CancellationToken cancellationToken = default);
 }
 
+public sealed class InProcessProviderExecutionDispatcher(
+    IEnumerable<IProviderExecutionHandler> handlers) : IProviderExecutionDispatcher
+{
+    private readonly IReadOnlyList<IProviderExecutionHandler> _handlers =
+        handlers.ToArray();
+
+    public ValueTask<ProviderExecutionResult> ExecuteAsync(
+        ProviderExecutionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var candidates = _handlers
+            .Where(handler => string.Equals(
+                handler.OperationType,
+                request.OperationType,
+                StringComparison.Ordinal))
+            .ToArray();
+
+        if (candidates.Length == 0)
+        {
+            return ValueTask.FromResult(Unavailable(
+                request,
+                ProviderExecutionDiagnosticCodes.HandlerMissing,
+                $"No provider execution handler is registered for operation '{request.OperationType}'."));
+        }
+
+        var handler = candidates.FirstOrDefault(handler =>
+            request.RequiredCapabilities.All(requiredCapability =>
+                handler.Capabilities.Contains(requiredCapability, StringComparer.Ordinal)));
+
+        if (handler is null)
+        {
+            return ValueTask.FromResult(Unavailable(
+                request,
+                ProviderExecutionDiagnosticCodes.RequiredCapabilityMissing,
+                $"No provider execution handler for operation '{request.OperationType}' has all required capabilities."));
+        }
+
+        return handler.ExecuteAsync(request, cancellationToken);
+    }
+
+    private static ProviderExecutionResult Unavailable(
+        ProviderExecutionRequest request,
+        string code,
+        string message) =>
+        new()
+        {
+            AssignmentId = request.AssignmentId,
+            Status = ProviderExecutionStatus.Unavailable,
+            Diagnostics =
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    code,
+                    message,
+                    request.TargetResourceId)
+            ]
+        };
+}
+
 public sealed record ProviderExecutionRequest
 {
     public required string AssignmentId { get; init; }
@@ -121,6 +181,13 @@ public static class ProviderExecutionOperationTypes
     public const string VolumeMountMaterialize = "volumeMount.materialize";
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";
     public const string DnsNameMappingReconcile = "dns.nameMapping.reconcile";
+}
+
+public static class ProviderExecutionDiagnosticCodes
+{
+    public const string HandlerMissing = "providerExecution.handlerMissing";
+    public const string RequiredCapabilityMissing =
+        "providerExecution.requiredCapabilityMissing";
 }
 
 file static class ProviderExecutionDefaults

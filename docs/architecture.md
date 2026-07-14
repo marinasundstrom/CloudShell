@@ -206,6 +206,14 @@ Users normally work with resources. Agents are operational execution targets,
 and regions are later placement metadata; neither should become required
 resource-definition input for the MVP path.
 
+The dispatcher is the boundary between orchestration and execution. Resource
+Manager decides which operation should happen and creates a typed execution
+request. The dispatcher resolves where that request should go; for the MVP it
+selects an in-process handler, and later it can send the same request to an
+agent. The handler realizes the request through local capabilities such as
+containers, processes, filesystem materialization, mounts, host networking, or
+runtime observation, then returns observed state and diagnostics.
+
 The architecture should allow more than one Control Plane deployment shape. A
 small environment can run one in-process Control Plane. A shared environment
 can run a standalone Control Plane. Future clustered environments can split

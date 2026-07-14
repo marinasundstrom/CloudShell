@@ -597,6 +597,12 @@ preserving old provider seams:
     result, status, capability IDs, and operation type IDs. The contract is
     transport-neutral and does not require resource definitions to specify an
     agent, host, or region.
+  - [x] Add the in-process provider execution dispatcher and register it with
+    built-in runtime adapters so Control Plane services can target the
+    provider execution port while handlers still run inside the same process.
+    Missing operation handlers and missing required capabilities return
+    unavailable observed results with diagnostics instead of requiring callers
+    to know concrete runtime services.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
