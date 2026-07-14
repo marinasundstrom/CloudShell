@@ -786,6 +786,71 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task CloudShellVolumeProvisionOperation_DispatchesProvisionInstruction()
+    {
+        var volume = CreateGraphResource(
+            "volume:data",
+            "data",
+            revision: 13,
+            attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "local"
+            });
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new CloudShellVolumeProvisionOperation(
+            new ResourceProjectionExecutionContext(volume, [volume]),
+            new ResourceOperationResolution(
+                CloudShellVolumeResourceTypeProvider.Operations.Provision,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.StorageVolumeProvision, request.InstructionType);
+        Assert.Equal(volume.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(13, request.DesiredGeneration);
+        Assert.Equal(
+            $"{volume.EffectiveResourceId}:{CloudShellVolumeResourceTypeProvider.Operations.Provision}:13",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Storage, request.RequiredCapabilities);
+        Assert.Same(volume, request.TargetResourceSnapshot);
+        Assert.Equal([volume], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task CloudShellVolumeProvisionHandler_ReturnsProvisionerDiagnostics()
+    {
+        var volume = CreateGraphResource("volume:data", "data");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "volume.provision.test",
+            "Volume provisioned.",
+            volume.EffectiveResourceId);
+        var provisioner = new RecordingCloudShellVolumeProvisioner([diagnostic]);
+        var handler = new CloudShellVolumeProvisionExecutionHandler(provisioner);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.StorageVolumeProvision,
+            TargetResourceId = volume.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "volume:data:provision:1",
+            TargetResourceSnapshot = volume,
+            ResourceSnapshot = [volume]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(volume, Assert.Single(provisioner.Invocations));
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -1451,6 +1516,21 @@ public sealed class ProviderExecutionContractTests
         {
             Resource = resource;
             Context = context;
+
+            return ValueTask.FromResult(diagnostics);
+        }
+    }
+
+    private sealed class RecordingCloudShellVolumeProvisioner(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : ICloudShellVolumeProvisioner
+    {
+        public List<GraphResource> Invocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default)
+        {
+            Invocations.Add(resource);
 
             return ValueTask.FromResult(diagnostics);
         }

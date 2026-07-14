@@ -1,12 +1,14 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class CloudShellVolumeProvisionOperationProvider(
-    ICloudShellVolumeProvisioner? provisioner = null) :
+    ICloudShellVolumeProvisioner? provisioner = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly ICloudShellVolumeProvisioner _provisioner =
-        provisioner ?? new NoopCloudShellVolumeProvisioner();
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [new CloudShellVolumeProvisionExecutionHandler(provisioner)]);
 
     public ResourceOperationId OperationId =>
         CloudShellVolumeResourceTypeProvider.Operations.Provision;
@@ -55,17 +57,17 @@ public sealed class CloudShellVolumeProvisionOperationProvider(
             new CloudShellVolumeProvisionOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _provisioner));
+                _dispatcher));
 }
 
 public sealed class CloudShellVolumeProvisionOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ICloudShellVolumeProvisioner provisioner) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly ICloudShellVolumeProvisioner _provisioner = provisioner;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -108,14 +110,25 @@ public sealed class CloudShellVolumeProvisionOperation(
                 ]);
         }
 
-        var diagnostics = await _provisioner.ProvisionAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.StorageVolumeProvision,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Storage],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     internal static bool HasRequiredState(Resource resource) =>

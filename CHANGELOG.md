@@ -80,6 +80,8 @@ on `git blame --follow`, and then by the broad type of change.
   provider execution dispatcher, including deployment reconciliation paths.
 - Routed Load Balancer configuration apply through the provider execution
   dispatcher with an in-process configuration-apply handler.
+- Routed CloudShell Volume provisioning through the provider execution
+  dispatcher with an in-process storage provision handler.
 
 ### 2026-07-13
 

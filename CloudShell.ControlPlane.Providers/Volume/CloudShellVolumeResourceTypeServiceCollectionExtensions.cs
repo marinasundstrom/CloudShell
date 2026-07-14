@@ -10,6 +10,8 @@ public static class CloudShellVolumeResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -26,6 +28,8 @@ public static class CloudShellVolumeResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, CloudShellVolumeResourceTypeProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, CloudShellVolumeGraphValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, CloudShellVolumeProvisionExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, CloudShellVolumeProvisionOperationProvider>());
         services.TryAddEnumerable(

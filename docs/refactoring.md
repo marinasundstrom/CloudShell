@@ -698,6 +698,9 @@ preserving old provider seams:
     execution dispatcher with an in-process handler for the existing
     configuration applier, keeping Traefik/file-provider materialization behind
     the same instruction/result boundary.
+  - [x] Route CloudShell Volume provisioning through the provider execution
+    dispatcher with an in-process storage provision handler, while keeping
+    volume intent validation in the operation provider.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
