@@ -28,6 +28,8 @@ public static class SqlDatabaseResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -47,12 +49,14 @@ public static class SqlDatabaseResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, SqlDatabaseGraphDependencyProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Scoped<IResourceOperationProvider, SqlDatabaseEnsureCreatedOperationProvider>());
+            ServiceDescriptor.Singleton<IResourceOperationProvider, SqlDatabaseEnsureCreatedOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Scoped<IResourceOperationProjector, SqlDatabaseEnsureCreatedOperationProvider>());
+            ServiceDescriptor.Singleton<IResourceOperationProjector, SqlDatabaseEnsureCreatedOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, SqlDatabaseEnsureCreatedExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SqlDatabaseResourceProjectionProvider>());
-        services.TryAddScoped<
+        services.TryAddSingleton<
             ISqlDatabaseServerResolver,
             ContextSqlDatabaseServerResolver>();
         services.TryAddSingleton<

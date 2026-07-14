@@ -1,15 +1,23 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class SqlDatabaseEnsureCreatedOperationProvider(
-    ISqlDatabaseCreationHandler? creationHandler = null,
-    ISqlDatabaseServerResolver? serverResolver = null) :
+public sealed class SqlDatabaseEnsureCreatedOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly ISqlDatabaseCreationHandler _creationHandler =
-        creationHandler ?? new NoopSqlDatabaseCreationHandler();
-    private readonly ISqlDatabaseServerResolver _serverResolver =
-        serverResolver ?? new ContextSqlDatabaseServerResolver();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public SqlDatabaseEnsureCreatedOperationProvider(
+        ISqlDatabaseCreationHandler? creationHandler = null,
+        ISqlDatabaseServerResolver? serverResolver = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new SqlDatabaseEnsureCreatedExecutionHandler(
+                    creationHandler,
+                    serverResolver)
+            ]);
+    }
 
     public ResourceOperationId OperationId =>
         SqlDatabaseResourceTypeProvider.Operations.EnsureCreated;
@@ -44,20 +52,17 @@ public sealed class SqlDatabaseEnsureCreatedOperationProvider(
             new SqlDatabaseEnsureCreatedOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _creationHandler,
-                _serverResolver));
+                _dispatcher));
 }
 
 public sealed class SqlDatabaseEnsureCreatedOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ISqlDatabaseCreationHandler creationHandler,
-    ISqlDatabaseServerResolver serverResolver) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly ISqlDatabaseCreationHandler _creationHandler = creationHandler;
-    private readonly ISqlDatabaseServerResolver _serverResolver = serverResolver;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -96,45 +101,18 @@ public sealed class SqlDatabaseEnsureCreatedOperation(
                 ]);
         }
 
-        if (!SqlDatabaseResourceTypeProvider.TryGetServerDependencyResourceId(
-                Resource.State,
-                out var serverResourceId))
-        {
-            return new ResourceOperationExecutionResult(
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
                 Resource,
-                OperationId,
-                [
-                    ResourceDefinitionDiagnostic.Error(
-                        "application.sqlDatabase.serverReferenceRequired",
-                        "SQL database owning server reference is required.",
-                        Resource.EffectiveResourceId)
-                ]);
-        }
-
-        var server = await _serverResolver.ResolveServerAsync(
-            Resource,
-            Context,
-            cancellationToken);
-        if (server is null)
-        {
-            return new ResourceOperationExecutionResult(
-                Resource,
-                OperationId,
-                [
-                    ResourceDefinitionDiagnostic.Error(
-                        ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
-                        $"SQL database owning server resource '{serverResourceId}' was not resolved.",
-                        serverResourceId)
-                ]);
-        }
-
-        var diagnostics = await _creationHandler.EnsureCreatedAsync(
-            new SqlDatabaseCreationContext(Resource, server),
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.SqlDatabaseEnsureCreated,
+                [ProviderExecutionCapabilities.SqlDatabaseCreation],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }

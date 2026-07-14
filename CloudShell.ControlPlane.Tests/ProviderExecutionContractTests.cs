@@ -1588,6 +1588,87 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task SqlDatabaseEnsureCreatedOperation_DispatchesEnsureCreatedInstruction()
+    {
+        var sqlServer = CreateGraphResource("application.sql-server:app", "app-sql");
+        var database = CreateGraphResource(
+            "application.sql-database:app",
+            "app-db",
+            revision: 41,
+            dependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    sqlServer.EffectiveResourceId,
+                    SqlServerResourceTypeProvider.ResourceTypeId,
+                    SqlServerResourceTypeProvider.ProviderId)
+            ]);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new SqlDatabaseEnsureCreatedOperation(
+            new ResourceProjectionExecutionContext(database, [database, sqlServer]),
+            new ResourceOperationResolution(
+                SqlDatabaseResourceTypeProvider.Operations.EnsureCreated,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.SqlDatabaseEnsureCreated, request.InstructionType);
+        Assert.Equal(database.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(41, request.DesiredGeneration);
+        Assert.Equal(
+            $"{database.EffectiveResourceId}:{SqlDatabaseResourceTypeProvider.Operations.EnsureCreated}:41",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.SqlDatabaseCreation, request.RequiredCapabilities);
+        Assert.Same(database, request.TargetResourceSnapshot);
+        Assert.Equal([database, sqlServer], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task SqlDatabaseEnsureCreatedHandler_ReturnsCreationDiagnostics()
+    {
+        var sqlServer = CreateGraphResource("application.sql-server:app", "app-sql");
+        var database = CreateGraphResource(
+            "application.sql-database:app",
+            "app-db",
+            dependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    sqlServer.EffectiveResourceId,
+                    SqlServerResourceTypeProvider.ResourceTypeId,
+                    SqlServerResourceTypeProvider.ProviderId)
+            ]);
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "sqlDatabase.ensureCreated.test",
+            "SQL database exists.",
+            database.EffectiveResourceId);
+        var creationHandler = new RecordingSqlDatabaseCreationHandler([diagnostic]);
+        var handler = new SqlDatabaseEnsureCreatedExecutionHandler(creationHandler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.SqlDatabaseEnsureCreated,
+            TargetResourceId = database.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application.sql-database:app:ensure-created:1",
+            TargetResourceSnapshot = database,
+            ResourceSnapshot = [database, sqlServer]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var context = Assert.Single(creationHandler.CreationInvocations);
+        Assert.Same(database, context.Database);
+        Assert.Same(sqlServer, context.Server);
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -2676,6 +2757,22 @@ public sealed class ProviderExecutionContractTests
         }
     }
 
+    private sealed class RecordingSqlDatabaseCreationHandler(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
+        : ISqlDatabaseCreationHandler
+    {
+        public List<SqlDatabaseCreationContext> CreationInvocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> EnsureCreatedAsync(
+            SqlDatabaseCreationContext context,
+            CancellationToken cancellationToken = default)
+        {
+            CreationInvocations.Add(context);
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
     private sealed class RecordingContainerApplicationRuntimeHandler(
         IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : IContainerApplicationRuntimeHandler
     {
@@ -2986,7 +3083,8 @@ public sealed class ProviderExecutionContractTests
         string resourceId,
         string name,
         long revision = 0,
-        IReadOnlyDictionary<ResourceAttributeId, string>? attributes = null)
+        IReadOnlyDictionary<ResourceAttributeId, string>? attributes = null,
+        IReadOnlyList<ResourceReference>? dependsOn = null)
     {
         var classId = ResourceClassId.Create("test");
         var typeId = ResourceTypeId.Create("test.resource");
@@ -3018,6 +3116,7 @@ public sealed class ProviderExecutionContractTests
                 typeId,
                 ResourceId: resourceId,
                 Version: new ResourceRevision(revision).ToString(),
+                DependsOn: dependsOn,
                 Attributes: attributeValues is null ? null : new ResourceAttributeValueMap(attributeValues)),
             resourceClass,
             resourceType,
