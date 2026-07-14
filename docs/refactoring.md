@@ -605,6 +605,11 @@ preserving old provider seams:
     Missing operation handlers and missing required capabilities return
     unavailable observed results with diagnostics instead of requiring callers
     to know concrete runtime services.
+  - [x] Route the Network endpoint-mapping reconcile operation through the
+    provider execution dispatcher. The operation now creates an
+    assignment-shaped instruction with the current resource graph snapshot,
+    and the in-process network execution handler adapts that instruction to
+    the existing endpoint-mapping reconciler while preserving diagnostics.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

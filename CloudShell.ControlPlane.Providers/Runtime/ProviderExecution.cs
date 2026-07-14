@@ -98,9 +98,31 @@ public sealed record ProviderExecutionRequest
     public IReadOnlyDictionary<string, string> Metadata { get; init; } =
         ProviderExecutionDefaults.EmptyStringDictionary;
 
+    public Resource? TargetResourceSnapshot { get; init; }
+
+    public IReadOnlyList<Resource> ResourceSnapshot { get; init; } = [];
+
     public JsonElement? Payload { get; init; }
 
     public DateTimeOffset? RequestedAt { get; init; }
+
+    public ResourceProjectionExecutionContext? TryCreateProjectionExecutionContext()
+    {
+        var targetResource = TargetResourceSnapshot ??
+            ResourceSnapshot.FirstOrDefault(resource => string.Equals(
+                resource.EffectiveResourceId,
+                TargetResourceId,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (targetResource is null)
+        {
+            return null;
+        }
+
+        return new ResourceProjectionExecutionContext(
+            targetResource,
+            ResourceSnapshot.Count == 0 ? [targetResource] : ResourceSnapshot);
+    }
 }
 
 public sealed record ProviderExecutionResult
@@ -121,6 +143,7 @@ public sealed record ProviderExecutionResult
     public static ProviderExecutionResult Succeeded(
         ProviderExecutionRequest request,
         long? observedGeneration = null,
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null,
         IReadOnlyDictionary<string, string>? observations = null,
         DateTimeOffset? observedAt = null) =>
         new()
@@ -128,6 +151,7 @@ public sealed record ProviderExecutionResult
             AssignmentId = request.AssignmentId,
             Status = ProviderExecutionStatus.Succeeded,
             ObservedGeneration = observedGeneration ?? request.DesiredGeneration,
+            Diagnostics = diagnostics ?? [],
             Observations = observations ?? ProviderExecutionDefaults.EmptyStringDictionary,
             ObservedAt = observedAt
         };
@@ -144,6 +168,29 @@ public sealed record ProviderExecutionResult
             Status = ProviderExecutionStatus.Failed,
             ObservedGeneration = observedGeneration,
             Diagnostics = diagnostics,
+            Observations = observations ?? ProviderExecutionDefaults.EmptyStringDictionary,
+            ObservedAt = observedAt
+        };
+
+    public static ProviderExecutionResult Unavailable(
+        ProviderExecutionRequest request,
+        string code,
+        string message,
+        long? observedGeneration = null,
+        IReadOnlyDictionary<string, string>? observations = null,
+        DateTimeOffset? observedAt = null) =>
+        new()
+        {
+            AssignmentId = request.AssignmentId,
+            Status = ProviderExecutionStatus.Unavailable,
+            ObservedGeneration = observedGeneration,
+            Diagnostics =
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    code,
+                    message,
+                    request.TargetResourceId)
+            ],
             Observations = observations ?? ProviderExecutionDefaults.EmptyStringDictionary,
             ObservedAt = observedAt
         };
@@ -190,6 +237,7 @@ public static class ProviderExecutionDiagnosticCodes
     public const string HandlerMissing = "providerExecution.handlerMissing";
     public const string RequiredCapabilityMissing =
         "providerExecution.requiredCapabilityMissing";
+    public const string ResourceSnapshotMissing = "providerExecution.resourceSnapshotMissing";
 }
 
 file static class ProviderExecutionDefaults

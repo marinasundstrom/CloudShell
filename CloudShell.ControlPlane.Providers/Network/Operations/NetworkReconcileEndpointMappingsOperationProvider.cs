@@ -1,12 +1,19 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class NetworkReconcileEndpointMappingsOperationProvider(
-    INetworkEndpointMappingReconciler? reconciler = null) :
+public sealed class NetworkReconcileEndpointMappingsOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly INetworkEndpointMappingReconciler _reconciler =
-        reconciler ?? new NoopNetworkEndpointMappingReconciler();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public NetworkReconcileEndpointMappingsOperationProvider(
+        IProviderExecutionDispatcher? dispatcher = null,
+        INetworkEndpointMappingReconciler? reconciler = null)
+    {
+        _dispatcher = dispatcher ??
+            new InProcessProviderExecutionDispatcher(
+                [new NetworkEndpointMappingExecutionHandler(reconciler)]);
+    }
 
     public ResourceOperationId OperationId =>
         NetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
@@ -41,18 +48,17 @@ public sealed class NetworkReconcileEndpointMappingsOperationProvider(
             new NetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _reconciler));
+                _dispatcher));
 }
 
 public sealed class NetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    INetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly INetworkEndpointMappingReconciler _reconciler =
-        reconciler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -89,15 +95,25 @@ public sealed class NetworkReconcileEndpointMappingsOperation(
                 ]);
         }
 
-        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
-            Resource,
-            Context,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.HostNetworking],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 

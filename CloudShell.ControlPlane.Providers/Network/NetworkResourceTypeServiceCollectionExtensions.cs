@@ -22,7 +22,9 @@ public static class NetworkResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddNetworkingEndpointGraphShapes();
+        services
+            .AddNetworkingEndpointGraphShapes()
+            .AddProviderExecutionDispatcher();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -44,6 +46,8 @@ public static class NetworkResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, NetworkReconcileEndpointMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, NetworkResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, NetworkEndpointMappingExecutionHandler>());
         services.TryAddSingleton<
             INetworkEndpointMappingReconciler,
             NoopNetworkEndpointMappingReconciler>();

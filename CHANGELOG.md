@@ -24,6 +24,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added the in-process provider execution dispatcher and default runtime
   adapter registration so Control Plane code can target the provider execution
   port while runtime handlers still execute locally.
+- Routed the Network endpoint-mapping reconcile operation through the provider
+  execution dispatcher with a resource graph snapshot and in-process network
+  execution handler, preserving existing reconciler diagnostics.
 
 ### 2026-07-13
 
