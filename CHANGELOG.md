@@ -37,6 +37,8 @@ on `git blame --follow`, and then by the broad type of change.
   dispatcher with grant data carried in the instruction payload.
 - Routed Virtual Network endpoint-mapping reconciliation through the provider
   execution dispatcher with a distinct virtual-network instruction.
+- Documented the resource attribute schema direction: canonical attribute IDs
+  stay separate from authored/projection paths, aliases, and display labels.
 
 ### 2026-07-13
 

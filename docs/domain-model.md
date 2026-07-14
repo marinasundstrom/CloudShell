@@ -529,14 +529,19 @@ non-localized tokens for enum-like values. If a value carries runtime state,
 version history, or secrecy, it belongs in provider-owned runtime state instead
 of `Resource.Attributes`.
 
-Attribute names use lower-camel names for resource-type-native properties,
-such as `endpoint`, `entries`, and `databases`. Dotted lower-camel names such
-as `workload.kind`, `container.image`, and `container.registry` express real
-hierarchy or shared/capability-owned surfaces. Names in
-`ResourceAttributeNames` are reserved for CloudShell-defined meanings. Provider
-or extension-specific attributes should use a stable provider or domain prefix,
-for example `acme.cluster` or `postgres.database`. Do not use display labels as
-attribute names; generated details can format the name for presentation.
+Attribute IDs are canonical schema keys, not display labels and not the only
+source of authored hierarchy. Attribute definitions may expose lower-camel
+authoring names or nested document paths such as `container.image` while
+keeping a separate stable `ResourceAttributeId` for provider code,
+validation, persistence, and runtime adapters. Existing dotted lower-camel IDs
+such as `workload.kind`, `container.image`, and `container.registry` remain
+valid compatibility IDs, especially for shared/capability-owned surfaces, but
+new schema work should prefer explicit definition metadata for authoring path,
+aliases, and display text. Names in `ResourceAttributeNames` are reserved for
+CloudShell-defined meanings. Provider or extension-specific canonical IDs
+should use a stable provider or domain boundary when they need global
+disambiguation. Do not use display labels as attribute names; generated
+details can format the name for presentation.
 
 Because `Resource` is uniform, the shell can generate a default detail view from
 the projected resource shape: identity, class, endpoints, attributes,

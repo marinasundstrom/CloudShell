@@ -270,7 +270,7 @@ Common fields:
 | `displayName` | Optional presentation label. It does not affect addressing. |
 | `version` | Optional resource revision/version string for graph state. |
 | `dependsOn` | Optional startup dependency references. This is not general service discovery. |
-| `attributes` | Resource-owned graph/configuration state. Dotted attribute IDs are projected as nested document groups. |
+| `attributes` | Resource-owned graph/configuration state. Attribute definitions may project canonical IDs into document paths. Existing dotted IDs can still be projected as nested groups. |
 | `configuration` | Provider-owned structured configuration payloads when attributes are not the right shape. |
 | `metadata` | Non-runtime metadata about the definition. |
 
@@ -290,17 +290,24 @@ an attribute in the Resource model. Resource-level `capabilities` and
 graph and provider paths, but they are not the preferred authoring location for
 resource-owned state.
 
-Attribute IDs use periods to express hierarchy. The in-memory model still
-resolves canonical IDs such as `container.image`, `logs.sources`, and
-`health.checks`, but YAML/JSON templates should project those IDs into hoisted
-nested objects so the document is easier to scan. The `attributes` wrapper and
-full dotted names remain valid input forms for compatibility and for rare
-fixed-field name collisions:
+Attribute IDs are canonical schema keys. They must not be the only mechanism
+for document hierarchy. The in-memory model still resolves current canonical
+IDs such as `container.image`, `logs.sources`, and `health.checks`, and
+YAML/JSON templates may continue projecting those IDs into hoisted nested
+objects for compatibility. New schema work should let
+`ResourceAttributeDefinition` describe the authored path separately from the
+canonical ID, so a resource type can export a clear document shape without
+making the ID string carry grouping semantics.
 
-Because dotted IDs affect exported document shape, resource-type-local
-attributes should prefer flat lower-camel names such as `executablePath`.
-Use dotted IDs when the nested group is intentional, such as a shared
-capability namespace or a resource family with a stable document section.
+The `attributes` wrapper and full canonical IDs remain valid input forms for
+compatibility and for fixed-field name collisions. When an attribute definition
+declares an authored path, import/export should prefer that path and accept
+canonical IDs or aliases as fallback input.
+
+Resource-type-local attributes should prefer stable canonical IDs that make
+sense to provider code. Shared capabilities may still use stable dotted IDs
+when the namespace itself is part of the schema identity, but the exported
+document hierarchy should come from attribute-definition metadata over time.
 
 ```yaml
 container:
@@ -322,7 +329,9 @@ logs:
 ```
 
 When the document is deserialized, these grouped attributes flatten back to
-canonical attribute IDs before validation and provider code sees them.
+canonical attribute IDs before validation and provider code sees them. That
+flattening is a projection step, not proof that the canonical ID itself owns
+the hierarchy.
 
 Resource references also use a compact document projection for the common
 resource-id case. `value`, `relationship`, `addressingMode`, `typeId`, and
@@ -400,6 +409,14 @@ Attributes are graph/configuration state for a resource. Attribute IDs are
 owned by the resource type, resource class, or a deliberately shared
 definition. They can be scalar values, `ResourceReference` values, complex
 objects, or collections when the attribute definition allows it.
+
+Attribute definitions should separate canonical identity from authored shape.
+The canonical `ResourceAttributeId` is what providers, validators, stores, and
+runtime adapters use. An optional authored path describes where that value
+appears in templates and exports. Aliases can accept legacy dotted IDs or older
+paths during import. This keeps two resource types free to expose the same
+logical field name or document path while keeping distinct provider-owned
+schema identities.
 
 ```json
 {

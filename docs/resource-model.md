@@ -690,12 +690,59 @@ Examples:
 
 Rules:
 
-- Use dotted lower-camel names.
+- Treat the attribute ID as stable schema identity, not as the only source of
+  authoring hierarchy or UI grouping.
+- Prefer lower-camel authoring names and explicit schema metadata for grouping
+  when the attribute contract needs a document path.
+- Dotted lower-camel IDs remain valid for existing shared namespaces and
+  compatibility, but new attributes should not rely on the ID string alone to
+  imply hierarchy.
 - Use invariant string formatting.
 - Do not put secrets in attributes.
 - Do not use attributes as a provider configuration schema.
 - If a value needs validation, lifecycle semantics, secrecy, or structured
   behavior, use a typed object or provider-owned configuration instead.
+
+### Attribute Identity And Authoring Path
+
+Resource attribute identity and authored document shape are separate concerns.
+`ResourceAttributeId` is the canonical schema key providers, validators,
+storage, and runtime adapters use to identify a value. The authoring path is
+the name or nested path used in templates, generated docs, UI grouping, and
+import/export projections.
+
+Today many attribute IDs, such as `container.image`, `project.path`, and
+`health.checks`, also define their exported document hierarchy. That remains a
+compatibility rule, but it should not be the long-term contract. A resource
+type may need two attributes with the same logical field name under different
+contexts, or two providers may expose the same authored path for different
+resource types while keeping distinct canonical schema IDs.
+
+Future `ResourceAttributeDefinition` metadata should therefore be able to
+declare optional authoring/projection names separately from the canonical ID,
+for example:
+
+```csharp
+public sealed record ResourceAttributeDefinition
+{
+    public required ResourceAttributeId Id { get; init; }
+    public string? Path { get; init; }
+    public string? DisplayName { get; init; }
+    public string? Description { get; init; }
+    public IReadOnlyList<string> Aliases { get; init; } = [];
+}
+```
+
+The desired compatibility model is:
+
+- `Id` is stable and unique within the schema boundary that owns the
+  attribute.
+- `Path` is the preferred authored/imported/exported document path for that
+  resource type or capability.
+- `Aliases` accept older dotted IDs or previous document paths during import.
+- `DisplayName` is presentation only and never participates in addressing.
+- `ParentResourceId`, `OwnerResourceId`, dependencies, and references express
+  resource relationships; attribute IDs should not encode resource hierarchy.
 
 Convenience helper:
 
