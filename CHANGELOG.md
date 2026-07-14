@@ -13,6 +13,15 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-14
+
+#### Changed
+
+- Added the first provider execution boundary contract with assignment-shaped
+  requests, observed execution results, status values, capability IDs, and
+  operation type IDs so current in-process handlers can evolve toward future
+  agent-backed execution without changing resource definitions.
+
 ### 2026-07-13
 
 #### Changed

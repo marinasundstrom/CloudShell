@@ -159,10 +159,46 @@ graph or replace Resource Manager as the authority.
 As CloudShell moves toward shared and on-premise hosting, host-local execution
 and observation should be pushed behind typed provider execution boundaries
 instead of requiring the Control Plane process to directly invoke every host
-tool or runtime. The Control Plane remains authoritative for desired state,
-identity, policy, operation history, and diagnostics; future agents can run
-the provider-side operation on the machine where the capability exists and
-report observed state back for reconciliation.
+tool or runtime. This is a boundary-first strategy, not an immediate agent
+split: existing resource type providers, operation providers, and runtime
+handlers remain the right shape, but their execution contracts should become
+typed, observable, idempotent, and transport-neutral. For now, the execution
+implementation can stay inside the same Control Plane host and run through the
+same dependency-injection path. The important design constraint is that the
+Control Plane should call an execution boundary that could later be backed by
+a remote agent without changing resource definitions, operation providers, or
+Resource Manager semantics. The Control Plane remains authoritative for
+desired state, identity, policy, operation history, and diagnostics; a future
+agent can run the same provider-side operation shape on the machine where the
+capability exists and report observed state back for reconciliation.
+
+Local and single-host environments should not require users or resource
+definitions to name an agent. The default execution participant is implicit in
+the host profile: local development uses the local in-process execution path,
+and a simple shared environment can use its default execution participant the
+same way. Explicit placement or agent selection should appear only when an
+environment has multiple execution participants and the user or scheduler needs
+to constrain where work can run. Regions and data-center-like topology belong
+after that: they are placement and capacity metadata for larger environments,
+not concepts the local development model should force users to provide.
+
+The future distributed model should stay cloud-like and simple:
+
+```text
+Environment authority
+    owns resource state, policy, identity, operations, and reconciliation
+
+Location / region
+    groups capacity, failure domains, latency, and operator intent
+
+Execution participant
+    runs provider-side work such as containers, processes, filesystem
+    materialization, mounts, host networking, and runtime observation
+```
+
+Users normally work with resources and, when needed, logical locations. Agents
+or execution participants are operational implementation details unless an
+operator is configuring capacity or diagnosing placement.
 
 The architecture should allow more than one Control Plane deployment shape. A
 small environment can run one in-process Control Plane. A shared environment
@@ -335,10 +371,12 @@ lease-owned reconciliation duties, background workers, and provider adapters
 without changing the resource model exposed to users.
 
 The first scale-out step should remain a normal shared environment, not a
-multi-region cluster: one environment authority, one logical region, and one
-or more execution participants that report observed state while the Control
-Plane coordinates reconciliation. Regions, data-center boundaries, and
-multi-host placement policies can layer on later.
+multi-region cluster: one environment authority, one implicit default region,
+and one or more execution participants that report observed state while the
+Control Plane coordinates reconciliation. Explicit regions, data-center
+boundaries, and multi-host placement policies can layer on later when the
+environment needs capacity partitioning, failure-domain awareness, or
+operator-directed placement.
 
 A multi-Control Plane or federated deployment represents several environment
 authorities. CoreShell and Resource Manager should be able to present those

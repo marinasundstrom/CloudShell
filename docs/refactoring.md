@@ -511,6 +511,56 @@ preserving old provider seams:
 
 ## Future Resource Provider Refactoring
 
+- [ ] Establish the provider execution boundary strategy before adding remote
+  agents. The current resource type provider and handler architecture is the
+  baseline: providers own resource semantics, operation providers expose the
+  domain action, and handlers/reconcilers/run commands perform host-local
+  runtime work behind focused contracts. The near-term refactor should improve
+  those contracts so execution remains in-process now but can later be
+  extracted into agents without changing the resource model, operation
+  providers, or Resource Manager semantics.
+  - [ ] Build an extractable in-process execution infrastructure first. The
+    first implementation should run inside the Control Plane host through
+    dependency injection, but Control Plane services should call a narrow
+    provider execution port instead of directly depending on concrete runtime
+    handlers or host command runners.
+  - [ ] Keep remote execution concerns deferred while still designing for
+    them. Do not introduce agent processes, transport protocols, host
+    registration, cluster scheduling, or distributed leases until at least two
+    existing handlers use the new shape locally, but avoid contracts that
+    assume same-process execution, ambient service access, local filesystem
+    paths, or direct process handles.
+  - [ ] Treat the execution boundary as a provider-side assignment shape, not
+    as a new top-level resource concept. The assignment-shaped request should
+    name the operation, target resource, desired generation or revision,
+    idempotency key, required capabilities, and provider-owned payload.
+    Resource definitions should not name an agent or execution participant for
+    the normal local and single-host case; the Control Plane derives the
+    execution target from the host profile, provider capability, and later
+    placement policy only when more than one participant exists.
+  - [ ] Defer explicit region and data-center topology until multi-participant
+    environments need it. The first execution boundary should assume one
+    implicit default region; later placement metadata can add regions,
+    failure domains, and capacity pools without changing resource definitions
+    for local development.
+  - [ ] Treat handler results as observations. Results should carry observed
+    status, observed generation, provider-owned observations, diagnostics, and
+    enough correlation data for Resource Manager to relate them to the
+    requested desired state.
+  - [ ] Preserve the existing Control Plane authority model. Resource Manager
+    validates and records desired state, evaluates authorization and action
+    capability, coordinates provider operations, and derives resource status.
+    Handlers make a local assignment true; they do not decide global placement
+    or own the resource graph.
+  - [ ] Keep resource type providers and handlers as the extension model. The
+    refactor should add a clearer execution port between provider planning and
+    host runtime work, not replace provider packages with an agent-specific
+    plugin model.
+  - [ ] Start with handlers that already look like reconciliation boundaries,
+    such as DNS/name mapping or virtual-network endpoint mapping, before
+    adapting Docker-backed lifecycle handlers. This keeps the first contract
+    focused on desired-versus-observed state rather than container-runtime
+    complexity.
 - [ ] Define resource attribute schemas across provider-owned resource
   type/kind/class boundaries, including scalar and complex values, so
   Resource Manager can understand resource intent without hard-coding
@@ -536,6 +586,11 @@ preserving old provider seams:
   metadata without introducing remote agents yet. The goal is to let current
   in-process runtimes and future agents execute the same provider-side
   assignment shape.
+  - [x] Add the first provider execution contract types in the provider
+    runtime layer: dispatcher, handler, assignment-shaped request, observed
+    result, status, capability IDs, and operation type IDs. The contract is
+    transport-neutral and does not require resource definitions to specify an
+    agent, host, or region.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
