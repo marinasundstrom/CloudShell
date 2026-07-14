@@ -20,13 +20,16 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task RuntimeBridge_StartPublishesImageAndRunsGraphReplicaContainers()
     {
         var commandRunner = new RecordingCommandRunner();
+        var options = CreateRuntimeOptions();
         var bridge = CreateRuntimeBridge(
             commandRunner,
-            CreateConfiguration(replicaCleanupLimit: 2));
+            CreateConfiguration(replicaCleanupLimit: 2),
+            options: options);
         var resource = await CreateGraphAppResourceAsync(
             replicas: 2,
             endpointPort: 5092,
             includeHealthChecks: true);
+        var definition = options.Applications[LocalDockerContainerApplicationRuntimeConventions.ApiResourceId];
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
             resource,
@@ -42,6 +45,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 Assert.Contains("samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj", command.Arguments);
                 Assert.Contains("-p:ContainerRepository=cloudshell-application-api", command.Arguments);
                 Assert.Contains("-p:ContainerImageTag=20260622.2", command.Arguments);
+                Assert.Equal(definition.MaterializationCommandTimeout, command.Timeout);
             },
             command => AssertDockerRemove(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-1"),
@@ -58,6 +62,36 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 replica: 2,
                 expectedProbePort: 5193),
             command => AssertDockerIngressRun(command, endpointPort: 5092));
+    }
+
+    [Fact]
+    public async Task RuntimeBridge_StartReturnsDiagnosticWhenImageMaterializationTimesOut()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(
+            LocalContainerApplicationCommandResult.TimeoutExitCode,
+            string.Empty,
+            "publish timed out"));
+        var options = CreateRuntimeOptions();
+        var definition = options.Applications[LocalDockerContainerApplicationRuntimeConventions.ApiResourceId];
+        definition.MaterializationCommandTimeout = TimeSpan.FromSeconds(7);
+        var bridge = CreateRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(),
+            options: options);
+
+        var diagnostics = await bridge.ExecuteLifecycleAsync(
+            await CreateGraphAppResourceAsync(replicas: 1),
+            ContainerApplicationResourceTypeProvider.Operations.Start);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("localDockerContainerApplication.runtimeFailed", diagnostic.Code);
+        Assert.Equal("publish timed out", diagnostic.Message);
+        var command = Assert.Single(commandRunner.Commands);
+        Assert.Equal("dotnet", command.FileName);
+        Assert.Equal("publish", command.Arguments[0]);
+        Assert.Equal(definition.MaterializationCommandTimeout, command.Timeout);
     }
 
     [Fact]
@@ -1755,7 +1789,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             bool throwOnError = true,
             TimeSpan? timeout = null,
             string? workingDirectory = null) =>
-            RunCore(fileName, arguments, throwOnError, workingDirectory);
+            RunCore(fileName, arguments, throwOnError, timeout, workingDirectory);
 
         public Task<LocalContainerApplicationCommandResult> RunAsync(
             string fileName,
@@ -1765,20 +1799,22 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             TimeSpan? timeout = null,
             string? workingDirectory = null)
         {
-            return Task.FromResult(RunCore(fileName, arguments, throwOnError, workingDirectory));
+            return Task.FromResult(RunCore(fileName, arguments, throwOnError, timeout, workingDirectory));
         }
 
         private LocalContainerApplicationCommandResult RunCore(
             string fileName,
             IReadOnlyList<string> arguments,
             bool throwOnError,
+            TimeSpan? timeout,
             string? workingDirectory)
         {
-            Commands.Add(new(fileName, arguments.ToArray(), throwOnError, workingDirectory));
+            Commands.Add(new(fileName, arguments.ToArray(), throwOnError, timeout, workingDirectory));
             var result = _results.Count == 0
                 ? new LocalContainerApplicationCommandResult(0, string.Empty, string.Empty)
                 : _results.Dequeue();
-            if (throwOnError && result.ExitCode != 0)
+            if (throwOnError &&
+                result.ExitCode is not 0 and not LocalContainerApplicationCommandResult.TimeoutExitCode)
             {
                 throw new InvalidOperationException(result.Error);
             }
@@ -1791,5 +1827,6 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         string FileName,
         IReadOnlyList<string> Arguments,
         bool ThrowOnError,
+        TimeSpan? Timeout,
         string? WorkingDirectory);
 }

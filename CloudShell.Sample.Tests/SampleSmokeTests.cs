@@ -222,6 +222,7 @@ public sealed class SampleSmokeTests
     // reserve local ports, write sample data paths, and may create fixed-name
     // Docker resources. Recording-runner adapter tests can stay parallel.
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan ResourceActionTimeout = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan SampleHostLaunchTimeout = TimeSpan.FromMinutes(3);
 
     public static IEnumerable<object[]> SupportedSwitchReadinessSampleHostProjects()
@@ -2080,7 +2081,8 @@ public sealed class SampleSmokeTests
     private static async Task StartGraphResourceIfAvailableAsync(
         SampleProcess host,
         JsonElement resource,
-        string label)
+        string label,
+        TimeSpan? timeout = null)
     {
         if (resource.TryGetProperty("state", out var state) &&
             state.ValueKind == JsonValueKind.Number &&
@@ -2093,7 +2095,7 @@ public sealed class SampleSmokeTests
         {
             var href = startAction.GetProperty("href").GetString() ??
                 throw new InvalidOperationException($"The graph {label} start action did not include an href.");
-            await host.SendAsync(HttpMethod.Post, href);
+            await host.SendAsync(HttpMethod.Post, href, timeout: timeout ?? ResourceActionTimeout);
             return;
         }
 
@@ -6513,12 +6515,13 @@ public sealed class SampleSmokeTests
         public async Task<string> SendAsync(
             HttpMethod method,
             string path,
-            string? bearerToken = null)
+            string? bearerToken = null,
+            TimeSpan? timeout = null)
         {
             using var client = new HttpClient
             {
                 BaseAddress = BaseAddress,
-                Timeout = StartupTimeout
+                Timeout = timeout ?? StartupTimeout
             };
             using var request = new HttpRequestMessage(method, path);
             if (!string.IsNullOrWhiteSpace(bearerToken))
@@ -6543,7 +6546,8 @@ public sealed class SampleSmokeTests
                 var body = await response.Content.ReadAsStringAsync();
                 Assert.True(
                     response.IsSuccessStatusCode,
-                    $"{method} {path} returned {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+                    $"{method} {path} returned {(int)response.StatusCode} {response.ReasonPhrase}: {body}" +
+                    $"{Environment.NewLine}{GetOutput()}");
                 return body;
             }
         }

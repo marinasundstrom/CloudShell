@@ -519,7 +519,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             }
 
             arguments.Add(ResolvePath(buildContext));
-            await commandRunner.RunAsync(
+            await RunMaterializationCommandAsync(
+                definition,
                 "docker",
                 arguments,
                 cancellationToken);
@@ -532,7 +533,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
 
         var (repository, tag) = SplitImage(image);
-        await commandRunner.RunAsync(
+        await RunMaterializationCommandAsync(
+            definition,
             "dotnet",
             [
                 "publish",
@@ -554,6 +556,25 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             Path.IsPathRooted(dockerfile)
                 ? dockerfile
                 : Path.Combine(ResolvePath(context), dockerfile);
+    }
+
+    private async Task RunMaterializationCommandAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
+        string fileName,
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken,
+        string? workingDirectory = null)
+    {
+        var result = await commandRunner.RunAsync(
+            fileName,
+            arguments,
+            cancellationToken,
+            timeout: definition.MaterializationCommandTimeout,
+            workingDirectory: workingDirectory);
+        if (result.ExitCode == LocalContainerApplicationCommandResult.TimeoutExitCode)
+        {
+            throw new TimeoutException(result.Error);
+        }
     }
 
     private async Task BuildJavaProjectAsync(

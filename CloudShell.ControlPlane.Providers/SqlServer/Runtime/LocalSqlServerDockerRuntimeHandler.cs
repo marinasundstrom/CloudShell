@@ -48,7 +48,7 @@ public sealed class LocalSqlServerDockerDefinition
 
     public bool WaitUntilReady { get; set; }
 
-    public TimeSpan RemoveTimeout { get; set; } = TimeSpan.FromSeconds(5);
+    public TimeSpan RemoveTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }
 
 public sealed class LocalSqlServerDockerRuntimeHandler(
@@ -62,6 +62,7 @@ public sealed class LocalSqlServerDockerRuntimeHandler(
     private const string RuntimeLifecycleFailedDiagnosticCode =
         "application.sqlServer.localDockerRuntimeLifecycleFailed";
     private const string SqlServerDataPath = SqlServerResourceDefaults.DataPath;
+    private static readonly TimeSpan RemovePollInterval = TimeSpan.FromMilliseconds(100);
     private readonly LocalSqlServerDockerRuntimeOptions options = options.Value;
     private readonly Dictionary<string, SqlServerRuntimeStatus> statusByResourceId =
         new(StringComparer.OrdinalIgnoreCase);
@@ -287,12 +288,42 @@ public sealed class LocalSqlServerDockerRuntimeHandler(
 
     private async Task RemoveAsync(
         LocalSqlServerDockerDefinition definition,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken)
+    {
         await docker.RunAsync(
             ["rm", "-f", definition.ContainerName],
             cancellationToken,
             throwOnError: false,
             commandTimeout: definition.RemoveTimeout);
+
+        await WaitUntilRemovedAsync(definition, cancellationToken);
+    }
+
+    private async Task WaitUntilRemovedAsync(
+        LocalSqlServerDockerDefinition definition,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(definition.RemoveTimeout);
+        while (true)
+        {
+            var inspect = await docker.RunAsync(
+                ["container", "inspect", "--format", "{{.State.Status}}", definition.ContainerName],
+                cancellationToken,
+                throwOnError: false);
+            if (inspect.ExitCode != 0)
+            {
+                return;
+            }
+
+            if (DateTimeOffset.UtcNow >= deadline)
+            {
+                throw new TimeoutException(
+                    $"Docker container '{definition.ContainerName}' was not removed within {definition.RemoveTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.");
+            }
+
+            await Task.Delay(RemovePollInterval, cancellationToken);
+        }
+    }
 
     private string ResolveAdministratorPassword(LocalSqlServerDockerDefinition definition) =>
         definition.PasswordConfigurationKey is { Length: > 0 } key

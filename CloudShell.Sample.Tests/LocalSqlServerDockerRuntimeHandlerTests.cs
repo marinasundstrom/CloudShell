@@ -99,6 +99,7 @@ public sealed class LocalSqlServerDockerRuntimeHandlerTests
             string.Empty,
             "error while creating mount source path '/host_mnt/tmp/cloudshell/sql-server': no such file or directory"));
         runner.Enqueue(new(0, string.Empty, string.Empty));
+        runner.Enqueue(new(1, string.Empty, "No such container"));
         runner.Enqueue(new(0, "container-id", string.Empty));
         var handler = fixture.CreateHandler(
             runner,
@@ -119,6 +120,49 @@ public sealed class LocalSqlServerDockerRuntimeHandlerTests
                 command.JoinedArguments),
             command => Assert.Equal(
                 "rm -f cloudshell-container-host-sql-server",
+                command.JoinedArguments),
+            command => Assert.Equal(
+                "container inspect --format {{.State.Status}} cloudshell-container-host-sql-server",
+                command.JoinedArguments),
+            command => Assert.StartsWith(
+                "run -d --name cloudshell-container-host-sql-server",
+                command.JoinedArguments));
+    }
+
+    [Fact]
+    public async Task ExecuteRestart_WaitsForDockerRemovalBeforeStartingContainerAgain()
+    {
+        using var fixture = new SqlServerRuntimeFixture(
+            "application.sql-server:sql-server",
+            "sql-server",
+            15434);
+        var runner = new RecordingSqlServerDockerCommandRunner();
+        runner.Enqueue(new(0, string.Empty, string.Empty));
+        runner.Enqueue(new(0, "removing", string.Empty));
+        runner.Enqueue(new(1, string.Empty, "No such container"));
+        runner.Enqueue(new(1, string.Empty, "No such container"));
+        var handler = fixture.CreateHandler(
+            runner,
+            "cloudshell-container-host-sql-server");
+
+        var diagnostics = await handler.ExecuteLifecycleAsync(
+            await fixture.ResolveSqlServerAsync(),
+            SqlServerResourceTypeProvider.Operations.Restart);
+
+        Assert.Empty(diagnostics);
+        Assert.Collection(
+            runner.Commands,
+            command => Assert.Equal(
+                "rm -f cloudshell-container-host-sql-server",
+                command.JoinedArguments),
+            command => Assert.Equal(
+                "container inspect --format {{.State.Status}} cloudshell-container-host-sql-server",
+                command.JoinedArguments),
+            command => Assert.Equal(
+                "container inspect --format {{.State.Status}} cloudshell-container-host-sql-server",
+                command.JoinedArguments),
+            command => Assert.Equal(
+                "container inspect --format {{.State.Status}} cloudshell-container-host-sql-server",
                 command.JoinedArguments),
             command => Assert.StartsWith(
                 "run -d --name cloudshell-container-host-sql-server",

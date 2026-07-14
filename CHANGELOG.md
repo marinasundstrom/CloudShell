@@ -13,6 +13,20 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-15
+
+#### Changed
+
+- Added a bounded local Docker container app image materialization command
+  timeout so stuck `dotnet publish` or `docker build` work returns provider
+  runtime diagnostics instead of leaving resource actions open-ended.
+- Split sample smoke resource-action timeouts from host startup timeouts so
+  Docker-backed container app starts can wait for first image materialization
+  without relaxing normal sample readiness checks.
+- Hardened SQL Server local Docker restart by waiting until Docker reports the
+  old container removed before recreating it, with a longer removal timeout for
+  slower Docker hosts.
+
 ### 2026-07-14
 
 #### Changed

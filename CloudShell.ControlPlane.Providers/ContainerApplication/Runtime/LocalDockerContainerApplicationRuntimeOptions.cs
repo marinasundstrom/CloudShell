@@ -82,6 +82,9 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
 
     public TimeSpan? StatusCacheDuration { get; set; }
 
+    public TimeSpan? MaterializationCommandTimeout { get; set; } =
+        TimeSpan.FromMinutes(8);
+
     public string ResolveProjectPath(IHostEnvironment? hostEnvironment) =>
         ResolvePath(hostEnvironment, ProjectPath);
 
