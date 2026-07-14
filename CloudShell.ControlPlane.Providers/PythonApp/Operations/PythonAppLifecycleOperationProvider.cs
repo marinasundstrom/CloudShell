@@ -4,10 +4,12 @@ public sealed class PythonAppStartOperationProvider :
     PythonAppLifecycleOperationProvider
 {
     public PythonAppStartOperationProvider(
-        IPythonAppRuntimeController? runtimeController = null)
+        IPythonAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             PythonAppResourceTypeProvider.Operations.Start,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -16,10 +18,12 @@ public sealed class PythonAppRestartOperationProvider :
     PythonAppLifecycleOperationProvider
 {
     public PythonAppRestartOperationProvider(
-        IPythonAppRuntimeController? runtimeController = null)
+        IPythonAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             PythonAppResourceTypeProvider.Operations.Restart,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -28,24 +32,39 @@ public sealed class PythonAppStopOperationProvider :
     PythonAppLifecycleOperationProvider
 {
     public PythonAppStopOperationProvider(
-        IPythonAppRuntimeController? runtimeController = null)
+        IPythonAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             PythonAppResourceTypeProvider.Operations.Stop,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
 
-public abstract class PythonAppLifecycleOperationProvider(
-    ResourceOperationId operationId,
-    IPythonAppRuntimeController? runtimeController = null) :
+public abstract class PythonAppLifecycleOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IPythonAppRuntimeController _runtimeController =
-        runtimeController ?? new NoopPythonAppRuntimeController();
+    private readonly IPythonAppRuntimeController _runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher;
 
-    public ResourceOperationId OperationId { get; } = operationId;
+    protected PythonAppLifecycleOperationProvider(
+        ResourceOperationId operationId,
+        IPythonAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        OperationId = operationId;
+        _runtimeController = runtimeController ?? new NoopPythonAppRuntimeController();
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new PythonAppStartExecutionHandler(_runtimeController),
+                new PythonAppStopExecutionHandler(_runtimeController),
+                new PythonAppRestartExecutionHandler(_runtimeController)
+            ]);
+    }
+
+    public ResourceOperationId OperationId { get; }
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -77,18 +96,21 @@ public abstract class PythonAppLifecycleOperationProvider(
             new PythonAppLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _runtimeController,
+                _dispatcher));
 }
 
 public sealed class PythonAppLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IPythonAppRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    IPythonAppRuntimeController runtimeController,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
     private readonly IPythonAppRuntimeController _runtimeController =
         runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -123,15 +145,19 @@ public sealed class PythonAppLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeController.ExecuteAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                GetInstructionType(OperationId),
+                [ProviderExecutionCapabilities.Processes],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(PythonAppRuntimeStatus status) =>
@@ -144,4 +170,25 @@ public sealed class PythonAppLifecycleOperation(
                 OperationId == PythonAppResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == PythonAppResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.PythonAppStart;
+        }
+
+        if (operationId == PythonAppResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.PythonAppStop;
+        }
+
+        if (operationId == PythonAppResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.PythonAppRestart;
+        }
+
+        throw new InvalidOperationException(
+            $"Python app lifecycle operation '{operationId}' does not have a provider execution instruction.");
+    }
 }

@@ -24,6 +24,7 @@ public static class PythonAppResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddNetworkingEndpointGraphShapes();
+        services.AddProviderExecutionDispatcher();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -67,6 +68,12 @@ public static class PythonAppResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, PythonAppStopOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, PythonAppRestartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, PythonAppStartExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, PythonAppStopExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, PythonAppRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, PythonAppResourceProjectionProvider>());
         services.TryAddEnumerable(

@@ -1399,6 +1399,69 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task PythonAppLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var app = CreateGraphResource("application.python-app:api", "api", revision: 31);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var runtimeController = new RecordingPythonAppRuntimeController(
+            status: PythonAppRuntimeStatus.Stopped);
+        var operation = new PythonAppLifecycleOperation(
+            new ResourceProjectionExecutionContext(app, [app]),
+            new ResourceOperationResolution(
+                PythonAppResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            runtimeController,
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.PythonAppStart, request.InstructionType);
+        Assert.Equal(app.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(31, request.DesiredGeneration);
+        Assert.Equal(
+            $"{app.EffectiveResourceId}:{PythonAppResourceTypeProvider.Operations.Start}:31",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Processes, request.RequiredCapabilities);
+        Assert.Same(app, request.TargetResourceSnapshot);
+        Assert.Equal([app], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task PythonAppLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var app = CreateGraphResource("application.python-app:api", "api");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "pythonApp.start.test",
+            "Python app started.",
+            app.EffectiveResourceId);
+        var runtimeController = new RecordingPythonAppRuntimeController([diagnostic]);
+        var handler = new PythonAppStartExecutionHandler(runtimeController);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.PythonAppStart,
+            TargetResourceId = app.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application.python-app:api:start:1",
+            TargetResourceSnapshot = app,
+            ResourceSnapshot = [app]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeController.LifecycleInvocations);
+        Assert.Same(app, invocation.Resource);
+        Assert.Equal(PythonAppResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -2416,6 +2479,27 @@ public sealed class ProviderExecutionContractTests
         public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
 
         public GoAppRuntimeStatus GetStatus(GraphResource resource) =>
+            status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingPythonAppRuntimeController(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null,
+        PythonAppRuntimeStatus status = PythonAppRuntimeStatus.Unknown)
+        : IPythonAppRuntimeController
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public PythonAppRuntimeStatus GetStatus(GraphResource resource) =>
             status;
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(

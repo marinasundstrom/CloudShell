@@ -628,6 +628,9 @@ public static class ProviderExecutionInstructionTypes
     public const string GoAppStart = "goApp.start";
     public const string GoAppStop = "goApp.stop";
     public const string GoAppRestart = "goApp.restart";
+    public const string PythonAppStart = "pythonApp.start";
+    public const string PythonAppStop = "pythonApp.stop";
+    public const string PythonAppRestart = "pythonApp.restart";
     public const string ExecutableApplicationStart = "executableApplication.start";
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";
