@@ -1843,6 +1843,64 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task StorageInspectOperation_DispatchesInspectInstruction()
+    {
+        var storage = CreateGraphResource("cloudshell.storage:local", "local", revision: 53);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new StorageInspectOperation(
+            new ResourceProjectionExecutionContext(storage, [storage]),
+            new ResourceOperationResolution(
+                StorageResourceTypeProvider.Operations.Inspect,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.StorageInspect, request.InstructionType);
+        Assert.Equal(storage.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(53, request.DesiredGeneration);
+        Assert.Equal(
+            $"{storage.EffectiveResourceId}:{StorageResourceTypeProvider.Operations.Inspect}:53",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.RuntimeObservation, request.RequiredCapabilities);
+        Assert.Same(storage, request.TargetResourceSnapshot);
+        Assert.Equal([storage], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task StorageInspectHandler_ReturnsInspectorDiagnostics()
+    {
+        var storage = CreateGraphResource("cloudshell.storage:local", "local");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "storage.inspect.test",
+            "Storage inspected.",
+            storage.EffectiveResourceId);
+        var inspector = new RecordingStorageInspector([diagnostic]);
+        var handler = new StorageInspectExecutionHandler(inspector);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.StorageInspect,
+            TargetResourceId = storage.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "cloudshell.storage:local:inspect:1",
+            TargetResourceSnapshot = storage,
+            ResourceSnapshot = [storage]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(storage, Assert.Single(inspector.InspectInvocations));
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -2982,6 +3040,22 @@ public sealed class ProviderExecutionContractTests
     private sealed class RecordingContainerHostInspector(
         IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
         : IContainerHostInspector
+    {
+        public List<GraphResource> InspectInvocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default)
+        {
+            InspectInvocations.Add(resource);
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingStorageInspector(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
+        : IStorageInspector
     {
         public List<GraphResource> InspectInvocations { get; } = [];
 

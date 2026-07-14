@@ -1,12 +1,20 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class StorageInspectOperationProvider(
-    IStorageInspector? inspector = null) :
+public sealed class StorageInspectOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IStorageInspector _inspector =
-        inspector ?? new NoopStorageInspector();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public StorageInspectOperationProvider(
+        IStorageInspector? inspector = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new StorageInspectExecutionHandler(inspector)
+            ]);
+    }
 
     public ResourceOperationId OperationId =>
         StorageResourceTypeProvider.Operations.Inspect;
@@ -41,17 +49,17 @@ public sealed class StorageInspectOperationProvider(
             new StorageInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _inspector));
+                _dispatcher));
 }
 
 public sealed class StorageInspectOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IStorageInspector inspector) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IStorageInspector _inspector = inspector;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -90,14 +98,19 @@ public sealed class StorageInspectOperation(
                 ]);
         }
 
-        var diagnostics = await _inspector.InspectAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.StorageInspect,
+                [ProviderExecutionCapabilities.RuntimeObservation],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 

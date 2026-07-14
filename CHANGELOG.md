@@ -141,6 +141,8 @@ on `git blame --follow`, and then by the broad type of change.
   dispatcher with an in-process runtime-observation handler.
 - Routed Container Host inspect execution through the provider execution
   dispatcher with an in-process runtime-observation handler.
+- Routed Storage inspect execution through the provider execution dispatcher
+  with an in-process runtime-observation handler.
 - Documented the future execution handler strategy by resource category,
   including generic execution capabilities, provider-specific adapters, and
   initial volume placement rules for host-bound versus shared storage.

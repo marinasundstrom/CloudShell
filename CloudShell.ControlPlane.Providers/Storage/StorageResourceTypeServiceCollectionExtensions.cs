@@ -10,6 +10,8 @@ public static class StorageResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -28,6 +30,8 @@ public static class StorageResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProvider, StorageInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, StorageInspectOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, StorageInspectExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, StorageResourceProjectionProvider>());
         services.TryAddSingleton<IStorageInspector, NoopStorageInspector>();
