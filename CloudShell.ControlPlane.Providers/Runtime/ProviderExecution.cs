@@ -108,12 +108,42 @@ public sealed class InProcessProviderExecutionDispatcher(
         ProviderExecutionResult result,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(result);
+
+        result = ValidateResultCorrelation(request, result);
+
         if (_observations is not null)
         {
             await _observations.RecordAsync(request, result, cancellationToken);
         }
 
         return result;
+    }
+
+    private static ProviderExecutionResult ValidateResultCorrelation(
+        ProviderExecutionRequest request,
+        ProviderExecutionResult result)
+    {
+        if (string.Equals(
+            request.AssignmentId,
+            result.AssignmentId,
+            StringComparison.Ordinal))
+        {
+            return result;
+        }
+
+        return ProviderExecutionResult.Failed(
+            request,
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    ProviderExecutionDiagnosticCodes.ResultAssignmentMismatch,
+                    $"Provider execution handler returned assignment id '{result.AssignmentId}' for instruction '{request.InstructionType}', but the requested assignment id was '{request.AssignmentId}'.",
+                    request.TargetResourceId)
+            ],
+            observations: new Dictionary<string, string>
+            {
+                ["reportedAssignmentId"] = result.AssignmentId
+            });
     }
 
     private static ProviderExecutionResult Unavailable(
@@ -512,6 +542,8 @@ public static class ProviderExecutionDiagnosticCodes
     public const string PayloadInvalid = "providerExecution.payloadInvalid";
     public const string ExecutionTargetUnsupported =
         "providerExecution.executionTargetUnsupported";
+    public const string ResultAssignmentMismatch =
+        "providerExecution.resultAssignmentMismatch";
 }
 
 file static class ProviderExecutionDefaults

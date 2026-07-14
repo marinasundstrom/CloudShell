@@ -190,6 +190,47 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task InProcessDispatcher_ReturnsFailedWhenHandlerReturnsDifferentAssignment()
+    {
+        var handler = new MismatchedAssignmentExecutionHandler(
+            ProviderExecutionInstructionTypes.ProcessStart,
+            [ProviderExecutionCapabilities.Processes],
+            "assignment-2");
+        var observations = new InMemoryProviderExecutionObservationStore();
+        var dispatcher = new InProcessProviderExecutionDispatcher([handler], observations);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ProcessStart,
+            TargetResourceId = "application:worker",
+            DesiredGeneration = 3,
+            IdempotencyKey = "application:worker:3",
+            Target = ProviderExecutionTarget.InProcess,
+            RequiredCapabilities = [ProviderExecutionCapabilities.Processes]
+        };
+
+        var result = await dispatcher.ExecuteAsync(request);
+        var observation = await observations.GetAsync(request.AssignmentId);
+
+        Assert.Equal(request.AssignmentId, result.AssignmentId);
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        Assert.Null(result.ObservedGeneration);
+        Assert.Equal("assignment-2", result.Observations["reportedAssignmentId"]);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ProviderExecutionDiagnosticCodes.ResultAssignmentMismatch, diagnostic.Code);
+        Assert.Equal(request.TargetResourceId, diagnostic.Target);
+
+        Assert.NotNull(observation);
+        Assert.Equal(request.AssignmentId, observation.AssignmentId);
+        Assert.Equal(ProviderExecutionStatus.Failed, observation.Status);
+        Assert.Null(observation.ObservedGeneration);
+        Assert.Equal("assignment-2", observation.Observations["reportedAssignmentId"]);
+        var observedDiagnostic = Assert.Single(observation.Diagnostics);
+        Assert.Equal(ProviderExecutionDiagnosticCodes.ResultAssignmentMismatch, observedDiagnostic.Code);
+        Assert.Equal(request.TargetResourceId, observedDiagnostic.Target);
+    }
+
+    [Fact]
     public async Task InProcessDispatcher_ReturnsUnavailableWhenTargetIsAgent()
     {
         var handler = new RecordingExecutionHandler(
@@ -1759,6 +1800,26 @@ public sealed class ProviderExecutionContractTests
 
             return ValueTask.FromResult(ProviderExecutionResult.Succeeded(request));
         }
+    }
+
+    private sealed class MismatchedAssignmentExecutionHandler(
+        string instructionType,
+        IReadOnlyList<string> capabilities,
+        string assignmentId) : IProviderExecutionHandler
+    {
+        public string InstructionType { get; } = instructionType;
+
+        public IReadOnlyList<string> Capabilities { get; } = capabilities;
+
+        public ValueTask<ProviderExecutionResult> ExecuteAsync(
+            ProviderExecutionRequest request,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new ProviderExecutionResult
+            {
+                AssignmentId = assignmentId,
+                Status = ProviderExecutionStatus.Succeeded,
+                ObservedGeneration = request.DesiredGeneration
+            });
     }
 
     private sealed class RecordingExecutionDispatcher : IProviderExecutionDispatcher

@@ -555,6 +555,10 @@ preserving old provider seams:
     status, observed generation, provider-owned observations, diagnostics, and
     enough correlation data for Resource Manager to relate them to the
     requested desired state.
+  - [x] Enforce provider execution result correlation. The dispatcher rejects a
+    handler result whose assignment ID differs from the request assignment ID,
+    records the failure under the requested assignment, and leaves placement or
+    retargeting decisions with the Control Plane rather than the handler.
   - [x] Preserve the existing Control Plane authority model. Resource Manager
     validates and records desired state, evaluates authorization and action
     capability, coordinates provider operations, and derives resource status.
@@ -702,6 +706,10 @@ preserving old provider seams:
     instruction type, desired generation, target, observed status, diagnostics,
     observations, and timestamps for successful and unavailable in-process
     execution results.
+  - [x] Reject provider execution handler results that report a different
+    assignment ID than the request. Mismatched results become failed
+    observations with a stable provider-execution diagnostic so future
+    agent-backed handlers cannot accidentally retarget assigned work.
   - [x] Route Container Application lifecycle execution through the provider
     execution dispatcher with in-process handlers for start, stop, and restart.
     Image and replica updates remain separate follow-up slices because they

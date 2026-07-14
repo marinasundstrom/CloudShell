@@ -80,6 +80,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Migrated built-in provider operation dispatchers to the provider execution
   request factory so request identity and idempotency construction no longer
   drift across resource categories.
+- Enforced provider execution result assignment correlation so handlers cannot
+  report observations for a different assignment than the requested one.
 - Routed Container Application lifecycle execution through the provider
   execution dispatcher with in-process start, stop, and restart handlers.
 - Routed Container Application image and replica materialization through the

@@ -892,6 +892,11 @@ generation. The execution key may be a public resource action ID when the work
 comes from a resource action, or an internal instruction key when the work is
 part of Control Plane reconciliation.
 
+Provider execution results must correlate to the requested assignment. The
+dispatcher records observations under the request assignment ID and rejects a
+handler result that reports a different assignment ID, because handlers observe
+or realize assigned work; they do not retarget it.
+
 Provider execution payloads are provider-owned execution contracts. They carry
 the narrow runtime context an execution handler needs, such as an orchestrator
 service, replica instance, action, or routing binding list. They are not
