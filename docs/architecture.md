@@ -173,32 +173,38 @@ agent can run the same provider-side operation shape on the machine where the
 capability exists and report observed state back for reconciliation.
 
 Local and single-host environments should not require users or resource
-definitions to name an agent. The default execution participant is implicit in
-the host profile: local development uses the local in-process execution path,
-and a simple shared environment can use its default execution participant the
-same way. Explicit placement or agent selection should appear only when an
-environment has multiple execution participants and the user or scheduler needs
-to constrain where work can run. Regions and data-center-like topology belong
-after that: they are placement and capacity metadata for larger environments,
-not concepts the local development model should force users to provide.
+definitions to name an agent. The default execution target is implicit in the
+host profile: local development uses the local in-process execution path, and a
+simple shared environment can use its default execution target the same way.
+The intermediate milestone is agent-targetable execution, not full distributed
+topology: Resource Manager should be able to produce a typed execution request
+that could be routed to an agent later, while the current implementation still
+handles that request in the same Control Plane process. Explicit agent or host
+selection should appear only when an environment actually has multiple
+execution targets and the user, operator, or scheduler needs to constrain where
+work can run. Regions and data-center-like topology belong after that as
+deferred placement metadata for larger environments, not concepts the local
+development model should force users to provide.
 
-The future distributed model should stay cloud-like and simple:
+The preparation path is:
 
 ```text
-Environment authority
-    owns resource state, policy, identity, operations, and reconciliation
+Current MVP
+    one Control Plane host, implicit default execution target
 
-Location / region
-    groups capacity, failure domains, latency, and operator intent
+Execution-boundary MVP
+    one Control Plane host, typed execution requests and observed results
 
-Execution participant
-    runs provider-side work such as containers, processes, filesystem
-    materialization, mounts, host networking, and runtime observation
+Agent transition
+    same execution requests can be routed to an agent instead of local DI
+
+Distributed hosting later
+    multiple agents, placement policy, regions, and failure domains
 ```
 
-Users normally work with resources and, when needed, logical locations. Agents
-or execution participants are operational implementation details unless an
-operator is configuring capacity or diagnosing placement.
+Users normally work with resources. Agents are operational execution targets,
+and regions are later placement metadata; neither should become required
+resource-definition input for the MVP path.
 
 The architecture should allow more than one Control Plane deployment shape. A
 small environment can run one in-process Control Plane. A shared environment
@@ -371,12 +377,13 @@ lease-owned reconciliation duties, background workers, and provider adapters
 without changing the resource model exposed to users.
 
 The first scale-out step should remain a normal shared environment, not a
-multi-region cluster: one environment authority, one implicit default region,
-and one or more execution participants that report observed state while the
-Control Plane coordinates reconciliation. Explicit regions, data-center
-boundaries, and multi-host placement policies can layer on later when the
-environment needs capacity partitioning, failure-domain awareness, or
-operator-directed placement.
+multi-region cluster: one environment authority and one implicit default
+execution target that can later be replaced by or mapped to an agent. The
+architecture work before agents should focus on making execution targetable
+and observable while the Control Plane still owns orchestration. Explicit
+regions, data-center boundaries, and multi-host placement policies can layer
+on after the agent transition when the environment needs capacity partitioning,
+failure-domain awareness, or operator-directed placement.
 
 A multi-Control Plane or federated deployment represents several environment
 authorities. CoreShell and Resource Manager should be able to present those

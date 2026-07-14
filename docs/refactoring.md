@@ -524,6 +524,12 @@ preserving old provider seams:
     dependency injection, but Control Plane services should call a narrow
     provider execution port instead of directly depending on concrete runtime
     handlers or host command runners.
+  - [ ] Make execution agent-targetable before introducing agents. Resource
+    Manager should be able to produce typed execution requests that identify
+    the operation and required capabilities, while the current dispatcher
+    still resolves an in-process handler through local service registration.
+    This is the MVP transition point between direct Control Plane execution
+    and a future remote agent transport.
   - [ ] Keep remote execution concerns deferred while still designing for
     them. Do not introduce agent processes, transport protocols, host
     registration, cluster scheduling, or distributed leases until at least two
@@ -538,9 +544,9 @@ preserving old provider seams:
     the normal local and single-host case; the Control Plane derives the
     execution target from the host profile, provider capability, and later
     placement policy only when more than one participant exists.
-  - [ ] Defer explicit region and data-center topology until multi-participant
-    environments need it. The first execution boundary should assume one
-    implicit default region; later placement metadata can add regions,
+  - [ ] Defer explicit region and data-center topology until after the agent
+    transition. The first execution boundary should assume one implicit
+    default execution target; later placement metadata can add regions,
     failure domains, and capacity pools without changing resource definitions
     for local development.
   - [ ] Treat handler results as observations. Results should carry observed
