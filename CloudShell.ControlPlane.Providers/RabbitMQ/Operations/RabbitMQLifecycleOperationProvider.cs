@@ -4,10 +4,12 @@ public sealed class RabbitMQStartOperationProvider :
     RabbitMQLifecycleOperationProvider
 {
     public RabbitMQStartOperationProvider(
-        IRabbitMQRuntimeHandler? runtimeHandler = null)
+        IRabbitMQRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             RabbitMQResourceTypeProvider.Operations.Start,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
@@ -16,10 +18,12 @@ public sealed class RabbitMQStopOperationProvider :
     RabbitMQLifecycleOperationProvider
 {
     public RabbitMQStopOperationProvider(
-        IRabbitMQRuntimeHandler? runtimeHandler = null)
+        IRabbitMQRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             RabbitMQResourceTypeProvider.Operations.Stop,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
@@ -28,22 +32,29 @@ public sealed class RabbitMQRestartOperationProvider :
     RabbitMQLifecycleOperationProvider
 {
     public RabbitMQRestartOperationProvider(
-        IRabbitMQRuntimeHandler? runtimeHandler = null)
+        IRabbitMQRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             RabbitMQResourceTypeProvider.Operations.Restart,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
 
 public abstract class RabbitMQLifecycleOperationProvider(
     ResourceOperationId operationId,
-    IRabbitMQRuntimeHandler? runtimeHandler = null) :
+    IRabbitMQRuntimeHandler? runtimeHandler = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
     private readonly IRabbitMQRuntimeHandler _runtimeHandler =
         runtimeHandler ?? new NoopRabbitMQRuntimeHandler();
+
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? CreateDefaultDispatcher(
+            runtimeHandler ?? new NoopRabbitMQRuntimeHandler());
 
     public ResourceOperationId OperationId { get; } = operationId;
 
@@ -77,17 +88,30 @@ public abstract class RabbitMQLifecycleOperationProvider(
             new RabbitMQLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeHandler));
+                _runtimeHandler,
+                _dispatcher));
+
+    private static IProviderExecutionDispatcher CreateDefaultDispatcher(
+        IRabbitMQRuntimeHandler runtimeHandler) =>
+        new InProcessProviderExecutionDispatcher(
+            [
+                new RabbitMQStartExecutionHandler(runtimeHandler),
+                new RabbitMQStopExecutionHandler(runtimeHandler),
+                new RabbitMQRestartExecutionHandler(runtimeHandler)
+            ]);
 }
 
 public sealed class RabbitMQLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IRabbitMQRuntimeHandler runtimeHandler) : IResourceOperationExecutorProjection
+    IRabbitMQRuntimeHandler runtimeHandler,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
     private readonly IRabbitMQRuntimeHandler _runtimeHandler = runtimeHandler;
+
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -120,15 +144,25 @@ public sealed class RabbitMQLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeHandler.ExecuteLifecycleAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = GetInstructionType(OperationId),
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Containers],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(RabbitMQRuntimeStatus status) =>
@@ -141,4 +175,24 @@ public sealed class RabbitMQLifecycleOperation(
                 OperationId == RabbitMQResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == RabbitMQResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.RabbitMQStart;
+        }
+
+        if (operationId == RabbitMQResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.RabbitMQStop;
+        }
+
+        if (operationId == RabbitMQResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.RabbitMQRestart;
+        }
+
+        return operationId.Value;
+    }
 }

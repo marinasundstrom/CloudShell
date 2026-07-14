@@ -281,6 +281,9 @@ public static class ProviderExecutionInstructionTypes
     public const string SqlServerStop = "sqlServer.stop";
     public const string SqlServerRestart = "sqlServer.restart";
     public const string RabbitMQAccessReconcile = "rabbitMQ.access.reconcile";
+    public const string RabbitMQStart = "rabbitMQ.start";
+    public const string RabbitMQStop = "rabbitMQ.stop";
+    public const string RabbitMQRestart = "rabbitMQ.restart";
 }
 
 public static class ProviderExecutionDiagnosticCodes

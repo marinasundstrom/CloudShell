@@ -670,6 +670,67 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal([grant], reconciler.Grants);
     }
 
+    [Fact]
+    public async Task RabbitMQLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var rabbitMQ = CreateGraphResource("rabbitmq:broker", "broker", revision: 4);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new RabbitMQLifecycleOperation(
+            new ResourceProjectionExecutionContext(rabbitMQ, [rabbitMQ]),
+            new ResourceOperationResolution(
+                RabbitMQResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            new RecordingRabbitMQRuntimeHandler(),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.RabbitMQStart, request.InstructionType);
+        Assert.Equal(rabbitMQ.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(4, request.DesiredGeneration);
+        Assert.Equal(
+            $"{rabbitMQ.EffectiveResourceId}:{RabbitMQResourceTypeProvider.Operations.Start}:4",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Containers, request.RequiredCapabilities);
+        Assert.Same(rabbitMQ, request.TargetResourceSnapshot);
+        Assert.Equal([rabbitMQ], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task RabbitMQLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var rabbitMQ = CreateGraphResource("rabbitmq:broker", "broker");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "rabbitmq.lifecycle.test",
+            "RabbitMQ lifecycle applied.",
+            rabbitMQ.EffectiveResourceId);
+        var runtimeHandler = new RecordingRabbitMQRuntimeHandler([diagnostic]);
+        var handler = new RabbitMQStartExecutionHandler(runtimeHandler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.RabbitMQStart,
+            TargetResourceId = rabbitMQ.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "rabbitmq:broker:start:1",
+            TargetResourceSnapshot = rabbitMQ,
+            ResourceSnapshot = [rabbitMQ]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeHandler.LifecycleInvocations);
+        Assert.Same(rabbitMQ, invocation.Resource);
+        Assert.Equal(RabbitMQResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
     private sealed class RecordingExecutionHandler(
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler
@@ -785,6 +846,25 @@ public sealed class ProviderExecutionContractTests
             Grants = grants;
 
             return ValueTask.FromResult(diagnostics);
+        }
+    }
+
+    private sealed class RecordingRabbitMQRuntimeHandler(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : IRabbitMQRuntimeHandler
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public RabbitMQRuntimeStatus GetStatus(GraphResource resource) =>
+            RabbitMQRuntimeStatus.Unknown;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
         }
     }
 

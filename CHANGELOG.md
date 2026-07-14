@@ -62,6 +62,8 @@ on `git blame --follow`, and then by the broad type of change.
   unpause instructions.
 - Routed SQL Server lifecycle execution through the provider execution
   dispatcher with in-process start, stop, and restart handlers.
+- Routed RabbitMQ lifecycle execution through the provider execution dispatcher
+  with in-process start, stop, and restart handlers.
 
 ### 2026-07-13
 

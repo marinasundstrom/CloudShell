@@ -665,6 +665,9 @@ preserving old provider seams:
     dispatcher with in-process handlers for start, stop, and restart. The
     operation still evaluates local runtime status for current capability
     behavior, but runtime materialization now crosses the dispatcher boundary.
+  - [x] Route RabbitMQ lifecycle execution through the provider execution
+    dispatcher with in-process handlers for start, stop, and restart, matching
+    the managed service lifecycle shape now used by SQL Server.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
