@@ -78,6 +78,8 @@ on `git blame --follow`, and then by the broad type of change.
   execution dispatcher with in-process start, stop, and restart handlers.
 - Routed Container Application image and replica materialization through the
   provider execution dispatcher, including deployment reconciliation paths.
+- Routed Load Balancer configuration apply through the provider execution
+  dispatcher with an in-process configuration-apply handler.
 
 ### 2026-07-13
 

@@ -723,6 +723,69 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task LoadBalancerApplyConfigurationOperation_DispatchesApplyInstruction()
+    {
+        var loadBalancer = CreateGraphResource("load-balancer:public", "public", revision: 12);
+        var route = CreateGraphResource("load-balancer-route:api", "api");
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new LoadBalancerApplyConfigurationOperation(
+            new ResourceProjectionExecutionContext(loadBalancer, [loadBalancer, route]),
+            new ResourceOperationResolution(
+                LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.LoadBalancerConfigurationApply, request.InstructionType);
+        Assert.Equal(loadBalancer.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(12, request.DesiredGeneration);
+        Assert.Equal(
+            $"{loadBalancer.EffectiveResourceId}:{LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration}:12",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.LoadBalancing, request.RequiredCapabilities);
+        Assert.Same(loadBalancer, request.TargetResourceSnapshot);
+        Assert.Equal([loadBalancer, route], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task LoadBalancerConfigurationApplyHandler_ReturnsApplierDiagnostics()
+    {
+        var loadBalancer = CreateGraphResource("load-balancer:public", "public");
+        var route = CreateGraphResource("load-balancer-route:api", "api");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "loadBalancer.configuration.test",
+            "Load balancer configuration applied.",
+            loadBalancer.EffectiveResourceId);
+        var applier = new RecordingLoadBalancerConfigurationApplier([diagnostic]);
+        var handler = new LoadBalancerConfigurationApplyExecutionHandler(applier);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.LoadBalancerConfigurationApply,
+            TargetResourceId = loadBalancer.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "load-balancer:public:apply:1",
+            TargetResourceSnapshot = loadBalancer,
+            ResourceSnapshot = [loadBalancer, route]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(loadBalancer, applier.Resource);
+        Assert.NotNull(applier.Context);
+        Assert.Same(loadBalancer, applier.Context.Resource);
+        Assert.Equal([loadBalancer, route], applier.Context.Resources);
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -1372,6 +1435,25 @@ public sealed class ProviderExecutionContractTests
             GraphResource resource,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(diagnostics);
+    }
+
+    private sealed class RecordingLoadBalancerConfigurationApplier(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : ILoadBalancerConfigurationApplier
+    {
+        public GraphResource? Resource { get; private set; }
+
+        public ResourceProjectionExecutionContext? Context { get; private set; }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
+            GraphResource resource,
+            ResourceProjectionExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Resource = resource;
+            Context = context;
+
+            return ValueTask.FromResult(diagnostics);
+        }
     }
 
     private sealed class RecordingContainerApplicationRuntimeHandler(

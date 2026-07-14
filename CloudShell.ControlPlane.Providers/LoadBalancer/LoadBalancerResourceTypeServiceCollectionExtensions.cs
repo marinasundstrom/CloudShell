@@ -22,6 +22,7 @@ public static class LoadBalancerResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
         services.AddNetworkingEndpointGraphShapes();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceAttributeValueShapeProvider, LoadBalancerShapeProvider>());
@@ -42,6 +43,8 @@ public static class LoadBalancerResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, LoadBalancerResourceTypeProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, LoadBalancerGraphValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, LoadBalancerConfigurationApplyExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, LoadBalancerApplyConfigurationOperationProvider>());
         services.TryAddEnumerable(

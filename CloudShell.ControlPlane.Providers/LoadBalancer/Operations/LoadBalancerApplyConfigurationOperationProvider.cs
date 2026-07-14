@@ -1,12 +1,14 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class LoadBalancerApplyConfigurationOperationProvider(
-    ILoadBalancerConfigurationApplier? configurationApplier = null) :
+    ILoadBalancerConfigurationApplier? configurationApplier = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly ILoadBalancerConfigurationApplier _configurationApplier =
-        configurationApplier ?? new NoopLoadBalancerConfigurationApplier();
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [new LoadBalancerConfigurationApplyExecutionHandler(configurationApplier)]);
 
     public ResourceOperationId OperationId =>
         LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration;
@@ -41,18 +43,17 @@ public sealed class LoadBalancerApplyConfigurationOperationProvider(
             new LoadBalancerApplyConfigurationOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _configurationApplier));
+                _dispatcher));
 }
 
 public sealed class LoadBalancerApplyConfigurationOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ILoadBalancerConfigurationApplier configurationApplier) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly ILoadBalancerConfigurationApplier _configurationApplier =
-        configurationApplier;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -90,15 +91,25 @@ public sealed class LoadBalancerApplyConfigurationOperation(
                 ]);
         }
 
-        var diagnostics = await _configurationApplier.ApplyConfigurationAsync(
-            Resource,
-            Context,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.LoadBalancerConfigurationApply,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.LoadBalancing],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private int GetCount(ResourceAttributeId attributeId) =>

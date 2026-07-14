@@ -407,6 +407,7 @@ public static class ProviderExecutionCapabilities
     public const string HostNetworking = "hostNetworking";
     public const string VirtualNetworking = "virtualNetworking";
     public const string DnsNameMappings = "dnsNameMappings";
+    public const string LoadBalancing = "loadBalancing";
     public const string SqlServerAccess = "sqlServerAccess";
     public const string RabbitMQAccess = "rabbitMQAccess";
     public const string HostCommands = "hostCommands";
@@ -444,6 +445,7 @@ public static class ProviderExecutionInstructionTypes
     public const string MacOSHostNetworkEndpointReconcile = "hostNetwork.macos.endpoint.reconcile";
     public const string VirtualNetworkEndpointReconcile = "virtualNetwork.endpoint.reconcile";
     public const string DnsNameMappingReconcile = "dns.nameMapping.reconcile";
+    public const string LoadBalancerConfigurationApply = "loadBalancer.configuration.apply";
     public const string SqlServerAccessReconcile = "sqlServer.access.reconcile";
     public const string SqlServerStart = "sqlServer.start";
     public const string SqlServerStop = "sqlServer.stop";
