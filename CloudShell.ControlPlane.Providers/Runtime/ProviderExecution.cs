@@ -274,6 +274,9 @@ public static class ProviderExecutionInstructionTypes
     public const string EventBrokerStart = "eventBroker.start";
     public const string EventBrokerStop = "eventBroker.stop";
     public const string EventBrokerRestart = "eventBroker.restart";
+    public const string ConfigurationStoreStart = "configurationStore.start";
+    public const string ConfigurationStoreStop = "configurationStore.stop";
+    public const string ConfigurationStoreRestart = "configurationStore.restart";
     public const string FileSystemProvision = "filesystem.provision";
     public const string VolumeMountMaterialize = "volumeMount.materialize";
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";

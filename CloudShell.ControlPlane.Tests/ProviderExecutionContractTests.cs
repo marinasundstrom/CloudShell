@@ -908,6 +908,67 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal(EventBrokerResourceTypeProvider.Operations.Start, invocation.OperationId);
     }
 
+    [Fact]
+    public async Task ConfigurationStoreLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var configurationStore = CreateGraphResource("configuration-store:default", "default", revision: 7);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new ConfigurationStoreLifecycleOperation(
+            new ResourceProjectionExecutionContext(configurationStore, [configurationStore]),
+            new ResourceOperationResolution(
+                ConfigurationStoreResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            new RecordingConfigurationStoreRuntimeController(),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.ConfigurationStoreStart, request.InstructionType);
+        Assert.Equal(configurationStore.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(7, request.DesiredGeneration);
+        Assert.Equal(
+            $"{configurationStore.EffectiveResourceId}:{ConfigurationStoreResourceTypeProvider.Operations.Start}:7",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Processes, request.RequiredCapabilities);
+        Assert.Same(configurationStore, request.TargetResourceSnapshot);
+        Assert.Equal([configurationStore], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task ConfigurationStoreLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var configurationStore = CreateGraphResource("configuration-store:default", "default");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "configurationStore.lifecycle.test",
+            "Configuration Store lifecycle applied.",
+            configurationStore.EffectiveResourceId);
+        var runtimeController = new RecordingConfigurationStoreRuntimeController([diagnostic]);
+        var handler = new ConfigurationStoreStartExecutionHandler(runtimeController);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ConfigurationStoreStart,
+            TargetResourceId = configurationStore.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "configuration-store:default:start:1",
+            TargetResourceSnapshot = configurationStore,
+            ResourceSnapshot = [configurationStore]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeController.LifecycleInvocations);
+        Assert.Same(configurationStore, invocation.Resource);
+        Assert.Equal(ConfigurationStoreResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
     private sealed class RecordingExecutionHandler(
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler
@@ -1067,6 +1128,25 @@ public sealed class ProviderExecutionContractTests
 
     private sealed class RecordingEventBrokerRuntimeController(
         IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : IEventBrokerRuntimeController
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public ResourceWebAppRuntimeStatus GetStatus(GraphResource resource) =>
+            ResourceWebAppRuntimeStatus.Unknown;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingConfigurationStoreRuntimeController(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : IConfigurationStoreRuntimeController
     {
         public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
 

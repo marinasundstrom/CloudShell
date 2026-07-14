@@ -676,6 +676,9 @@ preserving old provider seams:
     dispatcher with in-process process handlers for start, stop, and restart.
     This is the first process-backed managed service to cross the
     instruction/result boundary.
+  - [x] Route Configuration Store lifecycle execution through the provider
+    execution dispatcher with in-process process handlers for start, stop, and
+    restart, matching the Event Broker process-backed boundary shape.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

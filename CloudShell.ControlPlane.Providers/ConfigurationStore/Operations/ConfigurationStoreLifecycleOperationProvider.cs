@@ -1,31 +1,42 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ConfigurationStoreStartOperationProvider(
-    IConfigurationStoreRuntimeController? runtimeController = null) :
+    IConfigurationStoreRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     ConfigurationStoreLifecycleOperationProvider(
         ConfigurationStoreResourceTypeProvider.Operations.Start,
-        runtimeController);
+        runtimeController,
+        dispatcher);
 
 public sealed class ConfigurationStoreStopOperationProvider(
-    IConfigurationStoreRuntimeController? runtimeController = null) :
+    IConfigurationStoreRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     ConfigurationStoreLifecycleOperationProvider(
         ConfigurationStoreResourceTypeProvider.Operations.Stop,
-        runtimeController);
+        runtimeController,
+        dispatcher);
 
 public sealed class ConfigurationStoreRestartOperationProvider(
-    IConfigurationStoreRuntimeController? runtimeController = null) :
+    IConfigurationStoreRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     ConfigurationStoreLifecycleOperationProvider(
         ConfigurationStoreResourceTypeProvider.Operations.Restart,
-        runtimeController);
+        runtimeController,
+        dispatcher);
 
 public abstract class ConfigurationStoreLifecycleOperationProvider(
     ResourceOperationId operationId,
-    IConfigurationStoreRuntimeController? runtimeController = null) :
+    IConfigurationStoreRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
     private readonly IConfigurationStoreRuntimeController _runtimeController =
         runtimeController ?? new NoopConfigurationStoreRuntimeController();
+
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? CreateDefaultDispatcher(
+            runtimeController ?? new NoopConfigurationStoreRuntimeController());
 
     public ResourceOperationId OperationId { get; } = operationId;
 
@@ -59,15 +70,28 @@ public abstract class ConfigurationStoreLifecycleOperationProvider(
             new ConfigurationStoreLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _runtimeController,
+                _dispatcher));
+
+    private static IProviderExecutionDispatcher CreateDefaultDispatcher(
+        IConfigurationStoreRuntimeController runtimeController) =>
+        new InProcessProviderExecutionDispatcher(
+            [
+                new ConfigurationStoreStartExecutionHandler(runtimeController),
+                new ConfigurationStoreStopExecutionHandler(runtimeController),
+                new ConfigurationStoreRestartExecutionHandler(runtimeController)
+            ]);
 }
 
 public sealed class ConfigurationStoreLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IConfigurationStoreRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    IConfigurationStoreRuntimeController runtimeController,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -100,15 +124,25 @@ public sealed class ConfigurationStoreLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await runtimeController.ExecuteAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = GetInstructionType(OperationId),
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Processes],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(ResourceWebAppRuntimeStatus status) =>
@@ -121,4 +155,24 @@ public sealed class ConfigurationStoreLifecycleOperation(
                 OperationId == ConfigurationStoreResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == ConfigurationStoreResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.ConfigurationStoreStart;
+        }
+
+        if (operationId == ConfigurationStoreResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.ConfigurationStoreStop;
+        }
+
+        if (operationId == ConfigurationStoreResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.ConfigurationStoreRestart;
+        }
+
+        return operationId.Value;
+    }
 }
