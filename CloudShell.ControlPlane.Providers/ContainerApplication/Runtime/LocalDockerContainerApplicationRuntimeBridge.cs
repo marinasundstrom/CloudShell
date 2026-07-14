@@ -540,9 +540,9 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
                 "publish",
                 definition.ResolveProjectPath(hostEnvironment),
                 "--os",
-                "linux",
+                definition.ContainerPublishOperatingSystem,
                 "--arch",
-                "x64",
+                definition.ContainerPublishArchitecture,
                 "/t:PublishContainer",
                 $"-p:ContainerRepository={repository}",
                 $"-p:ContainerImageTag={tag}"

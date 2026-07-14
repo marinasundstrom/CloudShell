@@ -2119,7 +2119,7 @@ public sealed class SampleSmokeTests
         {
             var href = stopAction.GetProperty("href").GetString() ??
                 throw new InvalidOperationException($"The graph {label} stop action did not include an href.");
-            await host.SendAsync(HttpMethod.Post, href);
+            await host.SendAsync(HttpMethod.Post, href, timeout: ResourceActionTimeout);
             return;
         }
 
@@ -2662,7 +2662,8 @@ public sealed class SampleSmokeTests
               "triggeredBy": "sample-smoke-test",
               "requestedReplicas": 2
             }
-            """);
+            """,
+            timeout: ResourceActionTimeout);
         using var updateDocument = JsonDocument.Parse(updateJson);
 
         Assert.Contains(
@@ -2689,7 +2690,8 @@ public sealed class SampleSmokeTests
               "restartIfRunning": false,
               "triggeredBy": "sample-smoke-test"
             }
-            """);
+            """,
+            timeout: ResourceActionTimeout);
         using var replicaUpdateDocument = JsonDocument.Parse(replicaUpdateJson);
 
         Assert.Contains(
@@ -3546,7 +3548,8 @@ public sealed class SampleSmokeTests
                 {
                   "image": "{{updatedImage}}"
                 }
-                """);
+                """,
+                timeout: ResourceActionTimeout);
             using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
 
             Assert.True(graphApplyDocument.RootElement.GetProperty("committed").GetBoolean());
@@ -3566,7 +3569,7 @@ public sealed class SampleSmokeTests
                 .GetProperty("container.image.update");
             var updateImageHref = updateImageAction.GetProperty("href").GetString() ??
                 throw new InvalidOperationException("The container image update action did not include an href.");
-            await host.SendAsync(HttpMethod.Post, updateImageHref);
+            await host.SendAsync(HttpMethod.Post, updateImageHref, timeout: ResourceActionTimeout);
             await host.WaitForAbsoluteHttpOkAsync(
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 bearerToken: null,
@@ -3591,7 +3594,8 @@ public sealed class SampleSmokeTests
                   "restartIfRunning": false,
                   "triggeredBy": "sample-smoke-test"
                 }
-                """);
+                """,
+                timeout: ResourceActionTimeout);
             using var graphReplicaUpdateDocument = JsonDocument.Parse(graphReplicaUpdateJson);
 
             Assert.Contains(
@@ -6556,12 +6560,13 @@ public sealed class SampleSmokeTests
             HttpMethod method,
             string path,
             string json,
-            string? bearerToken = null)
+            string? bearerToken = null,
+            TimeSpan? timeout = null)
         {
             using var client = new HttpClient
             {
                 BaseAddress = BaseAddress,
-                Timeout = StartupTimeout
+                Timeout = timeout ?? StartupTimeout
             };
             using var request = new HttpRequestMessage(method, path)
             {
@@ -6576,7 +6581,8 @@ public sealed class SampleSmokeTests
             var body = await response.Content.ReadAsStringAsync();
             Assert.True(
                 response.IsSuccessStatusCode,
-                $"{method} {path} returned {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+                $"{method} {path} returned {(int)response.StatusCode} {response.ReasonPhrase}: {body}" +
+                $"{Environment.NewLine}{GetOutput()}");
             return body;
         }
 

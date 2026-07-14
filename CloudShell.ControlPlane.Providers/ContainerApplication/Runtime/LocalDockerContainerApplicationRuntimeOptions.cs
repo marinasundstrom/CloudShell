@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Hosting;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -85,6 +86,11 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
     public TimeSpan? MaterializationCommandTimeout { get; set; } =
         TimeSpan.FromMinutes(8);
 
+    public string ContainerPublishOperatingSystem { get; set; } = "linux";
+
+    public string ContainerPublishArchitecture { get; set; } =
+        ResolveCurrentContainerPublishArchitecture();
+
     public string ResolveProjectPath(IHostEnvironment? hostEnvironment) =>
         ResolvePath(hostEnvironment, ProjectPath);
 
@@ -122,6 +128,16 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
         Path.IsPathRooted(path) || hostEnvironment is null
             ? path
             : Path.Combine(hostEnvironment.ContentRootPath, path);
+
+    private static string ResolveCurrentContainerPublishArchitecture() =>
+        RuntimeInformation.OSArchitecture switch
+        {
+            Architecture.Arm64 => "arm64",
+            Architecture.Arm => "arm",
+            Architecture.X86 => "x86",
+            Architecture.X64 => "x64",
+            _ => RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant()
+        };
 
     private static string CreateResourceSegment(string resourceId)
     {

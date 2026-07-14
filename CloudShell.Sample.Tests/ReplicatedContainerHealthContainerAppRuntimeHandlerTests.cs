@@ -30,6 +30,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             endpointPort: 5092,
             includeHealthChecks: true);
         var definition = options.Applications[LocalDockerContainerApplicationRuntimeConventions.ApiResourceId];
+        definition.ContainerPublishOperatingSystem = "linux";
+        definition.ContainerPublishArchitecture = "arm64";
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
             resource,
@@ -43,6 +45,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 Assert.Equal("dotnet", command.FileName);
                 Assert.Equal("publish", command.Arguments[0]);
                 Assert.Contains("samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj", command.Arguments);
+                AssertCommandOption(command, "--os", "linux");
+                AssertCommandOption(command, "--arch", "arm64");
                 Assert.Contains("-p:ContainerRepository=cloudshell-application-api", command.Arguments);
                 Assert.Contains("-p:ContainerImageTag=20260622.2", command.Arguments);
                 Assert.Equal(definition.MaterializationCommandTimeout, command.Timeout);
@@ -155,6 +159,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 Assert.Equal("dotnet", command.FileName);
                 Assert.Equal("publish", command.Arguments[0]);
                 Assert.Contains("src/Api/Api.csproj", command.Arguments);
+                AssertCommandOption(command, "--os", "linux");
+                Assert.False(string.IsNullOrWhiteSpace(GetCommandOption(command, "--arch")));
                 Assert.Contains("-p:ContainerRepository=cloudshell-application-api", command.Arguments);
                 Assert.Contains("-p:ContainerImageTag=20260622.2", command.Arguments);
             },
@@ -1471,6 +1477,27 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal("docker", command.FileName);
         Assert.Equal(["network", "create", "cloudshell"], command.Arguments);
         Assert.False(command.ThrowOnError);
+    }
+
+    private static void AssertCommandOption(
+        RecordingCommand command,
+        string option,
+        string expectedValue) =>
+        Assert.Equal(expectedValue, GetCommandOption(command, option));
+
+    private static string? GetCommandOption(
+        RecordingCommand command,
+        string option)
+    {
+        for (var index = 0; index < command.Arguments.Count - 1; index++)
+        {
+            if (string.Equals(command.Arguments[index], option, StringComparison.Ordinal))
+            {
+                return command.Arguments[index + 1];
+            }
+        }
+
+        return null;
     }
 
     private static void AssertDockerRun(

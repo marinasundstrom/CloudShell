@@ -26,6 +26,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Hardened SQL Server local Docker restart by waiting until Docker reports the
   old container removed before recreating it, with a longer removal timeout for
   slower Docker hosts.
+- Changed local Docker container app `.NET SDK` image publishing to use a
+  runtime-configurable container publish target and default the architecture to
+  the current host architecture instead of always publishing `linux/x64`.
+- Extended sample smoke JSON-backed resource action calls to use the longer
+  resource-action timeout, covering container app image rollout and replica
+  update paths.
 
 ### 2026-07-14
 

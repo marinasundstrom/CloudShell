@@ -344,12 +344,14 @@ proven patterns.
 
 The supported sample surface remains the main MVP proof. Docker-backed
 container-app starts now distinguish host readiness from longer resource
-actions and bound image materialization commands with runtime diagnostics, but
-the broad Docker-backed smoke suite still should not be treated as green until
-it has been re-run end to end on a healthy Docker host. The remaining MVP work
-should therefore bias toward release-quality local-development behavior rather
-than opening new platform fronts or repeatedly polishing secondary editor
-surfaces:
+actions, bound image materialization commands with runtime diagnostics, and
+publish project-backed images for the current host architecture by default.
+The previously failing ReplicatedContainerHealth and SignalR container-app
+smoke paths pass individually on the local Docker host, but the broad
+Docker-backed smoke suite still should not be treated as green until it has
+been re-run end to end on a healthy Docker host. The remaining MVP work should
+therefore bias toward release-quality local-development behavior rather than
+opening new platform fronts or repeatedly polishing secondary editor surfaces:
 
 - Keep supported samples building and smoke-testing.
 - Keep targeted fake-adapter, in-memory, and runtime-handler sample tests
