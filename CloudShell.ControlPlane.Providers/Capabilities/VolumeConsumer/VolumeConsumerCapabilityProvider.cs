@@ -4,11 +4,50 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class VolumeConsumerCapabilityProvider :
     IResourceCapabilityProvider,
-    IResourceCapabilityProjector
+    IResourceCapabilityProjector,
+    IResourceCapabilityAttributeProvider
 {
     public static readonly ResourceCapabilityId CapabilityIdValue = "storage.volumeConsumer";
+    private static readonly ResourceAttributeId CapabilityAttributeId =
+        ResourceAttributeId.Create(CapabilityIdValue.ToString());
 
     public ResourceCapabilityId CapabilityId => CapabilityIdValue;
+
+    public IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition> AttributeDefinitions { get; } =
+        new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            [CapabilityAttributeId] = new(
+                Description: "Volume mount declarations used by the volume-consumer capability.",
+                ValueType: ResourceAttributeValueType.ComplexType,
+                ValueShape: new(
+                    new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["mounts"] = ResourceAttributeDefinition.Collection(
+                            ResourceAttributeValueType.ComplexType,
+                            itemShape: new(
+                                new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                                {
+                                    ["volume"] = new(
+                                        ValueType: ResourceAttributeValueType.String,
+                                        Required: true),
+                                    ["targetPath"] = new(
+                                        ValueType: ResourceAttributeValueType.String,
+                                        Required: true),
+                                    ["readOnly"] = new(ValueType: ResourceAttributeValueType.Boolean)
+                                }),
+                            collection: new(MinSize: 1),
+                            required: true,
+                            requiredMessage: "At least one volume mount is required.")
+                    }),
+                Path: CapabilityIdValue,
+                Aliases:
+                [
+                    "volumeConsumer"
+                ])
+        };
+
+    public IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition> AttributeValueShapes { get; } =
+        new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>();
 
     public bool CanValidate(
         Resource resource,

@@ -50,6 +50,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource type/class attributes plus selected capability-owned attributes.
 - Changed the provider execution dispatcher registration to singleton so
   singleton operation providers can resolve it under host service validation.
+- Added capability attribute providers to ResourceDefinition resolution so
+  selected capabilities can contribute behavior-specific attribute schemas,
+  path canonicalization, and value validation.
 
 ### 2026-07-13
 

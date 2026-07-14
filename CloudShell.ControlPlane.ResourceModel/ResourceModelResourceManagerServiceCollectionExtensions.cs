@@ -137,7 +137,8 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                     .Select(group => group.Last()),
                 typeProviders.Select(provider => provider.TypeDefinition),
                 serviceProvider.GetServices<IResourceAttributeValidator>(),
-                serviceProvider.GetServices<IResourceAttributeValueShapeProvider>());
+                serviceProvider.GetServices<IResourceAttributeValueShapeProvider>(),
+                serviceProvider.GetServices<IResourceCapabilityAttributeProvider>());
         });
 
         return services;

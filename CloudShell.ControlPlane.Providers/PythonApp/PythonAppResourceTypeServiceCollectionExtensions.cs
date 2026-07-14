@@ -48,6 +48,8 @@ public static class PythonAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceCapabilityProjector, VolumeConsumerCapabilityProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceCapabilityAttributeProvider, VolumeConsumerCapabilityProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, VolumeConsumerGraphValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, PythonAppReferenceGraphValidator>());

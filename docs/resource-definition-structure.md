@@ -463,7 +463,8 @@ reserved provider namespace, while an unset defined attribute may be valid,
 defaultable, required, or provider-managed depending on its
 `ResourceAttributeDefinition`.
 
-Capabilities may also contribute attribute definitions and validators. For
+Capabilities attach behavior to resources and may contribute the attribute
+definitions and validators that configure or describe that behavior. For
 example, a volume-consumer capability can define the mount-related attributes
 or payload shape it needs, and validate those values when the capability is
 declared on a class, type, or resource. Some capability attributes are

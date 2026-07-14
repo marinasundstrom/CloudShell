@@ -5,6 +5,8 @@ public sealed class ResourceResolver
     private readonly IReadOnlyDictionary<ResourceClassId, ResourceClassDefinition> _classDefinitions;
     private readonly IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> _typeDefinitions;
     private readonly IReadOnlyList<IResourceAttributeValidator> _attributeValidators;
+    private readonly IReadOnlyDictionary<ResourceCapabilityId, IResourceCapabilityAttributeProvider>
+        _capabilityAttributeProviders;
     private readonly IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
         _sharedAttributeValueShapes;
 
@@ -12,7 +14,8 @@ public sealed class ResourceResolver
         IEnumerable<ResourceClassDefinition> classDefinitions,
         IEnumerable<ResourceTypeDefinition> typeDefinitions,
         IEnumerable<IResourceAttributeValidator>? attributeValidators = null,
-        IEnumerable<IResourceAttributeValueShapeProvider>? attributeValueShapeProviders = null)
+        IEnumerable<IResourceAttributeValueShapeProvider>? attributeValueShapeProviders = null,
+        IEnumerable<IResourceCapabilityAttributeProvider>? capabilityAttributeProviders = null)
     {
         ArgumentNullException.ThrowIfNull(classDefinitions);
         ArgumentNullException.ThrowIfNull(typeDefinitions);
@@ -22,6 +25,9 @@ public sealed class ResourceResolver
         _typeDefinitions = typeDefinitions.ToDictionary(
             definition => definition.TypeId);
         _attributeValidators = attributeValidators?.ToArray() ?? [];
+        _capabilityAttributeProviders = (capabilityAttributeProviders ?? [])
+            .GroupBy(provider => provider.CapabilityId)
+            .ToDictionary(group => group.Key, group => group.Last());
         _sharedAttributeValueShapes = MergeAttributeValueShapeProviders(attributeValueShapeProviders);
     }
 
@@ -34,6 +40,7 @@ public sealed class ResourceResolver
         return Resolve(
             ResourceState.FromDefinition(definition),
             validateReadOnlyDefinitionAttributes: true,
+            canonicalizeDefinitionAttributePaths: true,
             context);
     }
 
@@ -43,11 +50,13 @@ public sealed class ResourceResolver
         Resolve(
             state,
             validateReadOnlyDefinitionAttributes: false,
+            canonicalizeDefinitionAttributePaths: false,
             context);
 
     private Resource Resolve(
         ResourceState state,
         bool validateReadOnlyDefinitionAttributes,
+        bool canonicalizeDefinitionAttributePaths,
         ResourceDefinitionResolutionContext? context = null)
     {
         ArgumentNullException.ThrowIfNull(state);
@@ -72,11 +81,36 @@ public sealed class ResourceResolver
             diagnostics);
         var resourceClass = ResolveResourceClass(classDefinition);
         var resourceType = ResolveResourceType(resourceClass, typeDefinition, diagnostics);
-        var attributes = ResolveAttributes(resourceType, state);
         var capabilities = ResolveCapabilities(resourceType, state);
+        var capabilityAttributeDefinitions = ResolveCapabilityAttributeDefinitions(capabilities);
+        var capabilityAttributeValueShapes = ResolveCapabilityAttributeValueShapes(capabilities);
+        var composedShapeDefinitions = MergeAttributeValueShapeDefinitions(
+            _sharedAttributeValueShapes,
+            classDefinition.AttributeValueShapes,
+            typeDefinition.AttributeValueShapes,
+            capabilityAttributeValueShapes);
+
+        ValidateAttributeDefinitionDefaults(
+            capabilityAttributeDefinitions,
+            composedShapeDefinitions,
+            ResourceDefinitionValueSource.CapabilityDefinition,
+            diagnostics);
+
+        if (canonicalizeDefinitionAttributePaths)
+        {
+            state = CanonicalizeAttributePaths(
+                state,
+                classDefinition,
+                typeDefinition,
+                capabilityAttributeDefinitions,
+                diagnostics);
+            capabilities = ResolveCapabilities(resourceType, state);
+        }
+
+        var attributes = ResolveAttributes(resourceType, state, capabilityAttributeDefinitions);
         var operations = ResolveOperations(resourceType, state, diagnostics);
 
-        ValidateRequiredAttributes(classDefinition, typeDefinition, attributes, diagnostics);
+        ValidateRequiredAttributes(classDefinition, typeDefinition, capabilityAttributeDefinitions, attributes, diagnostics);
         ValidateRequiredCapabilities(capabilities, diagnostics);
         if (validateReadOnlyDefinitionAttributes)
         {
@@ -87,7 +121,9 @@ public sealed class ResourceResolver
             state,
             classDefinition,
             typeDefinition,
+            capabilityAttributeDefinitions,
             _sharedAttributeValueShapes,
+            capabilityAttributeValueShapes,
             diagnostics);
         ValidateAttributes(
             state,
@@ -176,6 +212,86 @@ public sealed class ResourceResolver
             ResolveTypeCapabilities(resourceClass.Definition, typeDefinition),
             ResolveTypeOperations(resourceClass.Definition, typeDefinition, diagnostics));
 
+    private IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? ResolveCapabilityAttributeDefinitions(
+        ResourceCapabilitySet capabilities)
+    {
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>();
+
+        foreach (var capability in capabilities)
+        {
+            if (!_capabilityAttributeProviders.TryGetValue(capability.Id, out var provider))
+            {
+                continue;
+            }
+
+            foreach (var (attributeId, attributeDefinition) in provider.AttributeDefinitions)
+            {
+                attributes[attributeId] = attributeDefinition;
+            }
+        }
+
+        return attributes.Count == 0 ? null : attributes;
+    }
+
+    private IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>?
+        ResolveCapabilityAttributeValueShapes(ResourceCapabilitySet capabilities)
+    {
+        var shapes = new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>();
+
+        foreach (var capability in capabilities)
+        {
+            if (!_capabilityAttributeProviders.TryGetValue(capability.Id, out var provider))
+            {
+                continue;
+            }
+
+            foreach (var (shapeId, shapeDefinition) in provider.AttributeValueShapes)
+            {
+                shapes[shapeId] = shapeDefinition;
+            }
+        }
+
+        return shapes.Count == 0 ? null : shapes;
+    }
+
+    private static ResourceState CanonicalizeAttributePaths(
+        ResourceState state,
+        ResourceClassDefinition classDefinition,
+        ResourceTypeDefinition typeDefinition,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? capabilityAttributeDefinitions,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (state.Attributes is null || state.Attributes.Count == 0)
+        {
+            return state;
+        }
+
+        var result = new ResourceDefinition(
+                state.Name,
+                state.TypeId,
+                state.ResourceId,
+                state.ProviderId,
+                state.DisplayName,
+                state.Version,
+                state.DependsOn,
+                state.Attributes,
+                state.Capabilities,
+                state.Operations,
+                state.Metadata)
+            .CanonicalizeAttributePaths(
+                ResourceAttributePathResolver.FromDefinitionSets(
+                    classDefinition.Attributes,
+                    typeDefinition.Attributes,
+                    capabilityAttributeDefinitions));
+
+        diagnostics.AddRange(result.Diagnostics);
+
+        return state with
+        {
+            Attributes = result.Definition.Attributes
+        };
+    }
+
     private static ResourceAttributeSet ResolveClassAttributes(ResourceClassDefinition classDefinition)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
@@ -239,16 +355,22 @@ public sealed class ResourceResolver
 
     private static ResourceAttributeSet ResolveAttributes(
         ResourceType resourceType,
-        ResourceState state)
+        ResourceState state,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? capabilityAttributeDefinitions)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
-        var readOnlyAttributes = ResolveReadOnlyAttributeIds(resourceType);
-        var attributeMutability = ResolveAttributeMutability(resourceType);
+        var readOnlyAttributes = ResolveReadOnlyAttributeIds(resourceType, capabilityAttributeDefinitions);
+        var attributeMutability = ResolveAttributeMutability(resourceType, capabilityAttributeDefinitions);
 
         foreach (var attribute in resourceType.Attributes)
         {
             attributes[attribute.Name] = attribute;
         }
+
+        MergeAttributeDefinitions(
+            attributes,
+            capabilityAttributeDefinitions,
+            ResourceDefinitionValueSource.CapabilityDefinition);
 
         MergeAttributes(
             attributes,
@@ -261,11 +383,13 @@ public sealed class ResourceResolver
     }
 
     private static IReadOnlySet<ResourceAttributeId> ResolveReadOnlyAttributeIds(
-        ResourceType resourceType)
+        ResourceType resourceType,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? capabilityAttributeDefinitions)
     {
         var readOnlyAttributes = new HashSet<ResourceAttributeId>();
         MergeReadOnlyAttributeDefinitions(readOnlyAttributes, resourceType.Class.Definition.Attributes);
         MergeReadOnlyAttributeDefinitions(readOnlyAttributes, resourceType.Definition.Attributes);
+        MergeReadOnlyAttributeDefinitions(readOnlyAttributes, capabilityAttributeDefinitions);
         return readOnlyAttributes;
     }
 
@@ -306,11 +430,13 @@ public sealed class ResourceResolver
     }
 
     private static IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeMutability> ResolveAttributeMutability(
-        ResourceType resourceType)
+        ResourceType resourceType,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? capabilityAttributeDefinitions)
     {
         var attributeMutability = new Dictionary<ResourceAttributeId, ResourceAttributeMutability>();
         MergeAttributeMutability(attributeMutability, resourceType.Class.Definition.Attributes);
         MergeAttributeMutability(attributeMutability, resourceType.Definition.Attributes);
+        MergeAttributeMutability(attributeMutability, capabilityAttributeDefinitions);
         return attributeMutability;
     }
 
@@ -519,10 +645,11 @@ public sealed class ResourceResolver
     private static void ValidateRequiredAttributes(
         ResourceClassDefinition classDefinition,
         ResourceTypeDefinition typeDefinition,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? capabilityAttributeDefinitions,
         ResourceAttributeSet attributes,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        foreach (var requirement in EnumerateRequirements(classDefinition, typeDefinition))
+        foreach (var requirement in EnumerateRequirements(classDefinition, typeDefinition, capabilityAttributeDefinitions))
         {
             if (!attributes.Has(requirement.Name) ||
                 string.IsNullOrWhiteSpace(attributes.GetString(requirement.Name)))
@@ -537,7 +664,8 @@ public sealed class ResourceResolver
 
     private static IEnumerable<ResourceAttributeRequirement> EnumerateRequirements(
         ResourceClassDefinition classDefinition,
-        ResourceTypeDefinition typeDefinition)
+        ResourceTypeDefinition typeDefinition,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? capabilityAttributeDefinitions)
     {
         var requirements = new Dictionary<ResourceAttributeId, ResourceAttributeRequirement>();
 
@@ -567,6 +695,19 @@ public sealed class ResourceResolver
         if (typeDefinition.Attributes is not null)
         {
             foreach (var (name, attributeDefinition) in typeDefinition.Attributes)
+            {
+                if (attributeDefinition.Required)
+                {
+                    requirements[name] = new(
+                        name,
+                        attributeDefinition.RequiredMessage);
+                }
+            }
+        }
+
+        if (capabilityAttributeDefinitions is not null)
+        {
+            foreach (var (name, attributeDefinition) in capabilityAttributeDefinitions)
             {
                 if (attributeDefinition.Required)
                 {
@@ -617,20 +758,24 @@ public sealed class ResourceResolver
         ResourceState state,
         ResourceClassDefinition classDefinition,
         ResourceTypeDefinition typeDefinition,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? capabilityAttributeDefinitions,
         IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? sharedShapeDefinitions,
+        IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? capabilityShapeDefinitions,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         var shapeDefinitions = MergeAttributeValueShapeDefinitions(
             sharedShapeDefinitions,
             classDefinition.AttributeValueShapes,
-            typeDefinition.AttributeValueShapes);
+            typeDefinition.AttributeValueShapes,
+            capabilityShapeDefinitions);
 
         foreach (var (name, value) in state.ResourceAttributeValues)
         {
             var definition = ResolveAttributeDefinition(
                 name,
                 classDefinition.Attributes,
-                typeDefinition.Attributes);
+                typeDefinition.Attributes,
+                capabilityAttributeDefinitions);
             if (definition is null)
             {
                 continue;
@@ -651,8 +796,15 @@ public sealed class ResourceResolver
     private static ResourceAttributeDefinition? ResolveAttributeDefinition(
         ResourceAttributeId name,
         IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? classAttributes,
-        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? typeAttributes)
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? typeAttributes,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? capabilityAttributes)
     {
+        if (capabilityAttributes is not null &&
+            capabilityAttributes.TryGetValue(name, out var capabilityDefinition))
+        {
+            return capabilityDefinition;
+        }
+
         if (typeAttributes is not null &&
             typeAttributes.TryGetValue(name, out var typeDefinition))
         {

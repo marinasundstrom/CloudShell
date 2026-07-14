@@ -13,6 +13,8 @@ public sealed class ResourceDefinitionValidationPipeline
         IEnumerable<IResourceCapabilityProvider>? capabilityProviders = null,
         IEnumerable<IResourceOperationProvider>? operationProviders = null,
         IEnumerable<IResourceAttributeValidator>? attributeValidators = null,
+        IEnumerable<IResourceAttributeValueShapeProvider>? attributeValueShapeProviders = null,
+        IEnumerable<IResourceCapabilityAttributeProvider>? capabilityAttributeProviders = null,
         IEnumerable<IResourceCapabilityProjector>? capabilityProjectors = null,
         IEnumerable<IResourceOperationProjector>? operationProjectors = null)
     {
@@ -27,7 +29,9 @@ public sealed class ResourceDefinitionValidationPipeline
         _resolver = new(
             resolvedClassDefinitions,
             materializedTypeProviders.Select(provider => provider.TypeDefinition),
-            attributeValidators);
+            attributeValidators,
+            attributeValueShapeProviders,
+            capabilityAttributeProviders);
         _dispatcher = new(
             materializedTypeProviders,
             capabilityProviders ?? [],

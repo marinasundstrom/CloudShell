@@ -772,6 +772,128 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
+    public void Resolve_CanonicalizesAttributePathsFromSelectedCapabilitySchema()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            capabilityAttributeProviders:
+            [
+                new TestCapabilityAttributeProvider(
+                    "runtime.health",
+                    "capability.healthChecks",
+                    new(
+                        ValueType: ResourceAttributeValueType.String,
+                        Path: "health.checks"))
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["health.checks"] = "enabled"
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                ["runtime.health"] = ResourceDefinitionJson.EmptyObject
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        Assert.Empty(resolved.Diagnostics);
+        Assert.Equal("enabled", resolved.Attributes.GetString("capability.healthChecks"));
+        Assert.Null(resolved.Attributes.Resolve("health.checks"));
+        Assert.True(resolved.Attributes.Resolve("capability.healthChecks")?.IsDefined);
+        Assert.Equal(
+            ResourceDefinitionValueSource.ResourceState,
+            resolved.Attributes.Resolve("capability.healthChecks")?.Source);
+    }
+
+    [Fact]
+    public void Resolve_DoesNotUseCapabilityAttributeSchemaWhenCapabilityIsNotSelected()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            capabilityAttributeProviders:
+            [
+                new TestCapabilityAttributeProvider(
+                    "runtime.health",
+                    "capability.healthChecks",
+                    new(
+                        ValueType: ResourceAttributeValueType.String,
+                        Path: "health.checks"))
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["health.checks"] = "enabled"
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        Assert.Empty(resolved.Diagnostics);
+        Assert.Equal("enabled", resolved.Attributes.GetString("health.checks"));
+        Assert.Null(resolved.Attributes.Resolve("capability.healthChecks"));
+        Assert.False(resolved.Attributes.Resolve("health.checks")?.IsDefined);
+    }
+
+    [Fact]
+    public void Resolve_ValidatesCanonicalizedCapabilityAttributeValues()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            capabilityAttributeProviders:
+            [
+                new TestCapabilityAttributeProvider(
+                    "runtime.scaling",
+                    "capability.replicas",
+                    new(
+                        ValueType: ResourceAttributeValueType.Integer,
+                        Path: "scale.replicas"))
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["scale.replicas"] = "many"
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                ["runtime.scaling"] = ResourceDefinitionJson.EmptyObject
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeValueInvalid, diagnostic.Code);
+        Assert.Equal("capability.replicas", diagnostic.Target);
+        Assert.Equal("many", resolved.Attributes.GetString("capability.replicas"));
+    }
+
+    [Fact]
     public void ResourceDefinition_CanRoundTripPlainJsonPayloads()
     {
         var definition = new ResourceDefinition(
@@ -816,6 +938,23 @@ public sealed class ResourceResolverTests
         string Volume,
         string TargetPath,
         bool ReadOnly);
+
+    private sealed class TestCapabilityAttributeProvider(
+        ResourceCapabilityId capabilityId,
+        ResourceAttributeId attributeId,
+        ResourceAttributeDefinition attributeDefinition) : IResourceCapabilityAttributeProvider
+    {
+        public ResourceCapabilityId CapabilityId { get; } = capabilityId;
+
+        public IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition> AttributeDefinitions { get; } =
+            new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                [attributeId] = attributeDefinition
+            };
+
+        public IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition> AttributeValueShapes { get; } =
+            new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>();
+    }
 
     private static class VolumeConsumerCapabilityProvider
     {

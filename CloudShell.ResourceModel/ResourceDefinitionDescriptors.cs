@@ -127,6 +127,7 @@ public enum ResourceDefinitionValueSource
 {
     ClassDefinition,
     TypeDefinition,
+    CapabilityDefinition,
     ResourceState,
     Preset
 }

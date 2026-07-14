@@ -592,6 +592,10 @@ preserving old provider seams:
     definitions with selected capability definitions, so capabilities can make
     reusable authored attributes valid for a resource without making the
     resource type own those attribute IDs.
+  - [x] Add a capability attribute-provider contract and wire it into
+    ResourceDefinition resolution so selected class/type/resource capabilities
+    can contribute inherited attribute definitions, path canonicalization, and
+    value validation.
 - [ ] Define provider validation contracts for attributes and capabilities.
   Providers should be able to validate whether a declared or deployed resource
   state conforms to the provider-supported schema and capability set.
