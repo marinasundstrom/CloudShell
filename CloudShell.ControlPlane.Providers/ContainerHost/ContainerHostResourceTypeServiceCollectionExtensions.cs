@@ -11,6 +11,8 @@ public static class ContainerHostResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -29,6 +31,8 @@ public static class ContainerHostResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerHostInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerHostInspectOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerHostInspectExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ContainerHostResourceProjectionProvider>());
         services.TryAddEnumerable(

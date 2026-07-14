@@ -1,12 +1,20 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class ContainerHostInspectOperationProvider(
-    IContainerHostInspector? inspector = null) :
+public sealed class ContainerHostInspectOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IContainerHostInspector _inspector =
-        inspector ?? new NoopContainerHostInspector();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public ContainerHostInspectOperationProvider(
+        IContainerHostInspector? inspector = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new ContainerHostInspectExecutionHandler(inspector)
+            ]);
+    }
 
     public ResourceOperationId OperationId =>
         ContainerHostResourceTypeProvider.Operations.Inspect;
@@ -41,17 +49,17 @@ public sealed class ContainerHostInspectOperationProvider(
             new ContainerHostInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _inspector));
+                _dispatcher));
 }
 
 public sealed class ContainerHostInspectOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IContainerHostInspector inspector) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IContainerHostInspector _inspector = inspector;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -89,14 +97,19 @@ public sealed class ContainerHostInspectOperation(
                 ]);
         }
 
-        var diagnostics = await _inspector.InspectAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.ContainerHostInspect,
+                [ProviderExecutionCapabilities.RuntimeObservation],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 

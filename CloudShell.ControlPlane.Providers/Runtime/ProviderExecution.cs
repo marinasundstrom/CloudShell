@@ -661,6 +661,7 @@ public static class ProviderExecutionInstructionTypes
     public const string StorageVolumeProvision = "storage.volume.provision";
     public const string IdentityProvisioningSetup = "identityProvisioning.setup";
     public const string ServiceReconcile = "service.reconcile";
+    public const string ContainerHostInspect = "containerHost.inspect";
     public const string DockerHostInspect = "dockerHost.inspect";
     public const string SqlServerAccessReconcile = "sqlServer.access.reconcile";
     public const string SqlDatabaseEnsureCreated = "sqlDatabase.ensureCreated";
