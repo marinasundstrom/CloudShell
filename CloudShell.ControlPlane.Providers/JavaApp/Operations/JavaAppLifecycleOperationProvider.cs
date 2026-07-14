@@ -4,10 +4,12 @@ public sealed class JavaAppStartOperationProvider :
     JavaAppLifecycleOperationProvider
 {
     public JavaAppStartOperationProvider(
-        IJavaAppRuntimeController? runtimeController = null)
+        IJavaAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             JavaAppResourceTypeProvider.Operations.Start,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -16,10 +18,12 @@ public sealed class JavaAppRestartOperationProvider :
     JavaAppLifecycleOperationProvider
 {
     public JavaAppRestartOperationProvider(
-        IJavaAppRuntimeController? runtimeController = null)
+        IJavaAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             JavaAppResourceTypeProvider.Operations.Restart,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -28,24 +32,39 @@ public sealed class JavaAppStopOperationProvider :
     JavaAppLifecycleOperationProvider
 {
     public JavaAppStopOperationProvider(
-        IJavaAppRuntimeController? runtimeController = null)
+        IJavaAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             JavaAppResourceTypeProvider.Operations.Stop,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
 
-public abstract class JavaAppLifecycleOperationProvider(
-    ResourceOperationId operationId,
-    IJavaAppRuntimeController? runtimeController = null) :
+public abstract class JavaAppLifecycleOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IJavaAppRuntimeController _runtimeController =
-        runtimeController ?? new NoopJavaAppRuntimeController();
+    private readonly IJavaAppRuntimeController _runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher;
 
-    public ResourceOperationId OperationId { get; } = operationId;
+    protected JavaAppLifecycleOperationProvider(
+        ResourceOperationId operationId,
+        IJavaAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        OperationId = operationId;
+        _runtimeController = runtimeController ?? new NoopJavaAppRuntimeController();
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new JavaAppStartExecutionHandler(_runtimeController),
+                new JavaAppStopExecutionHandler(_runtimeController),
+                new JavaAppRestartExecutionHandler(_runtimeController)
+            ]);
+    }
+
+    public ResourceOperationId OperationId { get; }
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -77,18 +96,21 @@ public abstract class JavaAppLifecycleOperationProvider(
             new JavaAppLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _runtimeController,
+                _dispatcher));
 }
 
 public sealed class JavaAppLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IJavaAppRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    IJavaAppRuntimeController runtimeController,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
     private readonly IJavaAppRuntimeController _runtimeController =
         runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -123,15 +145,19 @@ public sealed class JavaAppLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeController.ExecuteAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                GetInstructionType(OperationId),
+                [ProviderExecutionCapabilities.Processes],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(JavaAppRuntimeStatus status) =>
@@ -144,4 +170,25 @@ public sealed class JavaAppLifecycleOperation(
                 OperationId == JavaAppResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == JavaAppResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.JavaAppStart;
+        }
+
+        if (operationId == JavaAppResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.JavaAppStop;
+        }
+
+        if (operationId == JavaAppResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.JavaAppRestart;
+        }
+
+        throw new InvalidOperationException(
+            $"Java app lifecycle operation '{operationId}' does not have a provider execution instruction.");
+    }
 }

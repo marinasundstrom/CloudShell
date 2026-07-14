@@ -766,6 +766,10 @@ preserving old provider seams:
     execution dispatcher with in-process start, stop, and restart handlers,
     moving the local Node.js process sample onto the same provider execution
     boundary while preserving existing action availability checks.
+  - [x] Route Java app lifecycle execution through the provider execution
+    dispatcher with in-process start, stop, and restart handlers, moving the
+    local Java process sample onto the same provider execution boundary while
+    preserving existing action availability checks.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
@@ -784,8 +788,8 @@ preserving old provider seams:
     Docker container runtime handler, SQL Server local Docker runtime,
     RabbitMQ local Docker runtime, Traefik/load-balancer runtime, local
     hostname publishing/resolver refresh, virtual-network endpoint mapping,
-    and process-backed Java, Go, Python, and device-registry runtime
-    controllers. ASP.NET Core, JavaScript, executable, configuration-store,
+    and process-backed Go, Python, and device-registry runtime controllers.
+    ASP.NET Core, JavaScript, Java, executable, configuration-store,
     secrets-vault, and event-broker runtime controllers now have dispatched
     entry points for their MVP lifecycle paths.
   - [x] Introduce a small execution contract in the provider/runtime layer,
