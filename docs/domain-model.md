@@ -880,6 +880,12 @@ helpers instead of hard-coding string literals or route templates. The list of
 actions on a resource means "this operation exists for this resource"; it does
 not mean the current caller can execute the operation right now.
 
+Provider execution instructions are a different concept. They are
+control-plane-to-execution-boundary messages used to realize provider work.
+Resource actions may dispatch provider execution instructions, but internal
+reconciliation steps should remain execution instructions unless CloudShell
+intentionally exposes them as resource-domain behavior.
+
 ### Resource action capability
 
 A resource action capability describes whether a resource action can currently

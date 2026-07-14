@@ -33,7 +33,6 @@ public sealed class ContainerApplicationResourceTypeProvider :
         public static readonly ResourceOperationId Restart = "restart";
         public static readonly ResourceOperationId UpdateImage = "container.image.update";
         public static readonly ResourceOperationId UpdateReplicas = "container.replicas.update";
-        public static readonly ResourceOperationId ReconcileRouting = "container.routing.reconcile";
     }
 
     public ResourceTypeId TypeId => ResourceTypeId;

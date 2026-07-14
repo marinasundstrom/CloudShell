@@ -67,12 +67,12 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         var diagnostics = _runtimeHandler.GetStatus(context.GraphResource) == ContainerApplicationRuntimeStatus.Running
             ? await ExecuteRuntimeInstructionAsync(
                 context.GraphResource,
-                ContainerApplicationResourceTypeProvider.Operations.UpdateImage,
+                ContainerApplicationResourceTypeProvider.Operations.UpdateImage.Value,
                 ProviderExecutionInstructionTypes.ContainerApplicationImageApply,
                 cancellationToken)
             : await ExecuteRuntimeInstructionAsync(
                 context.GraphResource,
-                ContainerApplicationResourceTypeProvider.Operations.Start,
+                ContainerApplicationResourceTypeProvider.Operations.Start.Value,
                 ProviderExecutionInstructionTypes.ContainerApplicationStart,
                 cancellationToken);
         ThrowIfErrors(diagnostics);
@@ -89,7 +89,7 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
 
         var diagnostics = await ExecuteRuntimeInstructionAsync(
             context.GraphResource,
-            ContainerApplicationResourceTypeProvider.Operations.ReconcileRouting,
+            ProviderExecutionInstructionTypes.ContainerApplicationRoutingReconcile,
             ProviderExecutionInstructionTypes.ContainerApplicationRoutingReconcile,
             cancellationToken,
             [
@@ -133,12 +133,12 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
             context.ReplicaGroup.RequestedReplicas > desiredReplicas
                 ? await ExecuteRuntimeInstructionAsync(
                     context.GraphResource,
-                    ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas,
+                    ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas.Value,
                     ProviderExecutionInstructionTypes.ContainerApplicationReplicasApply,
                     cancellationToken)
                 : await ExecuteRuntimeInstructionAsync(
                     context.GraphResource,
-                    ContainerApplicationResourceTypeProvider.Operations.Stop,
+                    ContainerApplicationResourceTypeProvider.Operations.Stop.Value,
                     ProviderExecutionInstructionTypes.ContainerApplicationStop,
                     cancellationToken);
         ThrowIfErrors(diagnostics);
@@ -146,7 +146,7 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
 
     private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteRuntimeInstructionAsync(
         Resource resource,
-        ResourceOperationId operationId,
+        string executionKey,
         string instructionType,
         CancellationToken cancellationToken,
         IReadOnlyList<string>? requiredCapabilities = null,
@@ -155,11 +155,11 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         var result = await _dispatcher.ExecuteAsync(
             new ProviderExecutionRequest
             {
-                AssignmentId = $"{resource.EffectiveResourceId}:{operationId}",
+                AssignmentId = $"{resource.EffectiveResourceId}:{executionKey}",
                 InstructionType = instructionType,
                 TargetResourceId = resource.EffectiveResourceId,
                 DesiredGeneration = resource.Revision.Value,
-                IdempotencyKey = $"{resource.EffectiveResourceId}:{operationId}:{resource.Revision.Value}",
+                IdempotencyKey = $"{resource.EffectiveResourceId}:{executionKey}:{resource.Revision.Value}",
                 RequiredCapabilities = requiredCapabilities ?? [ProviderExecutionCapabilities.Containers],
                 TargetResourceSnapshot = resource,
                 ResourceSnapshot = [resource],

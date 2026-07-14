@@ -80,6 +80,9 @@ on `git blame --follow`, and then by the broad type of change.
   provider execution dispatcher, including deployment reconciliation paths.
 - Routed Container Application orchestrator routing reconciliation through the
   provider execution dispatcher with a typed routing payload.
+- Clarified the naming boundary between resource-domain operations and
+  provider execution instructions, and stopped modeling Container Application
+  routing reconciliation as an internal resource operation.
 - Routed Load Balancer configuration apply through the provider execution
   dispatcher with an in-process configuration-apply handler.
 - Routed CloudShell Volume provisioning through the provider execution

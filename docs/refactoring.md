@@ -615,7 +615,7 @@ preserving old provider seams:
     so samples do not wire descriptor providers separately for the same
     resource id.
 - [ ] Define a provider execution boundary for host-local runtime work. The
-  boundary should describe typed provider operations, desired generation,
+  boundary should describe typed provider execution instructions, desired generation,
   observed state, diagnostics, idempotency, and lease-friendly execution
   metadata without introducing remote agents yet. The goal is to let current
   in-process runtimes and future agents execute the same provider-side
@@ -730,11 +730,16 @@ preserving old provider seams:
     configuration-store, secrets-vault, event-broker, and device-registry
     runtime controllers.
   - [x] Introduce a small execution contract in the provider/runtime layer,
-    not as an agent API yet. A first version should model operation type,
+    not as an agent API yet. A first version should model instruction type,
     target resource id, desired generation or revision, capability
     requirements, idempotency key, and provider-owned payload, with a result
     that carries observed status, observed generation, diagnostics, and
     provider-owned observations.
+  - [x] Clarify the naming boundary between resource-domain operations and
+    provider execution instructions. `ResourceOperationId` remains for
+    behavior exposed on a resource. Dispatcher-only reconciliation work uses
+    execution keys and instruction types instead of introducing internal
+    resource operations.
   - [x] Pick one low-risk operation and introduce the first typed execution
     request/result contract around the existing handler without changing user
     behavior. Good candidates are DNS/name-mapping reconcile or virtual-network

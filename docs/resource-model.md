@@ -639,6 +639,14 @@ Actions are domain operations, not UI buttons. The Control Plane validates
 state, authorization, provider support, and action capabilities before
 execution.
 
+Resource actions are separate from provider execution instructions. Actions
+describe behavior exposed on a resource for callers that manage or consume
+that resource. Execution instructions describe provider-side work that
+materializes desired state, such as reconciling routing or applying runtime
+configuration. A resource action may emit one or more execution instructions,
+but internal orchestration steps do not need to be modeled as resource actions
+unless they are part of the resource's public operation surface.
+
 Helper properties on `Resource`:
 
 ```csharp
