@@ -308,6 +308,102 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void AttributePathResolver_ComposesResourceAndCapabilityDefinitions()
+    {
+        var resourceTypeDefinitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["application.containerImage"] = new(Path: "container.image")
+        };
+        var capabilityDefinitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["capability.health.checks"] = ResourceAttributeDefinition.Collection(
+                ResourceAttributeValueType.ComplexType,
+                path: "health.checks",
+                aliases: ["checks"])
+        };
+
+        var resolver = ResourceAttributePathResolver.FromDefinitionSets(
+            resourceTypeDefinitions,
+            capabilityDefinitions);
+
+        Assert.True(resolver.TryResolve("container.image", out var imageAttributeId));
+        Assert.True(resolver.TryResolve("health.checks", out var healthChecksAttributeId));
+        Assert.True(resolver.TryResolve("checks", out var healthChecksAliasAttributeId));
+        Assert.Equal("application.containerImage", imageAttributeId);
+        Assert.Equal("capability.health.checks", healthChecksAttributeId);
+        Assert.Equal("capability.health.checks", healthChecksAliasAttributeId);
+        Assert.Empty(resolver.Conflicts);
+    }
+
+    [Fact]
+    public void AttributePathResolver_ReportsConflictsAcrossComposedDefinitionSets()
+    {
+        var resourceTypeDefinitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["application.healthChecks"] = new(Path: "health.checks")
+        };
+        var capabilityDefinitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["capability.health.checks"] = new(Path: "health.checks")
+        };
+
+        var resolver = ResourceAttributePathResolver.FromDefinitionSets(
+            resourceTypeDefinitions,
+            capabilityDefinitions);
+
+        Assert.False(resolver.TryResolve("health.checks", out _));
+        var conflict = Assert.Single(resolver.Conflicts);
+        Assert.Equal("health.checks", conflict.Path);
+        Assert.Equal(
+            [
+                ResourceAttributeId.Create("application.healthChecks"),
+                ResourceAttributeId.Create("capability.health.checks")
+            ],
+            conflict.AttributeIds);
+    }
+
+    [Fact]
+    public void CanonicalizeAttributePaths_UsesComposedCapabilityDefinitions()
+    {
+        var resourceTypeDefinitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["application.containerImage"] = new(Path: "container.image")
+        };
+        var capabilityDefinitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            ["capability.health.checks"] = ResourceAttributeDefinition.Collection(
+                ResourceAttributeValueType.ComplexType,
+                path: "health.checks")
+        };
+        var definition = new ResourceDefinition(
+            "api",
+            "application.container-app",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["container.image"] = "api:latest",
+                ["health.checks"] = ResourceAttributeValue.FromObject(new[]
+                {
+                    new Dictionary<string, string>
+                    {
+                        ["path"] = "/healthz"
+                    }
+                })
+            });
+
+        var result = definition.CanonicalizeAttributePaths(
+            ResourceAttributePathResolver.FromDefinitionSets(
+                resourceTypeDefinitions,
+                capabilityDefinitions));
+
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal("api:latest", result.Definition.ResourceAttributes["application.containerImage"]);
+        Assert.True(result.Definition.ResourceAttributeValues.ContainsKey("capability.health.checks"));
+        Assert.False(result.Definition.ResourceAttributes.ContainsKey("container.image"));
+        Assert.False(result.Definition.ResourceAttributeValues.ContainsKey("health.checks"));
+    }
+
+    [Fact]
     public void ResourceTypeDefinition_CanReferenceReusableComplexAttributeShapeAsJsonTarget()
     {
         var typeDefinition = new ResourceTypeDefinition(

@@ -46,6 +46,10 @@ on `git blame --follow`, and then by the broad type of change.
   paths and aliases back to canonical `ResourceAttributeId` values.
 - Added opt-in resource definition attribute-path canonicalization with
   diagnostics for ambiguous paths and duplicate inputs.
+- Added composed attribute path resolution so resource schemas can include
+  resource type/class attributes plus selected capability-owned attributes.
+- Changed the provider execution dispatcher registration to singleton so
+  singleton operation providers can resolve it under host service validation.
 
 ### 2026-07-13
 

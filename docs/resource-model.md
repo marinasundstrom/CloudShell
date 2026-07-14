@@ -737,12 +737,15 @@ logic still needs to be migrated incrementally so templates prefer `Path` and
 accept `Aliases` before falling back to dotted-ID grouping. The Resource model
 includes a schema-local `ResourceAttributePathResolver` that can resolve
 canonical IDs, authored paths, and aliases to canonical `ResourceAttributeId`
-values and report ambiguous paths before a caller applies them.
-Because the resolver is built from one resource type, class, or capability
-schema at a time, the same authored path can be reused by another schema and
-resolve to a different canonical attribute ID there. The owning schema is what
-gives the path meaning; the canonical ID is what provider and runtime code use
-after resolution.
+values and report ambiguous paths before a caller applies them. A resolver can
+be built from the composed schema for one resource: the resource class, the
+resource type, and any selected capabilities that contribute attributes. This
+lets a capability make additional authored attributes valid for a resource
+without forcing those attributes into the resource type's ID namespace.
+Because the resolver is built from one composed schema at a time, the same
+authored path can be reused by another schema and resolve to a different
+canonical attribute ID there. The owning schema is what gives the path meaning;
+the canonical ID is what provider and runtime code use after resolution.
 
 The desired compatibility model is:
 
@@ -752,6 +755,12 @@ The desired compatibility model is:
   resource type or capability.
 - `Aliases` accept older dotted IDs or previous document paths during import.
 - `DisplayName` is presentation only and never participates in addressing.
+- Capabilities may contribute attributes that are not logically owned by any
+  one resource type. Declaring or inheriting that capability makes those
+  attributes part of the resource's accepted schema.
+- Future capability selection may attach a capability when an authored
+  resource uses one of its attributes, if the provider/capability contract
+  declares that inference safe and unambiguous.
 - `ParentResourceId`, `OwnerResourceId`, dependencies, and references express
   resource relationships; attribute IDs should not encode resource hierarchy.
 

@@ -20,9 +20,13 @@ public sealed class ResourceAttributePathResolver
     public IReadOnlyList<ResourceAttributePathConflict> Conflicts { get; }
 
     public static ResourceAttributePathResolver FromDefinitions(
-        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? definitions)
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? definitions) =>
+        FromDefinitionSets(definitions);
+
+    public static ResourceAttributePathResolver FromDefinitionSets(
+        params IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>?[] definitionSets)
     {
-        if (definitions is null || definitions.Count == 0)
+        if (definitionSets.Length == 0 || definitionSets.All(definitions => definitions is null || definitions.Count == 0))
         {
             return Empty;
         }
@@ -30,14 +34,22 @@ public sealed class ResourceAttributePathResolver
         var candidates = new Dictionary<string, List<ResourceAttributeId>>(
             StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (attributeId, definition) in definitions)
+        foreach (var definitions in definitionSets)
         {
-            AddCandidate(candidates, attributeId.ToString(), attributeId);
-            AddCandidate(candidates, definition.Path, attributeId);
-
-            foreach (var alias in definition.Aliases ?? [])
+            if (definitions is null)
             {
-                AddCandidate(candidates, alias, attributeId);
+                continue;
+            }
+
+            foreach (var (attributeId, definition) in definitions)
+            {
+                AddCandidate(candidates, attributeId.ToString(), attributeId);
+                AddCandidate(candidates, definition.Path, attributeId);
+
+                foreach (var alias in definition.Aliases ?? [])
+                {
+                    AddCandidate(candidates, alias, attributeId);
+                }
             }
         }
 

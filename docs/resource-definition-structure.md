@@ -311,9 +311,11 @@ Schema-aware import/export paths should use the Resource model's
 `ResourceAttributePathResolver` to resolve authored paths and aliases to
 canonical IDs and to reject or report ambiguous paths before applying
 attributes.
-The resolver is schema-local, so two resource types can expose the same
-authored path while resolving it to different canonical IDs owned by their
-respective schemas.
+The resolver is schema-local and can be built from the resource class,
+resource type, and selected capability attribute definitions for one resource.
+That means two resource types, or two capabilities used in different resource
+schemas, can expose the same authored path while resolving it to different
+canonical IDs owned by their respective schemas.
 
 ```yaml
 container:
@@ -464,7 +466,9 @@ defaultable, required, or provider-managed depending on its
 Capabilities may also contribute attribute definitions and validators. For
 example, a volume-consumer capability can define the mount-related attributes
 or payload shape it needs, and validate those values when the capability is
-declared on a class or type. The graph should still store accepted
+declared on a class, type, or resource. Some capability attributes are
+intentionally reusable across resource types and are not logically owned by
+the resource type that consumes them. The graph should still store accepted
 resource-owned values as attributes; the capability supplies part of the
 contract that explains and validates those attributes.
 

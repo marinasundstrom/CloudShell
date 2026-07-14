@@ -10,7 +10,7 @@ public static class ProviderExecutionServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.TryAddScoped<IProviderExecutionDispatcher, InProcessProviderExecutionDispatcher>();
+        services.TryAddSingleton<IProviderExecutionDispatcher, InProcessProviderExecutionDispatcher>();
 
         return services;
     }

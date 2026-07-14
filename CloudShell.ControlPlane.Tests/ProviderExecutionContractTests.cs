@@ -1,5 +1,6 @@
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ResourceModel;
+using Microsoft.Extensions.DependencyInjection;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.ControlPlane.Tests;
@@ -138,6 +139,32 @@ public sealed class ProviderExecutionContractTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(ProviderExecutionDiagnosticCodes.RequiredCapabilityMissing, diagnostic.Code);
         Assert.Equal(request.TargetResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public void ServiceRegistration_ValidatesSingletonOperationProvidersWithDispatcher()
+    {
+        var services = new ServiceCollection();
+        services.AddProviderExecutionDispatcher();
+        services.AddSingleton<IProviderExecutionHandler>(
+            new RecordingExecutionHandler(
+                ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
+                [ProviderExecutionCapabilities.HostNetworking]));
+        services.AddSingleton<
+            IResourceOperationProvider,
+            NetworkReconcileEndpointMappingsOperationProvider>();
+        services.AddSingleton<
+            IResourceOperationProjector,
+            NetworkReconcileEndpointMappingsOperationProvider>();
+
+        using var serviceProvider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true
+            });
+
+        Assert.NotNull(serviceProvider.GetRequiredService<IProviderExecutionDispatcher>());
     }
 
     [Fact]
