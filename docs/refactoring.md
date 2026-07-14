@@ -800,8 +800,9 @@ preserving old provider seams:
     JavaScript, Java, Go, Python, Device Registry, executable,
     configuration-store, secrets-vault, event-broker, identity provisioning
     setup, SQL Database ensure-created, Service reconcile, and Docker Host
-    inspect, Container Host inspect, and Storage inspect controllers now have
-    dispatched entry points for their MVP execution paths.
+    inspect, Container Host inspect, Storage inspect, and Host Configuration
+    Source inspect controllers now have dispatched entry points for their MVP
+    execution paths.
   - [x] Introduce a small execution contract in the provider/runtime layer,
     not as an agent API yet. A first version should model instruction type,
     target resource id, desired generation or revision, capability

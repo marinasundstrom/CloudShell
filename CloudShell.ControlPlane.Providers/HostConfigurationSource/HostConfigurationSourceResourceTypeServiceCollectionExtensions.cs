@@ -22,6 +22,8 @@ public static class HostConfigurationSourceResourceTypeServiceCollectionExtensio
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -40,6 +42,8 @@ public static class HostConfigurationSourceResourceTypeServiceCollectionExtensio
             ServiceDescriptor.Singleton<IResourceOperationProvider, HostConfigurationSourceInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, HostConfigurationSourceInspectOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, HostConfigurationSourceInspectExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, HostConfigurationSourceResourceProjectionProvider>());
         services.TryAddSingleton<

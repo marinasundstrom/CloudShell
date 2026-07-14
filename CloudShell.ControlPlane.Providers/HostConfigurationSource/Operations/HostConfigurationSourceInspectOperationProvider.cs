@@ -1,12 +1,20 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class HostConfigurationSourceInspectOperationProvider(
-    IHostConfigurationSourceInspector? inspector = null) :
+public sealed class HostConfigurationSourceInspectOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IHostConfigurationSourceInspector _inspector =
-        inspector ?? new NoopHostConfigurationSourceInspector();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public HostConfigurationSourceInspectOperationProvider(
+        IHostConfigurationSourceInspector? inspector = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new HostConfigurationSourceInspectExecutionHandler(inspector)
+            ]);
+    }
 
     public ResourceOperationId OperationId =>
         HostConfigurationSourceResourceTypeProvider.Operations.Inspect;
@@ -41,17 +49,17 @@ public sealed class HostConfigurationSourceInspectOperationProvider(
             new HostConfigurationSourceInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _inspector));
+                _dispatcher));
 }
 
 public sealed class HostConfigurationSourceInspectOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IHostConfigurationSourceInspector inspector) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IHostConfigurationSourceInspector _inspector = inspector;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -89,14 +97,19 @@ public sealed class HostConfigurationSourceInspectOperation(
                 ]);
         }
 
-        var diagnostics = await _inspector.InspectAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.HostConfigurationSourceInspect,
+                [ProviderExecutionCapabilities.RuntimeObservation],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private static int GetEntryCount(Resource resource) =>

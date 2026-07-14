@@ -663,6 +663,7 @@ public static class ProviderExecutionInstructionTypes
     public const string ServiceReconcile = "service.reconcile";
     public const string ContainerHostInspect = "containerHost.inspect";
     public const string DockerHostInspect = "dockerHost.inspect";
+    public const string HostConfigurationSourceInspect = "hostConfigurationSource.inspect";
     public const string StorageInspect = "storage.inspect";
     public const string SqlServerAccessReconcile = "sqlServer.access.reconcile";
     public const string SqlDatabaseEnsureCreated = "sqlDatabase.ensureCreated";

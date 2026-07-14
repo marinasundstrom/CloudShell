@@ -1901,6 +1901,64 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task HostConfigurationSourceInspectOperation_DispatchesInspectInstruction()
+    {
+        var source = CreateGraphResource("configuration.host:local", "local", revision: 59);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new HostConfigurationSourceInspectOperation(
+            new ResourceProjectionExecutionContext(source, [source]),
+            new ResourceOperationResolution(
+                HostConfigurationSourceResourceTypeProvider.Operations.Inspect,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.HostConfigurationSourceInspect, request.InstructionType);
+        Assert.Equal(source.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(59, request.DesiredGeneration);
+        Assert.Equal(
+            $"{source.EffectiveResourceId}:{HostConfigurationSourceResourceTypeProvider.Operations.Inspect}:59",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.RuntimeObservation, request.RequiredCapabilities);
+        Assert.Same(source, request.TargetResourceSnapshot);
+        Assert.Equal([source], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task HostConfigurationSourceInspectHandler_ReturnsInspectorDiagnostics()
+    {
+        var source = CreateGraphResource("configuration.host:local", "local");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "hostConfigurationSource.inspect.test",
+            "Host configuration source inspected.",
+            source.EffectiveResourceId);
+        var inspector = new RecordingHostConfigurationSourceInspector([diagnostic]);
+        var handler = new HostConfigurationSourceInspectExecutionHandler(inspector);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.HostConfigurationSourceInspect,
+            TargetResourceId = source.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "configuration.host:local:inspect:1",
+            TargetResourceSnapshot = source,
+            ResourceSnapshot = [source]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(source, Assert.Single(inspector.InspectInvocations));
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -3056,6 +3114,22 @@ public sealed class ProviderExecutionContractTests
     private sealed class RecordingStorageInspector(
         IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
         : IStorageInspector
+    {
+        public List<GraphResource> InspectInvocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default)
+        {
+            InspectInvocations.Add(resource);
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingHostConfigurationSourceInspector(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
+        : IHostConfigurationSourceInspector
     {
         public List<GraphResource> InspectInvocations { get; } = [];
 
