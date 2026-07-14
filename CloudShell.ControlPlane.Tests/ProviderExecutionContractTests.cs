@@ -1462,6 +1462,69 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task DeviceRegistryLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var registry = CreateGraphResource("iot.device-registry:devices", "devices", revision: 33);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var runtimeController = new RecordingDeviceRegistryRuntimeController(
+            status: ResourceWebAppRuntimeStatus.Stopped);
+        var operation = new DeviceRegistryLifecycleOperation(
+            new ResourceProjectionExecutionContext(registry, [registry]),
+            new ResourceOperationResolution(
+                DeviceRegistryResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            runtimeController,
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.DeviceRegistryStart, request.InstructionType);
+        Assert.Equal(registry.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(33, request.DesiredGeneration);
+        Assert.Equal(
+            $"{registry.EffectiveResourceId}:{DeviceRegistryResourceTypeProvider.Operations.Start}:33",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Processes, request.RequiredCapabilities);
+        Assert.Same(registry, request.TargetResourceSnapshot);
+        Assert.Equal([registry], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task DeviceRegistryLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var registry = CreateGraphResource("iot.device-registry:devices", "devices");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "deviceRegistry.start.test",
+            "Device Registry started.",
+            registry.EffectiveResourceId);
+        var runtimeController = new RecordingDeviceRegistryRuntimeController([diagnostic]);
+        var handler = new DeviceRegistryStartExecutionHandler(runtimeController);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.DeviceRegistryStart,
+            TargetResourceId = registry.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "iot.device-registry:devices:start:1",
+            TargetResourceSnapshot = registry,
+            ResourceSnapshot = [registry]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeController.LifecycleInvocations);
+        Assert.Same(registry, invocation.Resource);
+        Assert.Equal(DeviceRegistryResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -2500,6 +2563,27 @@ public sealed class ProviderExecutionContractTests
         public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
 
         public PythonAppRuntimeStatus GetStatus(GraphResource resource) =>
+            status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingDeviceRegistryRuntimeController(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null,
+        ResourceWebAppRuntimeStatus status = ResourceWebAppRuntimeStatus.Unknown)
+        : IDeviceRegistryRuntimeController
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public ResourceWebAppRuntimeStatus GetStatus(GraphResource resource) =>
             status;
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(

@@ -32,6 +32,8 @@ public static class DeviceRegistryResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -58,6 +60,12 @@ public static class DeviceRegistryResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, DeviceRegistryStopOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, DeviceRegistryRestartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, DeviceRegistryStartExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, DeviceRegistryStopExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, DeviceRegistryRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, DeviceRegistryResourceProjectionProvider>());
         services.TryAddSingleton<DeviceRegistryRuntimeOptions>();

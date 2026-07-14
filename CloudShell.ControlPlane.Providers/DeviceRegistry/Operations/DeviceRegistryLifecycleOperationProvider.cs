@@ -1,33 +1,70 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class DeviceRegistryStartOperationProvider(
-    IDeviceRegistryRuntimeController? runtimeController = null) :
-    DeviceRegistryLifecycleOperationProvider(
-        DeviceRegistryResourceTypeProvider.Operations.Start,
-        runtimeController);
+public sealed class DeviceRegistryStartOperationProvider :
+    DeviceRegistryLifecycleOperationProvider
+{
+    public DeviceRegistryStartOperationProvider(
+        IDeviceRegistryRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+        : base(
+            DeviceRegistryResourceTypeProvider.Operations.Start,
+            runtimeController,
+            dispatcher)
+    {
+    }
+}
 
-public sealed class DeviceRegistryStopOperationProvider(
-    IDeviceRegistryRuntimeController? runtimeController = null) :
-    DeviceRegistryLifecycleOperationProvider(
-        DeviceRegistryResourceTypeProvider.Operations.Stop,
-        runtimeController);
+public sealed class DeviceRegistryStopOperationProvider :
+    DeviceRegistryLifecycleOperationProvider
+{
+    public DeviceRegistryStopOperationProvider(
+        IDeviceRegistryRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+        : base(
+            DeviceRegistryResourceTypeProvider.Operations.Stop,
+            runtimeController,
+            dispatcher)
+    {
+    }
+}
 
-public sealed class DeviceRegistryRestartOperationProvider(
-    IDeviceRegistryRuntimeController? runtimeController = null) :
-    DeviceRegistryLifecycleOperationProvider(
-        DeviceRegistryResourceTypeProvider.Operations.Restart,
-        runtimeController);
+public sealed class DeviceRegistryRestartOperationProvider :
+    DeviceRegistryLifecycleOperationProvider
+{
+    public DeviceRegistryRestartOperationProvider(
+        IDeviceRegistryRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+        : base(
+            DeviceRegistryResourceTypeProvider.Operations.Restart,
+            runtimeController,
+            dispatcher)
+    {
+    }
+}
 
-public abstract class DeviceRegistryLifecycleOperationProvider(
-    ResourceOperationId operationId,
-    IDeviceRegistryRuntimeController? runtimeController = null) :
+public abstract class DeviceRegistryLifecycleOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IDeviceRegistryRuntimeController _runtimeController =
-        runtimeController ?? new NoopDeviceRegistryRuntimeController();
+    private readonly IDeviceRegistryRuntimeController _runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher;
 
-    public ResourceOperationId OperationId { get; } = operationId;
+    protected DeviceRegistryLifecycleOperationProvider(
+        ResourceOperationId operationId,
+        IDeviceRegistryRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        OperationId = operationId;
+        _runtimeController = runtimeController ?? new NoopDeviceRegistryRuntimeController();
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new DeviceRegistryStartExecutionHandler(_runtimeController),
+                new DeviceRegistryStopExecutionHandler(_runtimeController),
+                new DeviceRegistryRestartExecutionHandler(_runtimeController)
+            ]);
+    }
+
+    public ResourceOperationId OperationId { get; }
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -59,15 +96,21 @@ public abstract class DeviceRegistryLifecycleOperationProvider(
             new DeviceRegistryLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _runtimeController,
+                _dispatcher));
 }
 
 public sealed class DeviceRegistryLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IDeviceRegistryRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    IDeviceRegistryRuntimeController runtimeController,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IDeviceRegistryRuntimeController _runtimeController =
+        runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -82,7 +125,7 @@ public sealed class DeviceRegistryLifecycleOperation(
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(IsAvailable && CanExecuteForStatus(
-            runtimeController.GetStatus(Resource)));
+            _runtimeController.GetStatus(Resource)));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -100,15 +143,19 @@ public sealed class DeviceRegistryLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await runtimeController.ExecuteAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                GetInstructionType(OperationId),
+                [ProviderExecutionCapabilities.Processes],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(ResourceWebAppRuntimeStatus status) =>
@@ -121,4 +168,25 @@ public sealed class DeviceRegistryLifecycleOperation(
                 OperationId == DeviceRegistryResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == DeviceRegistryResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.DeviceRegistryStart;
+        }
+
+        if (operationId == DeviceRegistryResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.DeviceRegistryStop;
+        }
+
+        if (operationId == DeviceRegistryResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.DeviceRegistryRestart;
+        }
+
+        throw new InvalidOperationException(
+            $"Device Registry lifecycle operation '{operationId}' does not have a provider execution instruction.");
+    }
 }

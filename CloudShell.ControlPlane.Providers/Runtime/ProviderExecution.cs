@@ -631,6 +631,9 @@ public static class ProviderExecutionInstructionTypes
     public const string PythonAppStart = "pythonApp.start";
     public const string PythonAppStop = "pythonApp.stop";
     public const string PythonAppRestart = "pythonApp.restart";
+    public const string DeviceRegistryStart = "deviceRegistry.start";
+    public const string DeviceRegistryStop = "deviceRegistry.stop";
+    public const string DeviceRegistryRestart = "deviceRegistry.restart";
     public const string ExecutableApplicationStart = "executableApplication.start";
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";

@@ -796,10 +796,10 @@ preserving old provider seams:
     Docker container runtime handler, SQL Server local Docker runtime,
     RabbitMQ local Docker runtime, Traefik/load-balancer runtime, local
     hostname publishing/resolver refresh, virtual-network endpoint mapping,
-    and process-backed device-registry runtime controllers. ASP.NET Core,
-    JavaScript, Java, Go, Python, executable, configuration-store,
-    secrets-vault, and event-broker runtime controllers now have dispatched
-    entry points for their MVP lifecycle paths.
+    and provider-specific process runtime controllers. ASP.NET Core,
+    JavaScript, Java, Go, Python, Device Registry, executable,
+    configuration-store, secrets-vault, and event-broker runtime controllers
+    now have dispatched entry points for their MVP lifecycle paths.
   - [x] Introduce a small execution contract in the provider/runtime layer,
     not as an agent API yet. A first version should model instruction type,
     target resource id, desired generation or revision, capability
