@@ -342,12 +342,16 @@ today's internal components. The MVP goal is to make the current UI coherent
 and maintainable enough that the later extension layer can be built from
 proven patterns.
 
-The supported sample smoke suite is currently green. The remaining MVP work
-should therefore bias toward release-quality local-development behavior rather
-than opening new platform fronts or repeatedly polishing secondary editor
-surfaces:
+The supported sample surface remains the main MVP proof, but the broad
+Docker-backed smoke suite should not be treated as green until the current
+container-app start timeout is closed or explicitly classified as an
+environment/runtime-duration issue. The remaining MVP work should therefore
+bias toward release-quality local-development behavior rather than opening new
+platform fronts or repeatedly polishing secondary editor surfaces:
 
 - Keep supported samples building and smoke-testing.
+- Keep targeted fake-adapter, in-memory, and runtime-handler sample tests
+  green while investigating long-running Docker-backed smoke paths.
 - Keep process-backed sample smoke tests serialized until the samples stop
   sharing mutable runtime resources. Current parallel-safe coverage is limited
   to fake-adapter and in-memory sample tests that use recording runners,

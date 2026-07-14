@@ -32,7 +32,7 @@ public static class ContainerHostResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerHostInspectOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerHostInspectExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerHostInspectExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ContainerHostResourceProjectionProvider>());
         services.TryAddEnumerable(

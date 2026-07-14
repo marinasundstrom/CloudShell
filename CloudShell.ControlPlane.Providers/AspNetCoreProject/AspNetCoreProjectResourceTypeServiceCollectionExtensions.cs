@@ -73,11 +73,11 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, AspNetCoreProjectRestartOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, AspNetCoreProjectStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, AspNetCoreProjectStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, AspNetCoreProjectStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, AspNetCoreProjectStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, AspNetCoreProjectRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, AspNetCoreProjectRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, AspNetCoreProjectResourceProjectionProvider>());
         services.TryAddEnumerable(

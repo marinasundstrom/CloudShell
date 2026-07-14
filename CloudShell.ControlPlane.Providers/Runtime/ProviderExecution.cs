@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -37,14 +38,30 @@ public interface IProviderExecutionObservationStore
         CancellationToken cancellationToken = default);
 }
 
-public sealed class InProcessProviderExecutionDispatcher(
-    IEnumerable<IProviderExecutionHandler> handlers,
-    IProviderExecutionObservationStore? observations = null) : IProviderExecutionDispatcher
+public sealed class InProcessProviderExecutionDispatcher : IProviderExecutionDispatcher
 {
-    private readonly IReadOnlyList<IProviderExecutionHandler> _handlers =
-        handlers.ToArray();
+    private readonly IServiceScopeFactory? _scopeFactory;
 
-    private readonly IProviderExecutionObservationStore? _observations = observations;
+    private readonly IReadOnlyList<IProviderExecutionHandler>? _handlers;
+
+    private readonly IProviderExecutionObservationStore? _observations;
+
+    [ActivatorUtilitiesConstructor]
+    public InProcessProviderExecutionDispatcher(
+        IServiceScopeFactory scopeFactory,
+        IProviderExecutionObservationStore? observations = null)
+    {
+        _scopeFactory = scopeFactory;
+        _observations = observations;
+    }
+
+    public InProcessProviderExecutionDispatcher(
+        IEnumerable<IProviderExecutionHandler> handlers,
+        IProviderExecutionObservationStore? observations = null)
+    {
+        _handlers = handlers.ToArray();
+        _observations = observations;
+    }
 
     public async ValueTask<ProviderExecutionResult> ExecuteAsync(
         ProviderExecutionRequest request,
@@ -79,7 +96,27 @@ public sealed class InProcessProviderExecutionDispatcher(
                 cancellationToken);
         }
 
-        var candidates = _handlers
+        if (_scopeFactory is null)
+        {
+            return await ExecuteWithHandlersAsync(
+                request,
+                _handlers ?? [],
+                cancellationToken);
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        return await ExecuteWithHandlersAsync(
+            request,
+            scope.ServiceProvider.GetServices<IProviderExecutionHandler>(),
+            cancellationToken);
+    }
+
+    private async ValueTask<ProviderExecutionResult> ExecuteWithHandlersAsync(
+        ProviderExecutionRequest request,
+        IEnumerable<IProviderExecutionHandler> handlers,
+        CancellationToken cancellationToken)
+    {
+        var candidates = handlers
             .Where(handler => string.Equals(
                 handler.InstructionType,
                 request.InstructionType,
@@ -569,6 +606,37 @@ public sealed record ProviderExecutionResult
             Observations = observations ?? ProviderExecutionDefaults.EmptyStringDictionary,
             ObservedAt = observedAt
         };
+
+    public ResourceOperationExecutionResult ToResourceOperationExecutionResult(
+        Resource resource,
+        ResourceOperationId operationId)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return new ResourceOperationExecutionResult(
+            resource,
+            operationId,
+            GetResourceOperationDiagnostics(resource, operationId));
+    }
+
+    private IReadOnlyList<ResourceDefinitionDiagnostic> GetResourceOperationDiagnostics(
+        Resource resource,
+        ResourceOperationId operationId)
+    {
+        var diagnostics = Diagnostics ?? [];
+        if (diagnostics.Count > 0 || Status == ProviderExecutionStatus.Succeeded)
+        {
+            return diagnostics;
+        }
+
+        return
+        [
+            ResourceDefinitionDiagnostic.Error(
+                ProviderExecutionDiagnosticCodes.ResultMissingDiagnostics,
+                $"Provider execution instruction for operation '{operationId}' completed with status '{Status}' but returned no diagnostics.",
+                resource.EffectiveResourceId)
+        ];
+    }
 }
 
 public enum ProviderExecutionStatus
@@ -691,6 +759,8 @@ public static class ProviderExecutionDiagnosticCodes
         "providerExecution.executionTargetUnsupported";
     public const string ResultAssignmentMismatch =
         "providerExecution.resultAssignmentMismatch";
+    public const string ResultMissingDiagnostics =
+        "providerExecution.resultMissingDiagnostics";
 }
 
 file static class ProviderExecutionDefaults

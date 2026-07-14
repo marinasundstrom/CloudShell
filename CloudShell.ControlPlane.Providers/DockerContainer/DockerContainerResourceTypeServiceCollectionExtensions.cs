@@ -41,15 +41,15 @@ public static class DockerContainerResourceTypeServiceCollectionExtensions
             NoopDockerContainerRuntimeHandler>();
         services.AddProviderExecutionDispatcher();
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DockerContainerStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DockerContainerStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DockerContainerStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DockerContainerStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DockerContainerPauseExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DockerContainerPauseExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DockerContainerRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DockerContainerRestartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DockerContainerUnpauseExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DockerContainerUnpauseExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, DockerContainerStartOperationProvider>());
         services.TryAddEnumerable(

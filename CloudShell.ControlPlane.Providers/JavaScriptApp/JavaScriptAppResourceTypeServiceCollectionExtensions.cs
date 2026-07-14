@@ -67,11 +67,11 @@ public static class JavaScriptAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, JavaScriptAppRestartOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, JavaScriptAppStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, JavaScriptAppStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, JavaScriptAppStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, JavaScriptAppStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, JavaScriptAppRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, JavaScriptAppRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, JavaScriptAppResourceProjectionProvider>());
         services.TryAddEnumerable(

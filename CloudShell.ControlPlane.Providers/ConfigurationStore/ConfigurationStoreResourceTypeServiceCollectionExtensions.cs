@@ -67,13 +67,13 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ConfigurationStoreResourceProjectionProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ConfigurationStoreStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ConfigurationStoreStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ConfigurationStoreStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ConfigurationStoreStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ConfigurationStoreRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ConfigurationStoreRestartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ConfigurationStoreInspectExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ConfigurationStoreInspectExecutionHandler>());
         services.TryAddSingleton<ConfigurationStoreRuntimeOptions>();
         services.TryAddSingleton<
             IConfigurationStoreRuntimeSettingManager,

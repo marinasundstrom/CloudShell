@@ -46,7 +46,7 @@ public static class LocalHostNetworkResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, LocalHostNetworkResourceProjectionProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, LocalHostNetworkEndpointMappingExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, LocalHostNetworkEndpointMappingExecutionHandler>());
         services.TryAddSingleton<
             ILocalHostNetworkEndpointMappingReconciler,
             NoopLocalHostNetworkEndpointMappingReconciler>();

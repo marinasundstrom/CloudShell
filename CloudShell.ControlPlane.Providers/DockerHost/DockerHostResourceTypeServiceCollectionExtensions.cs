@@ -43,7 +43,7 @@ public static class DockerHostResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, DockerHostInspectOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DockerHostInspectExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DockerHostInspectExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, DockerHostResourceProjectionProvider>());
         services.TryAddSingleton<IDockerHostInspector, NoopDockerHostInspector>();

@@ -54,11 +54,11 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, VolumeConsumerGraphDependencyProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, RabbitMQStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, RabbitMQStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, RabbitMQStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, RabbitMQStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, RabbitMQRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, RabbitMQRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, RabbitMQStartOperationProvider>());
         services.TryAddEnumerable(
@@ -78,7 +78,7 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, RabbitMQResourceProjectionProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, RabbitMQAccessReconcileExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, RabbitMQAccessReconcileExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourcePermissionGrantStatusProvider, RabbitMQPermissionGrantStatusProvider>());
         services.TryAddEnumerable(

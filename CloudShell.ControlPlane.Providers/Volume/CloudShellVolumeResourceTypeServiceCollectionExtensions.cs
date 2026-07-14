@@ -29,7 +29,7 @@ public static class CloudShellVolumeResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, CloudShellVolumeGraphValidator>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, CloudShellVolumeProvisionExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, CloudShellVolumeProvisionExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, CloudShellVolumeProvisionOperationProvider>());
         services.TryAddEnumerable(

@@ -69,11 +69,11 @@ public static class GoAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, GoAppRestartOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, GoAppStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, GoAppStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, GoAppStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, GoAppStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, GoAppRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, GoAppRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, GoAppResourceProjectionProvider>());
         services.TryAddEnumerable(

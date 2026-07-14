@@ -43,7 +43,7 @@ public static class IdentityProvisioningResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, IdentityProvisioningSetupOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, IdentityProvisioningSetupExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, IdentityProvisioningSetupExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, IdentityProvisioningResourceProjectionProvider>());
         services.TryAddSingleton<

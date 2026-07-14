@@ -46,7 +46,7 @@ public static class VirtualNetworkResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, VirtualNetworkResourceProjectionProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, VirtualNetworkEndpointMappingExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, VirtualNetworkEndpointMappingExecutionHandler>());
         services.TryAddSingleton<
             IVirtualNetworkEndpointMappingReconciler,
             NoopVirtualNetworkEndpointMappingReconciler>();

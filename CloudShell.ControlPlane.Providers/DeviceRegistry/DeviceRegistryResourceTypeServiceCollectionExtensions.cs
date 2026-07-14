@@ -61,11 +61,11 @@ public static class DeviceRegistryResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, DeviceRegistryRestartOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DeviceRegistryStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DeviceRegistryStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DeviceRegistryStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DeviceRegistryStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DeviceRegistryRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DeviceRegistryRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, DeviceRegistryResourceProjectionProvider>());
         services.TryAddSingleton<DeviceRegistryRuntimeOptions>();

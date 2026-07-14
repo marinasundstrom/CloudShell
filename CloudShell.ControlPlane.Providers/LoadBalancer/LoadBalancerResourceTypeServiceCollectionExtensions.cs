@@ -44,7 +44,7 @@ public static class LoadBalancerResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, LoadBalancerGraphValidator>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, LoadBalancerConfigurationApplyExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, LoadBalancerConfigurationApplyExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, LoadBalancerApplyConfigurationOperationProvider>());
         services.TryAddEnumerable(

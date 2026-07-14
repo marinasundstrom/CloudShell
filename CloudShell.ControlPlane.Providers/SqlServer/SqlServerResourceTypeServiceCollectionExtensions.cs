@@ -66,11 +66,11 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, VolumeConsumerGraphDependencyProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, SqlServerStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, SqlServerStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, SqlServerStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, SqlServerStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, SqlServerRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, SqlServerRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, SqlServerStartOperationProvider>());
         services.TryAddEnumerable(
@@ -90,7 +90,7 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SqlServerResourceProjectionProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, SqlServerAccessReconcileExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, SqlServerAccessReconcileExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IAspNetCoreProjectRuntimeEnvironmentProvider,

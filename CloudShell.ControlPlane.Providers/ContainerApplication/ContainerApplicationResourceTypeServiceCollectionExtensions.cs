@@ -82,25 +82,25 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceMonitoringProvider, LocalContainerApplicationRuntimeMonitoringProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationRestartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationImageApplyExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationImageApplyExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationReplicasApplyExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationReplicasApplyExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationOrchestratorServicePrepareExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationOrchestratorServicePrepareExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationRoutingReconcileExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationRoutingReconcileExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationRoutingTearDownExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationRoutingTearDownExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationServiceInstanceStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationServiceInstanceStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationServiceInstanceStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, ContainerApplicationServiceInstanceStopExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStartOperationProvider>());
         services.TryAddEnumerable(

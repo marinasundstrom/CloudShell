@@ -34,7 +34,7 @@ public static class MacOSHostNetworkResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, MacOSHostNetworkResourceProjectionProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, MacOSHostNetworkEndpointMappingExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, MacOSHostNetworkEndpointMappingExecutionHandler>());
         services.TryAddSingleton<
             IMacOSHostNetworkEndpointMappingReconciler,
             NoopMacOSHostNetworkEndpointMappingReconciler>();

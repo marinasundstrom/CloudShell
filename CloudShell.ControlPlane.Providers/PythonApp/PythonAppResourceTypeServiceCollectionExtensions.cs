@@ -69,11 +69,11 @@ public static class PythonAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, PythonAppRestartOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, PythonAppStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, PythonAppStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, PythonAppStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, PythonAppStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, PythonAppRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, PythonAppRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, PythonAppResourceProjectionProvider>());
         services.TryAddEnumerable(

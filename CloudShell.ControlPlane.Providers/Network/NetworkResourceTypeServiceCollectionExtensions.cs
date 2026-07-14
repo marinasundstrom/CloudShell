@@ -47,7 +47,7 @@ public static class NetworkResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, NetworkResourceProjectionProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, NetworkEndpointMappingExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, NetworkEndpointMappingExecutionHandler>());
         services.TryAddSingleton<
             INetworkEndpointMappingReconciler,
             NoopNetworkEndpointMappingReconciler>();

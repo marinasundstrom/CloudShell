@@ -106,10 +106,7 @@ public sealed class SecretsVaultInspectOperation(
                 Context.Resources),
             cancellationToken);
 
-        return new ResourceOperationExecutionResult(
-            Resource,
-            OperationId,
-            result.Diagnostics);
+        return result.ToResourceOperationExecutionResult(Resource, OperationId);
     }
 
     private static int GetSecretCount(Resource resource) =>

@@ -43,7 +43,7 @@ public static class HostConfigurationSourceResourceTypeServiceCollectionExtensio
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, HostConfigurationSourceInspectOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, HostConfigurationSourceInspectExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, HostConfigurationSourceInspectExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, HostConfigurationSourceResourceProjectionProvider>());
         services.TryAddSingleton<

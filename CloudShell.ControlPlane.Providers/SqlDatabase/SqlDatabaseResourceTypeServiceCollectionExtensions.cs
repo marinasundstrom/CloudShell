@@ -53,7 +53,7 @@ public static class SqlDatabaseResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, SqlDatabaseEnsureCreatedOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, SqlDatabaseEnsureCreatedExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, SqlDatabaseEnsureCreatedExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SqlDatabaseResourceProjectionProvider>());
         services.TryAddSingleton<

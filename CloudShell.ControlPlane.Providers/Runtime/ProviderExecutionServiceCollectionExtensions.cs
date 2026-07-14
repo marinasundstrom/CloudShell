@@ -13,7 +13,10 @@ public static class ProviderExecutionServiceCollectionExtensions
         services.TryAddSingleton<
             IProviderExecutionObservationStore,
             InMemoryProviderExecutionObservationStore>();
-        services.TryAddSingleton<IProviderExecutionDispatcher, InProcessProviderExecutionDispatcher>();
+        services.TryAddSingleton<IProviderExecutionDispatcher>(serviceProvider =>
+            new InProcessProviderExecutionDispatcher(
+                serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+                serviceProvider.GetService<IProviderExecutionObservationStore>()));
 
         return services;
     }

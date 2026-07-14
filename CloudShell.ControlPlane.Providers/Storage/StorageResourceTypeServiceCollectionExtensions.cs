@@ -31,7 +31,7 @@ public static class StorageResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, StorageInspectOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, StorageInspectExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, StorageInspectExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, StorageResourceProjectionProvider>());
         services.TryAddSingleton<IStorageInspector, NoopStorageInspector>();

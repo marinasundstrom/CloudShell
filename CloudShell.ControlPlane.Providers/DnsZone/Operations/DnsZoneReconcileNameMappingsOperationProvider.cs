@@ -105,10 +105,7 @@ public sealed class DnsZoneReconcileNameMappingsOperation(
                 Context.Resources),
             cancellationToken);
 
-        return new ResourceOperationExecutionResult(
-            Resource,
-            OperationId,
-            result.Diagnostics);
+        return result.ToResourceOperationExecutionResult(Resource, OperationId);
     }
 }
 

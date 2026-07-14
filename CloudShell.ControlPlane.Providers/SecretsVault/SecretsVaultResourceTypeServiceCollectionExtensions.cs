@@ -68,13 +68,13 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SecretsVaultResourceProjectionProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, SecretsVaultStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, SecretsVaultStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, SecretsVaultStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, SecretsVaultStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, SecretsVaultRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, SecretsVaultRestartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, SecretsVaultInspectExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, SecretsVaultInspectExecutionHandler>());
         services.TryAddSingleton<SecretsVaultRuntimeOptions>();
         services.TryAddSingleton<
             ISecretsVaultRuntimeSecretManager,

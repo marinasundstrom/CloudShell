@@ -717,6 +717,16 @@ preserving old provider seams:
     assignment ID than the request. Mismatched results become failed
     observations with a stable provider-execution diagnostic so future
     agent-backed handlers cannot accidentally retarget assigned work.
+  - [x] Add an architecture guard for operation providers so future provider
+    work keeps state-changing runtime behavior behind provider execution
+    instructions instead of reintroducing direct runtime seam calls.
+  - [x] Harden provider execution result projection so non-succeeded
+    dispatcher results that omit diagnostics still become actionable
+    resource-operation diagnostics.
+  - [x] Keep provider execution handlers resolved inside a dispatch scope.
+    Singleton operation providers continue to depend only on the dispatcher,
+    while execution handlers can use scoped graph-backed services that will
+    later map cleanly to agent-side execution dependencies.
   - [x] Route Container Application lifecycle execution through the provider
     execution dispatcher with in-process handlers for start, stop, and restart.
     Image and replica updates remain separate follow-up slices because they

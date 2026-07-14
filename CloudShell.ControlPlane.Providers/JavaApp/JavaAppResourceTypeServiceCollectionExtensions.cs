@@ -69,11 +69,11 @@ public static class JavaAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, JavaAppRestartOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, JavaAppStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, JavaAppStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, JavaAppStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, JavaAppStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, JavaAppRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, JavaAppRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, JavaAppResourceProjectionProvider>());
         services.TryAddEnumerable(

@@ -61,11 +61,11 @@ public static class EventBrokerResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, EventBrokerRestartOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, EventBrokerStartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, EventBrokerStartExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, EventBrokerStopExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, EventBrokerStopExecutionHandler>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, EventBrokerRestartExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, EventBrokerRestartExecutionHandler>());
         services.TryAddSingleton<EventBrokerRuntimeOptions>();
         services.TryAddSingleton<EventBrokerProcessRuntimeController>();
         services.TryAddSingleton<IEventBrokerRuntimeController>(

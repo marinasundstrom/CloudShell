@@ -122,10 +122,7 @@ public sealed class LocalVolumeProvisionOperation(
                 Context.Resources),
             cancellationToken);
 
-        return new ResourceOperationExecutionResult(
-            Resource,
-            OperationId,
-            result.Diagnostics);
+        return result.ToResourceOperationExecutionResult(Resource, OperationId);
     }
 
     internal static bool HasRequiredState(Resource resource) =>

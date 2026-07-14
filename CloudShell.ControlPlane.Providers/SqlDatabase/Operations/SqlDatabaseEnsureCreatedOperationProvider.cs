@@ -7,15 +7,11 @@ public sealed class SqlDatabaseEnsureCreatedOperationProvider :
     private readonly IProviderExecutionDispatcher _dispatcher;
 
     public SqlDatabaseEnsureCreatedOperationProvider(
-        ISqlDatabaseCreationHandler? creationHandler = null,
-        ISqlDatabaseServerResolver? serverResolver = null,
         IProviderExecutionDispatcher? dispatcher = null)
     {
         _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
             [
-                new SqlDatabaseEnsureCreatedExecutionHandler(
-                    creationHandler,
-                    serverResolver)
+                new SqlDatabaseEnsureCreatedExecutionHandler()
             ]);
     }
 
@@ -110,9 +106,6 @@ public sealed class SqlDatabaseEnsureCreatedOperation(
                 Context.Resources),
             cancellationToken);
 
-        return new ResourceOperationExecutionResult(
-            Resource,
-            OperationId,
-            result.Diagnostics);
+        return result.ToResourceOperationExecutionResult(Resource, OperationId);
     }
 }

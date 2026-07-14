@@ -145,10 +145,7 @@ public sealed class ContainerApplicationLifecycleOperation(
                 Context.Resources),
             cancellationToken);
 
-        return new ResourceOperationExecutionResult(
-            Resource,
-            OperationId,
-            result.Diagnostics);
+        return result.ToResourceOperationExecutionResult(Resource, OperationId);
     }
 
     private static string GetInstructionType(ResourceOperationId operationId)

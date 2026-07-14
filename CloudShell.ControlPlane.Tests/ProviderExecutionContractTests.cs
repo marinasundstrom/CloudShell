@@ -459,7 +459,7 @@ public sealed class ProviderExecutionContractTests
     {
         var services = new ServiceCollection();
         services.AddProviderExecutionDispatcher();
-        services.AddSingleton<IProviderExecutionHandler>(
+        services.AddScoped<IProviderExecutionHandler>(_ =>
             new RecordingExecutionHandler(
                 ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
                 [ProviderExecutionCapabilities.HostNetworking]));
@@ -479,6 +479,31 @@ public sealed class ProviderExecutionContractTests
 
         Assert.NotNull(serviceProvider.GetRequiredService<IProviderExecutionDispatcher>());
         Assert.NotNull(serviceProvider.GetRequiredService<IProviderExecutionObservationStore>());
+    }
+
+    [Fact]
+    public async Task Dispatcher_ResolvesScopedExecutionHandlersPerDispatch()
+    {
+        var services = new ServiceCollection();
+        services.AddProviderExecutionDispatcher();
+        services.AddScoped<ScopedExecutionHandlerState>();
+        services.AddScoped<IProviderExecutionHandler, ScopedExecutionHandler>();
+
+        using var serviceProvider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true
+            });
+
+        var dispatcher = serviceProvider.GetRequiredService<IProviderExecutionDispatcher>();
+
+        var first = await dispatcher.ExecuteAsync(CreateProviderExecutionRequest("assignment-1"));
+        var second = await dispatcher.ExecuteAsync(CreateProviderExecutionRequest("assignment-2"));
+
+        Assert.NotEqual(
+            first.Observations["scopeId"],
+            second.Observations["scopeId"]);
     }
 
     [Fact]
@@ -524,6 +549,27 @@ public sealed class ProviderExecutionContractTests
         Assert.NotNull(context);
         Assert.Same(network, context.Resource);
         Assert.Equal([network, api], context.Resources);
+    }
+
+    [Fact]
+    public void ResultProjection_AddsFallbackDiagnosticWhenDispatcherFailsWithoutDiagnostics()
+    {
+        var resource = CreateGraphResource("docker.host:local", "local");
+        var result = new ProviderExecutionResult
+        {
+            AssignmentId = $"{resource.EffectiveResourceId}:{DockerHostResourceTypeProvider.Operations.Inspect}",
+            Status = ProviderExecutionStatus.Failed,
+            Diagnostics = []
+        };
+
+        var operationResult = result.ToResourceOperationExecutionResult(
+            resource,
+            DockerHostResourceTypeProvider.Operations.Inspect);
+
+        var diagnostic = Assert.Single(operationResult.Diagnostics);
+        Assert.Equal(ProviderExecutionDiagnosticCodes.ResultMissingDiagnostics, diagnostic.Code);
+        Assert.Contains("Failed", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal(resource.EffectiveResourceId, diagnostic.Target);
     }
 
     [Fact]
@@ -2870,6 +2916,33 @@ public sealed class ProviderExecutionContractTests
         }
     }
 
+    private sealed class ScopedExecutionHandlerState
+    {
+        public string ScopeId { get; } = Guid.NewGuid().ToString("N");
+    }
+
+    private sealed class ScopedExecutionHandler(
+        ScopedExecutionHandlerState state) : IProviderExecutionHandler
+    {
+        public string InstructionType =>
+            ProviderExecutionInstructionTypes.NetworkEndpointReconcile;
+
+        public IReadOnlyList<string> Capabilities { get; } =
+        [
+            ProviderExecutionCapabilities.HostNetworking
+        ];
+
+        public ValueTask<ProviderExecutionResult> ExecuteAsync(
+            ProviderExecutionRequest request,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(ProviderExecutionResult.Succeeded(
+                request,
+                observations: new Dictionary<string, string>
+                {
+                    ["scopeId"] = state.ScopeId
+                }));
+    }
+
     private sealed class MismatchedAssignmentExecutionHandler(
         string instructionType,
         IReadOnlyList<string> capabilities,
@@ -3551,6 +3624,25 @@ public sealed class ProviderExecutionContractTests
                 Image: "orders:1",
                 Replicas: 2,
                 ReplicasEnabled: true));
+
+    private static ProviderExecutionRequest CreateProviderExecutionRequest(
+        string assignmentId) =>
+        new()
+        {
+            AssignmentId = assignmentId,
+            InstructionType = ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
+            TargetResourceId = "network:private",
+            DesiredGeneration = 1,
+            IdempotencyKey = $"{assignmentId}:1",
+            RequiredCapabilities =
+            [
+                ProviderExecutionCapabilities.HostNetworking
+            ],
+            ResourceSnapshot =
+            [
+                CreateGraphResource("network:private", "private")
+            ]
+        };
 
     private static ProviderExecutionRequest CreateContainerApplicationOrchestratorServiceRequest(
         GraphResource resource,

@@ -113,10 +113,7 @@ public sealed class RabbitMQReconcileAccessOperation(
                     new RabbitMQAccessReconcileExecutionPayload(plan.Grants))),
             cancellationToken);
 
-        return new ResourceOperationExecutionResult(
-            Resource,
-            OperationId,
-            result.Diagnostics);
+        return result.ToResourceOperationExecutionResult(Resource, OperationId);
     }
 
     private IReadOnlyList<ResourcePermissionGrant> GetTargetedRabbitMQGrants()

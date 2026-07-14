@@ -152,6 +152,17 @@ on `git blame --follow`, and then by the broad type of change.
 - Documented the future execution handler strategy by resource category,
   including generic execution capabilities, provider-specific adapters, and
   initial volume placement rules for host-bound versus shared storage.
+- Added an architecture guard test that prevents resource operation providers
+  from calling runtime execution seams directly instead of dispatching provider
+  execution instructions.
+- Hardened provider execution result projection so failed, degraded, or
+  unavailable dispatcher results without diagnostics surface a stable
+  resource-operation diagnostic.
+- Changed provider execution handler resolution to run inside a dispatch scope
+  so future execution handlers can depend on scoped graph services while
+  singleton operation providers continue to target the dispatcher.
+- Tightened SQL Database ensure-created operation provider construction so
+  scoped server resolution stays inside the execution handler boundary.
 
 ### 2026-07-13
 

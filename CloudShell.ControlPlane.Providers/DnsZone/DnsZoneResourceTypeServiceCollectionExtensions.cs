@@ -45,7 +45,7 @@ public static class DnsZoneResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, DnsZoneResourceProjectionProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IProviderExecutionHandler, DnsZoneNameMappingExecutionHandler>());
+            ServiceDescriptor.Scoped<IProviderExecutionHandler, DnsZoneNameMappingExecutionHandler>());
         services.TryAddSingleton<
             IDnsZoneNameMappingReconciler,
             NoopDnsZoneNameMappingReconciler>();
