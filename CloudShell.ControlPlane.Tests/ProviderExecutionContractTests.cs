@@ -1,7 +1,16 @@
+using System.Text.Json;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 using GraphResource = CloudShell.ResourceModel.Resource;
+using RMResourceAction = global::CloudShell.Abstractions.ResourceManager.ResourceAction;
+using RMResourceOrchestratorReplicaGroup = global::CloudShell.Abstractions.ResourceManager.ResourceOrchestratorReplicaGroup;
+using RMResourceOrchestratorReplicaGroups = global::CloudShell.Abstractions.ResourceManager.ResourceOrchestratorReplicaGroups;
+using RMResourceOrchestratorService = global::CloudShell.Abstractions.ResourceManager.ResourceOrchestratorService;
+using RMResourceOrchestratorServiceInstance = global::CloudShell.Abstractions.ResourceManager.ResourceOrchestratorServiceInstance;
+using RMResourceOrchestratorServiceRoutingBindingDefinition = global::CloudShell.Abstractions.ResourceManager.ResourceOrchestratorServiceRoutingBindingDefinition;
+using RMResourceWorkloadConfiguration = global::CloudShell.Abstractions.ResourceManager.ResourceWorkloadConfiguration;
+using RMResourceWorkloadKind = global::CloudShell.Abstractions.ResourceManager.ResourceWorkloadKind;
 
 namespace CloudShell.ControlPlane.Tests;
 
@@ -1085,6 +1094,77 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ContainerApplicationRoutingReconcileHandler_ReturnsRuntimeDiagnostics()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var service = CreateContainerApplicationOrchestratorService(containerApp);
+        var replicaGroup = RMResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "containerApplication.routing.test",
+            "Container Application routing reconciled.",
+            containerApp.EffectiveResourceId);
+        var runtimeHandler = new RecordingContainerApplicationOrchestratorRuntimeHandler([diagnostic]);
+        var handler = new ContainerApplicationRoutingReconcileExecutionHandler(runtimeHandler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationRoutingReconcile,
+            TargetResourceId = containerApp.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:routing:1",
+            TargetResourceSnapshot = containerApp,
+            ResourceSnapshot = [containerApp],
+            Payload = JsonSerializer.SerializeToElement(
+                new ContainerApplicationRoutingReconcileExecutionPayload(
+                    service,
+                    replicaGroup,
+                    []))
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Equal("0", result.Observations["routingBindingCount"]);
+        Assert.Equal("true", result.Observations["hasReplicaGroup"]);
+        var invocation = Assert.Single(runtimeHandler.RoutingInvocations);
+        Assert.Same(containerApp, invocation.Resource);
+        Assert.Equal(service, invocation.Service);
+        Assert.NotNull(invocation.ReplicaGroup);
+        Assert.Equal(replicaGroup.Id, invocation.ReplicaGroup.Id);
+        Assert.Equal(replicaGroup.ServiceId, invocation.ReplicaGroup.ServiceId);
+        Assert.Equal(replicaGroup.RequestedReplicaSlots, invocation.ReplicaGroup.RequestedReplicaSlots);
+        Assert.Equal(replicaGroup.Instances.Count, invocation.ReplicaGroup.Instances.Count);
+        Assert.Empty(invocation.RoutingBindings);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationRoutingReconcileHandler_RequiresPayload()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var runtimeHandler = new RecordingContainerApplicationOrchestratorRuntimeHandler();
+        var handler = new ContainerApplicationRoutingReconcileExecutionHandler(runtimeHandler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationRoutingReconcile,
+            TargetResourceId = containerApp.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:routing:1",
+            TargetResourceSnapshot = containerApp,
+            ResourceSnapshot = [containerApp]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Unavailable, result.Status);
+        Assert.Empty(runtimeHandler.RoutingInvocations);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ProviderExecutionDiagnosticCodes.PayloadMissing);
+    }
+
+    [Fact]
     public async Task SqlServerLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var sqlServer = CreateGraphResource("sql-server:app", "app", revision: 5);
@@ -1650,6 +1730,53 @@ public sealed class ProviderExecutionContractTests
         }
     }
 
+    private sealed class RecordingContainerApplicationOrchestratorRuntimeHandler(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : IContainerApplicationOrchestratorRuntimeHandler
+    {
+        public List<(
+            GraphResource Resource,
+            RMResourceOrchestratorService Service,
+            RMResourceOrchestratorReplicaGroup? ReplicaGroup,
+            IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> RoutingBindings)> RoutingInvocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> PrepareOrchestratorServiceAsync(
+            GraphResource resource,
+            RMResourceOrchestratorService service,
+            RMResourceOrchestratorReplicaGroup? replicaGroup,
+            IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileOrchestratorServiceRoutingAsync(
+            GraphResource resource,
+            RMResourceOrchestratorService service,
+            RMResourceOrchestratorReplicaGroup? replicaGroup,
+            IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
+            CancellationToken cancellationToken = default)
+        {
+            RoutingInvocations.Add((resource, service, replicaGroup, routingBindings));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
+            GraphResource resource,
+            RMResourceOrchestratorService service,
+            RMResourceOrchestratorReplicaGroup? replicaGroup,
+            IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
+            GraphResource resource,
+            RMResourceOrchestratorService service,
+            RMResourceOrchestratorServiceInstance instance,
+            RMResourceAction action,
+            RMResourceOrchestratorReplicaGroup? replicaGroup,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+    }
+
     private sealed class RecordingSqlServerRuntimeHandler(
         IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : ISqlServerRuntimeHandler
     {
@@ -1779,6 +1906,18 @@ public sealed class ProviderExecutionContractTests
                 SourceResourceId: "application:api"),
             targetResourceId,
             CloudShell.Abstractions.Authorization.RabbitMQResourceOperationPermissions.ReconcileAccess);
+
+    private static RMResourceOrchestratorService CreateContainerApplicationOrchestratorService(
+        GraphResource resource) =>
+        new(
+            resource.EffectiveResourceId,
+            resource.Name,
+            new RMResourceWorkloadConfiguration(
+                RMResourceWorkloadKind.ContainerImage,
+                resource.Name,
+                Image: "orders:1",
+                Replicas: 2,
+                ReplicasEnabled: true));
 
     private static GraphResource CreateGraphResource(
         string resourceId,

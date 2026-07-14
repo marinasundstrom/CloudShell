@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceModel;
+using System.Text.Json;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
 namespace CloudShell.ControlPlane.Providers;
@@ -14,7 +15,8 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         runtimeHandler ?? new NoopContainerApplicationRuntimeHandler();
     private readonly IProviderExecutionDispatcher _dispatcher =
         dispatcher ?? CreateDefaultDispatcher(
-            runtimeHandler ?? new NoopContainerApplicationRuntimeHandler());
+            runtimeHandler ?? new NoopContainerApplicationRuntimeHandler(),
+            orchestratorRuntimeHandler);
     private readonly IContainerApplicationOrchestratorRuntimeHandler? _orchestratorRuntimeHandler =
         orchestratorRuntimeHandler;
     private readonly IReadOnlyList<IDeferredContainerApplicationRuntimeSelector> _deferredRuntimeSelectors =
@@ -85,12 +87,20 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
             return;
         }
 
-        var diagnostics = await _orchestratorRuntimeHandler.ReconcileOrchestratorServiceRoutingAsync(
+        var diagnostics = await ExecuteRuntimeInstructionAsync(
             context.GraphResource,
-            context.Service,
-            context.ReplicaGroup,
-            context.ServiceRoutingBindings,
-            cancellationToken);
+            ContainerApplicationResourceTypeProvider.Operations.ReconcileRouting,
+            ProviderExecutionInstructionTypes.ContainerApplicationRoutingReconcile,
+            cancellationToken,
+            [
+                ProviderExecutionCapabilities.Containers,
+                ProviderExecutionCapabilities.LoadBalancing
+            ],
+            JsonSerializer.SerializeToElement(
+                new ContainerApplicationRoutingReconcileExecutionPayload(
+                    context.Service,
+                    context.ReplicaGroup,
+                    context.ServiceRoutingBindings)));
         ThrowIfErrors(diagnostics);
     }
 
@@ -138,7 +148,9 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         Resource resource,
         ResourceOperationId operationId,
         string instructionType,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<string>? requiredCapabilities = null,
+        JsonElement? payload = null)
     {
         var result = await _dispatcher.ExecuteAsync(
             new ProviderExecutionRequest
@@ -148,9 +160,10 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
                 TargetResourceId = resource.EffectiveResourceId,
                 DesiredGeneration = resource.Revision.Value,
                 IdempotencyKey = $"{resource.EffectiveResourceId}:{operationId}:{resource.Revision.Value}",
-                RequiredCapabilities = [ProviderExecutionCapabilities.Containers],
+                RequiredCapabilities = requiredCapabilities ?? [ProviderExecutionCapabilities.Containers],
                 TargetResourceSnapshot = resource,
                 ResourceSnapshot = [resource],
+                Payload = payload,
                 RequestedAt = DateTimeOffset.UtcNow
             },
             cancellationToken);
@@ -188,12 +201,14 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
     }
 
     private static IProviderExecutionDispatcher CreateDefaultDispatcher(
-        IContainerApplicationRuntimeHandler runtimeHandler) =>
+        IContainerApplicationRuntimeHandler runtimeHandler,
+        IContainerApplicationOrchestratorRuntimeHandler? orchestratorRuntimeHandler) =>
         new InProcessProviderExecutionDispatcher(
             [
                 new ContainerApplicationStartExecutionHandler(runtimeHandler),
                 new ContainerApplicationStopExecutionHandler(runtimeHandler),
                 new ContainerApplicationImageApplyExecutionHandler(runtimeHandler),
-                new ContainerApplicationReplicasApplyExecutionHandler(runtimeHandler)
+                new ContainerApplicationReplicasApplyExecutionHandler(runtimeHandler),
+                new ContainerApplicationRoutingReconcileExecutionHandler(orchestratorRuntimeHandler)
             ]);
 }

@@ -427,6 +427,7 @@ public static class ProviderExecutionInstructionTypes
     public const string ContainerApplicationRestart = "containerApplication.restart";
     public const string ContainerApplicationImageApply = "containerApplication.image.apply";
     public const string ContainerApplicationReplicasApply = "containerApplication.replicas.apply";
+    public const string ContainerApplicationRoutingReconcile = "containerApplication.routing.reconcile";
     public const string ExecutableApplicationStart = "executableApplication.start";
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";
@@ -465,6 +466,7 @@ public static class ProviderExecutionDiagnosticCodes
     public const string RequiredCapabilityMissing =
         "providerExecution.requiredCapabilityMissing";
     public const string ResourceSnapshotMissing = "providerExecution.resourceSnapshotMissing";
+    public const string PayloadMissing = "providerExecution.payloadMissing";
     public const string ExecutionTargetUnsupported =
         "providerExecution.executionTargetUnsupported";
 }

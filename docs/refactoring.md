@@ -694,6 +694,10 @@ preserving old provider seams:
     the provider execution dispatcher with in-process handlers for
     `ApplyImageAsync` and `ApplyReplicasAsync`, including deployment
     reconciliation paths that previously called the runtime handler directly.
+  - [x] Route Container Application orchestrator routing reconciliation
+    through the provider execution dispatcher with a typed routing payload,
+    leaving prepare, teardown, and replica-instance execution as follow-up
+    slices.
   - [x] Route Load Balancer configuration apply through the provider
     execution dispatcher with an in-process handler for the existing
     configuration applier, keeping Traefik/file-provider materialization behind
