@@ -1,31 +1,42 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class SecretsVaultStartOperationProvider(
-    ISecretsVaultRuntimeController? runtimeController = null) :
+    ISecretsVaultRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     SecretsVaultLifecycleOperationProvider(
         SecretsVaultResourceTypeProvider.Operations.Start,
-        runtimeController);
+        runtimeController,
+        dispatcher);
 
 public sealed class SecretsVaultStopOperationProvider(
-    ISecretsVaultRuntimeController? runtimeController = null) :
+    ISecretsVaultRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     SecretsVaultLifecycleOperationProvider(
         SecretsVaultResourceTypeProvider.Operations.Stop,
-        runtimeController);
+        runtimeController,
+        dispatcher);
 
 public sealed class SecretsVaultRestartOperationProvider(
-    ISecretsVaultRuntimeController? runtimeController = null) :
+    ISecretsVaultRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     SecretsVaultLifecycleOperationProvider(
         SecretsVaultResourceTypeProvider.Operations.Restart,
-        runtimeController);
+        runtimeController,
+        dispatcher);
 
 public abstract class SecretsVaultLifecycleOperationProvider(
     ResourceOperationId operationId,
-    ISecretsVaultRuntimeController? runtimeController = null) :
+    ISecretsVaultRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
     private readonly ISecretsVaultRuntimeController _runtimeController =
         runtimeController ?? new NoopSecretsVaultRuntimeController();
+
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? CreateDefaultDispatcher(
+            runtimeController ?? new NoopSecretsVaultRuntimeController());
 
     public ResourceOperationId OperationId { get; } = operationId;
 
@@ -59,15 +70,28 @@ public abstract class SecretsVaultLifecycleOperationProvider(
             new SecretsVaultLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _runtimeController,
+                _dispatcher));
+
+    private static IProviderExecutionDispatcher CreateDefaultDispatcher(
+        ISecretsVaultRuntimeController runtimeController) =>
+        new InProcessProviderExecutionDispatcher(
+            [
+                new SecretsVaultStartExecutionHandler(runtimeController),
+                new SecretsVaultStopExecutionHandler(runtimeController),
+                new SecretsVaultRestartExecutionHandler(runtimeController)
+            ]);
 }
 
 public sealed class SecretsVaultLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ISecretsVaultRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    ISecretsVaultRuntimeController runtimeController,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -100,15 +124,25 @@ public sealed class SecretsVaultLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await runtimeController.ExecuteAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = GetInstructionType(OperationId),
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Processes],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(ResourceWebAppRuntimeStatus status) =>
@@ -121,4 +155,24 @@ public sealed class SecretsVaultLifecycleOperation(
                 OperationId == SecretsVaultResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == SecretsVaultResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.SecretsVaultStart;
+        }
+
+        if (operationId == SecretsVaultResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.SecretsVaultStop;
+        }
+
+        if (operationId == SecretsVaultResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.SecretsVaultRestart;
+        }
+
+        return operationId.Value;
+    }
 }

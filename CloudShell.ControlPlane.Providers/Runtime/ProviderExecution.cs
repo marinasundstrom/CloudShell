@@ -277,6 +277,9 @@ public static class ProviderExecutionInstructionTypes
     public const string ConfigurationStoreStart = "configurationStore.start";
     public const string ConfigurationStoreStop = "configurationStore.stop";
     public const string ConfigurationStoreRestart = "configurationStore.restart";
+    public const string SecretsVaultStart = "secretsVault.start";
+    public const string SecretsVaultStop = "secretsVault.stop";
+    public const string SecretsVaultRestart = "secretsVault.restart";
     public const string FileSystemProvision = "filesystem.provision";
     public const string VolumeMountMaterialize = "volumeMount.materialize";
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";

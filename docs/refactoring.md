@@ -679,6 +679,8 @@ preserving old provider seams:
   - [x] Route Configuration Store lifecycle execution through the provider
     execution dispatcher with in-process process handlers for start, stop, and
     restart, matching the Event Broker process-backed boundary shape.
+  - [x] Route Secrets Vault lifecycle execution through the provider execution
+    dispatcher with in-process process handlers for start, stop, and restart.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

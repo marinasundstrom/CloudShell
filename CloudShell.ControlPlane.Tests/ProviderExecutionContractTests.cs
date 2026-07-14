@@ -969,6 +969,67 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal(ConfigurationStoreResourceTypeProvider.Operations.Start, invocation.OperationId);
     }
 
+    [Fact]
+    public async Task SecretsVaultLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var secretsVault = CreateGraphResource("secrets-vault:default", "default", revision: 8);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new SecretsVaultLifecycleOperation(
+            new ResourceProjectionExecutionContext(secretsVault, [secretsVault]),
+            new ResourceOperationResolution(
+                SecretsVaultResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            new RecordingSecretsVaultRuntimeController(),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.SecretsVaultStart, request.InstructionType);
+        Assert.Equal(secretsVault.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(8, request.DesiredGeneration);
+        Assert.Equal(
+            $"{secretsVault.EffectiveResourceId}:{SecretsVaultResourceTypeProvider.Operations.Start}:8",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Processes, request.RequiredCapabilities);
+        Assert.Same(secretsVault, request.TargetResourceSnapshot);
+        Assert.Equal([secretsVault], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task SecretsVaultLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var secretsVault = CreateGraphResource("secrets-vault:default", "default");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "secretsVault.lifecycle.test",
+            "Secrets Vault lifecycle applied.",
+            secretsVault.EffectiveResourceId);
+        var runtimeController = new RecordingSecretsVaultRuntimeController([diagnostic]);
+        var handler = new SecretsVaultStartExecutionHandler(runtimeController);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.SecretsVaultStart,
+            TargetResourceId = secretsVault.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "secrets-vault:default:start:1",
+            TargetResourceSnapshot = secretsVault,
+            ResourceSnapshot = [secretsVault]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeController.LifecycleInvocations);
+        Assert.Same(secretsVault, invocation.Resource);
+        Assert.Equal(SecretsVaultResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
     private sealed class RecordingExecutionHandler(
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler
@@ -1147,6 +1208,25 @@ public sealed class ProviderExecutionContractTests
 
     private sealed class RecordingConfigurationStoreRuntimeController(
         IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : IConfigurationStoreRuntimeController
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public ResourceWebAppRuntimeStatus GetStatus(GraphResource resource) =>
+            ResourceWebAppRuntimeStatus.Unknown;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingSecretsVaultRuntimeController(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : ISecretsVaultRuntimeController
     {
         public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
 

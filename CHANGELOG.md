@@ -70,6 +70,8 @@ on `git blame --follow`, and then by the broad type of change.
   dispatcher with in-process start, stop, and restart handlers.
 - Routed Configuration Store lifecycle execution through the provider
   execution dispatcher with in-process start, stop, and restart handlers.
+- Routed Secrets Vault lifecycle execution through the provider execution
+  dispatcher with in-process start, stop, and restart handlers.
 
 ### 2026-07-13
 
