@@ -208,9 +208,11 @@ resource-definition input for the MVP path.
 
 The dispatcher is the boundary between orchestration and execution. Resource
 Manager decides which operation should happen and creates a typed execution
-request. The dispatcher resolves where that request should go; for the MVP it
-selects an in-process handler, and later it can send the same request to an
-agent. The handler realizes the request through local capabilities such as
+instruction, such as starting a container, stopping a container, restarting a
+process, materializing a mount, or reconciling endpoint mappings. The
+dispatcher resolves where that instruction should go; for the MVP it selects
+an in-process handler, and later it can send the same instruction to an agent.
+The handler realizes the instruction through local capabilities such as
 containers, processes, filesystem materialization, mounts, host networking, or
 runtime observation, then returns observed state and diagnostics.
 

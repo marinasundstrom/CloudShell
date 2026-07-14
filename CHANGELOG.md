@@ -18,9 +18,9 @@ on `git blame --follow`, and then by the broad type of change.
 #### Changed
 
 - Added the first provider execution boundary contract with assignment-shaped
-  requests, observed execution results, status values, capability IDs, and
-  operation type IDs so current in-process handlers can evolve toward future
-  agent-backed execution without changing resource definitions.
+  instruction requests, observed execution results, status values, capability
+  IDs, and instruction type IDs so current in-process handlers can evolve
+  toward future agent-backed execution without changing resource definitions.
 - Added the in-process provider execution dispatcher and default runtime
   adapter registration so Control Plane code can target the provider execution
   port while runtime handlers still execute locally.

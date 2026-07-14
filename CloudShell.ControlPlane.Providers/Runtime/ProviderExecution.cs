@@ -12,7 +12,7 @@ public interface IProviderExecutionDispatcher
 
 public interface IProviderExecutionHandler
 {
-    string OperationType { get; }
+    string InstructionType { get; }
 
     IReadOnlyList<string> Capabilities { get; }
 
@@ -35,8 +35,8 @@ public sealed class InProcessProviderExecutionDispatcher(
 
         var candidates = _handlers
             .Where(handler => string.Equals(
-                handler.OperationType,
-                request.OperationType,
+                handler.InstructionType,
+                request.InstructionType,
                 StringComparison.Ordinal))
             .ToArray();
 
@@ -45,7 +45,7 @@ public sealed class InProcessProviderExecutionDispatcher(
             return ValueTask.FromResult(Unavailable(
                 request,
                 ProviderExecutionDiagnosticCodes.HandlerMissing,
-                $"No provider execution handler is registered for operation '{request.OperationType}'."));
+                $"No provider execution handler is registered for instruction '{request.InstructionType}'."));
         }
 
         var handler = candidates.FirstOrDefault(handler =>
@@ -57,7 +57,7 @@ public sealed class InProcessProviderExecutionDispatcher(
             return ValueTask.FromResult(Unavailable(
                 request,
                 ProviderExecutionDiagnosticCodes.RequiredCapabilityMissing,
-                $"No provider execution handler for operation '{request.OperationType}' has all required capabilities."));
+                $"No provider execution handler for instruction '{request.InstructionType}' has all required capabilities."));
         }
 
         return handler.ExecuteAsync(request, cancellationToken);
@@ -85,7 +85,7 @@ public sealed record ProviderExecutionRequest
 {
     public required string AssignmentId { get; init; }
 
-    public required string OperationType { get; init; }
+    public required string InstructionType { get; init; }
 
     public required string TargetResourceId { get; init; }
 
@@ -171,12 +171,14 @@ public static class ProviderExecutionCapabilities
     public const string RuntimeObservation = "runtimeObservation";
 }
 
-public static class ProviderExecutionOperationTypes
+public static class ProviderExecutionInstructionTypes
 {
-    public const string ContainerRun = "container.run";
+    public const string ContainerStart = "container.start";
     public const string ContainerStop = "container.stop";
-    public const string ProcessRun = "process.run";
+    public const string ContainerRestart = "container.restart";
+    public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";
+    public const string ProcessRestart = "process.restart";
     public const string FileSystemProvision = "filesystem.provision";
     public const string VolumeMountMaterialize = "volumeMount.materialize";
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";

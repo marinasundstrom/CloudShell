@@ -525,8 +525,9 @@ preserving old provider seams:
     provider execution port instead of directly depending on concrete runtime
     handlers or host command runners.
   - [ ] Make execution agent-targetable before introducing agents. Resource
-    Manager should be able to produce typed execution requests that identify
-    the operation and required capabilities, while the current dispatcher
+    Manager should be able to produce typed execution instructions that
+    identify the operation, target resource, and required capabilities, while
+    the current dispatcher
     still resolves an in-process handler through local service registration.
     This is the MVP transition point between direct Control Plane execution
     and a future remote agent transport.
@@ -537,9 +538,10 @@ preserving old provider seams:
     assume same-process execution, ambient service access, local filesystem
     paths, or direct process handles.
   - [ ] Treat the execution boundary as a provider-side assignment shape, not
-    as a new top-level resource concept. The assignment-shaped request should
-    name the operation, target resource, desired generation or revision,
-    idempotency key, required capabilities, and provider-owned payload.
+    as a new top-level resource concept. The assignment-shaped instruction
+    should name the operation, target resource, desired generation or
+    revision, idempotency key, required capabilities, and provider-owned
+    payload.
     Resource definitions should not name an agent or execution participant for
     the normal local and single-host case; the Control Plane derives the
     execution target from the host profile, provider capability, and later
@@ -593,10 +595,10 @@ preserving old provider seams:
   in-process runtimes and future agents execute the same provider-side
   assignment shape.
   - [x] Add the first provider execution contract types in the provider
-    runtime layer: dispatcher, handler, assignment-shaped request, observed
-    result, status, capability IDs, and operation type IDs. The contract is
-    transport-neutral and does not require resource definitions to specify an
-    agent, host, or region.
+    runtime layer: dispatcher, handler, assignment-shaped instruction request,
+    observed result, status, capability IDs, and instruction type IDs. The
+    contract is transport-neutral and does not require resource definitions to
+    specify an agent, host, or region.
   - [x] Add the in-process provider execution dispatcher and register it with
     built-in runtime adapters so Control Plane services can target the
     provider execution port while handlers still run inside the same process.

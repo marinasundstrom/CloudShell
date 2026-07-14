@@ -10,7 +10,7 @@ public sealed class ProviderExecutionContractTests
         var request = new ProviderExecutionRequest
         {
             AssignmentId = "assignment-1",
-            OperationType = ProviderExecutionOperationTypes.ContainerRun,
+            InstructionType = ProviderExecutionInstructionTypes.ContainerStart,
             TargetResourceId = "container-app:orders",
             DesiredGeneration = 42,
             IdempotencyKey = "container-app:orders:42",
@@ -27,7 +27,7 @@ public sealed class ProviderExecutionContractTests
         };
 
         Assert.Equal("assignment-1", request.AssignmentId);
-        Assert.Equal(ProviderExecutionOperationTypes.ContainerRun, request.OperationType);
+        Assert.Equal(ProviderExecutionInstructionTypes.ContainerStart, request.InstructionType);
         Assert.Equal("container-app:orders", request.TargetResourceId);
         Assert.Equal(42, request.DesiredGeneration);
         Assert.Equal("container-app:orders:42", request.IdempotencyKey);
@@ -42,7 +42,7 @@ public sealed class ProviderExecutionContractTests
         var request = new ProviderExecutionRequest
         {
             AssignmentId = "assignment-1",
-            OperationType = ProviderExecutionOperationTypes.NetworkEndpointReconcile,
+            InstructionType = ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
             TargetResourceId = "network:private",
             DesiredGeneration = 7,
             IdempotencyKey = "network:private:7"
@@ -69,13 +69,13 @@ public sealed class ProviderExecutionContractTests
     public async Task InProcessDispatcher_RoutesRequestToMatchingCapableHandler()
     {
         var handler = new RecordingExecutionHandler(
-            ProviderExecutionOperationTypes.ProcessRun,
+            ProviderExecutionInstructionTypes.ProcessStart,
             [ProviderExecutionCapabilities.Processes]);
         var dispatcher = new InProcessProviderExecutionDispatcher([handler]);
         var request = new ProviderExecutionRequest
         {
             AssignmentId = "assignment-1",
-            OperationType = ProviderExecutionOperationTypes.ProcessRun,
+            InstructionType = ProviderExecutionInstructionTypes.ProcessStart,
             TargetResourceId = "application:worker",
             DesiredGeneration = 3,
             IdempotencyKey = "application:worker:3",
@@ -95,7 +95,7 @@ public sealed class ProviderExecutionContractTests
         var request = new ProviderExecutionRequest
         {
             AssignmentId = "assignment-1",
-            OperationType = ProviderExecutionOperationTypes.ContainerRun,
+            InstructionType = ProviderExecutionInstructionTypes.ContainerStart,
             TargetResourceId = "container-app:orders",
             DesiredGeneration = 1,
             IdempotencyKey = "container-app:orders:1"
@@ -113,13 +113,13 @@ public sealed class ProviderExecutionContractTests
     public async Task InProcessDispatcher_ReturnsUnavailableWhenCapabilitiesAreMissing()
     {
         var handler = new RecordingExecutionHandler(
-            ProviderExecutionOperationTypes.ContainerRun,
+            ProviderExecutionInstructionTypes.ContainerStart,
             [ProviderExecutionCapabilities.Containers]);
         var dispatcher = new InProcessProviderExecutionDispatcher([handler]);
         var request = new ProviderExecutionRequest
         {
             AssignmentId = "assignment-1",
-            OperationType = ProviderExecutionOperationTypes.ContainerRun,
+            InstructionType = ProviderExecutionInstructionTypes.ContainerStart,
             TargetResourceId = "container-app:orders",
             DesiredGeneration = 1,
             IdempotencyKey = "container-app:orders:1",
@@ -142,7 +142,7 @@ public sealed class ProviderExecutionContractTests
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler
     {
-        public string OperationType { get; } = operationType;
+        public string InstructionType { get; } = operationType;
 
         public IReadOnlyList<string> Capabilities { get; } = capabilities;
 
