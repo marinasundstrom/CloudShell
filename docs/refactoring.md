@@ -801,8 +801,8 @@ preserving old provider seams:
     configuration-store, secrets-vault, event-broker, identity provisioning
     setup, SQL Database ensure-created, Service reconcile, and Docker Host
     inspect, Container Host inspect, Storage inspect, and Host Configuration
-    Source inspect, and Configuration Store inspect controllers now have
-    dispatched entry points for their MVP execution paths.
+    Source inspect, Configuration Store inspect, and Secrets Vault inspect
+    controllers now have dispatched entry points for their MVP execution paths.
   - [x] Introduce a small execution contract in the provider/runtime layer,
     not as an agent API yet. A first version should model instruction type,
     target resource id, desired generation or revision, capability

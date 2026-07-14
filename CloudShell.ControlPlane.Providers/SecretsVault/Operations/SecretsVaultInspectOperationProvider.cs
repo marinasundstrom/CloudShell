@@ -1,12 +1,20 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class SecretsVaultInspectOperationProvider(
-    ISecretsVaultInspector? inspector = null) :
+public sealed class SecretsVaultInspectOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly ISecretsVaultInspector _inspector =
-        inspector ?? new NoopSecretsVaultInspector();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public SecretsVaultInspectOperationProvider(
+        ISecretsVaultInspector? inspector = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new SecretsVaultInspectExecutionHandler(inspector)
+            ]);
+    }
 
     public ResourceOperationId OperationId =>
         SecretsVaultResourceTypeProvider.Operations.Inspect;
@@ -41,17 +49,17 @@ public sealed class SecretsVaultInspectOperationProvider(
             new SecretsVaultInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _inspector));
+                _dispatcher));
 }
 
 public sealed class SecretsVaultInspectOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ISecretsVaultInspector inspector) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly ISecretsVaultInspector _inspector = inspector;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -89,14 +97,19 @@ public sealed class SecretsVaultInspectOperation(
                 ]);
         }
 
-        var diagnostics = await _inspector.InspectAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.SecretsVaultInspect,
+                [ProviderExecutionCapabilities.RuntimeObservation],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private static int GetSecretCount(Resource resource) =>

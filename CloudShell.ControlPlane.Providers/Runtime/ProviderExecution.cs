@@ -650,6 +650,7 @@ public static class ProviderExecutionInstructionTypes
     public const string SecretsVaultStart = "secretsVault.start";
     public const string SecretsVaultStop = "secretsVault.stop";
     public const string SecretsVaultRestart = "secretsVault.restart";
+    public const string SecretsVaultInspect = "secretsVault.inspect";
     public const string FileSystemProvision = "filesystem.provision";
     public const string VolumeMountMaterialize = "volumeMount.materialize";
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";

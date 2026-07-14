@@ -2017,6 +2017,64 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task SecretsVaultInspectOperation_DispatchesInspectInstruction()
+    {
+        var secretsVault = CreateGraphResource("secrets.vault:secrets", "secrets", revision: 67);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new SecretsVaultInspectOperation(
+            new ResourceProjectionExecutionContext(secretsVault, [secretsVault]),
+            new ResourceOperationResolution(
+                SecretsVaultResourceTypeProvider.Operations.Inspect,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.SecretsVaultInspect, request.InstructionType);
+        Assert.Equal(secretsVault.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(67, request.DesiredGeneration);
+        Assert.Equal(
+            $"{secretsVault.EffectiveResourceId}:{SecretsVaultResourceTypeProvider.Operations.Inspect}:67",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.RuntimeObservation, request.RequiredCapabilities);
+        Assert.Same(secretsVault, request.TargetResourceSnapshot);
+        Assert.Equal([secretsVault], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task SecretsVaultInspectHandler_ReturnsInspectorDiagnostics()
+    {
+        var secretsVault = CreateGraphResource("secrets.vault:secrets", "secrets");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "secretsVault.inspect.test",
+            "Secrets Vault inspected.",
+            secretsVault.EffectiveResourceId);
+        var inspector = new RecordingSecretsVaultInspector([diagnostic]);
+        var handler = new SecretsVaultInspectExecutionHandler(inspector);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.SecretsVaultInspect,
+            TargetResourceId = secretsVault.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "secrets.vault:secrets:inspect:1",
+            TargetResourceSnapshot = secretsVault,
+            ResourceSnapshot = [secretsVault]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Same(secretsVault, Assert.Single(inspector.InspectInvocations));
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -3204,6 +3262,22 @@ public sealed class ProviderExecutionContractTests
     private sealed class RecordingConfigurationStoreInspector(
         IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
         : IConfigurationStoreInspector
+    {
+        public List<GraphResource> InspectInvocations { get; } = [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default)
+        {
+            InspectInvocations.Add(resource);
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingSecretsVaultInspector(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null)
+        : ISecretsVaultInspector
     {
         public List<GraphResource> InspectInvocations { get; } = [];
 
