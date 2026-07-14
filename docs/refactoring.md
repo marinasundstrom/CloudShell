@@ -661,6 +661,10 @@ preserving old provider seams:
     execution dispatcher with in-process handlers for start, stop, pause,
     restart, and unpause. This keeps local Docker command execution behind the
     same instruction/result boundary used by reconciliation-style handlers.
+  - [x] Route SQL Server lifecycle execution through the provider execution
+    dispatcher with in-process handlers for start, stop, and restart. The
+    operation still evaluates local runtime status for current capability
+    behavior, but runtime materialization now crosses the dispatcher boundary.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

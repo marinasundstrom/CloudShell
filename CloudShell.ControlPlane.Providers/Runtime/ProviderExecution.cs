@@ -277,6 +277,9 @@ public static class ProviderExecutionInstructionTypes
     public const string VirtualNetworkEndpointReconcile = "virtualNetwork.endpoint.reconcile";
     public const string DnsNameMappingReconcile = "dns.nameMapping.reconcile";
     public const string SqlServerAccessReconcile = "sqlServer.access.reconcile";
+    public const string SqlServerStart = "sqlServer.start";
+    public const string SqlServerStop = "sqlServer.stop";
+    public const string SqlServerRestart = "sqlServer.restart";
     public const string RabbitMQAccessReconcile = "rabbitMQ.access.reconcile";
 }
 

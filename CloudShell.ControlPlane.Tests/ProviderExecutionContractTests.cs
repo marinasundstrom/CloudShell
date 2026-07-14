@@ -541,6 +541,67 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task SqlServerLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var sqlServer = CreateGraphResource("sql-server:app", "app", revision: 5);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new SqlServerLifecycleOperation(
+            new ResourceProjectionExecutionContext(sqlServer, [sqlServer]),
+            new ResourceOperationResolution(
+                SqlServerResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            new RecordingSqlServerRuntimeHandler(),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.SqlServerStart, request.InstructionType);
+        Assert.Equal(sqlServer.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(5, request.DesiredGeneration);
+        Assert.Equal(
+            $"{sqlServer.EffectiveResourceId}:{SqlServerResourceTypeProvider.Operations.Start}:5",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Containers, request.RequiredCapabilities);
+        Assert.Same(sqlServer, request.TargetResourceSnapshot);
+        Assert.Equal([sqlServer], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task SqlServerLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var sqlServer = CreateGraphResource("sql-server:app", "app");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "sqlServer.lifecycle.test",
+            "SQL Server lifecycle applied.",
+            sqlServer.EffectiveResourceId);
+        var runtimeHandler = new RecordingSqlServerRuntimeHandler([diagnostic]);
+        var handler = new SqlServerStartExecutionHandler(runtimeHandler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.SqlServerStart,
+            TargetResourceId = sqlServer.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "sql-server:app:start:1",
+            TargetResourceSnapshot = sqlServer,
+            ResourceSnapshot = [sqlServer]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeHandler.LifecycleInvocations);
+        Assert.Same(sqlServer, invocation.Resource);
+        Assert.Equal(SqlServerResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
+    [Fact]
     public async Task RabbitMQReconcileAccessOperation_DispatchesAccessReconcileInstructionWithGrants()
     {
         var rabbitMQ = CreateGraphResource("rabbitmq:broker", "broker", revision: 3);
@@ -689,6 +750,25 @@ public sealed class ProviderExecutionContractTests
             GraphResource resource,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(diagnostics);
+    }
+
+    private sealed class RecordingSqlServerRuntimeHandler(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : ISqlServerRuntimeHandler
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public SqlServerRuntimeStatus GetStatus(GraphResource resource) =>
+            SqlServerRuntimeStatus.Unknown;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
     }
 
     private sealed class RecordingRabbitMQAccessReconciler(
