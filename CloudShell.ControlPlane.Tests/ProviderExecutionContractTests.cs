@@ -1336,6 +1336,69 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task GoAppLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var app = CreateGraphResource("application.go-app:api", "api", revision: 29);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var runtimeController = new RecordingGoAppRuntimeController(
+            status: GoAppRuntimeStatus.Stopped);
+        var operation = new GoAppLifecycleOperation(
+            new ResourceProjectionExecutionContext(app, [app]),
+            new ResourceOperationResolution(
+                GoAppResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            runtimeController,
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.GoAppStart, request.InstructionType);
+        Assert.Equal(app.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(29, request.DesiredGeneration);
+        Assert.Equal(
+            $"{app.EffectiveResourceId}:{GoAppResourceTypeProvider.Operations.Start}:29",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Processes, request.RequiredCapabilities);
+        Assert.Same(app, request.TargetResourceSnapshot);
+        Assert.Equal([app], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task GoAppLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var app = CreateGraphResource("application.go-app:api", "api");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "goApp.start.test",
+            "Go app started.",
+            app.EffectiveResourceId);
+        var runtimeController = new RecordingGoAppRuntimeController([diagnostic]);
+        var handler = new GoAppStartExecutionHandler(runtimeController);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.GoAppStart,
+            TargetResourceId = app.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application.go-app:api:start:1",
+            TargetResourceSnapshot = app,
+            ResourceSnapshot = [app]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeController.LifecycleInvocations);
+        Assert.Same(app, invocation.Resource);
+        Assert.Equal(GoAppResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -2332,6 +2395,27 @@ public sealed class ProviderExecutionContractTests
         public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
 
         public JavaAppRuntimeStatus GetStatus(GraphResource resource) =>
+            status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingGoAppRuntimeController(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null,
+        GoAppRuntimeStatus status = GoAppRuntimeStatus.Unknown)
+        : IGoAppRuntimeController
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public GoAppRuntimeStatus GetStatus(GraphResource resource) =>
             status;
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(

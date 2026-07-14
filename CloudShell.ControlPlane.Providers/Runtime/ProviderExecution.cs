@@ -625,6 +625,9 @@ public static class ProviderExecutionInstructionTypes
     public const string JavaAppStart = "javaApp.start";
     public const string JavaAppStop = "javaApp.stop";
     public const string JavaAppRestart = "javaApp.restart";
+    public const string GoAppStart = "goApp.start";
+    public const string GoAppStop = "goApp.stop";
+    public const string GoAppRestart = "goApp.restart";
     public const string ExecutableApplicationStart = "executableApplication.start";
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";

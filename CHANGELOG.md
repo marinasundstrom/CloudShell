@@ -121,6 +121,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Routed Java app lifecycle execution through the provider execution
   dispatcher with in-process start, stop, and restart handlers, keeping the
   Java local-process sample on the same execution boundary.
+- Routed Go app lifecycle execution through the provider execution dispatcher
+  with in-process start, stop, and restart handlers, keeping the Go
+  local-process sample on the same execution boundary.
 - Documented the future execution handler strategy by resource category,
   including generic execution capabilities, provider-specific adapters, and
   initial volume placement rules for host-bound versus shared storage.

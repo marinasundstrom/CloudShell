@@ -4,10 +4,12 @@ public sealed class GoAppStartOperationProvider :
     GoAppLifecycleOperationProvider
 {
     public GoAppStartOperationProvider(
-        IGoAppRuntimeController? runtimeController = null)
+        IGoAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             GoAppResourceTypeProvider.Operations.Start,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -16,10 +18,12 @@ public sealed class GoAppRestartOperationProvider :
     GoAppLifecycleOperationProvider
 {
     public GoAppRestartOperationProvider(
-        IGoAppRuntimeController? runtimeController = null)
+        IGoAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             GoAppResourceTypeProvider.Operations.Restart,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -28,24 +32,39 @@ public sealed class GoAppStopOperationProvider :
     GoAppLifecycleOperationProvider
 {
     public GoAppStopOperationProvider(
-        IGoAppRuntimeController? runtimeController = null)
+        IGoAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             GoAppResourceTypeProvider.Operations.Stop,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
 
-public abstract class GoAppLifecycleOperationProvider(
-    ResourceOperationId operationId,
-    IGoAppRuntimeController? runtimeController = null) :
+public abstract class GoAppLifecycleOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IGoAppRuntimeController _runtimeController =
-        runtimeController ?? new NoopGoAppRuntimeController();
+    private readonly IGoAppRuntimeController _runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher;
 
-    public ResourceOperationId OperationId { get; } = operationId;
+    protected GoAppLifecycleOperationProvider(
+        ResourceOperationId operationId,
+        IGoAppRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        OperationId = operationId;
+        _runtimeController = runtimeController ?? new NoopGoAppRuntimeController();
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new GoAppStartExecutionHandler(_runtimeController),
+                new GoAppStopExecutionHandler(_runtimeController),
+                new GoAppRestartExecutionHandler(_runtimeController)
+            ]);
+    }
+
+    public ResourceOperationId OperationId { get; }
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -77,18 +96,21 @@ public abstract class GoAppLifecycleOperationProvider(
             new GoAppLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _runtimeController,
+                _dispatcher));
 }
 
 public sealed class GoAppLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IGoAppRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    IGoAppRuntimeController runtimeController,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
     private readonly IGoAppRuntimeController _runtimeController =
         runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -123,15 +145,19 @@ public sealed class GoAppLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeController.ExecuteAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                GetInstructionType(OperationId),
+                [ProviderExecutionCapabilities.Processes],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(GoAppRuntimeStatus status) =>
@@ -144,4 +170,25 @@ public sealed class GoAppLifecycleOperation(
                 OperationId == GoAppResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == GoAppResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.GoAppStart;
+        }
+
+        if (operationId == GoAppResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.GoAppStop;
+        }
+
+        if (operationId == GoAppResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.GoAppRestart;
+        }
+
+        throw new InvalidOperationException(
+            $"Go app lifecycle operation '{operationId}' does not have a provider execution instruction.");
+    }
 }

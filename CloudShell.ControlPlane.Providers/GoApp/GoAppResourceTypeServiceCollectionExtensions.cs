@@ -24,6 +24,7 @@ public static class GoAppResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddNetworkingEndpointGraphShapes();
+        services.AddProviderExecutionDispatcher();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -67,6 +68,12 @@ public static class GoAppResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, GoAppStopOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, GoAppRestartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, GoAppStartExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, GoAppStopExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, GoAppRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, GoAppResourceProjectionProvider>());
         services.TryAddEnumerable(
