@@ -756,6 +756,12 @@ preserving old provider seams:
   - [x] Route Executable Application start through the provider execution
     dispatcher with an in-process process handler, keeping process startup
     behind the same boundary without introducing remote agents.
+  - [x] Route ASP.NET Core project lifecycle execution through the provider
+    execution dispatcher with in-process start, stop, and restart handlers.
+    The operation still evaluates local runtime status for current action
+    availability behavior, but the state-changing work now crosses the same
+    instruction/result boundary as managed service and container lifecycle
+    execution.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
@@ -774,9 +780,10 @@ preserving old provider seams:
     Docker container runtime handler, SQL Server local Docker runtime,
     RabbitMQ local Docker runtime, Traefik/load-balancer runtime, local
     hostname publishing/resolver refresh, virtual-network endpoint mapping,
-    and process-backed ASP.NET Core, executable, JavaScript, Java, Go, Python,
-    configuration-store, secrets-vault, event-broker, and device-registry
-    runtime controllers.
+    and process-backed JavaScript, Java, Go, Python, and device-registry
+    runtime controllers. ASP.NET Core, executable, configuration-store,
+    secrets-vault, and event-broker runtime controllers now have dispatched
+    entry points for their MVP lifecycle paths.
   - [x] Introduce a small execution contract in the provider/runtime layer,
     not as an agent API yet. A first version should model instruction type,
     target resource id, desired generation or revision, capability

@@ -4,10 +4,12 @@ public sealed class AspNetCoreProjectStartOperationProvider :
     AspNetCoreProjectLifecycleOperationProvider
 {
     public AspNetCoreProjectStartOperationProvider(
-        IAspNetCoreProjectRuntimeController? runtimeController = null)
+        IAspNetCoreProjectRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             AspNetCoreProjectResourceTypeProvider.Operations.Start,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -16,10 +18,12 @@ public sealed class AspNetCoreProjectRestartOperationProvider :
     AspNetCoreProjectLifecycleOperationProvider
 {
     public AspNetCoreProjectRestartOperationProvider(
-        IAspNetCoreProjectRuntimeController? runtimeController = null)
+        IAspNetCoreProjectRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             AspNetCoreProjectResourceTypeProvider.Operations.Restart,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
@@ -28,24 +32,39 @@ public sealed class AspNetCoreProjectStopOperationProvider :
     AspNetCoreProjectLifecycleOperationProvider
 {
     public AspNetCoreProjectStopOperationProvider(
-        IAspNetCoreProjectRuntimeController? runtimeController = null)
+        IAspNetCoreProjectRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             AspNetCoreProjectResourceTypeProvider.Operations.Stop,
-            runtimeController)
+            runtimeController,
+            dispatcher)
     {
     }
 }
 
-public abstract class AspNetCoreProjectLifecycleOperationProvider(
-    ResourceOperationId operationId,
-    IAspNetCoreProjectRuntimeController? runtimeController = null) :
+public abstract class AspNetCoreProjectLifecycleOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IAspNetCoreProjectRuntimeController _runtimeController =
-        runtimeController ?? new NoopAspNetCoreProjectRuntimeController();
+    private readonly IAspNetCoreProjectRuntimeController _runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher;
 
-    public ResourceOperationId OperationId { get; } = operationId;
+    protected AspNetCoreProjectLifecycleOperationProvider(
+        ResourceOperationId operationId,
+        IAspNetCoreProjectRuntimeController? runtimeController = null,
+        IProviderExecutionDispatcher? dispatcher = null)
+    {
+        OperationId = operationId;
+        _runtimeController = runtimeController ?? new NoopAspNetCoreProjectRuntimeController();
+        _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [
+                new AspNetCoreProjectStartExecutionHandler(_runtimeController),
+                new AspNetCoreProjectStopExecutionHandler(_runtimeController),
+                new AspNetCoreProjectRestartExecutionHandler(_runtimeController)
+            ]);
+    }
+
+    public ResourceOperationId OperationId { get; }
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -77,18 +96,21 @@ public abstract class AspNetCoreProjectLifecycleOperationProvider(
             new AspNetCoreProjectLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _runtimeController,
+                _dispatcher));
 }
 
 public sealed class AspNetCoreProjectLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IAspNetCoreProjectRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    IAspNetCoreProjectRuntimeController runtimeController,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
     private readonly IAspNetCoreProjectRuntimeController _runtimeController =
         runtimeController;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -123,15 +145,19 @@ public sealed class AspNetCoreProjectLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeController.ExecuteAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                GetInstructionType(OperationId),
+                [ProviderExecutionCapabilities.Processes],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(AspNetCoreProjectRuntimeStatus status) =>
@@ -144,4 +170,25 @@ public sealed class AspNetCoreProjectLifecycleOperation(
                 OperationId == AspNetCoreProjectResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == AspNetCoreProjectResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.AspNetCoreProjectStart;
+        }
+
+        if (operationId == AspNetCoreProjectResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.AspNetCoreProjectStop;
+        }
+
+        if (operationId == AspNetCoreProjectResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.AspNetCoreProjectRestart;
+        }
+
+        throw new InvalidOperationException(
+            $"ASP.NET Core project lifecycle operation '{operationId}' does not have a provider execution instruction.");
+    }
 }

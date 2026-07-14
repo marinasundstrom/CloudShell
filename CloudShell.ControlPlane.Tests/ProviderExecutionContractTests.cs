@@ -1147,6 +1147,69 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task AspNetCoreProjectLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var project = CreateGraphResource("application:api", "api", revision: 17);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController(
+            status: AspNetCoreProjectRuntimeStatus.Stopped);
+        var operation = new AspNetCoreProjectLifecycleOperation(
+            new ResourceProjectionExecutionContext(project, [project]),
+            new ResourceOperationResolution(
+                AspNetCoreProjectResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            runtimeController,
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.AspNetCoreProjectStart, request.InstructionType);
+        Assert.Equal(project.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(17, request.DesiredGeneration);
+        Assert.Equal(
+            $"{project.EffectiveResourceId}:{AspNetCoreProjectResourceTypeProvider.Operations.Start}:17",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Processes, request.RequiredCapabilities);
+        Assert.Same(project, request.TargetResourceSnapshot);
+        Assert.Equal([project], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task AspNetCoreProjectLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var project = CreateGraphResource("application:api", "api");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "aspNetCoreProject.start.test",
+            "ASP.NET Core project started.",
+            project.EffectiveResourceId);
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController([diagnostic]);
+        var handler = new AspNetCoreProjectStartExecutionHandler(runtimeController);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.AspNetCoreProjectStart,
+            TargetResourceId = project.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application:api:start:1",
+            TargetResourceSnapshot = project,
+            ResourceSnapshot = [project]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeController.LifecycleInvocations);
+        Assert.Same(project, invocation.Resource);
+        Assert.Equal(AspNetCoreProjectResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);
@@ -2090,6 +2153,27 @@ public sealed class ProviderExecutionContractTests
             StartInvocations.Add(resource);
 
             return ValueTask.FromResult(diagnostics);
+        }
+    }
+
+    private sealed class RecordingAspNetCoreProjectRuntimeController(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null,
+        AspNetCoreProjectRuntimeStatus status = AspNetCoreProjectRuntimeStatus.Unknown)
+        : IAspNetCoreProjectRuntimeController
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public AspNetCoreProjectRuntimeStatus GetStatus(GraphResource resource) =>
+            status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
         }
     }
 

@@ -24,6 +24,7 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddNetworkingEndpointGraphShapes();
+        services.AddProviderExecutionDispatcher();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceAttributeValueShapeProvider, AspNetCoreProjectShapeProvider>());
 
@@ -71,6 +72,12 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, AspNetCoreProjectStopOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, AspNetCoreProjectRestartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, AspNetCoreProjectStartExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, AspNetCoreProjectStopExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, AspNetCoreProjectRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, AspNetCoreProjectResourceProjectionProvider>());
         services.TryAddEnumerable(

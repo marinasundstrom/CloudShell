@@ -497,7 +497,9 @@ Prioritize the remaining local-dev work in this order:
    deliberate failure path. The UI should explain that topology without
    sample-specific knowledge. Treat this as the next planning anchor: each
    candidate slice should say which Application Topology run, resource page,
-   or failure path it improves.
+   or failure path it improves. Recent execution-boundary work now keeps
+   ASP.NET Core project lifecycle actions on the same provider execution path
+   as the managed-service and container runtime operations used by this sample.
 3. **Resource relationship comprehension.** Keep the focused dependency and
    dependent graph scoped to the current resource. The first graph, related
    actions, and related health/readiness details now exist; next work should
