@@ -271,6 +271,9 @@ public static class ProviderExecutionInstructionTypes
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";
     public const string ProcessRestart = "process.restart";
+    public const string EventBrokerStart = "eventBroker.start";
+    public const string EventBrokerStop = "eventBroker.stop";
+    public const string EventBrokerRestart = "eventBroker.restart";
     public const string FileSystemProvision = "filesystem.provision";
     public const string VolumeMountMaterialize = "volumeMount.materialize";
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";

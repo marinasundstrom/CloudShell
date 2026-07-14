@@ -672,6 +672,10 @@ preserving old provider seams:
     through the provider execution dispatcher with platform-specific
     in-process handlers. This keeps host networking behind the same
     instruction/result boundary without introducing remote agents yet.
+  - [x] Route Event Broker lifecycle execution through the provider execution
+    dispatcher with in-process process handlers for start, stop, and restart.
+    This is the first process-backed managed service to cross the
+    instruction/result boundary.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
@@ -693,18 +697,18 @@ preserving old provider seams:
     and process-backed ASP.NET Core, executable, JavaScript, Java, Go, Python,
     configuration-store, secrets-vault, event-broker, and device-registry
     runtime controllers.
-  - [ ] Introduce a small execution contract in the provider/runtime layer,
+  - [x] Introduce a small execution contract in the provider/runtime layer,
     not as an agent API yet. A first version should model operation type,
     target resource id, desired generation or revision, capability
     requirements, idempotency key, and provider-owned payload, with a result
     that carries observed status, observed generation, diagnostics, and
     provider-owned observations.
-  - [ ] Pick one low-risk operation and introduce the first typed execution
+  - [x] Pick one low-risk operation and introduce the first typed execution
     request/result contract around the existing handler without changing user
     behavior. Good candidates are DNS/name-mapping reconcile or virtual-network
     endpoint-mapping reconcile because they already have explicit reconcile
     operations, observation attributes, and provider boundaries.
-  - [ ] Make the first contract report observed generation/status and stable
+  - [x] Make the first contract report observed generation/status and stable
     diagnostics so Resource Manager can reason about desired-versus-observed
     state before any remote agent exists.
   - [x] After the first networking-style operation proves the shape, adapt one

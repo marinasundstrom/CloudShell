@@ -847,6 +847,67 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal(RabbitMQResourceTypeProvider.Operations.Start, invocation.OperationId);
     }
 
+    [Fact]
+    public async Task EventBrokerLifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var eventBroker = CreateGraphResource("event-broker:default", "default", revision: 6);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new EventBrokerLifecycleOperation(
+            new ResourceProjectionExecutionContext(eventBroker, [eventBroker]),
+            new ResourceOperationResolution(
+                EventBrokerResourceTypeProvider.Operations.Start,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            new RecordingEventBrokerRuntimeController(),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.EventBrokerStart, request.InstructionType);
+        Assert.Equal(eventBroker.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(6, request.DesiredGeneration);
+        Assert.Equal(
+            $"{eventBroker.EffectiveResourceId}:{EventBrokerResourceTypeProvider.Operations.Start}:6",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Processes, request.RequiredCapabilities);
+        Assert.Same(eventBroker, request.TargetResourceSnapshot);
+        Assert.Equal([eventBroker], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task EventBrokerLifecycleHandler_ReturnsRuntimeDiagnostics()
+    {
+        var eventBroker = CreateGraphResource("event-broker:default", "default");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "eventBroker.lifecycle.test",
+            "Event Broker lifecycle applied.",
+            eventBroker.EffectiveResourceId);
+        var runtimeController = new RecordingEventBrokerRuntimeController([diagnostic]);
+        var handler = new EventBrokerStartExecutionHandler(runtimeController);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.EventBrokerStart,
+            TargetResourceId = eventBroker.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "event-broker:default:start:1",
+            TargetResourceSnapshot = eventBroker,
+            ResourceSnapshot = [eventBroker]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        var invocation = Assert.Single(runtimeController.LifecycleInvocations);
+        Assert.Same(eventBroker, invocation.Resource);
+        Assert.Equal(EventBrokerResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
     private sealed class RecordingExecutionHandler(
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler
@@ -994,6 +1055,25 @@ public sealed class ProviderExecutionContractTests
             RabbitMQRuntimeStatus.Unknown;
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleInvocations.Add((resource, operationId));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
+    }
+
+    private sealed class RecordingEventBrokerRuntimeController(
+        IReadOnlyList<ResourceDefinitionDiagnostic>? diagnostics = null) : IEventBrokerRuntimeController
+    {
+        public List<(GraphResource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
+
+        public ResourceWebAppRuntimeStatus GetStatus(GraphResource resource) =>
+            ResourceWebAppRuntimeStatus.Unknown;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
             GraphResource resource,
             ResourceOperationId operationId,
             CancellationToken cancellationToken = default)

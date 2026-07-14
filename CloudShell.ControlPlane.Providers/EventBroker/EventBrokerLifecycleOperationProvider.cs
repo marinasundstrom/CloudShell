@@ -1,31 +1,42 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class EventBrokerStartOperationProvider(
-    IEventBrokerRuntimeController? runtimeController = null) :
+    IEventBrokerRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     EventBrokerLifecycleOperationProvider(
         EventBrokerResourceTypeProvider.Operations.Start,
-        runtimeController);
+        runtimeController,
+        dispatcher);
 
 public sealed class EventBrokerStopOperationProvider(
-    IEventBrokerRuntimeController? runtimeController = null) :
+    IEventBrokerRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     EventBrokerLifecycleOperationProvider(
         EventBrokerResourceTypeProvider.Operations.Stop,
-        runtimeController);
+        runtimeController,
+        dispatcher);
 
 public sealed class EventBrokerRestartOperationProvider(
-    IEventBrokerRuntimeController? runtimeController = null) :
+    IEventBrokerRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     EventBrokerLifecycleOperationProvider(
         EventBrokerResourceTypeProvider.Operations.Restart,
-        runtimeController);
+        runtimeController,
+        dispatcher);
 
 public abstract class EventBrokerLifecycleOperationProvider(
     ResourceOperationId operationId,
-    IEventBrokerRuntimeController? runtimeController = null) :
+    IEventBrokerRuntimeController? runtimeController = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
     private readonly IEventBrokerRuntimeController _runtimeController =
         runtimeController ?? new NoopEventBrokerRuntimeController();
+
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? CreateDefaultDispatcher(
+            runtimeController ?? new NoopEventBrokerRuntimeController());
 
     public ResourceOperationId OperationId { get; } = operationId;
 
@@ -59,15 +70,28 @@ public abstract class EventBrokerLifecycleOperationProvider(
             new EventBrokerLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeController));
+                _runtimeController,
+                _dispatcher));
+
+    private static IProviderExecutionDispatcher CreateDefaultDispatcher(
+        IEventBrokerRuntimeController runtimeController) =>
+        new InProcessProviderExecutionDispatcher(
+            [
+                new EventBrokerStartExecutionHandler(runtimeController),
+                new EventBrokerStopExecutionHandler(runtimeController),
+                new EventBrokerRestartExecutionHandler(runtimeController)
+            ]);
 }
 
 public sealed class EventBrokerLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IEventBrokerRuntimeController runtimeController) : IResourceOperationExecutorProjection
+    IEventBrokerRuntimeController runtimeController,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -100,15 +124,25 @@ public sealed class EventBrokerLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await runtimeController.ExecuteAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = GetInstructionType(OperationId),
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Processes],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(ResourceWebAppRuntimeStatus status) =>
@@ -121,4 +155,24 @@ public sealed class EventBrokerLifecycleOperation(
                 OperationId == EventBrokerResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == EventBrokerResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.EventBrokerStart;
+        }
+
+        if (operationId == EventBrokerResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.EventBrokerStop;
+        }
+
+        if (operationId == EventBrokerResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.EventBrokerRestart;
+        }
+
+        return operationId.Value;
+    }
 }
