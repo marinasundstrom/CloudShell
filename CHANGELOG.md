@@ -27,6 +27,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Routed the Network endpoint-mapping reconcile operation through the provider
   execution dispatcher with a resource graph snapshot and in-process network
   execution handler, preserving existing reconciler diagnostics.
+- Routed the DNS zone name-mapping reconcile operation through the provider
+  execution dispatcher with the same snapshot-backed instruction pattern.
 
 ### 2026-07-13
 

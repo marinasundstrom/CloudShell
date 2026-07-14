@@ -4,14 +4,15 @@ public sealed class DnsZoneReconcileNameMappingsOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IDnsZoneNameMappingReconciler _nameMappingReconciler =
-        new NoopDnsZoneNameMappingReconciler();
+    private readonly IProviderExecutionDispatcher _dispatcher;
 
     public DnsZoneReconcileNameMappingsOperationProvider(
+        IProviderExecutionDispatcher? dispatcher = null,
         IDnsZoneNameMappingReconciler? nameMappingReconciler = null)
     {
-        _nameMappingReconciler =
-            nameMappingReconciler ?? new NoopDnsZoneNameMappingReconciler();
+        _dispatcher = dispatcher ??
+            new InProcessProviderExecutionDispatcher(
+                [new DnsZoneNameMappingExecutionHandler(nameMappingReconciler)]);
     }
 
     public ResourceOperationId OperationId =>
@@ -47,18 +48,17 @@ public sealed class DnsZoneReconcileNameMappingsOperationProvider :
             new DnsZoneReconcileNameMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _nameMappingReconciler));
+                _dispatcher));
 }
 
 public sealed class DnsZoneReconcileNameMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IDnsZoneNameMappingReconciler nameMappingReconciler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IDnsZoneNameMappingReconciler _nameMappingReconciler =
-        nameMappingReconciler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -96,15 +96,25 @@ public sealed class DnsZoneReconcileNameMappingsOperation(
                 ]);
         }
 
-        var diagnostics = await _nameMappingReconciler.ReconcileNameMappingsAsync(
-            Resource,
-            Context,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.DnsNameMappingReconcile,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.DnsNameMappings],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 

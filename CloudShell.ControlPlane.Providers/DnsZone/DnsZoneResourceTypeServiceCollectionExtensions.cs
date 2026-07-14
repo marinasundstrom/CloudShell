@@ -22,6 +22,8 @@ public static class DnsZoneResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
+
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
                 descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
@@ -42,6 +44,8 @@ public static class DnsZoneResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, DnsZoneReconcileNameMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, DnsZoneResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, DnsZoneNameMappingExecutionHandler>());
         services.TryAddSingleton<
             IDnsZoneNameMappingReconciler,
             NoopDnsZoneNameMappingReconciler>();

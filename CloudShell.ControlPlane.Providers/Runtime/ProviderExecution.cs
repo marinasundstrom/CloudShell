@@ -214,6 +214,7 @@ public static class ProviderExecutionCapabilities
     public const string FileSystem = "filesystem";
     public const string VolumeMounts = "volumeMounts";
     public const string HostNetworking = "hostNetworking";
+    public const string DnsNameMappings = "dnsNameMappings";
     public const string HostCommands = "hostCommands";
     public const string RuntimeObservation = "runtimeObservation";
 }

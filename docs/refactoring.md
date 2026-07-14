@@ -610,6 +610,9 @@ preserving old provider seams:
     assignment-shaped instruction with the current resource graph snapshot,
     and the in-process network execution handler adapts that instruction to
     the existing endpoint-mapping reconciler while preserving diagnostics.
+  - [x] Route the DNS zone name-mapping reconcile operation through the
+    provider execution dispatcher with the same snapshot-backed instruction
+    pattern and a DNS-specific in-process execution handler.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

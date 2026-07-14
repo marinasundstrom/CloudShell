@@ -241,6 +241,64 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal(request.TargetResourceId, diagnostic.Target);
     }
 
+    [Fact]
+    public async Task DnsZoneReconcileOperation_DispatchesNameMappingInstruction()
+    {
+        var zone = CreateGraphResource("dns-zone:private", "private", revision: 6);
+        var mapping = CreateGraphResource("name-mapping:api", "api");
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new DnsZoneReconcileNameMappingsOperation(
+            new ResourceProjectionExecutionContext(zone, [zone, mapping]),
+            new ResourceOperationResolution(
+                DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.DnsNameMappingReconcile, request.InstructionType);
+        Assert.Equal(zone.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(6, request.DesiredGeneration);
+        Assert.Equal(
+            $"{zone.EffectiveResourceId}:{DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings}:6",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.DnsNameMappings, request.RequiredCapabilities);
+        Assert.Same(zone, request.TargetResourceSnapshot);
+        Assert.Equal([zone, mapping], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task DnsZoneNameMappingHandler_ReturnsReconcilerDiagnostics()
+    {
+        var zone = CreateGraphResource("dns-zone:private", "private");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "dns.test",
+            "Name mappings reconciled.",
+            zone.EffectiveResourceId);
+        var handler = new DnsZoneNameMappingExecutionHandler(
+            new RecordingDnsZoneNameMappingReconciler([diagnostic]));
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.DnsNameMappingReconcile,
+            TargetResourceId = zone.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "dns-zone:private:1",
+            TargetResourceSnapshot = zone,
+            ResourceSnapshot = [zone]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+    }
+
     private sealed class RecordingExecutionHandler(
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler
@@ -279,6 +337,16 @@ public sealed class ProviderExecutionContractTests
         IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : INetworkEndpointMappingReconciler
     {
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+            GraphResource resource,
+            ResourceProjectionExecutionContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(diagnostics);
+    }
+
+    private sealed class RecordingDnsZoneNameMappingReconciler(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : IDnsZoneNameMappingReconciler
+    {
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileNameMappingsAsync(
             GraphResource resource,
             ResourceProjectionExecutionContext context,
             CancellationToken cancellationToken = default) =>
