@@ -4,10 +4,12 @@ public sealed class DockerContainerStartOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
     public DockerContainerStartOperationProvider(
-        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        IDockerContainerRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             DockerContainerResourceTypeProvider.Operations.Start,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
@@ -16,10 +18,12 @@ public sealed class DockerContainerStopOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
     public DockerContainerStopOperationProvider(
-        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        IDockerContainerRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             DockerContainerResourceTypeProvider.Operations.Stop,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
@@ -28,10 +32,12 @@ public sealed class DockerContainerPauseOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
     public DockerContainerPauseOperationProvider(
-        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        IDockerContainerRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             DockerContainerResourceTypeProvider.Operations.Pause,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
@@ -40,10 +46,12 @@ public sealed class DockerContainerRestartOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
     public DockerContainerRestartOperationProvider(
-        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        IDockerContainerRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             DockerContainerResourceTypeProvider.Operations.Restart,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
@@ -52,22 +60,29 @@ public sealed class DockerContainerUnpauseOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
     public DockerContainerUnpauseOperationProvider(
-        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        IDockerContainerRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             DockerContainerResourceTypeProvider.Operations.Unpause,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
 
 public abstract class DockerContainerLifecycleOperationProvider(
     ResourceOperationId operationId,
-    IDockerContainerRuntimeHandler? runtimeHandler = null) :
+    IDockerContainerRuntimeHandler? runtimeHandler = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
     private readonly IDockerContainerRuntimeHandler _runtimeHandler =
         runtimeHandler ?? new NoopDockerContainerRuntimeHandler();
+
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? CreateDefaultDispatcher(
+            runtimeHandler ?? new NoopDockerContainerRuntimeHandler());
 
     public ResourceOperationId OperationId { get; } = operationId;
 
@@ -101,17 +116,32 @@ public abstract class DockerContainerLifecycleOperationProvider(
             new DockerContainerLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeHandler));
+                _runtimeHandler,
+                _dispatcher));
+
+    private static IProviderExecutionDispatcher CreateDefaultDispatcher(
+        IDockerContainerRuntimeHandler runtimeHandler) =>
+        new InProcessProviderExecutionDispatcher(
+            [
+                new DockerContainerStartExecutionHandler(runtimeHandler),
+                new DockerContainerStopExecutionHandler(runtimeHandler),
+                new DockerContainerPauseExecutionHandler(runtimeHandler),
+                new DockerContainerRestartExecutionHandler(runtimeHandler),
+                new DockerContainerUnpauseExecutionHandler(runtimeHandler)
+            ]);
 }
 
 public sealed class DockerContainerLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IDockerContainerRuntimeHandler runtimeHandler) : IResourceOperationExecutorProjection
+    IDockerContainerRuntimeHandler runtimeHandler,
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
     private readonly IDockerContainerRuntimeHandler _runtimeHandler = runtimeHandler;
+
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -144,15 +174,25 @@ public sealed class DockerContainerLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeHandler.ExecuteLifecycleAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = GetInstructionType(OperationId),
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Containers],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private bool CanExecuteForStatus(DockerContainerRuntimeStatus status) =>
@@ -170,4 +210,34 @@ public sealed class DockerContainerLifecycleOperation(
                 OperationId == DockerContainerResourceTypeProvider.Operations.Start,
             _ => true
         };
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == DockerContainerResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.ContainerStart;
+        }
+
+        if (operationId == DockerContainerResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.ContainerStop;
+        }
+
+        if (operationId == DockerContainerResourceTypeProvider.Operations.Pause)
+        {
+            return ProviderExecutionInstructionTypes.ContainerPause;
+        }
+
+        if (operationId == DockerContainerResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.ContainerRestart;
+        }
+
+        if (operationId == DockerContainerResourceTypeProvider.Operations.Unpause)
+        {
+            return ProviderExecutionInstructionTypes.ContainerUnpause;
+        }
+
+        return operationId.Value;
+    }
 }

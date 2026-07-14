@@ -57,6 +57,9 @@ on `git blame --follow`, and then by the broad type of change.
   paths or aliases collide inside a composed resource schema.
 - Added provider execution target metadata so instructions can stay implicit
   for local MVP use while remaining targetable for future agent dispatch.
+- Routed Docker container lifecycle execution through the provider execution
+  dispatcher with in-process handlers for start, stop, pause, restart, and
+  unpause instructions.
 
 ### 2026-07-13
 

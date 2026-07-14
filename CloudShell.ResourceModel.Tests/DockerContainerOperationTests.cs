@@ -41,6 +41,73 @@ public sealed class DockerContainerOperationTests
     }
 
     [Fact]
+    public async Task LifecycleOperation_DispatchesLifecycleInstruction()
+    {
+        var dispatcher = new RecordingExecutionDispatcher();
+        var runtimeHandler = new TestDockerContainerRuntimeHandler();
+        var startProvider = new DockerContainerStartOperationProvider(runtimeHandler, dispatcher);
+        var stopProvider = new DockerContainerStopOperationProvider(runtimeHandler, dispatcher);
+        var restartProvider = new DockerContainerRestartOperationProvider(runtimeHandler, dispatcher);
+        var pauseProvider = new DockerContainerPauseOperationProvider(runtimeHandler, dispatcher);
+        var unpauseProvider = new DockerContainerUnpauseOperationProvider(runtimeHandler, dispatcher);
+        var pipeline = CreatePipeline(
+            startProvider,
+            stopProvider,
+            restartProvider,
+            pauseProvider,
+            unpauseProvider);
+
+        var result = await pipeline.ValidateAsync(
+            CreateDefinition(),
+            new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(result.HasErrors);
+
+        var startOperation = result.Resource.Operations.Get(
+            DockerContainerResourceTypeProvider.Operations.Start) as DockerContainerLifecycleOperation;
+
+        Assert.NotNull(startOperation);
+
+        await startOperation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.ContainerStart, request.InstructionType);
+        Assert.Equal(result.Resource.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(result.Resource.Revision.Value, request.DesiredGeneration);
+        Assert.Equal(
+            $"{result.Resource.EffectiveResourceId}:{DockerContainerResourceTypeProvider.Operations.Start}:{result.Resource.Revision.Value}",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.Containers, request.RequiredCapabilities);
+        Assert.Same(result.Resource, request.TargetResourceSnapshot);
+        Assert.Equal([result.Resource], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task LifecycleExecutionHandler_DelegatesToRuntimeHandler()
+    {
+        var runtimeHandler = new TestDockerContainerRuntimeHandler();
+        var resource = await CreateResourceAsync();
+        var handler = new DockerContainerStartExecutionHandler(runtimeHandler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = $"{resource.EffectiveResourceId}:start",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerStart,
+            TargetResourceId = resource.EffectiveResourceId,
+            DesiredGeneration = resource.Revision.Value,
+            IdempotencyKey = $"{resource.EffectiveResourceId}:start:{resource.Revision.Value}",
+            TargetResourceSnapshot = resource,
+            ResourceSnapshot = [resource]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        var invocation = Assert.Single(runtimeHandler.LifecycleInvocations);
+        Assert.Same(resource, invocation.Resource);
+        Assert.Equal(DockerContainerResourceTypeProvider.Operations.Start, invocation.OperationId);
+    }
+
+    [Fact]
     public async Task LifecycleOperation_UsesRuntimeStatusForAvailability()
     {
         var runtimeHandler = new TestDockerContainerRuntimeHandler
@@ -142,6 +209,37 @@ public sealed class DockerContainerOperationTests
                 [DockerContainerResourceTypeProvider.Attributes.ContainerImage] =
                     "registry:2"
             });
+
+    private static async ValueTask<Resource> CreateResourceAsync()
+    {
+        var pipeline = CreatePipeline(
+            new DockerContainerStartOperationProvider(),
+            new DockerContainerStopOperationProvider(),
+            new DockerContainerRestartOperationProvider(),
+            new DockerContainerPauseOperationProvider(),
+            new DockerContainerUnpauseOperationProvider());
+        var result = await pipeline.ValidateAsync(
+            CreateDefinition(),
+            new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(result.HasErrors);
+
+        return result.Resource;
+    }
+
+    private sealed class RecordingExecutionDispatcher : IProviderExecutionDispatcher
+    {
+        public List<ProviderExecutionRequest> Requests { get; } = [];
+
+        public ValueTask<ProviderExecutionResult> ExecuteAsync(
+            ProviderExecutionRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+
+            return ValueTask.FromResult(ProviderExecutionResult.Succeeded(request));
+        }
+    }
 
     private sealed class TestDockerContainerRuntimeHandler :
         IDockerContainerRuntimeHandler

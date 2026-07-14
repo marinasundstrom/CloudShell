@@ -657,6 +657,10 @@ preserving old provider seams:
   - [x] Route Virtual Network endpoint-mapping reconciliation through the
     provider execution dispatcher with a distinct virtual-network instruction
     so multiple endpoint handlers can coexist without dispatcher ambiguity.
+  - [x] Route Docker container lifecycle execution through the provider
+    execution dispatcher with in-process handlers for start, stop, pause,
+    restart, and unpause. This keeps local Docker command execution behind the
+    same instruction/result boundary used by reconciliation-style handlers.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
@@ -692,7 +696,7 @@ preserving old provider seams:
   - [ ] Make the first contract report observed generation/status and stable
     diagnostics so Resource Manager can reason about desired-versus-observed
     state before any remote agent exists.
-  - [ ] After the first networking-style operation proves the shape, adapt one
+  - [x] After the first networking-style operation proves the shape, adapt one
     container-backed lifecycle operation, such as SQL Server local Docker
     Start/Stop or Docker container lifecycle, so Docker command execution
     moves behind the same typed request/result pattern.
