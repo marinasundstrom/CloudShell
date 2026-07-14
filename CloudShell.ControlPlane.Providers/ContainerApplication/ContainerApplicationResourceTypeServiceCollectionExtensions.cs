@@ -38,6 +38,7 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
         services.AddNetworkingEndpointGraphShapes();
         services.AddContainerHostResourceType();
 
@@ -80,6 +81,12 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceModelResourceManagerObservabilityProvider, ContainerApplicationResourceModelObservabilityProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceMonitoringProvider, LocalContainerApplicationRuntimeMonitoringProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationStartExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationStopExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationRestartExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStartOperationProvider>());
         services.TryAddEnumerable(

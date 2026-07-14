@@ -420,6 +420,9 @@ public static class ProviderExecutionInstructionTypes
     public const string ContainerPause = "container.pause";
     public const string ContainerRestart = "container.restart";
     public const string ContainerUnpause = "container.unpause";
+    public const string ContainerApplicationStart = "containerApplication.start";
+    public const string ContainerApplicationStop = "containerApplication.stop";
+    public const string ContainerApplicationRestart = "containerApplication.restart";
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";
     public const string ProcessRestart = "process.restart";

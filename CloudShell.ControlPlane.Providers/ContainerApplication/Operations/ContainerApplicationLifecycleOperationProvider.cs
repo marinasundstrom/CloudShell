@@ -4,10 +4,12 @@ public sealed class ContainerApplicationStartOperationProvider :
     ContainerApplicationLifecycleOperationProvider
 {
     public ContainerApplicationStartOperationProvider(
-        IContainerApplicationRuntimeHandler? runtimeHandler = null)
+        IContainerApplicationRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             ContainerApplicationResourceTypeProvider.Operations.Start,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
@@ -16,10 +18,12 @@ public sealed class ContainerApplicationRestartOperationProvider :
     ContainerApplicationLifecycleOperationProvider
 {
     public ContainerApplicationRestartOperationProvider(
-        IContainerApplicationRuntimeHandler? runtimeHandler = null)
+        IContainerApplicationRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             ContainerApplicationResourceTypeProvider.Operations.Restart,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
@@ -28,22 +32,26 @@ public sealed class ContainerApplicationStopOperationProvider :
     ContainerApplicationLifecycleOperationProvider
 {
     public ContainerApplicationStopOperationProvider(
-        IContainerApplicationRuntimeHandler? runtimeHandler = null)
+        IContainerApplicationRuntimeHandler? runtimeHandler = null,
+        IProviderExecutionDispatcher? dispatcher = null)
         : base(
             ContainerApplicationResourceTypeProvider.Operations.Stop,
-            runtimeHandler)
+            runtimeHandler,
+            dispatcher)
     {
     }
 }
 
 public abstract class ContainerApplicationLifecycleOperationProvider(
     ResourceOperationId operationId,
-    IContainerApplicationRuntimeHandler? runtimeHandler = null) :
+    IContainerApplicationRuntimeHandler? runtimeHandler = null,
+    IProviderExecutionDispatcher? dispatcher = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IContainerApplicationRuntimeHandler _runtimeHandler =
-        runtimeHandler ?? new NoopContainerApplicationRuntimeHandler();
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? CreateDefaultDispatcher(
+            runtimeHandler ?? new NoopContainerApplicationRuntimeHandler());
 
     public ResourceOperationId OperationId { get; } = operationId;
 
@@ -77,17 +85,26 @@ public abstract class ContainerApplicationLifecycleOperationProvider(
             new ContainerApplicationLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _runtimeHandler));
+                _dispatcher));
+
+    private static IProviderExecutionDispatcher CreateDefaultDispatcher(
+        IContainerApplicationRuntimeHandler runtimeHandler) =>
+        new InProcessProviderExecutionDispatcher(
+            [
+                new ContainerApplicationStartExecutionHandler(runtimeHandler),
+                new ContainerApplicationStopExecutionHandler(runtimeHandler),
+                new ContainerApplicationRestartExecutionHandler(runtimeHandler)
+            ]);
 }
 
 public sealed class ContainerApplicationLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IContainerApplicationRuntimeHandler runtimeHandler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IContainerApplicationRuntimeHandler _runtimeHandler = runtimeHandler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -119,14 +136,44 @@ public sealed class ContainerApplicationLifecycleOperation(
                 ]);
         }
 
-        var diagnostics = await _runtimeHandler.ExecuteLifecycleAsync(
-            Resource,
-            OperationId,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = GetInstructionType(OperationId),
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.Containers],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
+    }
+
+    private static string GetInstructionType(ResourceOperationId operationId)
+    {
+        if (operationId == ContainerApplicationResourceTypeProvider.Operations.Start)
+        {
+            return ProviderExecutionInstructionTypes.ContainerApplicationStart;
+        }
+
+        if (operationId == ContainerApplicationResourceTypeProvider.Operations.Stop)
+        {
+            return ProviderExecutionInstructionTypes.ContainerApplicationStop;
+        }
+
+        if (operationId == ContainerApplicationResourceTypeProvider.Operations.Restart)
+        {
+            return ProviderExecutionInstructionTypes.ContainerApplicationRestart;
+        }
+
+        return operationId.Value;
     }
 }

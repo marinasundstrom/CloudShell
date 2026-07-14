@@ -686,6 +686,10 @@ preserving old provider seams:
     instruction type, desired generation, target, observed status, diagnostics,
     observations, and timestamps for successful and unavailable in-process
     execution results.
+  - [x] Route Container Application lifecycle execution through the provider
+    execution dispatcher with in-process handlers for start, stop, and restart.
+    Image and replica updates remain separate follow-up slices because they
+    use distinct runtime handler methods.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform
