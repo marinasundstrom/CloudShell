@@ -617,6 +617,10 @@ preserving old provider seams:
     dispatcher as the first filesystem/materialization instruction. The
     operation now targets the same assignment-shaped request model and the
     in-process handler adapts that request to the existing volume provisioner.
+  - [x] Route SQL Server access reconciliation through the provider execution
+    dispatcher so database access materialization also goes through the
+    instruction/handler boundary while keeping orchestration decisions in the
+    Control Plane.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

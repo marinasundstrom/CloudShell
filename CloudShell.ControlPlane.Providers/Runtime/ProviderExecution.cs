@@ -215,6 +215,7 @@ public static class ProviderExecutionCapabilities
     public const string VolumeMounts = "volumeMounts";
     public const string HostNetworking = "hostNetworking";
     public const string DnsNameMappings = "dnsNameMappings";
+    public const string SqlServerAccess = "sqlServerAccess";
     public const string HostCommands = "hostCommands";
     public const string RuntimeObservation = "runtimeObservation";
 }
@@ -231,6 +232,7 @@ public static class ProviderExecutionInstructionTypes
     public const string VolumeMountMaterialize = "volumeMount.materialize";
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";
     public const string DnsNameMappingReconcile = "dns.nameMapping.reconcile";
+    public const string SqlServerAccessReconcile = "sqlServer.access.reconcile";
 }
 
 public static class ProviderExecutionDiagnosticCodes

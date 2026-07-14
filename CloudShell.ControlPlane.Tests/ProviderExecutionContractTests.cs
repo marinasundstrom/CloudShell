@@ -364,6 +364,64 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal([diagnostic], result.Diagnostics);
     }
 
+    [Fact]
+    public async Task SqlServerReconcileAccessOperation_DispatchesAccessReconcileInstruction()
+    {
+        var sqlServer = CreateGraphResource("sql-server:app", "app", revision: 4);
+        var database = CreateGraphResource("sql-database:orders", "orders");
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new SqlServerReconcileAccessOperation(
+            new ResourceProjectionExecutionContext(sqlServer, [sqlServer, database]),
+            new ResourceOperationResolution(
+                SqlServerResourceTypeProvider.Operations.ReconcileAccess,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.SqlServerAccessReconcile, request.InstructionType);
+        Assert.Equal(sqlServer.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(4, request.DesiredGeneration);
+        Assert.Equal(
+            $"{sqlServer.EffectiveResourceId}:{SqlServerResourceTypeProvider.Operations.ReconcileAccess}:4",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.SqlServerAccess, request.RequiredCapabilities);
+        Assert.Same(sqlServer, request.TargetResourceSnapshot);
+        Assert.Equal([sqlServer, database], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task SqlServerAccessReconcileHandler_ReturnsReconcilerDiagnostics()
+    {
+        var sqlServer = CreateGraphResource("sql-server:app", "app");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "sqlServer.test",
+            "SQL Server access reconciled.",
+            sqlServer.EffectiveResourceId);
+        var handler = new SqlServerAccessReconcileExecutionHandler(
+            new RecordingSqlServerAccessReconciler([diagnostic]));
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.SqlServerAccessReconcile,
+            TargetResourceId = sqlServer.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "sql-server:app:1",
+            TargetResourceSnapshot = sqlServer,
+            ResourceSnapshot = [sqlServer]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+    }
+
     private sealed class RecordingExecutionHandler(
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler
@@ -422,6 +480,15 @@ public sealed class ProviderExecutionContractTests
         IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : ILocalVolumeProvisioner
     {
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(diagnostics);
+    }
+
+    private sealed class RecordingSqlServerAccessReconciler(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : ISqlServerAccessReconciler
+    {
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAccessAsync(
             GraphResource resource,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(diagnostics);

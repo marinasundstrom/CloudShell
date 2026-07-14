@@ -1,12 +1,19 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class SqlServerReconcileAccessOperationProvider(
-    ISqlServerAccessReconciler? accessReconciler = null) :
+public sealed class SqlServerReconcileAccessOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly ISqlServerAccessReconciler _accessReconciler =
-        accessReconciler ?? new NoopSqlServerAccessReconciler();
+    private readonly IProviderExecutionDispatcher _dispatcher;
+
+    public SqlServerReconcileAccessOperationProvider(
+        IProviderExecutionDispatcher? dispatcher = null,
+        ISqlServerAccessReconciler? accessReconciler = null)
+    {
+        _dispatcher = dispatcher ??
+            new InProcessProviderExecutionDispatcher(
+                [new SqlServerAccessReconcileExecutionHandler(accessReconciler)]);
+    }
 
     public ResourceOperationId OperationId =>
         SqlServerResourceTypeProvider.Operations.ReconcileAccess;
@@ -41,17 +48,17 @@ public sealed class SqlServerReconcileAccessOperationProvider(
             new SqlServerReconcileAccessOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _accessReconciler));
+                _dispatcher));
 }
 
 public sealed class SqlServerReconcileAccessOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ISqlServerAccessReconciler accessReconciler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly ISqlServerAccessReconciler _accessReconciler = accessReconciler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -93,14 +100,25 @@ public sealed class SqlServerReconcileAccessOperation(
                 ]);
         }
 
-        var diagnostics = await _accessReconciler.ReconcileAccessAsync(
-            Resource,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.SqlServerAccessReconcile,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.SqlServerAccess],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 

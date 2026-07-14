@@ -37,6 +37,7 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
 
         services.AddNetworkingEndpointGraphShapes();
         services.AddContainerHostResourceType();
+        services.AddProviderExecutionDispatcher();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -80,6 +81,8 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, SqlServerReconcileAccessOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SqlServerResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, SqlServerAccessReconcileExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IAspNetCoreProjectRuntimeEnvironmentProvider,

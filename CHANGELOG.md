@@ -31,6 +31,8 @@ on `git blame --follow`, and then by the broad type of change.
   execution dispatcher with the same snapshot-backed instruction pattern.
 - Routed Local Volume provisioning through the provider execution dispatcher
   with a filesystem capability and in-process execution handler.
+- Routed SQL Server access reconciliation through the provider execution
+  dispatcher with an in-process execution handler.
 
 ### 2026-07-13
 
