@@ -1225,6 +1225,101 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ContainerApplicationServiceInstanceStartHandler_ReturnsRuntimeDiagnostics()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var service = CreateContainerApplicationOrchestratorService(containerApp);
+        var replicaGroup = RMResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var instance = replicaGroup.Instances.First();
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "containerApplication.instance.start.test",
+            "Container Application service instance started.",
+            containerApp.EffectiveResourceId);
+        var runtimeHandler = new RecordingContainerApplicationOrchestratorRuntimeHandler([diagnostic]);
+        var handler = new ContainerApplicationServiceInstanceStartExecutionHandler(runtimeHandler);
+        var request = CreateContainerApplicationServiceInstanceRequest(
+            containerApp,
+            ProviderExecutionInstructionTypes.ContainerApplicationServiceInstanceStart,
+            service,
+            instance,
+            RMResourceAction.Start,
+            replicaGroup);
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Equal("Start", result.Observations["actionKind"]);
+        Assert.Equal(instance.ReplicaOrdinal.ToString(System.Globalization.CultureInfo.InvariantCulture), result.Observations["replicaOrdinal"]);
+        var invocation = Assert.Single(runtimeHandler.InstanceInvocations);
+        Assert.Same(containerApp, invocation.Resource);
+        Assert.Equal(service, invocation.Service);
+        Assert.Equal(instance, invocation.Instance);
+        Assert.Equal(RMResourceAction.Start, invocation.Action);
+        Assert.NotNull(invocation.ReplicaGroup);
+        Assert.Equal(replicaGroup.Id, invocation.ReplicaGroup.Id);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationServiceInstanceStopHandler_ReturnsRuntimeDiagnostics()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var service = CreateContainerApplicationOrchestratorService(containerApp);
+        var replicaGroup = RMResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var instance = replicaGroup.Instances.First();
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "containerApplication.instance.stop.test",
+            "Container Application service instance stopped.",
+            containerApp.EffectiveResourceId);
+        var runtimeHandler = new RecordingContainerApplicationOrchestratorRuntimeHandler([diagnostic]);
+        var handler = new ContainerApplicationServiceInstanceStopExecutionHandler(runtimeHandler);
+        var request = CreateContainerApplicationServiceInstanceRequest(
+            containerApp,
+            ProviderExecutionInstructionTypes.ContainerApplicationServiceInstanceStop,
+            service,
+            instance,
+            RMResourceAction.Stop,
+            replicaGroup);
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Equal("Stop", result.Observations["actionKind"]);
+        var invocation = Assert.Single(runtimeHandler.InstanceInvocations);
+        Assert.Same(containerApp, invocation.Resource);
+        Assert.Equal(service, invocation.Service);
+        Assert.Equal(instance, invocation.Instance);
+        Assert.Equal(RMResourceAction.Stop, invocation.Action);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationServiceInstanceHandler_RequiresMatchingActionKind()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var service = CreateContainerApplicationOrchestratorService(containerApp);
+        var replicaGroup = RMResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var runtimeHandler = new RecordingContainerApplicationOrchestratorRuntimeHandler();
+        var handler = new ContainerApplicationServiceInstanceStartExecutionHandler(runtimeHandler);
+        var request = CreateContainerApplicationServiceInstanceRequest(
+            containerApp,
+            ProviderExecutionInstructionTypes.ContainerApplicationServiceInstanceStart,
+            service,
+            replicaGroup.Instances.First(),
+            RMResourceAction.Stop,
+            replicaGroup);
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Unavailable, result.Status);
+        Assert.Empty(runtimeHandler.InstanceInvocations);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ProviderExecutionDiagnosticCodes.PayloadInvalid);
+    }
+
+    [Fact]
     public async Task SqlServerLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var sqlServer = CreateGraphResource("sql-server:app", "app", revision: 5);
@@ -1811,6 +1906,13 @@ public sealed class ProviderExecutionContractTests
             RMResourceOrchestratorReplicaGroup? ReplicaGroup,
             IReadOnlyList<RMResourceOrchestratorServiceRoutingBindingDefinition> RoutingBindings)> TearDownInvocations { get; } = [];
 
+        public List<(
+            GraphResource Resource,
+            RMResourceOrchestratorService Service,
+            RMResourceOrchestratorServiceInstance Instance,
+            RMResourceAction Action,
+            RMResourceOrchestratorReplicaGroup? ReplicaGroup)> InstanceInvocations { get; } = [];
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> PrepareOrchestratorServiceAsync(
             GraphResource resource,
             RMResourceOrchestratorService service,
@@ -1853,8 +1955,12 @@ public sealed class ProviderExecutionContractTests
             RMResourceOrchestratorServiceInstance instance,
             RMResourceAction action,
             RMResourceOrchestratorReplicaGroup? replicaGroup,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+            CancellationToken cancellationToken = default)
+        {
+            InstanceInvocations.Add((resource, service, instance, action, replicaGroup));
+
+            return ValueTask.FromResult(diagnostics ?? []);
+        }
     }
 
     private sealed class RecordingSqlServerRuntimeHandler(
@@ -2018,6 +2124,30 @@ public sealed class ProviderExecutionContractTests
                     service,
                     replicaGroup,
                     []))
+        };
+
+    private static ProviderExecutionRequest CreateContainerApplicationServiceInstanceRequest(
+        GraphResource resource,
+        string instructionType,
+        RMResourceOrchestratorService service,
+        RMResourceOrchestratorServiceInstance instance,
+        RMResourceAction action,
+        RMResourceOrchestratorReplicaGroup? replicaGroup) =>
+        new()
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = instructionType,
+            TargetResourceId = resource.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = $"{resource.EffectiveResourceId}:{instructionType}:{instance.ReplicaOrdinal}:1",
+            TargetResourceSnapshot = resource,
+            ResourceSnapshot = [resource],
+            Payload = JsonSerializer.SerializeToElement(
+                new ContainerApplicationServiceInstanceExecutionPayload(
+                    service,
+                    instance,
+                    action,
+                    replicaGroup))
         };
 
     private static GraphResource CreateGraphResource(

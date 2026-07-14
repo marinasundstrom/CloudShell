@@ -114,13 +114,25 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
     {
         if (_orchestratorRuntimeHandler is not null)
         {
-            var orchestratorDiagnostics = await _orchestratorRuntimeHandler.ExecuteOrchestratorServiceInstanceAsync(
+            var instructionType = action.Kind switch
+            {
+                ResourceActionKind.Start => ProviderExecutionInstructionTypes.ContainerApplicationServiceInstanceStart,
+                ResourceActionKind.Stop => ProviderExecutionInstructionTypes.ContainerApplicationServiceInstanceStop,
+                _ => null
+            };
+
+            if (instructionType is null)
+            {
+                return;
+            }
+
+            var orchestratorDiagnostics = await ExecuteRuntimeInstructionAsync(
                 context.GraphResource,
-                context.Service,
-                context.Instance,
-                action,
-                context.ReplicaGroup,
-                cancellationToken);
+                instructionType,
+                instructionType,
+                cancellationToken,
+                [ProviderExecutionCapabilities.Containers],
+                CreateServiceInstancePayload(context, action));
             ThrowIfErrors(orchestratorDiagnostics);
             return;
         }
@@ -201,6 +213,16 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
                 ProviderExecutionCapabilities.LoadBalancing
             ];
 
+    private static JsonElement CreateServiceInstancePayload(
+        ResourceModelGraphOrchestratorServiceInstanceContext context,
+        ResourceAction action) =>
+        JsonSerializer.SerializeToElement(
+            new ContainerApplicationServiceInstanceExecutionPayload(
+                context.Service,
+                context.Instance,
+                action,
+                context.ReplicaGroup));
+
     private static void ThrowIfErrors(
         IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics)
     {
@@ -231,6 +253,8 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
                 new ContainerApplicationReplicasApplyExecutionHandler(runtimeHandler),
                 new ContainerApplicationOrchestratorServicePrepareExecutionHandler(orchestratorRuntimeHandler),
                 new ContainerApplicationRoutingReconcileExecutionHandler(orchestratorRuntimeHandler),
-                new ContainerApplicationRoutingTearDownExecutionHandler(orchestratorRuntimeHandler)
+                new ContainerApplicationRoutingTearDownExecutionHandler(orchestratorRuntimeHandler),
+                new ContainerApplicationServiceInstanceStartExecutionHandler(orchestratorRuntimeHandler),
+                new ContainerApplicationServiceInstanceStopExecutionHandler(orchestratorRuntimeHandler)
             ]);
 }

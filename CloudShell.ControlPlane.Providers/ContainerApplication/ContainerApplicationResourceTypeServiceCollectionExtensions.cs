@@ -98,6 +98,10 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationRoutingTearDownExecutionHandler>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationServiceInstanceStartExecutionHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, ContainerApplicationServiceInstanceStopExecutionHandler>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStartOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStopOperationProvider>());

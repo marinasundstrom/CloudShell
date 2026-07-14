@@ -886,6 +886,14 @@ Resource actions may dispatch provider execution instructions, but internal
 reconciliation steps should remain execution instructions unless CloudShell
 intentionally exposes them as resource-domain behavior.
 
+Provider execution payloads are provider-owned execution contracts. They carry
+the narrow runtime context an execution handler needs, such as an orchestrator
+service, replica instance, action, or routing binding list. They are not
+resource definitions, public resource operations, or an agent protocol. The
+same payload shape can later be carried over an agent transport, but the
+Control Plane still owns desired state, authorization, orchestration order, and
+status derivation.
+
 ### Resource action capability
 
 A resource action capability describes whether a resource action can currently

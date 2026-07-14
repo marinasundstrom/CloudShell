@@ -430,6 +430,8 @@ public static class ProviderExecutionInstructionTypes
     public const string ContainerApplicationOrchestratorServicePrepare = "containerApplication.service.prepare";
     public const string ContainerApplicationRoutingReconcile = "containerApplication.routing.reconcile";
     public const string ContainerApplicationRoutingTearDown = "containerApplication.routing.tearDown";
+    public const string ContainerApplicationServiceInstanceStart = "containerApplication.serviceInstance.start";
+    public const string ContainerApplicationServiceInstanceStop = "containerApplication.serviceInstance.stop";
     public const string ExecutableApplicationStart = "executableApplication.start";
     public const string ProcessStart = "process.start";
     public const string ProcessStop = "process.stop";
@@ -469,6 +471,7 @@ public static class ProviderExecutionDiagnosticCodes
         "providerExecution.requiredCapabilityMissing";
     public const string ResourceSnapshotMissing = "providerExecution.resourceSnapshotMissing";
     public const string PayloadMissing = "providerExecution.payloadMissing";
+    public const string PayloadInvalid = "providerExecution.payloadInvalid";
     public const string ExecutionTargetUnsupported =
         "providerExecution.executionTargetUnsupported";
 }

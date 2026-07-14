@@ -519,48 +519,48 @@ preserving old provider seams:
   those contracts so execution remains in-process now but can later be
   extracted into agents without changing the resource model, operation
   providers, or Resource Manager semantics.
-  - [ ] Build an extractable in-process execution infrastructure first. The
+  - [x] Build an extractable in-process execution infrastructure first. The
     first implementation should run inside the Control Plane host through
     dependency injection, but Control Plane services should call a narrow
     provider execution port instead of directly depending on concrete runtime
     handlers or host command runners.
-  - [ ] Make execution agent-targetable before introducing agents. Resource
+  - [x] Make execution agent-targetable before introducing agents. Resource
     Manager should be able to produce typed execution instructions that
-    identify the operation, target resource, and required capabilities, while
-    the current dispatcher
-    still resolves an in-process handler through local service registration.
+    identify the instruction, target resource, and required capabilities,
+    while the current dispatcher still resolves an in-process handler through
+    local service registration.
     This is the MVP transition point between direct Control Plane execution
     and a future remote agent transport.
-  - [ ] Keep remote execution concerns deferred while still designing for
+  - [x] Keep remote execution concerns deferred while still designing for
     them. Do not introduce agent processes, transport protocols, host
     registration, cluster scheduling, or distributed leases until at least two
     existing handlers use the new shape locally, but avoid contracts that
     assume same-process execution, ambient service access, local filesystem
     paths, or direct process handles.
-  - [ ] Treat the execution boundary as a provider-side assignment shape, not
+  - [x] Treat the execution boundary as a provider-side assignment shape, not
     as a new top-level resource concept. The assignment-shaped instruction
-    should name the operation, target resource, desired generation or
+    should name the instruction, target resource, desired generation or
     revision, idempotency key, required capabilities, and provider-owned
     payload.
     Resource definitions should not name an agent or execution participant for
     the normal local and single-host case; the Control Plane derives the
     execution target from the host profile, provider capability, and later
     placement policy only when more than one participant exists.
-  - [ ] Defer explicit region and data-center topology until after the agent
+  - [x] Defer explicit region and data-center topology until after the agent
     transition. The first execution boundary should assume one implicit
     default execution target; later placement metadata can add regions,
     failure domains, and capacity pools without changing resource definitions
     for local development.
-  - [ ] Treat handler results as observations. Results should carry observed
+  - [x] Treat handler results as observations. Results should carry observed
     status, observed generation, provider-owned observations, diagnostics, and
     enough correlation data for Resource Manager to relate them to the
     requested desired state.
-  - [ ] Preserve the existing Control Plane authority model. Resource Manager
+  - [x] Preserve the existing Control Plane authority model. Resource Manager
     validates and records desired state, evaluates authorization and action
     capability, coordinates provider operations, and derives resource status.
     Handlers make a local assignment true; they do not decide global placement
     or own the resource graph.
-  - [ ] Keep resource type providers and handlers as the extension model. The
+  - [x] Keep resource type providers and handlers as the extension model. The
     refactor should add a clearer execution port between provider planning and
     host runtime work, not replace provider packages with an agent-specific
     plugin model.
@@ -620,6 +620,12 @@ preserving old provider seams:
   metadata without introducing remote agents yet. The goal is to let current
   in-process runtimes and future agents execute the same provider-side
   assignment shape.
+  - [x] Define provider execution payload rules. Payloads are typed,
+    provider-owned execution contracts serialized through `JsonElement` at the
+    dispatcher boundary. They are not resource definitions, not public
+    resource operations, and not an agent transport protocol. Payload records
+    must be narrow, versionable, and explicit about the runtime work a handler
+    needs to make the assignment true.
   - [x] Add the first provider execution contract types in the provider
     runtime layer: dispatcher, handler, assignment-shaped instruction request,
     observed result, status, capability IDs, and instruction type IDs. The
@@ -700,9 +706,21 @@ preserving old provider seams:
     orchestration hooks.
   - [x] Route Container Application orchestrator service prepare and routing
     teardown through the provider execution dispatcher with the same typed
-    orchestrator-service payload. Replica-instance execution remains the next
-    Container Application orchestration hook still calling the runtime handler
-    directly.
+    orchestrator-service payload.
+  - [x] Route Container Application orchestrator service-instance start and
+    stop through the provider execution dispatcher with a typed
+    service-instance payload. This completes the Container Application
+    deployment/orchestration hooks that previously called the orchestrator
+    runtime handler directly.
+  - [x] Add provider execution payload validation for Container Application
+    service-instance instructions so a start instruction with a stop action,
+    or the inverse, returns an unavailable result with a stable diagnostic
+    instead of reaching the runtime handler.
+  - [x] Keep remaining non-critical direct runtime seams out of the MVP
+    execution-boundary definition. Process controllers, language-specific app
+    runtimes, and provider internals can continue to call local runtime
+    helpers behind their current provider execution handlers until a later
+    hardening pass needs them to become independently dispatchable.
   - [x] Route Load Balancer configuration apply through the provider
     execution dispatcher with an in-process handler for the existing
     configuration applier, keeping Traefik/file-provider materialization behind

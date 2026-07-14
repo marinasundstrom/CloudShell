@@ -86,6 +86,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Routed Container Application orchestrator service prepare and routing
   teardown through provider execution instructions with a typed
   orchestrator-service payload.
+- Routed Container Application orchestrator service-instance start and stop
+  through provider execution instructions with a typed service-instance
+  payload and action-kind validation.
+- Documented provider execution payloads as typed provider-owned execution
+  contracts, separate from resource definitions, resource operations, and
+  future agent transport.
 - Routed Load Balancer configuration apply through the provider execution
   dispatcher with an in-process configuration-apply handler.
 - Routed CloudShell Volume provisioning through the provider execution
