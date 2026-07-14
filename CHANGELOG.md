@@ -77,6 +77,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a resource-scoped provider execution request factory so assignment ids,
   idempotency keys, target metadata, snapshots, and payloads are composed
   consistently before dispatch.
+- Migrated built-in provider operation dispatchers to the provider execution
+  request factory so request identity and idempotency construction no longer
+  drift across resource categories.
 - Routed Container Application lifecycle execution through the provider
   execution dispatcher with in-process start, stop, and restart handlers.
 - Routed Container Application image and replica materialization through the

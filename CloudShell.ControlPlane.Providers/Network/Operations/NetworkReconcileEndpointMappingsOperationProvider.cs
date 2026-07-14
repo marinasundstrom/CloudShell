@@ -96,18 +96,12 @@ public sealed class NetworkReconcileEndpointMappingsOperation(
         }
 
         var result = await _dispatcher.ExecuteAsync(
-            new ProviderExecutionRequest
-            {
-                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
-                InstructionType = ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
-                TargetResourceId = Resource.EffectiveResourceId,
-                DesiredGeneration = Resource.Revision.Value,
-                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
-                RequiredCapabilities = [ProviderExecutionCapabilities.HostNetworking],
-                TargetResourceSnapshot = Resource,
-                ResourceSnapshot = Context.Resources,
-                RequestedAt = DateTimeOffset.UtcNow
-            },
+            ProviderExecutionRequests.CreateForResource(
+                Resource,
+                OperationId.Value,
+                ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
+                [ProviderExecutionCapabilities.HostNetworking],
+                Context.Resources),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(

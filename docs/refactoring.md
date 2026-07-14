@@ -646,6 +646,11 @@ preserving old provider seams:
     and metadata are composed consistently before callers reach the dispatcher.
     This keeps today's in-process dispatch identity in one place and gives the
     future agent/placement transition a single construction point to evolve.
+  - [x] Migrate built-in provider operation dispatchers to the request factory.
+    Network, DNS, host-network, storage, load-balancer, executable,
+    Docker-backed lifecycle, process-backed lifecycle, SQL Server access, and
+    RabbitMQ access operations now use the same request construction path as
+    Container Application execution.
   - [x] Route the Network endpoint-mapping reconcile operation through the
     provider execution dispatcher. The operation now creates an
     assignment-shaped instruction with the current resource graph snapshot,
