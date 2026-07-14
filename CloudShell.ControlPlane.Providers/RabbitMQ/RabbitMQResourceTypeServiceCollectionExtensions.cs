@@ -27,6 +27,7 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
 
         services.AddNetworkingEndpointGraphShapes();
         services.AddContainerHostResourceType();
+        services.AddProviderExecutionDispatcher();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -68,6 +69,8 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, RabbitMQReconcileAccessOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, RabbitMQResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, RabbitMQAccessReconcileExecutionHandler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourcePermissionGrantStatusProvider, RabbitMQPermissionGrantStatusProvider>());
         services.TryAddEnumerable(

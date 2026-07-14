@@ -422,6 +422,75 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal([diagnostic], result.Diagnostics);
     }
 
+    [Fact]
+    public async Task RabbitMQReconcileAccessOperation_DispatchesAccessReconcileInstructionWithGrants()
+    {
+        var rabbitMQ = CreateGraphResource("rabbitmq:broker", "broker", revision: 3);
+        var grant = CreateRabbitMQGrant(rabbitMQ.EffectiveResourceId);
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new RabbitMQReconcileAccessOperation(
+            new ResourceProjectionExecutionContext(rabbitMQ, [rabbitMQ]),
+            new ResourceOperationResolution(
+                RabbitMQResourceTypeProvider.Operations.ReconcileAccess,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher,
+            new RecordingResourcePermissionGrantReader([grant]));
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.RabbitMQAccessReconcile, request.InstructionType);
+        Assert.Equal(rabbitMQ.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(3, request.DesiredGeneration);
+        Assert.Equal(
+            $"{rabbitMQ.EffectiveResourceId}:{RabbitMQResourceTypeProvider.Operations.ReconcileAccess}:3",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.RabbitMQAccess, request.RequiredCapabilities);
+        Assert.Same(rabbitMQ, request.TargetResourceSnapshot);
+        Assert.Equal([rabbitMQ], request.ResourceSnapshot);
+        Assert.NotNull(request.Payload);
+        var payload = System.Text.Json.JsonSerializer.Deserialize<RabbitMQAccessReconcileExecutionPayload>(
+            request.Payload.Value.GetRawText());
+        Assert.NotNull(payload);
+        var payloadGrant = Assert.Single(payload.Grants);
+        Assert.Equal(grant, payloadGrant);
+    }
+
+    [Fact]
+    public async Task RabbitMQAccessReconcileHandler_ReturnsReconcilerDiagnostics()
+    {
+        var rabbitMQ = CreateGraphResource("rabbitmq:broker", "broker");
+        var grant = CreateRabbitMQGrant(rabbitMQ.EffectiveResourceId);
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "rabbitmq.test",
+            "RabbitMQ access reconciled.",
+            rabbitMQ.EffectiveResourceId);
+        var reconciler = new RecordingRabbitMQAccessReconciler([diagnostic]);
+        var handler = new RabbitMQAccessReconcileExecutionHandler(reconciler);
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.RabbitMQAccessReconcile,
+            TargetResourceId = rabbitMQ.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "rabbitmq:broker:1",
+            TargetResourceSnapshot = rabbitMQ,
+            ResourceSnapshot = [rabbitMQ],
+            Payload = System.Text.Json.JsonSerializer.SerializeToElement(
+                new RabbitMQAccessReconcileExecutionPayload([grant]))
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+        Assert.Equal([grant], reconciler.Grants);
+    }
+
     private sealed class RecordingExecutionHandler(
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler
@@ -493,6 +562,41 @@ public sealed class ProviderExecutionContractTests
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(diagnostics);
     }
+
+    private sealed class RecordingRabbitMQAccessReconciler(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : IRabbitMQAccessReconciler
+    {
+        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.ResourcePermissionGrant> Grants { get; private set; } =
+            [];
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAccessAsync(
+            GraphResource resource,
+            IReadOnlyList<CloudShell.Abstractions.ResourceManager.ResourcePermissionGrant> grants,
+            CancellationToken cancellationToken = default)
+        {
+            Grants = grants;
+
+            return ValueTask.FromResult(diagnostics);
+        }
+    }
+
+    private sealed class RecordingResourcePermissionGrantReader(
+        IReadOnlyList<CloudShell.Abstractions.ResourceManager.ResourcePermissionGrant> grants)
+        : CloudShell.Abstractions.ResourceManager.IResourcePermissionGrantReader
+    {
+        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.ResourcePermissionGrant> GetPermissionGrants() =>
+            grants;
+    }
+
+    private static CloudShell.Abstractions.ResourceManager.ResourcePermissionGrant CreateRabbitMQGrant(
+        string targetResourceId) =>
+        new(
+            new CloudShell.Abstractions.ResourceManager.ResourcePrincipalReference(
+                CloudShell.Abstractions.ResourceManager.ResourcePrincipalKind.ResourceIdentity,
+                "application:api",
+                SourceResourceId: "application:api"),
+            targetResourceId,
+            CloudShell.Abstractions.Authorization.RabbitMQResourceOperationPermissions.ReconcileAccess);
 
     private static GraphResource CreateGraphResource(
         string resourceId,

@@ -621,6 +621,9 @@ preserving old provider seams:
     dispatcher so database access materialization also goes through the
     instruction/handler boundary while keeping orchestration decisions in the
     Control Plane.
+  - [x] Route RabbitMQ access reconciliation through the provider execution
+    dispatcher with grant data carried as instruction payload, exercising the
+    payload path needed for future agent-backed execution.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

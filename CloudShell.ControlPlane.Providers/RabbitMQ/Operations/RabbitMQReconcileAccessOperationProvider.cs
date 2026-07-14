@@ -1,16 +1,25 @@
 using CloudShell.Abstractions.ResourceManager;
+using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class RabbitMQReconcileAccessOperationProvider(
-    IRabbitMQAccessReconciler? accessReconciler = null,
-    IResourcePermissionGrantReader? grantReader = null) :
+public sealed class RabbitMQReconcileAccessOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IRabbitMQAccessReconciler _accessReconciler =
-        accessReconciler ?? new NoopRabbitMQAccessReconciler();
-    private readonly IResourcePermissionGrantReader? _grantReader = grantReader;
+    private readonly IProviderExecutionDispatcher _dispatcher;
+    private readonly IResourcePermissionGrantReader? _grantReader;
+
+    public RabbitMQReconcileAccessOperationProvider(
+        IProviderExecutionDispatcher? dispatcher = null,
+        IRabbitMQAccessReconciler? accessReconciler = null,
+        IResourcePermissionGrantReader? grantReader = null)
+    {
+        _dispatcher = dispatcher ??
+            new InProcessProviderExecutionDispatcher(
+                [new RabbitMQAccessReconcileExecutionHandler(accessReconciler)]);
+        _grantReader = grantReader;
+    }
 
     public ResourceOperationId OperationId =>
         RabbitMQResourceTypeProvider.Operations.ReconcileAccess;
@@ -45,19 +54,19 @@ public sealed class RabbitMQReconcileAccessOperationProvider(
             new RabbitMQReconcileAccessOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _accessReconciler,
+                _dispatcher,
                 _grantReader));
 }
 
 public sealed class RabbitMQReconcileAccessOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IRabbitMQAccessReconciler accessReconciler,
+    IProviderExecutionDispatcher dispatcher,
     IResourcePermissionGrantReader? grantReader = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IRabbitMQAccessReconciler _accessReconciler = accessReconciler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -93,15 +102,27 @@ public sealed class RabbitMQReconcileAccessOperation(
         }
 
         var plan = PlanReconciliation();
-        var diagnostics = await _accessReconciler.ReconcileAccessAsync(
-            plan.Resource,
-            plan.Grants,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.RabbitMQAccessReconcile,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.RabbitMQAccess],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                Payload = JsonSerializer.SerializeToElement(
+                    new RabbitMQAccessReconcileExecutionPayload(plan.Grants)),
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 
     private IReadOnlyList<ResourcePermissionGrant> GetTargetedRabbitMQGrants()

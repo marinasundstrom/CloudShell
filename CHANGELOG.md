@@ -33,6 +33,8 @@ on `git blame --follow`, and then by the broad type of change.
   with a filesystem capability and in-process execution handler.
 - Routed SQL Server access reconciliation through the provider execution
   dispatcher with an in-process execution handler.
+- Routed RabbitMQ access reconciliation through the provider execution
+  dispatcher with grant data carried in the instruction payload.
 
 ### 2026-07-13
 

@@ -216,6 +216,7 @@ public static class ProviderExecutionCapabilities
     public const string HostNetworking = "hostNetworking";
     public const string DnsNameMappings = "dnsNameMappings";
     public const string SqlServerAccess = "sqlServerAccess";
+    public const string RabbitMQAccess = "rabbitMQAccess";
     public const string HostCommands = "hostCommands";
     public const string RuntimeObservation = "runtimeObservation";
 }
@@ -233,6 +234,7 @@ public static class ProviderExecutionInstructionTypes
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";
     public const string DnsNameMappingReconcile = "dns.nameMapping.reconcile";
     public const string SqlServerAccessReconcile = "sqlServer.access.reconcile";
+    public const string RabbitMQAccessReconcile = "rabbitMQ.access.reconcile";
 }
 
 public static class ProviderExecutionDiagnosticCodes
