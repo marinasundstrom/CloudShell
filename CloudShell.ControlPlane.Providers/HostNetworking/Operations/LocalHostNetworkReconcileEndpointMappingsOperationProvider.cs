@@ -1,12 +1,14 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class LocalHostNetworkReconcileEndpointMappingsOperationProvider(
+    IProviderExecutionDispatcher? dispatcher = null,
     ILocalHostNetworkEndpointMappingReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly ILocalHostNetworkEndpointMappingReconciler _reconciler =
-        reconciler ?? new NoopLocalHostNetworkEndpointMappingReconciler();
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [new LocalHostNetworkEndpointMappingExecutionHandler(reconciler)]);
 
     public ResourceOperationId OperationId =>
         LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
@@ -41,18 +43,17 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperationProvider(
             new LocalHostNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _reconciler));
+                _dispatcher));
 }
 
 public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ILocalHostNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly ILocalHostNetworkEndpointMappingReconciler _reconciler =
-        reconciler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -91,15 +92,25 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
                 ]);
         }
 
-        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
-            Resource,
-            Context,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.LocalHostNetworkEndpointReconcile,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.HostNetworking],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 

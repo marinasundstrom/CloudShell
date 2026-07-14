@@ -360,6 +360,122 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task LocalHostNetworkReconcileOperation_DispatchesEndpointReconcileInstruction()
+    {
+        var hostNetwork = CreateGraphResource("host-network:local", "local", revision: 2);
+        var endpoint = CreateGraphResource("endpoint:api", "api");
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new LocalHostNetworkReconcileEndpointMappingsOperation(
+            new ResourceProjectionExecutionContext(hostNetwork, [hostNetwork, endpoint]),
+            new ResourceOperationResolution(
+                LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.LocalHostNetworkEndpointReconcile, request.InstructionType);
+        Assert.Equal(hostNetwork.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(2, request.DesiredGeneration);
+        Assert.Equal(
+            $"{hostNetwork.EffectiveResourceId}:{LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings}:2",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.HostNetworking, request.RequiredCapabilities);
+        Assert.Same(hostNetwork, request.TargetResourceSnapshot);
+        Assert.Equal([hostNetwork, endpoint], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task LocalHostNetworkEndpointMappingHandler_ReturnsReconcilerDiagnostics()
+    {
+        var hostNetwork = CreateGraphResource("host-network:local", "local");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "hostNetwork.local.test",
+            "Local host network reconciled.",
+            hostNetwork.EffectiveResourceId);
+        var handler = new LocalHostNetworkEndpointMappingExecutionHandler(
+            new RecordingLocalHostNetworkEndpointMappingReconciler([diagnostic]));
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.LocalHostNetworkEndpointReconcile,
+            TargetResourceId = hostNetwork.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "host-network:local:1",
+            TargetResourceSnapshot = hostNetwork,
+            ResourceSnapshot = [hostNetwork]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+    }
+
+    [Fact]
+    public async Task MacOSHostNetworkReconcileOperation_DispatchesEndpointReconcileInstruction()
+    {
+        var hostNetwork = CreateGraphResource("host-network:macos", "macos", revision: 3);
+        var endpoint = CreateGraphResource("endpoint:api", "api");
+        var dispatcher = new RecordingExecutionDispatcher();
+        var operation = new MacOSHostNetworkReconcileEndpointMappingsOperation(
+            new ResourceProjectionExecutionContext(hostNetwork, [hostNetwork, endpoint]),
+            new ResourceOperationResolution(
+                MacOSHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings,
+                ResourceDefinitionJson.EmptyObject,
+                ResourceDefinitionValueSource.TypeDefinition,
+                IsEnabled: true,
+                AllowOverride: false),
+            dispatcher);
+
+        await operation.ExecuteAsync();
+
+        var request = Assert.Single(dispatcher.Requests);
+        Assert.Equal(ProviderExecutionInstructionTypes.MacOSHostNetworkEndpointReconcile, request.InstructionType);
+        Assert.Equal(hostNetwork.EffectiveResourceId, request.TargetResourceId);
+        Assert.Equal(3, request.DesiredGeneration);
+        Assert.Equal(
+            $"{hostNetwork.EffectiveResourceId}:{MacOSHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings}:3",
+            request.IdempotencyKey);
+        Assert.Contains(ProviderExecutionCapabilities.HostNetworking, request.RequiredCapabilities);
+        Assert.Same(hostNetwork, request.TargetResourceSnapshot);
+        Assert.Equal([hostNetwork, endpoint], request.ResourceSnapshot);
+    }
+
+    [Fact]
+    public async Task MacOSHostNetworkEndpointMappingHandler_ReturnsReconcilerDiagnostics()
+    {
+        var hostNetwork = CreateGraphResource("host-network:macos", "macos");
+        var diagnostic = new ResourceDefinitionDiagnostic(
+            ResourceDefinitionDiagnosticSeverity.Information,
+            "hostNetwork.macos.test",
+            "macOS host network reconciled.",
+            hostNetwork.EffectiveResourceId);
+        var handler = new MacOSHostNetworkEndpointMappingExecutionHandler(
+            new RecordingMacOSHostNetworkEndpointMappingReconciler([diagnostic]));
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.MacOSHostNetworkEndpointReconcile,
+            TargetResourceId = hostNetwork.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "host-network:macos:1",
+            TargetResourceSnapshot = hostNetwork,
+            ResourceSnapshot = [hostNetwork]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
+        Assert.Equal([diagnostic], result.Diagnostics);
+    }
+
+    [Fact]
     public async Task DnsZoneReconcileOperation_DispatchesNameMappingInstruction()
     {
         var zone = CreateGraphResource("dns-zone:private", "private", revision: 6);
@@ -787,6 +903,26 @@ public sealed class ProviderExecutionContractTests
 
     private sealed class RecordingVirtualNetworkEndpointMappingReconciler(
         IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : IVirtualNetworkEndpointMappingReconciler
+    {
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+            GraphResource resource,
+            ResourceProjectionExecutionContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(diagnostics);
+    }
+
+    private sealed class RecordingLocalHostNetworkEndpointMappingReconciler(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : ILocalHostNetworkEndpointMappingReconciler
+    {
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+            GraphResource resource,
+            ResourceProjectionExecutionContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(diagnostics);
+    }
+
+    private sealed class RecordingMacOSHostNetworkEndpointMappingReconciler(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) : IMacOSHostNetworkEndpointMappingReconciler
     {
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
             GraphResource resource,

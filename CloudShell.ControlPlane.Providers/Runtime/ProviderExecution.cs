@@ -274,6 +274,8 @@ public static class ProviderExecutionInstructionTypes
     public const string FileSystemProvision = "filesystem.provision";
     public const string VolumeMountMaterialize = "volumeMount.materialize";
     public const string NetworkEndpointReconcile = "network.endpoint.reconcile";
+    public const string LocalHostNetworkEndpointReconcile = "hostNetwork.local.endpoint.reconcile";
+    public const string MacOSHostNetworkEndpointReconcile = "hostNetwork.macos.endpoint.reconcile";
     public const string VirtualNetworkEndpointReconcile = "virtualNetwork.endpoint.reconcile";
     public const string DnsNameMappingReconcile = "dns.nameMapping.reconcile";
     public const string SqlServerAccessReconcile = "sqlServer.access.reconcile";

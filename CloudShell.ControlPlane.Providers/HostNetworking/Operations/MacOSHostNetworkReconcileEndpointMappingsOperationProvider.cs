@@ -1,12 +1,14 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class MacOSHostNetworkReconcileEndpointMappingsOperationProvider(
+    IProviderExecutionDispatcher? dispatcher = null,
     IMacOSHostNetworkEndpointMappingReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IMacOSHostNetworkEndpointMappingReconciler _reconciler =
-        reconciler ?? new NoopMacOSHostNetworkEndpointMappingReconciler();
+    private readonly IProviderExecutionDispatcher _dispatcher =
+        dispatcher ?? new InProcessProviderExecutionDispatcher(
+            [new MacOSHostNetworkEndpointMappingExecutionHandler(reconciler)]);
 
     public ResourceOperationId OperationId =>
         MacOSHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
@@ -41,18 +43,17 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperationProvider(
             new MacOSHostNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _reconciler));
+                _dispatcher));
 }
 
 public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IMacOSHostNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IMacOSHostNetworkEndpointMappingReconciler _reconciler =
-        reconciler;
+    private readonly IProviderExecutionDispatcher _dispatcher = dispatcher;
 
     public Resource Resource => Context.Resource;
 
@@ -91,15 +92,25 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
                 ]);
         }
 
-        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
-            Resource,
-            Context,
+        var result = await _dispatcher.ExecuteAsync(
+            new ProviderExecutionRequest
+            {
+                AssignmentId = $"{Resource.EffectiveResourceId}:{OperationId}",
+                InstructionType = ProviderExecutionInstructionTypes.MacOSHostNetworkEndpointReconcile,
+                TargetResourceId = Resource.EffectiveResourceId,
+                DesiredGeneration = Resource.Revision.Value,
+                IdempotencyKey = $"{Resource.EffectiveResourceId}:{OperationId}:{Resource.Revision.Value}",
+                RequiredCapabilities = [ProviderExecutionCapabilities.HostNetworking],
+                TargetResourceSnapshot = Resource,
+                ResourceSnapshot = Context.Resources,
+                RequestedAt = DateTimeOffset.UtcNow
+            },
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            diagnostics);
+            result.Diagnostics);
     }
 }
 

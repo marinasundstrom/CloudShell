@@ -10,6 +10,7 @@ public static class MacOSHostNetworkResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
         services.AddNetworkingEndpointGraphShapes();
 
         if (!services.Any(descriptor =>
@@ -32,6 +33,8 @@ public static class MacOSHostNetworkResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, MacOSHostNetworkReconcileEndpointMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, MacOSHostNetworkResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, MacOSHostNetworkEndpointMappingExecutionHandler>());
         services.TryAddSingleton<
             IMacOSHostNetworkEndpointMappingReconciler,
             NoopMacOSHostNetworkEndpointMappingReconciler>();

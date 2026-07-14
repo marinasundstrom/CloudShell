@@ -668,6 +668,10 @@ preserving old provider seams:
   - [x] Route RabbitMQ lifecycle execution through the provider execution
     dispatcher with in-process handlers for start, stop, and restart, matching
     the managed service lifecycle shape now used by SQL Server.
+  - [x] Route local and macOS host-network endpoint-mapping reconciliation
+    through the provider execution dispatcher with platform-specific
+    in-process handlers. This keeps host networking behind the same
+    instruction/result boundary without introducing remote agents yet.
   - [x] Inventory current execution boundaries. Public domain contracts live
     in `CloudShell.Abstractions` and `CloudShell.ResourceModel`; the Control
     Plane owns stores, managers, API projection, orchestration, and platform

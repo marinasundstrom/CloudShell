@@ -22,6 +22,7 @@ public static class LocalHostNetworkResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddProviderExecutionDispatcher();
         services.AddNetworkingEndpointGraphShapes();
 
         if (!services.Any(descriptor =>
@@ -44,6 +45,8 @@ public static class LocalHostNetworkResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, LocalHostNetworkReconcileEndpointMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, LocalHostNetworkResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProviderExecutionHandler, LocalHostNetworkEndpointMappingExecutionHandler>());
         services.TryAddSingleton<
             ILocalHostNetworkEndpointMappingReconciler,
             NoopLocalHostNetworkEndpointMappingReconciler>();
