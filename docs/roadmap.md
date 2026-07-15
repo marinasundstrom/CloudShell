@@ -27,6 +27,7 @@ Useful references:
 - [CloudShell and Aspire](cloudshell-and-aspire.md)
 - [CloudShell CLI](cli.md)
 - [Cross-platform support](cross-platform-support.md)
+- [MVP sample seam audit](mvp-sample-seams.md)
 - [Resource Monitoring and Usage](monitoring-and-usage.md)
 - [Orchestration and Deployments](orchestration-and-deployments.md)
 - [Container Hosts](resources/container-hosts.md)
@@ -347,16 +348,16 @@ container-app starts now distinguish host readiness from longer resource
 actions, bound image materialization commands with runtime diagnostics, and
 publish project-backed images for the current host architecture by default.
 The previously failing ReplicatedContainerHealth and SignalR container-app
-smoke paths pass individually on the local Docker host, but the broad
-Docker-backed smoke suite still should not be treated as green until it has
-been re-run end to end on a healthy Docker host. The remaining MVP work should
-therefore bias toward release-quality local-development behavior rather than
-opening new platform fronts or repeatedly polishing secondary editor surfaces:
+smoke paths pass individually on the local Docker host, and the broad
+`CloudShell.Sample.Tests` suite has been re-run end to end on a healthy Docker
+host with 115 passing tests. The remaining MVP work should therefore bias
+toward release-quality local-development behavior rather than opening new
+platform fronts or repeatedly polishing secondary editor surfaces:
 
 - Keep supported samples building and smoke-testing.
-- Keep targeted fake-adapter, in-memory, and runtime-handler sample tests
-  green while re-running and closing any concrete long-running Docker-backed
-  smoke failures.
+- Keep targeted fake-adapter, in-memory, runtime-handler, and Docker-backed
+  sample tests green while closing only concrete failures or confusing sample
+  behavior.
 - Keep process-backed sample smoke tests serialized until the samples stop
   sharing mutable runtime resources. Current parallel-safe coverage is limited
   to fake-adapter and in-memory sample tests that use recording runners,
@@ -560,7 +561,9 @@ Active MVP tie-off queue:
    Topology, ReplicatedContainerHealth, ContainerAppDeployment,
    HostVirtualNetwork, LoadBalancer, ThirdPartyIdentity, SettingsAndSecrets,
    and SplitHosting. Record only user-visible or smoke-critical seams, and mark
-   each one as fix-now, accepted MVP bridge, or post-MVP deferred.
+   each one as fix-now, accepted MVP bridge, or post-MVP deferred. Track the
+   current classification in the
+   [MVP sample seam audit](mvp-sample-seams.md).
 2. **Tie off Application Topology first.** Keep it as the broad proof for
    storage-backed SQL, Configuration Store, Secrets Vault, identity grants,
    project-backed apps, local exposure, DNS/name mapping, logs, traces,

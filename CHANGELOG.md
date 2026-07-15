@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added the MVP sample seam audit and updated the roadmap to treat the broad
+  `CloudShell.Sample.Tests` run as green after the local Docker host pass with
+  115 passing tests.
+- Improved DNS/name-mapping reconcile diagnostics so a missing target endpoint
+  reports the target resource's available endpoint names.
 - Added a bounded local Docker container app image materialization command
   timeout so stuck `dotnet publish` or `docker build` work returns provider
   runtime diagnostics instead of leaving resource actions open-ended.

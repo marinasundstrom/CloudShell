@@ -267,7 +267,24 @@ public sealed class ResourceModelGraphDnsZoneNameMappingReconciler(
         return target.Endpoints.FirstOrDefault(endpoint =>
                 string.Equals(endpoint.Name, mapping.TargetEndpointName, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException(
-                $"DNS zone resource '{definition.Id}' name mapping '{mapping.Id}' target endpoint '{mapping.TargetEndpointName}' could not be found on resource '{mapping.TargetResourceId}'.");
+                $"DNS zone resource '{definition.Id}' name mapping '{mapping.Id}' target endpoint '{mapping.TargetEndpointName}' could not be found on resource '{mapping.TargetResourceId}'. {FormatAvailableEndpointNames(target)}");
+    }
+
+    private static string FormatAvailableEndpointNames(
+        ResourceManagerResource resource)
+    {
+        if (resource.Endpoints.Count == 0)
+        {
+            return "The target resource has no projected endpoints.";
+        }
+
+        var endpointNames = string.Join(
+            ", ",
+            resource.Endpoints
+                .Select(endpoint => $"'{endpoint.Name}'")
+                .Order(StringComparer.OrdinalIgnoreCase));
+
+        return $"Available endpoints: {endpointNames}.";
     }
 
     private static bool BelongsTo(
