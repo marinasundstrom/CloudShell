@@ -522,18 +522,16 @@
             return new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
         }
 
-        var ids = InboundNetworkMappings.Select(mapping => mapping.Network.Id)
-            .Concat(InboundLoadBalancerRoutes.Select(route => route.LoadBalancer.Id))
-            .Concat(Resource.ResourceEndpointMappings.SelectMany(GetMappingResourceIds))
-            .Concat(InboundNetworkMappings.SelectMany(mapping => GetMappingResourceIds(mapping.Mapping)))
-            .Concat(Resource.ResourceLoadBalancerRoutes.Select(route => route.Target.ResourceId))
-            .Concat(InboundLoadBalancerRoutes.Select(route => route.Route.Target.ResourceId))
-            .Concat(GetMappingProviderIds())
-            .Append(GetLoadBalancerHostResourceId(Resource))
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Select(id => id!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        var ids = GeneratedResourceEndpointRelatedResourceIds.Create(
+            Resource,
+            InboundNetworkMappings.Select(mapping => new NetworkEndpointMappingRelationship(
+                mapping.Network.Id,
+                mapping.Mapping)),
+            InboundLoadBalancerRoutes.Select(route => new LoadBalancerRouteRelationship(
+                route.LoadBalancer.Id,
+                route.Route)),
+            GetMappingProviderIds(),
+            GetLoadBalancerHostResourceId(Resource));
         var resources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
         foreach (var id in ids)
         {
@@ -547,14 +545,6 @@
         }
 
         return resources;
-    }
-
-    private IEnumerable<string?> GetMappingResourceIds(ResourceEndpointMappingDefinition mapping)
-    {
-        yield return mapping.Source.ResourceId;
-        yield return mapping.Target.ResourceId;
-        yield return mapping.NetworkResourceId;
-        yield return mapping.ProviderResourceId;
     }
 
     private RenderFragment EndpointReference(

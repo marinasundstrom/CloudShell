@@ -28,6 +28,9 @@ on `git blame --follow`, and then by the broad type of change.
   missing endpoint names, missing mapper capabilities, and unmaterializable
   mappings report the projected resources, available endpoint names, available
   endpoint-mapper resources, or registered materializer count.
+- Improved generated endpoint details so mapped addresses load related network
+  and provider resources from their endpoint-network mapping metadata before
+  rendering topology and provider labels.
 - Added a bounded local Docker container app image materialization command
   timeout so stuck `dotnet publish` or `docker build` work returns provider
   runtime diagnostics instead of leaving resource actions open-ended.

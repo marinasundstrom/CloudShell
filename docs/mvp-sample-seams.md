@@ -49,6 +49,9 @@ CloudShell Docker containers were left running.
   available endpoint names, available endpoint-mapper resources, and registered
   materializer count for the HostVirtualNetwork path when a mapping cannot be
   resolved or materialized.
+- Generated endpoint details now load related network and provider resources
+  from endpoint-network mappings before rendering mapped-address topology and
+  provider labels, reducing raw-ID fallback in the local exposure views.
 
 ## Active Tie-Off Order
 
