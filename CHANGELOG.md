@@ -24,6 +24,10 @@ on `git blame --follow`, and then by the broad type of change.
   reports the target resource's available endpoint names.
 - Improved DNS/name-mapping reconcile diagnostics so a missing publishing
   provider reports the requested provider and registered provider names.
+- Improved network endpoint-mapping reconcile diagnostics so missing resources,
+  missing endpoint names, missing mapper capabilities, and unmaterializable
+  mappings report the projected resources, available endpoint names, available
+  endpoint-mapper resources, or registered materializer count.
 - Added a bounded local Docker container app image materialization command
   timeout so stuck `dotnet publish` or `docker build` work returns provider
   runtime diagnostics instead of leaving resource actions open-ended.

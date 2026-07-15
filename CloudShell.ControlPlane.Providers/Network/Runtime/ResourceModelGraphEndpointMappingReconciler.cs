@@ -137,7 +137,7 @@ public sealed class ResourceModelGraphEndpointMappingReconciler(
         if (provisioner is null)
         {
             throw new InvalidOperationException(
-                $"Endpoint mapping '{mapping.Id}' requires provider resource '{provider.Id}', but no endpoint mapping provisioner can materialize it.");
+                $"Endpoint mapping '{mapping.Id}' requires provider resource '{provider.Id}', but no endpoint mapping provisioner can materialize it. {FormatProvisionerCount()}");
         }
 
         await provisioner.ProvisionEndpointMappingAsync(provisioningContext, cancellationToken);
@@ -211,13 +211,13 @@ public sealed class ResourceModelGraphEndpointMappingReconciler(
     {
         var resource = resourceManager.GetResource(endpoint.ResourceId)
             ?? throw new InvalidOperationException(
-                $"Endpoint mapping '{mapping.Id}' {role} resource '{endpoint.ResourceId}' could not be found.");
+                $"Endpoint mapping '{mapping.Id}' {role} resource '{endpoint.ResourceId}' could not be found. {FormatAvailableResourceIds(resourceManager)}");
         var resolvedEndpoint = resource.Endpoints.FirstOrDefault(candidate =>
             string.Equals(candidate.Name, endpoint.EndpointName, StringComparison.OrdinalIgnoreCase));
         if (resolvedEndpoint is null)
         {
             throw new InvalidOperationException(
-                $"Endpoint mapping '{mapping.Id}' {role} endpoint '{endpoint.EndpointName}' could not be found on resource '{endpoint.ResourceId}'.");
+                $"Endpoint mapping '{mapping.Id}' {role} endpoint '{endpoint.EndpointName}' could not be found on resource '{endpoint.ResourceId}'. {FormatAvailableEndpointNames(resource)}");
         }
 
         return new ResolvedEndpoint(
@@ -238,14 +238,67 @@ public sealed class ResourceModelGraphEndpointMappingReconciler(
                 $"Endpoint mapping '{mapping.Id}' does not specify a provider resource.");
         var provider = resourceManager.GetResource(providerResourceId)
             ?? throw new InvalidOperationException(
-                $"Endpoint mapping '{mapping.Id}' provider resource '{providerResourceId}' could not be found.");
+                $"Endpoint mapping '{mapping.Id}' provider resource '{providerResourceId}' could not be found. {FormatAvailableEndpointMapperResourceIds(resourceManager)}");
         if (!provider.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper))
         {
             throw new InvalidOperationException(
-                $"Endpoint mapping '{mapping.Id}' provider resource '{providerResourceId}' does not advertise '{ResourceCapabilityIds.NetworkingEndpointMapper}'.");
+                $"Endpoint mapping '{mapping.Id}' provider resource '{providerResourceId}' does not advertise '{ResourceCapabilityIds.NetworkingEndpointMapper}'. {FormatAvailableEndpointMapperResourceIds(resourceManager)}");
         }
 
         return provider;
+    }
+
+    private string FormatProvisionerCount() =>
+        endpointMappingProvisioners.Count == 0
+            ? "No endpoint mapping provisioners are registered."
+            : $"Registered endpoint mapping provisioners: {endpointMappingProvisioners.Count}.";
+
+    private static string FormatAvailableEndpointNames(
+        ResourceManagerResource resource)
+    {
+        if (resource.Endpoints.Count == 0)
+        {
+            return "The resource has no projected endpoints.";
+        }
+
+        var endpointNames = string.Join(
+            ", ",
+            resource.Endpoints
+                .Select(endpoint => $"'{endpoint.Name}'")
+                .Order(StringComparer.OrdinalIgnoreCase));
+
+        return $"Available endpoints: {endpointNames}.";
+    }
+
+    private static string FormatAvailableEndpointMapperResourceIds(
+        IResourceManagerStore resourceManager)
+    {
+        var mapperResourceIds = resourceManager.GetResources()
+            .Where(resource => resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper))
+            .Select(resource => $"'{resource.Id}'")
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (mapperResourceIds.Length == 0)
+        {
+            return $"No resources advertise '{ResourceCapabilityIds.NetworkingEndpointMapper}'.";
+        }
+
+        return $"Available endpoint mapper resources: {string.Join(", ", mapperResourceIds)}.";
+    }
+
+    private static string FormatAvailableResourceIds(
+        IResourceManagerStore resourceManager)
+    {
+        var resourceIds = resourceManager.GetResources()
+            .Select(resource => $"'{resource.Id}'")
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (resourceIds.Length == 0)
+        {
+            return "No resources were projected for endpoint-mapping reconciliation.";
+        }
+
+        return $"Projected resources: {string.Join(", ", resourceIds)}.";
     }
 
     private static string? FirstNonEmpty(params string?[] values)

@@ -45,6 +45,10 @@ CloudShell Docker containers were left running.
   diagnostics tie-off for the LoadBalancer and Application Topology paths.
 - DNS/name-mapping reconcile now reports the requested DNS publishing provider
   and the registered provider names when provider selection fails.
+- Network endpoint-mapping reconcile now reports projected resource IDs,
+  available endpoint names, available endpoint-mapper resources, and registered
+  materializer count for the HostVirtualNetwork path when a mapping cannot be
+  resolved or materialized.
 
 ## Active Tie-Off Order
 
