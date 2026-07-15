@@ -69,8 +69,13 @@ public static class ResourceNameMappingDisplay
 
         var endpointName = GetTargetEndpointName(resource);
         var endpoint = targetResource.Endpoints.FirstOrDefault(endpoint =>
-                string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase)) ??
-            targetResource.Endpoints.FirstOrDefault();
+            string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase));
+        if (endpoint is null &&
+            !HasExplicitTargetEndpointName(resource))
+        {
+            endpoint = targetResource.Endpoints.FirstOrDefault();
+        }
+
         if (endpoint is null ||
             !targetResource.TryGetResolvedEndpointUri(endpoint, out var endpointUri) ||
             !IsHttpUri(endpointUri))
@@ -92,6 +97,12 @@ public static class ResourceNameMappingDisplay
             return null;
         }
     }
+
+    private static bool HasExplicitTargetEndpointName(Resource resource) =>
+        resource.ResourceAttributes.TryGetValue(
+            ResourceAttributeNames.NameMappingTargetEndpointName,
+            out var value) &&
+        !string.IsNullOrWhiteSpace(value);
 
     private static string GetAttribute(Resource resource, string name, string fallback) =>
         resource.ResourceAttributes.TryGetValue(name, out var value) &&

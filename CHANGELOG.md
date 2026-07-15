@@ -31,6 +31,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved generated endpoint details so mapped addresses load related network
   and provider resources from their endpoint-network mapping metadata before
   rendering topology and provider labels.
+- Changed name-mapping display links so mappings with an explicit missing
+  target endpoint no longer fall back to the target resource's first endpoint
+  when generating a reachable URL.
 - Added a bounded local Docker container app image materialization command
   timeout so stuck `dotnet publish` or `docker build` work returns provider
   runtime diagnostics instead of leaving resource actions open-ended.

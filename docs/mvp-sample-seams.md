@@ -52,6 +52,9 @@ CloudShell Docker containers were left running.
 - Generated endpoint details now load related network and provider resources
   from endpoint-network mappings before rendering mapped-address topology and
   provider labels, reducing raw-ID fallback in the local exposure views.
+- Name-mapping generated links now honor explicit target endpoint names: if the
+  declared endpoint is missing, Resource Manager does not synthesize a link
+  from the target resource's first endpoint.
 
 ## Active Tie-Off Order
 
