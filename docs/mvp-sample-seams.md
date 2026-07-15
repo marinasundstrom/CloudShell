@@ -43,6 +43,8 @@ CloudShell Docker containers were left running.
 - DNS/name-mapping reconcile now reports available target endpoint names when a
   mapping references a missing endpoint. This is the first routing/name
   diagnostics tie-off for the LoadBalancer and Application Topology paths.
+- DNS/name-mapping reconcile now reports the requested DNS publishing provider
+  and the registered provider names when provider selection fails.
 
 ## Active Tie-Off Order
 

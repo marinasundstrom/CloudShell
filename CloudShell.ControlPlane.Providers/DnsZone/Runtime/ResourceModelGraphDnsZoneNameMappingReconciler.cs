@@ -54,7 +54,9 @@ public sealed class ResourceModelGraphDnsZoneNameMappingReconciler(
                 [
                     ResourceDefinitionDiagnostic.Error(
                         "dns.zone.graphNameMappingProviderMissing",
-                        $"No activated DNS publishing provider can reconcile name mappings for DNS zone resource '{resource.EffectiveResourceId}'.",
+                        FormatMissingPublishingProviderMessage(
+                            resource,
+                            publishingContext.Definition.Provider),
                         resource.EffectiveResourceId)
                 ];
             }
@@ -199,6 +201,33 @@ public sealed class ResourceModelGraphDnsZoneNameMappingReconciler(
 
         return _namePublishingProviders.FirstOrDefault(candidate =>
             candidate.CanPublish(context));
+    }
+
+    private string FormatMissingPublishingProviderMessage(
+        ResourceModelResource resource,
+        string? requestedProvider)
+    {
+        var message =
+            $"No activated DNS publishing provider can reconcile name mappings for DNS zone resource '{resource.EffectiveResourceId}'.";
+
+        if (!string.IsNullOrWhiteSpace(requestedProvider) &&
+            !string.Equals(requestedProvider, "logical", StringComparison.OrdinalIgnoreCase))
+        {
+            message += $" Requested provider: '{requestedProvider}'.";
+        }
+
+        if (_namePublishingProviders.Count == 0)
+        {
+            return message + " No DNS publishing providers are registered.";
+        }
+
+        var providerNames = string.Join(
+            ", ",
+            _namePublishingProviders
+                .Select(provider => $"'{provider.ProviderName}'")
+                .Order(StringComparer.OrdinalIgnoreCase));
+
+        return message + $" Registered providers: {providerNames}.";
     }
 
     private static IReadOnlyList<ResourceManagerResource> ResolveNamePublisherResources(
