@@ -70,6 +70,10 @@
   <Folder Name="/samples/CSharpAppHost/AppHost/">
     <Project Path="samples/CSharpAppHost/AppHost/CloudShell.CSharpAppHost.csproj" />
   </Folder>
+  <Folder Name="/samples/BunJavaScriptApp/" />
+  <Folder Name="/samples/BunJavaScriptApp/AppHost/">
+    <Project Path="samples/BunJavaScriptApp/AppHost/CloudShell.BunJavaScriptAppHost.csproj" />
+  </Folder>
   <Folder Name="/samples/JavaScriptApp/" />
   <Folder Name="/samples/JavaScriptApp/AppHost/">
     <Project Path="samples/JavaScriptApp/AppHost/CloudShell.JavaScriptAppHost.csproj" />

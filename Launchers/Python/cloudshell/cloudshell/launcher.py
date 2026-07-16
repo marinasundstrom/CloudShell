@@ -724,13 +724,16 @@ class JavaScriptAppResource(ProjectApplicationResource):
             "applications.javascript-app",
         )
         self.with_project_path(project_path)
-        self.with_engine("node")
+        self.with_runtime("node")
         self.with_package_manager("npm")
         self.with_script("dev")
         self.with_default_console_log_source()
 
     def with_engine(self, engine: str) -> "JavaScriptAppResource":
-        self.attributes["runtime"] = _require(engine, "JavaScript engine")
+        return self.with_runtime(engine)
+
+    def with_runtime(self, runtime: str) -> "JavaScriptAppResource":
+        self.attributes["runtime"] = _require(runtime, "JavaScript runtime")
         return self
 
     def with_package_manager(self, package_manager: str) -> "JavaScriptAppResource":

@@ -200,6 +200,11 @@ cd samples/JavaScriptApp/App
 npm run dev
 ```
 
+The `samples/BunJavaScriptApp` sample covers the Bun-backed process variant.
+It uses the same `application.javascript-app` resource type with
+`runtime: bun` and `packageManager: bun`, and its source uses Bun runtime
+APIs.
+
 The `samples/TypeScriptContainerApp` sample covers the launcher-authored
 container wrapping use case. It uses the TypeScript launcher to declare a
 JavaScript app, project it as an `application.container-app`, build the image

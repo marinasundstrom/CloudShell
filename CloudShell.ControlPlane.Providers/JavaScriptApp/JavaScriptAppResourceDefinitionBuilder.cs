@@ -17,13 +17,16 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
         SetScalarAttribute(JavaScriptAppResourceTypeProvider.Attributes.ProjectPath, projectPath);
 
     public JavaScriptAppResourceDefinitionBuilder WithEngine(string engine) =>
-        SetScalarAttribute(JavaScriptAppResourceTypeProvider.Attributes.Runtime, engine);
+        WithRuntime(engine);
+
+    public JavaScriptAppResourceDefinitionBuilder WithRuntime(string runtime) =>
+        SetScalarAttribute(JavaScriptAppResourceTypeProvider.Attributes.Runtime, runtime);
 
     public JavaScriptAppResourceDefinitionBuilder WithPackageManager(string packageManager) =>
         SetScalarAttribute(JavaScriptAppResourceTypeProvider.Attributes.PackageManager, packageManager);
 
     public JavaScriptAppResourceDefinitionBuilder WithBun() =>
-        WithEngine("bun")
+        WithRuntime("bun")
             .WithPackageManager("bun");
 
     public JavaScriptAppResourceDefinitionBuilder WithScript(string script) =>
@@ -334,7 +337,7 @@ public static class JavaScriptAppResourceDefinitionBuilderExtensions
 
         var builder = new JavaScriptAppResourceDefinitionBuilder(name)
             .WithProjectPath(projectPath)
-            .WithEngine("node")
+            .WithRuntime("node")
             .WithPackageManager("npm")
             .WithScript("dev")
             .WithRuntimeMonitoring()

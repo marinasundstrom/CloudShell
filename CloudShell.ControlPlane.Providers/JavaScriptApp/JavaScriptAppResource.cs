@@ -9,7 +9,7 @@ public sealed class JavaScriptAppResource(
         Resource.Attributes.GetString(
             JavaScriptAppResourceTypeProvider.Attributes.ProjectPath);
 
-    public string? Engine =>
+    public string? Runtime =>
         Resource.Attributes.GetString(
             JavaScriptAppResourceTypeProvider.Attributes.Runtime);
 

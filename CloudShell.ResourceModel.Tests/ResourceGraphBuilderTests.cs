@@ -1500,7 +1500,7 @@ public sealed class ResourceGraphBuilderTests
         var app = Assert.Single(template.Resources, resource =>
             resource.TypeId == JavaScriptAppResourceTypeProvider.ResourceTypeId);
         Assert.Equal("bun", app.ResourceAttributeValues[
-            JavaScriptAppResourceTypeProvider.Attributes.Engine].StringValue);
+            JavaScriptAppResourceTypeProvider.Attributes.Runtime].StringValue);
         Assert.Equal("bun", app.ResourceAttributeValues[
             JavaScriptAppResourceTypeProvider.Attributes.PackageManager].StringValue);
         Assert.Equal("start", app.ResourceAttributeValues[

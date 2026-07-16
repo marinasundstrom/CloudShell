@@ -323,6 +323,15 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
+            "samples/BunJavaScriptApp/AppHost/CloudShell.BunJavaScriptAppHost.csproj",
+            new[]
+            {
+                "configuration.store:bun-javascript-app-settings",
+                "application.javascript-app:bun-javascript-frontend"
+            }
+        };
+        yield return new object[]
+        {
             "samples/CSharpAppHost/AppHost/CloudShell.CSharpAppHost.csproj",
             new[]
             {
@@ -6201,6 +6210,15 @@ public sealed class SampleSmokeTests
                 [
                     "configuration.store:javascript-app-settings",
                     "application.javascript-app:javascript-frontend"
+                ];
+            }
+
+            if (projectPath.Contains("/BunJavaScriptApp/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "configuration.store:bun-javascript-app-settings",
+                    "application.javascript-app:bun-javascript-frontend"
                 ];
             }
 

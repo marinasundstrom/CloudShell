@@ -35,6 +35,7 @@ target `CloudShell.LocalDevelopmentHost`.
 | --- | --- | --- |
 | `CSharpAppHost` | C# launcher authoring with Resource Model builders. | Preferred C# app-authoring sample. |
 | `DeviceRegistry` | C# launcher authoring for device enrollment, device identity, and configuration access. | Preferred IoT/device identity sample. |
+| `BunJavaScriptApp` | C# launcher authoring for a Bun-backed JavaScript app resource. | JavaScript runtime variant sample. |
 | `TypeScriptAppHost` | TypeScript launcher authoring and template apply. | Experimental launcher sample. |
 | `TypeScriptContainerApp` | TypeScript launcher authoring for a Dockerfile-backed Node.js container app that reads Configuration Store and Secrets Vault through the TypeScript runtime SDK. | Experimental launcher sample. |
 | `ReactTypeScriptApp` | TypeScript launcher authoring for a React frontend, Node backend, Configuration Store, and load-balancer resource. | Experimental launcher sample. |
@@ -115,7 +116,7 @@ migrate to launcher form when their remaining sample-local host seams are
 available through `CloudShell.LocalDevelopmentHost` or through first-class
 template/control-plane APIs.
 
-The `ProjectReference`, `JavaScriptApp`, `JavaApp`, `GoApp`, and
+The `ProjectReference`, `JavaScriptApp`, `BunJavaScriptApp`, `JavaApp`, `GoApp`, and
 `PythonAppHost` samples now use launcher AppHosts because they primarily
 exercise resource types and configuration. Their source or launcher projects
 depend on launcher/resource builder packages, while the CloudShell host project

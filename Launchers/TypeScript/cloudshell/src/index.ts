@@ -238,7 +238,7 @@ export class CloudShellApp {
     projectPath: string): JavaScriptAppResourceBuilder {
     const builder = new JavaScriptAppResourceBuilder(name)
       .withProjectPath(projectPath)
-      .withEngine("node")
+      .withRuntime("node")
       .withPackageManager("npm")
       .withScript("dev")
       .withDefaultConsoleLogSource();

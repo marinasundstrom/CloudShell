@@ -1,0 +1,10 @@
+{
+  "name": "cloudshell-bun-javascript-app-sample",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun server.js",
+    "start": "bun server.js"
+  }
+}

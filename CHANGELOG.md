@@ -138,6 +138,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Added Bun support to JavaScript app declarations through a `WithBun()`
   builder shortcut that sets both `runtime` and `packageManager` to `bun`,
   with runtime command coverage for `bun run`.
+- Added a Bun JavaScript app launcher sample that declares a Bun-backed
+  `application.javascript-app` resource through `WithBun()`.
 - Changed graph-backed Java app lifecycle actions to fail closed when no Java
   app runtime controller is registered, and to project the same
   missing-controller reason as the operation unavailable reason before

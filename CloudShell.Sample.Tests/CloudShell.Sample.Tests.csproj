@@ -34,6 +34,7 @@
     <ProjectReference Include="..\samples\ApplicationTopology\Host\CloudShell.ApplicationTopologyHost.csproj" />
     <ProjectReference Include="..\samples\ApplicationTopology\ServiceDefaults\CloudShell.ApplicationTopology.ServiceDefaults.csproj" />
     <ProjectReference Include="..\samples\CSharpAppHost\AppHost\CloudShell.CSharpAppHost.csproj" />
+    <ProjectReference Include="..\samples\BunJavaScriptApp\AppHost\CloudShell.BunJavaScriptAppHost.csproj" />
     <ProjectReference Include="..\samples\JavaScriptApp\AppHost\CloudShell.JavaScriptAppHost.csproj" />
     <ProjectReference Include="..\samples\ProjectReference\AppHost\CloudShell.ProjectReferenceAppHost.csproj" />
     <ProjectReference Include="..\samples\SettingsAndSecrets\CloudShell.SettingsAndSecrets.csproj" />
