@@ -35,6 +35,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved graph-backed Traefik load-balancer apply diagnostics so unresolved
   route targets return provider-execution error diagnostics instead of escaping
   the execution handler as exceptions.
+- Changed graph-backed load-balancer apply to fail with a provider-execution
+  diagnostic when no configuration applier is registered instead of reporting
+  a silent no-op success.
 
 ### 2026-07-15
 

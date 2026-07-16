@@ -640,6 +640,9 @@ If route targets cannot be resolved from the projected resource graph, the
 applier returns load-balancer route-resolution diagnostics rather than throwing
 out of the execution handler. This keeps MVP routing readiness visible through
 the same operation result shape that future agent-backed execution will report.
+If no graph-backed load-balancer configuration applier is registered, the
+default execution handler reports a provider-execution diagnostic instead of a
+successful no-op.
 
 ## References
 

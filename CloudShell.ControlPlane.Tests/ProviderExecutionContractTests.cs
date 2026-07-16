@@ -1071,6 +1071,39 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task LoadBalancerConfigurationApplyHandler_FailsWhenConfigurationApplierIsMissing()
+    {
+        var loadBalancer = CreateGraphResource(
+            "load-balancer:public",
+            "public",
+            attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik"
+            });
+        var handler = new LoadBalancerConfigurationApplyExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.LoadBalancerConfigurationApply,
+            TargetResourceId = loadBalancer.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "load-balancer:public:apply:1",
+            TargetResourceSnapshot = loadBalancer,
+            ResourceSnapshot = [loadBalancer]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("network.loadBalancer.configurationApplierMissing", diagnostic.Code);
+        Assert.Equal(loadBalancer.EffectiveResourceId, diagnostic.Target);
+        Assert.Contains("provider 'traefik'", diagnostic.Message);
+        Assert.Contains(loadBalancer.EffectiveResourceId, diagnostic.Message);
+    }
+
+    [Fact]
     public async Task LoadBalancerConfigurationApplyHandler_ReturnsRouteResolutionDiagnostics()
     {
         var loadBalancer = CreateGraphResourceWithAttributeValues(

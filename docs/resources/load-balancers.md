@@ -165,8 +165,13 @@ Resource Manager lists certificate metadata only and writes the typed
 `certificateRef` back to the load-balancer entrypoint; certificate payloads
 stay in provider-owned vault state.
 
-The apply action validates the route targets and delegates to the selected
-`ILoadBalancerProvider`.
+For graph-backed load balancers, the apply action is executed through the
+provider-execution boundary. The Control Plane dispatches a load-balancer
+configuration-apply instruction with the resource graph snapshot, and the
+registered `ILoadBalancerConfigurationApplier` for the selected provider
+resolves the route targets and writes provider-owned configuration. If no
+configuration applier is registered, apply fails with a provider-execution
+diagnostic instead of reporting a silent no-op success.
 
 Load-balancer setup validates route shape before persisting the resource:
 entrypoint names and route IDs must be unique after normalization, routes must

@@ -68,6 +68,9 @@ CloudShell Docker containers were left running.
 - Graph-backed Traefik load-balancer apply now turns unresolved route targets
   into provider-execution diagnostics, keeping routing readiness failures
   visible at the operation boundary instead of surfacing as raw exceptions.
+- Graph-backed load-balancer apply now reports a provider-execution diagnostic
+  when no configuration applier is registered, so missing provider packages do
+  not look like successful configuration writes.
 
 ## Active Tie-Off Order
 
