@@ -2281,6 +2281,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ContainerHostInspectHandler_FailsWhenInspectorIsMissing()
+    {
+        var containerHost = CreateGraphResource("cloudshell.container-host:local", "local");
+        var handler = new ContainerHostInspectExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerHostInspect,
+            TargetResourceId = containerHost.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "cloudshell.container-host:local:inspect:1",
+            TargetResourceSnapshot = containerHost,
+            ResourceSnapshot = [containerHost]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("container.host.inspectorMissing", diagnostic.Code);
+        Assert.Equal(containerHost.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task ContainerHostInspectOperationProvider_ProjectsUnavailableWithoutInspector()
+    {
+        var containerHost = CreateGraphResource("cloudshell.container-host:local", "local");
+        var provider = new ContainerHostInspectOperationProvider();
+
+        var projection = Assert.IsType<ContainerHostInspectOperation>(
+            await provider.ProjectAsync(
+                containerHost,
+                new ResourceOperationResolution(
+                    ContainerHostResourceTypeProvider.Operations.Inspect,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        containerHost,
+                        [containerHost]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Container Host inspector", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task StorageInspectOperation_DispatchesInspectInstruction()
     {
         var storage = CreateGraphResource("cloudshell.storage:local", "local", revision: 53);

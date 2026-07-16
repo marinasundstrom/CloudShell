@@ -114,6 +114,9 @@ CloudShell Docker containers were left running.
 - Graph-backed Docker Host inspection now reports missing inspector readiness
   when the runtime inspector is absent and returns a matching
   provider-execution diagnostic if invoked directly.
+- Graph-backed Container Host inspection now reports missing inspector
+  readiness when the runtime inspector is absent and returns a matching
+  provider-execution diagnostic if invoked directly.
 
 ## Active Tie-Off Order
 

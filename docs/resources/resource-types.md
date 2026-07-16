@@ -848,6 +848,10 @@ Common optional attributes:
 - `container.registry`
 - `container.host.default`
 
+The `container.host.inspect` operation requires a Container Host inspector;
+type registration alone projects the operation but marks it unavailable with a
+missing-inspector reason until the runtime adapter is registered.
+
 ```yaml
 resources:
   - type: cloudshell.container-host

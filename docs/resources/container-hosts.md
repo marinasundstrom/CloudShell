@@ -53,11 +53,12 @@ Current capability markers:
 
 The generic host also exposes the `container.host.inspect` operation. Runtime
 behavior remains provider-owned; the generic host provider is primarily a
-resource model and descriptor bridge today. Docker-specific `docker.host`
-inspection follows the same boundary: type registration projects the operation,
-but it remains unavailable until a Docker Host inspector is registered, and
-direct provider-execution calls return a missing-inspector diagnostic instead
-of succeeding as an empty no-op.
+resource model and descriptor bridge today. Type registration projects the
+operation, but it remains unavailable until a Container Host inspector is
+registered, and direct provider-execution calls return a missing-inspector
+diagnostic instead of succeeding as an empty no-op. Docker-specific
+`docker.host` inspection follows the same boundary with its own Docker Host
+inspector.
 
 ## Host Descriptor
 

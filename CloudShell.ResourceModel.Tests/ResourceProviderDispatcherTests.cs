@@ -771,7 +771,8 @@ public sealed class ResourceProviderDispatcherTests
         var inspect = await projection.GetInspectOperationAsync();
 
         Assert.NotNull(inspect);
-        Assert.True(await inspect.CanExecuteAsync());
+        Assert.False(await inspect.CanExecuteAsync());
+        Assert.Contains("no Container Host inspector", inspect.UnavailableReason, StringComparison.Ordinal);
         Assert.Equal("Docker", inspect.PlanInspection().HostKind);
         Assert.NotNull(descriptorProvider);
     }
