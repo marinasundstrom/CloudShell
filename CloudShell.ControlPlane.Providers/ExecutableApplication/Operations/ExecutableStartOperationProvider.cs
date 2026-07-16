@@ -6,6 +6,8 @@ public sealed class ExecutableStartOperationProvider(
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IExecutableApplicationRuntimeController? _runtimeController = runtimeController;
+
     private readonly IProviderExecutionDispatcher _dispatcher =
         dispatcher ?? new InProcessProviderExecutionDispatcher(
             [new ExecutableApplicationStartExecutionHandler(runtimeController)]);
@@ -43,13 +45,20 @@ public sealed class ExecutableStartOperationProvider(
             new ExecutableStartOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        ExecutableApplicationRuntimeReadiness.IsMissing(_runtimeController)
+            ? ExecutableApplicationRuntimeReadiness.CreateMissingReason(resource)
+            : null;
 }
 
 public sealed class ExecutableStartOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -61,9 +70,11 @@ public sealed class ExecutableStartOperation(
 
     public ResourceOperationId OperationId => ExecutableApplicationResourceTypeProvider.Operations.Start;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason => unavailableReason ?? Definition.UnavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

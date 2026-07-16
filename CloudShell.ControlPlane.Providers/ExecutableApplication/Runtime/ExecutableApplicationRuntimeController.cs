@@ -293,12 +293,32 @@ public sealed class NoopExecutableApplicationRuntimeController :
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
         Resource resource,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            ExecutableApplicationRuntimeReadiness.CreateMissingDiagnostic(resource)
+        ]);
 
     public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
         string resourceId,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+}
+
+internal static class ExecutableApplicationRuntimeReadiness
+{
+    public const string DiagnosticCode = "application.executable.runtimeControllerMissing";
+
+    public static bool IsMissing(IExecutableApplicationRuntimeController? runtimeController) =>
+        runtimeController is null or NoopExecutableApplicationRuntimeController;
+
+    public static string CreateMissingReason(Resource resource) =>
+        $"Executable application resource '{resource.EffectiveResourceId}' cannot start because no executable application runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(Resource resource) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource),
+            resource.EffectiveResourceId);
 }
 
 public static class ExecutableApplicationEnvironmentNames

@@ -1003,8 +1003,16 @@ public sealed class ResourceManagerIntegrationTests
 
         var executableOperation = Assert.IsAssignableFrom<IResourceOperationExecutorProjection>(
             resolution.Operation);
-        Assert.True(await executableOperation.CanExecuteAsync());
-        Assert.False((await executableOperation.ExecuteAsync()).HasErrors);
+        Assert.False(await executableOperation.CanExecuteAsync());
+        Assert.Contains(
+            "no executable application runtime controller",
+            executableOperation.UnavailableReason,
+            StringComparison.Ordinal);
+        var execution = await executableOperation.ExecuteAsync();
+
+        Assert.True(execution.HasErrors);
+        Assert.Contains(execution.Diagnostics, diagnostic =>
+            diagnostic.Code == "application.executable.startUnavailable");
     }
 
     [Fact]
@@ -1061,7 +1069,7 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
-    public async Task ResourceModelGraphProcedureProvider_ExecutesExecutableOperationProjection()
+    public async Task ResourceModelGraphProcedureProvider_ReportsUnavailableExecutableOperationWithoutRuntimeController()
     {
         var services = new ServiceCollection();
         services.AddSingleton<IExecutableApplicationRuntimeController, NoopExecutableApplicationRuntimeController>();
@@ -1084,11 +1092,13 @@ public sealed class ResourceManagerIntegrationTests
             new EmptyResourceRegistrationStore());
 
         Assert.True(provider.CanEvaluateAction(resource, ResourceAction.Start));
-        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, ResourceAction.Start));
+        var reason = await provider.GetActionUnavailableReasonAsync(procedure, ResourceAction.Start);
 
-        var result = await provider.ExecuteActionAsync(procedure, ResourceAction.Start);
-
-        Assert.Equal("Executed Start for api.", result.Message);
+        Assert.NotNull(reason);
+        Assert.Contains("no executable application runtime controller", reason, StringComparison.Ordinal);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await provider.ExecuteActionAsync(procedure, ResourceAction.Start));
+        Assert.Contains("cannot execute", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

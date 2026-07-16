@@ -93,6 +93,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed graph-backed SQL database ensure-created to fail closed when no SQL
   database creation handler is registered, and to project the same
   missing-handler reason as the operation unavailable reason before dispatch.
+- Changed graph-backed executable application Start to fail closed when no
+  executable application runtime controller is registered, and to project the
+  same missing-controller reason as the operation unavailable reason before
+  dispatch.
 - Changed graph-backed RabbitMQ lifecycle actions to fail closed when no
   RabbitMQ runtime handler is registered, and to project the same
   missing-handler reason as the operation unavailable reason before dispatch.

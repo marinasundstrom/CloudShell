@@ -60,6 +60,13 @@ that file must exist as well. Plain command names such as `dotnet`, `node`, or
 `python` remain PATH-resolved by the host process environment and are not
 treated as missing files during preflight.
 
+Start actions require an executable application runtime controller. The
+built-in provider registration supplies the local process runtime controller
+for normal hosts. If a custom or direct operation path is constructed without
+that controller, Resource Manager projects Start as unavailable with a
+missing-controller reason, and direct provider-execution calls return the same
+readiness failure as a diagnostic instead of succeeding as a no-op.
+
 ## Sample
 
 Add the sample web API through `/resources/add` as an executable application

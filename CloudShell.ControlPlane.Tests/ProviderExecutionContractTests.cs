@@ -1487,6 +1487,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ExecutableApplicationStartHandler_FailsWhenRuntimeControllerIsMissing()
+    {
+        var executable = CreateGraphResource("executable:worker", "worker");
+        var handler = new ExecutableApplicationStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ExecutableApplicationStart,
+            TargetResourceId = executable.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "executable:worker:start:1",
+            TargetResourceSnapshot = executable,
+            ResourceSnapshot = [executable]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.executable.runtimeControllerMissing", diagnostic.Code);
+        Assert.Equal(executable.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task ExecutableStartOperationProvider_ProjectsUnavailableWithoutRuntimeController()
+    {
+        var executable = CreateGraphResource("executable:worker", "worker");
+        var provider = new ExecutableStartOperationProvider();
+
+        var projection = Assert.IsType<ExecutableStartOperation>(
+            await provider.ProjectAsync(
+                executable,
+                new ResourceOperationResolution(
+                    ExecutableApplicationResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        executable,
+                        [executable]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no executable application runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AspNetCoreProjectLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var project = CreateGraphResource("application:api", "api", revision: 17);
