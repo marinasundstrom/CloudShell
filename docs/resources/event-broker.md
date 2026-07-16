@@ -176,6 +176,13 @@ The built-in runtime does not connect to external brokers, bridge Device
 Registry MQTT messages, ingest telemetry into CloudShell observability, or
 deliver commands.
 
+Lifecycle actions require an Event Broker runtime controller. The built-in
+resource-type registration supplies the local process runtime; direct or custom
+operation paths that construct the lifecycle provider without a controller mark
+`start`, `stop`, and `restart` unavailable with a missing-controller reason.
+Direct provider-execution calls return the same diagnostic instead of
+reporting a successful no-op.
+
 Future provider implementations can map the same resource shape to concrete
 brokers, including local Mosquitto, RabbitMQ MQTT plugins, Kafka, NATS, Azure
 Event Hubs, or other event systems. Provider-native topology and credentials

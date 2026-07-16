@@ -126,6 +126,10 @@ CloudShell Docker containers were left running.
 - Graph-backed SQL Server lifecycle actions now report missing runtime-handler
   readiness when the runtime handler is absent and return matching
   provider-execution diagnostics if invoked directly.
+- Graph-backed Event Broker lifecycle actions now report missing runtime
+  controller readiness when the operation path is constructed without the
+  built-in process runtime and return matching provider-execution diagnostics
+  if invoked directly.
 
 ## Active Tie-Off Order
 

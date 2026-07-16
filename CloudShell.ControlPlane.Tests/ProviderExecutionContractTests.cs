@@ -3574,6 +3574,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task EventBrokerLifecycleHandler_FailsWhenRuntimeControllerIsMissing()
+    {
+        var eventBroker = CreateGraphResource("event-broker:default", "default");
+        var handler = new EventBrokerStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.EventBrokerStart,
+            TargetResourceId = eventBroker.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "event-broker:default:start:1",
+            TargetResourceSnapshot = eventBroker,
+            ResourceSnapshot = [eventBroker]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("event.broker.runtimeControllerMissing", diagnostic.Code);
+        Assert.Equal(eventBroker.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task EventBrokerLifecycleOperationProvider_ProjectsUnavailableWithoutRuntimeController()
+    {
+        var eventBroker = CreateGraphResource("event-broker:default", "default");
+        var provider = new EventBrokerStartOperationProvider();
+
+        var projection = Assert.IsType<EventBrokerLifecycleOperation>(
+            await provider.ProjectAsync(
+                eventBroker,
+                new ResourceOperationResolution(
+                    EventBrokerResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        eventBroker,
+                        [eventBroker]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Event Broker runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ConfigurationStoreLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var configurationStore = CreateGraphResource("configuration-store:default", "default", revision: 7);

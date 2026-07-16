@@ -152,5 +152,27 @@ public sealed class NoopEventBrokerRuntimeController :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            EventBrokerRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
+}
+
+internal static class EventBrokerRuntimeReadiness
+{
+    public const string DiagnosticCode = "event.broker.runtimeControllerMissing";
+
+    public static bool IsMissing(IEventBrokerRuntimeController? runtimeController) =>
+        runtimeController is null or NoopEventBrokerRuntimeController;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"Event Broker resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no Event Broker runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }
