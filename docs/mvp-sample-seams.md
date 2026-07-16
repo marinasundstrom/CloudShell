@@ -88,6 +88,9 @@ CloudShell Docker containers were left running.
 - Graph-backed SQL Server access reconciliation now reports missing reconciler
   readiness before dispatch and returns a matching provider-execution
   diagnostic if invoked directly.
+- Graph-backed RabbitMQ access reconciliation now reports missing reconciler
+  readiness before dispatch and returns a matching provider-execution
+  diagnostic if invoked directly.
 
 ## Active Tie-Off Order
 

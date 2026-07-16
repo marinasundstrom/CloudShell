@@ -8,6 +8,7 @@ public sealed class RabbitMQReconcileAccessOperationProvider :
     IResourceOperationProjector
 {
     private readonly IProviderExecutionDispatcher _dispatcher;
+    private readonly IRabbitMQAccessReconciler? _accessReconciler;
     private readonly IResourcePermissionGrantReader? _grantReader;
 
     public RabbitMQReconcileAccessOperationProvider(
@@ -15,6 +16,7 @@ public sealed class RabbitMQReconcileAccessOperationProvider :
         IRabbitMQAccessReconciler? accessReconciler = null,
         IResourcePermissionGrantReader? grantReader = null)
     {
+        _accessReconciler = accessReconciler;
         _dispatcher = dispatcher ??
             new InProcessProviderExecutionDispatcher(
                 [new RabbitMQAccessReconcileExecutionHandler(accessReconciler)]);
@@ -55,14 +57,21 @@ public sealed class RabbitMQReconcileAccessOperationProvider :
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _dispatcher,
-                _grantReader));
+                _grantReader,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        RabbitMQAccessReconcilerReadiness.IsMissing(_accessReconciler)
+            ? RabbitMQAccessReconcilerReadiness.CreateMissingReason(resource)
+            : null;
 }
 
 public sealed class RabbitMQReconcileAccessOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
     IProviderExecutionDispatcher dispatcher,
-    IResourcePermissionGrantReader? grantReader = null) : IResourceOperationExecutorProjection
+    IResourcePermissionGrantReader? grantReader = null,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -74,9 +83,14 @@ public sealed class RabbitMQReconcileAccessOperation(
 
     public ResourceOperationId OperationId => RabbitMQResourceTypeProvider.Operations.ReconcileAccess;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

@@ -2947,6 +2947,33 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task RabbitMQAccessReconcileHandler_FailsWhenReconcilerIsMissing()
+    {
+        var rabbitMQ = CreateGraphResource("rabbitmq:broker", "broker");
+        var grant = CreateRabbitMQGrant(rabbitMQ.EffectiveResourceId);
+        var handler = new RabbitMQAccessReconcileExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.RabbitMQAccessReconcile,
+            TargetResourceId = rabbitMQ.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "rabbitmq:broker:1",
+            TargetResourceSnapshot = rabbitMQ,
+            ResourceSnapshot = [rabbitMQ],
+            Payload = System.Text.Json.JsonSerializer.SerializeToElement(
+                new RabbitMQAccessReconcileExecutionPayload([grant]))
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.rabbitmq.accessReconcilerMissing", diagnostic.Code);
+        Assert.Equal(rabbitMQ.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task RabbitMQLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var rabbitMQ = CreateGraphResource("rabbitmq:broker", "broker", revision: 4);

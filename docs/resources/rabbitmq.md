@@ -386,10 +386,12 @@ identities can receive broker-scoped grants for:
 RabbitMQ exposes a **Reconcile access** resource operation,
 `application.rabbitmq.reconcile-access`, guarded by
 `RabbitMQResourceOperationPermissions.ReconcileAccess`. The operation invokes
-the provider-owned `IRabbitMQAccessReconciler` seam. The default reconciler
-reports an informational diagnostic and does not mutate broker state. The
-Management API reconciler maps resource-identity grants to broker-native users
-and vhost permissions:
+the provider-owned `IRabbitMQAccessReconciler` seam. RabbitMQ definitions can
+still be valid when no concrete access reconciler is registered, but the
+projected reconcile action is unavailable with a missing-reconciler reason.
+Direct provider-execution calls return the same diagnostic instead of
+reporting a silent no-op success. The Management API reconciler maps
+resource-identity grants to broker-native users and vhost permissions:
 
 | CloudShell grant | RabbitMQ permission |
 | --- | --- |

@@ -5612,6 +5612,50 @@ resources:
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_ProjectsRabbitMQReconcileAccessUnavailableWithoutReconciler()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddRabbitMQResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+        var broker = graph
+            .AddRabbitMQ("rabbitmq")
+            .WithVersion("3")
+            .WithAmqpEndpoint(host: "localhost", port: 5672)
+            .WithManagementEndpoint(host: "localhost", port: 15672);
+
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("rabbitmq-app", environmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 3, 12, 10, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(broker.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<RabbitMQResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        var reconcileOperation = await projection.GetReconcileAccessOperationAsync();
+
+        Assert.NotNull(reconcileOperation);
+        Assert.False(await reconcileOperation.CanExecuteAsync());
+        Assert.Contains("no RabbitMQ access reconciler", reconcileOperation.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesRabbitMQAcrossProviderBoundaries()
     {
         var accessReconciler = new RecordingRabbitMQAccessReconciler();

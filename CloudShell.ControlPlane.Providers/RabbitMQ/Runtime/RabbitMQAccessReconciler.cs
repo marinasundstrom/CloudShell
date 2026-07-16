@@ -19,10 +19,23 @@ public sealed class NoopRabbitMQAccessReconciler :
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
         [
-            new ResourceDefinitionDiagnostic(
-                ResourceDefinitionDiagnosticSeverity.Information,
-                "application.rabbitmq.reconcileAccessPending",
-                $"RabbitMQ access reconciliation is registered for {grants.Count} grant(s), but no provider has applied CloudShell grants to broker-native users yet.",
-                resource.EffectiveResourceId)
+            RabbitMQAccessReconcilerReadiness.CreateMissingDiagnostic(resource)
         ]);
+}
+
+internal static class RabbitMQAccessReconcilerReadiness
+{
+    public const string DiagnosticCode = "application.rabbitmq.accessReconcilerMissing";
+
+    public static bool IsMissing(IRabbitMQAccessReconciler? accessReconciler) =>
+        accessReconciler is null or NoopRabbitMQAccessReconciler;
+
+    public static string CreateMissingReason(Resource resource) =>
+        $"RabbitMQ resource '{resource.EffectiveResourceId}' cannot reconcile broker access because no RabbitMQ access reconciler is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(Resource resource) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource),
+            resource.EffectiveResourceId);
 }
