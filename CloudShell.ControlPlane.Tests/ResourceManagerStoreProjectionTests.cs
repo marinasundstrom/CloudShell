@@ -1075,14 +1075,12 @@ public sealed class ResourceManagerStoreProjectionTests
         var secretsInspect = Assert.Single(secrets.ResourceActions, action =>
             action.Id == SecretsVaultResourceTypeProvider.Operations.Inspect.ToString());
 
-        Assert.Null(await orchestration.GetActionUnavailableReasonAsync(identity, identitySetup));
+        var identitySetupUnavailableReason = await orchestration.GetActionUnavailableReasonAsync(identity, identitySetup);
+
+        Assert.NotNull(identitySetupUnavailableReason);
+        Assert.Contains("no identity provisioning setup handler", identitySetupUnavailableReason, StringComparison.Ordinal);
         Assert.Null(await orchestration.GetActionUnavailableReasonAsync(settings, settingsInspect));
         Assert.Null(await orchestration.GetActionUnavailableReasonAsync(secrets, secretsInspect));
-        var identityResult = await orchestration.ExecuteActionAsync(
-            identity,
-            identitySetup,
-            startDependencies: false,
-            new AllowAllAuthorizationService());
         var settingsResult = await orchestration.ExecuteActionAsync(
             settings,
             settingsInspect,
@@ -1094,7 +1092,6 @@ public sealed class ResourceManagerStoreProjectionTests
             startDependencies: false,
             new AllowAllAuthorizationService());
 
-        Assert.Equal("Executed Identity Provisioning Setup for settings-secrets-identity.", identityResult.Message);
         Assert.StartsWith(
             "Executed Configuration Store Inspect for settings-secrets-settings.",
             settingsResult.Message,
