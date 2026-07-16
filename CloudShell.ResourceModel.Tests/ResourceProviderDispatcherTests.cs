@@ -2792,11 +2792,14 @@ public sealed class ResourceProviderDispatcherTests
         var reconcile = await projection.GetReconcileAccessOperationAsync();
 
         Assert.NotNull(start);
-        Assert.True(await start.CanExecuteAsync());
+        Assert.False(await start.CanExecuteAsync());
+        Assert.Contains("no SQL Server runtime handler", start.UnavailableReason, StringComparison.Ordinal);
         Assert.NotNull(stop);
-        Assert.True(await stop.CanExecuteAsync());
+        Assert.False(await stop.CanExecuteAsync());
+        Assert.Contains("no SQL Server runtime handler", stop.UnavailableReason, StringComparison.Ordinal);
         Assert.NotNull(restart);
-        Assert.True(await restart.CanExecuteAsync());
+        Assert.False(await restart.CanExecuteAsync());
+        Assert.Contains("no SQL Server runtime handler", restart.UnavailableReason, StringComparison.Ordinal);
         Assert.NotNull(reconcile);
         Assert.False(await reconcile.CanExecuteAsync());
         Assert.Equal("appdb", Assert.Single(reconcile.PlanReconciliation().Databases).Name);

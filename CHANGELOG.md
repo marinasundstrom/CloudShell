@@ -90,6 +90,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed graph-backed RabbitMQ lifecycle actions to fail closed when no
   RabbitMQ runtime handler is registered, and to project the same
   missing-handler reason as the operation unavailable reason before dispatch.
+- Changed graph-backed SQL Server lifecycle actions to fail closed when no SQL
+  Server runtime handler is registered, and to project the same
+  missing-handler reason as the operation unavailable reason before dispatch.
 
 ### 2026-07-15
 

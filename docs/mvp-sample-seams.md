@@ -123,6 +123,9 @@ CloudShell Docker containers were left running.
 - Graph-backed RabbitMQ lifecycle actions now report missing runtime-handler
   readiness when the runtime handler is absent and return matching
   provider-execution diagnostics if invoked directly.
+- Graph-backed SQL Server lifecycle actions now report missing runtime-handler
+  readiness when the runtime handler is absent and return matching
+  provider-execution diagnostics if invoked directly.
 
 ## Active Tie-Off Order
 

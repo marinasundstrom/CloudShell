@@ -5731,6 +5731,16 @@ resources:
         var capability = Assert.IsType<VolumeConsumerCapability>(
             resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(capability.Mounts).Volume);
+        var projection = Assert.IsType<SqlServerResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target,
+                    new ResourceProjectionContext("local", "developer")));
+        var startOperation = await projection.GetStartOperationAsync();
+        Assert.NotNull(startOperation);
+        Assert.False(await startOperation.CanExecuteAsync());
+        Assert.Contains("no SQL Server runtime handler", startOperation.UnavailableReason, StringComparison.Ordinal);
 
         var procedure = new ResourceProcedureContext(
             projectedSql,

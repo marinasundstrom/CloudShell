@@ -89,7 +89,13 @@ public abstract class SqlServerLifecycleOperationProvider(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _runtimeHandler,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        SqlServerRuntimeReadiness.IsMissing(_runtimeHandler)
+            ? SqlServerRuntimeReadiness.CreateMissingReason(resource, OperationId)
+            : null;
 
     private static IProviderExecutionDispatcher CreateDefaultDispatcher(
         ISqlServerRuntimeHandler runtimeHandler) =>
@@ -105,7 +111,8 @@ public sealed class SqlServerLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
     ISqlServerRuntimeHandler runtimeHandler,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -119,9 +126,14 @@ public sealed class SqlServerLifecycleOperation(
 
     public ResourceOperationId OperationId => Definition.Id;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

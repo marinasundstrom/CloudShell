@@ -200,6 +200,12 @@ UI-created SQL Server resources use `ControlPlaneScoped` lifetime today because
 the built-in resource is primarily a local development service. When created
 with **Start after create**, Resource Manager starts the resource through the
 standard Start action with dependency startup enabled.
+The lifecycle actions require a SQL Server runtime handler. Hosts that register
+the local Docker runtime through `AddLocalSqlServerDockerRuntime(...)` provide
+that handler; hosts that only register the resource type still project
+`start`, `stop`, and `restart`, but those actions are unavailable with a
+missing-runtime-handler reason. Direct provider-execution calls return the
+same diagnostic instead of reporting a successful no-op.
 
 Detached/persistent production-like SQL Server management should eventually be
 modeled through the same top-level resource shape, but with provider-backed
