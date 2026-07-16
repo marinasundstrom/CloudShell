@@ -253,6 +253,12 @@ references a missing source or target endpoint, selects a provider without the
 `networking.endpointMapper` capability, or requires a host-networking
 provisioner that is not active on the current host.
 
+Graph-backed network, virtual-network, local host-network, and macOS
+host-network endpoint-mapping reconciliation also fail closed when no concrete
+endpoint-mapping reconciler is registered. In that case the projected action is
+unavailable before dispatch, and direct provider-execution calls return the
+same missing-reconciler diagnostic instead of reporting a silent no-op success.
+
 Network resources have three current kinds:
 
 - Host: the implicit default network when no network has been created.

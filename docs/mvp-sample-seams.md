@@ -77,6 +77,10 @@ CloudShell Docker containers were left running.
 - Graph-backed DNS/name-mapping reconciliation now reports missing reconciler
   readiness before dispatch and returns the same provider-execution diagnostic
   if invoked directly, avoiding silent no-op name publishing.
+- Graph-backed endpoint-mapping reconciliation now reports missing reconciler
+  readiness for network, virtual-network, local host-network, and macOS
+  host-network resources before dispatch and returns matching
+  provider-execution diagnostics if invoked directly.
 
 ## Active Tie-Off Order
 

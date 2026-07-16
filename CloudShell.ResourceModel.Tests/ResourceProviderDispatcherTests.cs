@@ -1697,7 +1697,7 @@ public sealed class ResourceProviderDispatcherTests
         var reconcile = await projection.GetReconcileEndpointMappingsOperationAsync();
 
         Assert.NotNull(reconcile);
-        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.False(await reconcile.CanExecuteAsync());
         Assert.Equal("traefik", reconcile.PlanReconcile().MappingProviders);
     }
 
@@ -1756,7 +1756,7 @@ public sealed class ResourceProviderDispatcherTests
         var reconcile = await projection.GetReconcileEndpointMappingsOperationAsync();
 
         Assert.NotNull(reconcile);
-        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.False(await reconcile.CanExecuteAsync());
         Assert.Equal("cloudshell.loadBalancer:edge", reconcile.PlanReconcile().MappingProviders);
     }
 
@@ -1810,7 +1810,7 @@ public sealed class ResourceProviderDispatcherTests
         var reconcile = await projection.GetReconcileEndpointMappingsOperationAsync();
 
         Assert.NotNull(reconcile);
-        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.False(await reconcile.CanExecuteAsync());
         Assert.Equal("localProxy", reconcile.PlanReconcile().NetworkingMode);
     }
 
@@ -1864,7 +1864,7 @@ public sealed class ResourceProviderDispatcherTests
         var reconcile = await projection.GetReconcileEndpointMappingsOperationAsync();
 
         Assert.NotNull(reconcile);
-        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.False(await reconcile.CanExecuteAsync());
         Assert.Equal("macos", reconcile.PlanReconcile().HostOperatingSystem);
     }
 

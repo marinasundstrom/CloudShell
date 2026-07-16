@@ -632,6 +632,30 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task NetworkEndpointMappingHandler_FailsWhenReconcilerIsMissing()
+    {
+        var network = CreateGraphResource("network:private", "private");
+        var handler = new NetworkEndpointMappingExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.NetworkEndpointReconcile,
+            TargetResourceId = network.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "network:private:1",
+            TargetResourceSnapshot = network,
+            ResourceSnapshot = [network]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("network.endpointMappingReconcilerMissing", diagnostic.Code);
+        Assert.Equal(network.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task NetworkEndpointMappingHandler_ReturnsUnavailableWithoutResourceSnapshot()
     {
         var handler = new NetworkEndpointMappingExecutionHandler();
@@ -711,6 +735,30 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task VirtualNetworkEndpointMappingHandler_FailsWhenReconcilerIsMissing()
+    {
+        var network = CreateGraphResource("virtual-network:private", "private");
+        var handler = new VirtualNetworkEndpointMappingExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.VirtualNetworkEndpointReconcile,
+            TargetResourceId = network.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "virtual-network:private:1",
+            TargetResourceSnapshot = network,
+            ResourceSnapshot = [network]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("network.virtual.endpointMappingReconcilerMissing", diagnostic.Code);
+        Assert.Equal(network.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task LocalHostNetworkReconcileOperation_DispatchesEndpointReconcileInstruction()
     {
         var hostNetwork = CreateGraphResource("host-network:local", "local", revision: 2);
@@ -769,6 +817,30 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task LocalHostNetworkEndpointMappingHandler_FailsWhenReconcilerIsMissing()
+    {
+        var hostNetwork = CreateGraphResource("host-network:local", "local");
+        var handler = new LocalHostNetworkEndpointMappingExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.LocalHostNetworkEndpointReconcile,
+            TargetResourceId = hostNetwork.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "host-network:local:1",
+            TargetResourceSnapshot = hostNetwork,
+            ResourceSnapshot = [hostNetwork]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("hostNetworking.endpointMappingReconcilerMissing", diagnostic.Code);
+        Assert.Equal(hostNetwork.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task MacOSHostNetworkReconcileOperation_DispatchesEndpointReconcileInstruction()
     {
         var hostNetwork = CreateGraphResource("host-network:macos", "macos", revision: 3);
@@ -824,6 +896,30 @@ public sealed class ProviderExecutionContractTests
 
         Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
         Assert.Equal([diagnostic], result.Diagnostics);
+    }
+
+    [Fact]
+    public async Task MacOSHostNetworkEndpointMappingHandler_FailsWhenReconcilerIsMissing()
+    {
+        var hostNetwork = CreateGraphResource("host-network:macos", "macos");
+        var handler = new MacOSHostNetworkEndpointMappingExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.MacOSHostNetworkEndpointReconcile,
+            TargetResourceId = hostNetwork.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "host-network:macos:1",
+            TargetResourceSnapshot = hostNetwork,
+            ResourceSnapshot = [hostNetwork]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("hostNetworking.macos.endpointMappingReconcilerMissing", diagnostic.Code);
+        Assert.Equal(hostNetwork.EffectiveResourceId, diagnostic.Target);
     }
 
     [Fact]

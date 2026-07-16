@@ -5,11 +5,13 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider :
     IResourceOperationProjector
 {
     private readonly IProviderExecutionDispatcher _dispatcher;
+    private readonly IVirtualNetworkEndpointMappingReconciler? _reconciler;
 
     public VirtualNetworkReconcileEndpointMappingsOperationProvider(
         IProviderExecutionDispatcher? dispatcher = null,
         IVirtualNetworkEndpointMappingReconciler? reconciler = null)
     {
+        _reconciler = reconciler;
         _dispatcher = dispatcher ??
             new InProcessProviderExecutionDispatcher(
                 [new VirtualNetworkEndpointMappingExecutionHandler(reconciler)]);
@@ -48,13 +50,20 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider :
             new VirtualNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        VirtualNetworkEndpointMappingReconcilerReadiness.IsMissing(_reconciler)
+            ? VirtualNetworkEndpointMappingReconcilerReadiness.CreateMissingReason(resource)
+            : null;
 }
 
 public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -66,9 +75,14 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
 
     public ResourceOperationId OperationId => VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

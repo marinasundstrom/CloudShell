@@ -44,6 +44,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed graph-backed DNS/name-mapping reconciliation to fail closed when no
   reconciler is registered, and to project the same missing-reconciler reason
   as the operation unavailable reason before dispatch.
+- Changed graph-backed endpoint-mapping reconciliation to fail closed for
+  network, virtual-network, local host-network, and macOS host-network
+  resources when no reconciler is registered, and to project the same
+  missing-reconciler reason as the operation unavailable reason before
+  dispatch.
 
 ### 2026-07-15
 
