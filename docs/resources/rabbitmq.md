@@ -147,7 +147,9 @@ RabbitMQ exposes standard `start`, `stop`, and `restart` resource actions.
 The current local Docker runtime starts or removes a mapped RabbitMQ container
 for configured resources. The runtime can be registered by a host with
 `AddLocalRabbitMQDockerRuntime(...)`; hosts that do not register a runtime keep
-the resource shape and actions but use the no-op runtime handler.
+the resource shape and actions, but lifecycle actions are unavailable with a
+missing-runtime-handler reason. Direct provider-execution calls return the same
+diagnostic instead of reporting a successful no-op.
 `CloudShell.LocalDevelopmentHost` registers the local Docker runtime and uses a
 host-scoped deterministic container name for launcher-authored RabbitMQ
 resources that do not have explicit runtime mappings.

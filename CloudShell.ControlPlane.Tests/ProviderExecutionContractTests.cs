@@ -3417,6 +3417,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task RabbitMQLifecycleHandler_FailsWhenRuntimeHandlerIsMissing()
+    {
+        var rabbitMQ = CreateGraphResource("rabbitmq:broker", "broker");
+        var handler = new RabbitMQStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.RabbitMQStart,
+            TargetResourceId = rabbitMQ.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "rabbitmq:broker:start:1",
+            TargetResourceSnapshot = rabbitMQ,
+            ResourceSnapshot = [rabbitMQ]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.rabbitmq.runtimeHandlerMissing", diagnostic.Code);
+        Assert.Equal(rabbitMQ.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task RabbitMQLifecycleOperationProvider_ProjectsUnavailableWithoutRuntimeHandler()
+    {
+        var rabbitMQ = CreateGraphResource("rabbitmq:broker", "broker");
+        var provider = new RabbitMQStartOperationProvider();
+
+        var projection = Assert.IsType<RabbitMQLifecycleOperation>(
+            await provider.ProjectAsync(
+                rabbitMQ,
+                new ResourceOperationResolution(
+                    RabbitMQResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        rabbitMQ,
+                        [rabbitMQ]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no RabbitMQ runtime handler", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task EventBrokerLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var eventBroker = CreateGraphResource("event-broker:default", "default", revision: 6);

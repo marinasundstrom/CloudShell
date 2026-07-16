@@ -27,5 +27,27 @@ public sealed class NoopRabbitMQRuntimeHandler :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            RabbitMQRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
+}
+
+internal static class RabbitMQRuntimeReadiness
+{
+    public const string DiagnosticCode = "application.rabbitmq.runtimeHandlerMissing";
+
+    public static bool IsMissing(IRabbitMQRuntimeHandler? runtimeHandler) =>
+        runtimeHandler is null or NoopRabbitMQRuntimeHandler;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"RabbitMQ resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no RabbitMQ runtime handler is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }

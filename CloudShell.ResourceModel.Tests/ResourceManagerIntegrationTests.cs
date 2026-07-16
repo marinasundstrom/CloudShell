@@ -5902,6 +5902,11 @@ resources:
                 .GetResourceProjectionAsync(
                     resolution.Target,
                     new ResourceProjectionContext("local", "developer")));
+        var startOperation = await projection.GetStartOperationAsync();
+        Assert.NotNull(startOperation);
+        Assert.False(await startOperation.CanExecuteAsync());
+        Assert.Contains("no RabbitMQ runtime handler", startOperation.UnavailableReason, StringComparison.Ordinal);
+
         var reconcileOperation = await projection.GetReconcileAccessOperationAsync();
 
         Assert.NotNull(reconcileOperation);

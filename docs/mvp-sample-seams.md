@@ -120,6 +120,9 @@ CloudShell Docker containers were left running.
 - Graph-backed SQL database ensure-created now reports missing creation
   handler readiness when the runtime handler is absent and returns a matching
   provider-execution diagnostic if invoked directly.
+- Graph-backed RabbitMQ lifecycle actions now report missing runtime-handler
+  readiness when the runtime handler is absent and return matching
+  provider-execution diagnostics if invoked directly.
 
 ## Active Tie-Off Order
 
