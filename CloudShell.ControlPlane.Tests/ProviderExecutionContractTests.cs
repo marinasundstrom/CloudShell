@@ -3791,6 +3791,54 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal(SecretsVaultResourceTypeProvider.Operations.Start, invocation.OperationId);
     }
 
+    [Fact]
+    public async Task SecretsVaultLifecycleHandler_FailsWhenRuntimeControllerIsMissing()
+    {
+        var secretsVault = CreateGraphResource("secrets-vault:default", "default");
+        var handler = new SecretsVaultStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.SecretsVaultStart,
+            TargetResourceId = secretsVault.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "secrets-vault:default:start:1",
+            TargetResourceSnapshot = secretsVault,
+            ResourceSnapshot = [secretsVault]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("secrets.vault.runtimeControllerMissing", diagnostic.Code);
+        Assert.Equal(secretsVault.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task SecretsVaultLifecycleOperationProvider_ProjectsUnavailableWithoutRuntimeController()
+    {
+        var secretsVault = CreateGraphResource("secrets-vault:default", "default");
+        var provider = new SecretsVaultStartOperationProvider();
+
+        var projection = Assert.IsType<SecretsVaultLifecycleOperation>(
+            await provider.ProjectAsync(
+                secretsVault,
+                new ResourceOperationResolution(
+                    SecretsVaultResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        secretsVault,
+                        [secretsVault]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Secrets Vault runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
     private sealed class RecordingExecutionHandler(
         string operationType,
         IReadOnlyList<string> capabilities) : IProviderExecutionHandler

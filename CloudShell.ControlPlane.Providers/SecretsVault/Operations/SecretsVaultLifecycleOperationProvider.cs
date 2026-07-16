@@ -71,7 +71,13 @@ public abstract class SecretsVaultLifecycleOperationProvider(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _runtimeController,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        SecretsVaultRuntimeReadiness.IsMissing(_runtimeController)
+            ? SecretsVaultRuntimeReadiness.CreateMissingReason(resource, OperationId)
+            : null;
 
     private static IProviderExecutionDispatcher CreateDefaultDispatcher(
         ISecretsVaultRuntimeController runtimeController) =>
@@ -87,7 +93,8 @@ public sealed class SecretsVaultLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
     ISecretsVaultRuntimeController runtimeController,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -99,9 +106,14 @@ public sealed class SecretsVaultLifecycleOperation(
 
     public ResourceOperationId OperationId => Definition.Id;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

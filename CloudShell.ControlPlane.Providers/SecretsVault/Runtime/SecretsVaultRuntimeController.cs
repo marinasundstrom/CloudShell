@@ -189,5 +189,27 @@ public sealed class NoopSecretsVaultRuntimeController :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            SecretsVaultRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
+}
+
+internal static class SecretsVaultRuntimeReadiness
+{
+    public const string DiagnosticCode = "secrets.vault.runtimeControllerMissing";
+
+    public static bool IsMissing(ISecretsVaultRuntimeController? runtimeController) =>
+        runtimeController is null or NoopSecretsVaultRuntimeController;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"Secrets Vault resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no Secrets Vault runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }

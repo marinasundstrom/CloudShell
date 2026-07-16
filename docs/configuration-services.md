@@ -204,6 +204,12 @@ controller, Resource Manager projects the lifecycle action as unavailable with a
 missing-controller reason, and direct provider-execution calls return the same
 readiness failure as a diagnostic instead of succeeding as a no-op.
 
+Secrets Vault lifecycle actions use the same contract. The built-in provider
+registration supplies the local process runtime controller for normal hosts,
+while custom or direct operation paths without a Secrets Vault runtime
+controller project unavailable actions and return missing-controller
+provider-execution diagnostics.
+
 ## Application Access
 
 Executable applications receive configuration service connection details through
