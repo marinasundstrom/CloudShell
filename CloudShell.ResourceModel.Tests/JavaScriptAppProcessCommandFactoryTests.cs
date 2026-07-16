@@ -48,6 +48,19 @@ public sealed class JavaScriptAppProcessCommandFactoryTests
         Assert.Equal(["run", "start", "--", "--host", "0.0.0.0"], startInfo.ArgumentList.ToArray());
     }
 
+    [Fact]
+    public void CreateStartInfo_UsesBunPackageManager()
+    {
+        var resource = CreateResource(packageManager: "bun", script: "dev", arguments: "--hot");
+
+        var startInfo = new JavaScriptAppProcessCommandFactory(
+                new JavaScriptAppProcessCommandPlatform(IsWindows: false))
+            .CreateStartInfo(resource, "/repo/frontend");
+
+        Assert.Equal("bun", startInfo.FileName);
+        Assert.Equal(["run", "dev", "--", "--hot"], startInfo.ArgumentList.ToArray());
+    }
+
     private static Resource CreateResource(
         string? packageManager = null,
         string? script = null,

@@ -22,6 +22,10 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
     public JavaScriptAppResourceDefinitionBuilder WithPackageManager(string packageManager) =>
         SetScalarAttribute(JavaScriptAppResourceTypeProvider.Attributes.PackageManager, packageManager);
 
+    public JavaScriptAppResourceDefinitionBuilder WithBun() =>
+        WithEngine("bun")
+            .WithPackageManager("bun");
+
     public JavaScriptAppResourceDefinitionBuilder WithScript(string script) =>
         SetScalarAttribute(JavaScriptAppResourceTypeProvider.Attributes.Script, script);
 

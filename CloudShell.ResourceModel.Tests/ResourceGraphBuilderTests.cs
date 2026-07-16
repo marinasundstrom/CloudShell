@@ -1486,6 +1486,28 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceGraphBuilder_BuildsBunJavaScriptAppDefinitions()
+    {
+        var graph = new ResourceGraphBuilder();
+
+        graph
+            .AddJavaScriptApp("frontend", "src/frontend")
+            .WithBun()
+            .WithScript("start");
+
+        var template = graph.BuildTemplate("javascript-app", environmentId: "local");
+
+        var app = Assert.Single(template.Resources, resource =>
+            resource.TypeId == JavaScriptAppResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("bun", app.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.Engine].StringValue);
+        Assert.Equal("bun", app.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.PackageManager].StringValue);
+        Assert.Equal("start", app.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.Script].StringValue);
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_BuildsJavaScriptAppAsContainerDefinition()
     {
         var graph = new ResourceGraphBuilder();

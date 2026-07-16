@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
   readable authored paths from resource attribute metadata, so canonical IDs
   such as `javascript-app:runtime` render as `runtime` and
   `javascript-app:project.path` renders as `project.path`.
+- Added Bun support to JavaScript app declarations through a `WithBun()`
+  builder shortcut that sets both `runtime` and `packageManager` to `bun`,
+  with runtime command coverage for `bun run`.
 - Changed graph-backed Java app lifecycle actions to fail closed when no Java
   app runtime controller is registered, and to project the same
   missing-controller reason as the operation unavailable reason before

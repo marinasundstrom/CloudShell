@@ -1,14 +1,16 @@
 # JavaScript Applications
 
-Use the JavaScript app resource type for local JavaScript and Node.js
+Use the JavaScript app resource type for local JavaScript, Node.js, and Bun
 applications that should participate in the CloudShell local development
 resource graph. These resources project as `application.javascript-app`.
 
 The JavaScript app provider defaults to the Node.js runtime. It records that
 assumption as a resource-local `runtime: node` attribute and uses
-package-manager/script attributes for the development command. Future
-extensions can add more focused registration helpers for frameworks such as
-Vite, Next.js, or workers without changing the base resource type.
+package-manager/script attributes for the development command. Bun is
+supported by setting `runtime: bun` and `packageManager: bun`, or by using the
+C# builder shortcut `WithBun()`. Future extensions can add more focused
+registration helpers for frameworks such as Vite, Next.js, or workers without
+changing the base resource type.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For related resource types,
@@ -36,6 +38,15 @@ The equivalent C# declaration is:
 ```csharp
 resources
     .AddJavaScriptApp("frontend", "src/frontend");
+```
+
+Bun-backed apps use the same resource type and lifecycle path:
+
+```csharp
+resources
+    .AddJavaScriptApp("frontend", "src/frontend")
+    .WithBun()
+    .WithScript("dev");
 ```
 
 The default declaration assumes:
@@ -115,7 +126,6 @@ runtime views. For JavaScript, the current packaging path expects a container
 build context and normally a project-owned Dockerfile. Docker is the first
 local runtime target; the resource model stores container intent so other
 OCI-compatible targets such as Podman can be added behind the container host
-boundary.
 boundary.
 
 When a JavaScript app references Configuration Store or Secrets Vault
