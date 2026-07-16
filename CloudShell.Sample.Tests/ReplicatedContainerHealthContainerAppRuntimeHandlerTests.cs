@@ -1043,7 +1043,30 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.NotNull(snapshot);
         Assert.Equal("Unavailable", snapshot.Status);
         Assert.Empty(snapshot.Metrics);
-        Assert.Equal("Docker executable 'docker' is unavailable.", snapshot.Message);
+        Assert.Equal(
+            "The container runtime could not read stats for runtime replica 'api replica 2' (container 'cloudshell-replicated-health-api-replica-2'): Docker executable 'docker' is unavailable.",
+            snapshot.Message);
+    }
+
+    [Fact]
+    public async Task RuntimeMonitoringProvider_ReportsReplicaContextWhenStatsCannotBeParsed()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(
+            0,
+            "not-json",
+            string.Empty));
+        var provider = new LocalContainerApplicationRuntimeMonitoringProvider(commandRunner);
+        var replica = CreateGraphReplicaResource(replica: 1);
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(replica);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal("Unavailable", snapshot.Status);
+        Assert.Empty(snapshot.Metrics);
+        Assert.Equal(
+            "The container runtime did not return a stats snapshot for runtime replica 'api replica 1' (container 'cloudshell-replicated-health-api-replica-1').",
+            snapshot.Message);
     }
 
     [Fact]

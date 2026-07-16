@@ -65,9 +65,7 @@ public sealed class LocalContainerApplicationRuntimeMonitoringProvider(
                 timestamp,
                 [],
                 "Unavailable",
-                string.IsNullOrWhiteSpace(result.Error)
-                    ? "The container runtime did not return a stats snapshot for the runtime replica."
-                    : result.Error.Trim());
+                CreateUnavailableMessage(resource, containerName, result.Error));
         }
 
         return new ResourceMonitoringSnapshot(
@@ -86,6 +84,19 @@ public sealed class LocalContainerApplicationRuntimeMonitoringProvider(
             "containerReplica",
             StringComparison.OrdinalIgnoreCase) &&
         !string.IsNullOrWhiteSpace(GetAttribute(resource, ResourceAttributeNames.RuntimeContainerName));
+
+    private static string CreateUnavailableMessage(
+        ResourceManagerResource resource,
+        string containerName,
+        string error)
+    {
+        var resourceLabel = string.IsNullOrWhiteSpace(resource.Name)
+            ? resource.Id
+            : resource.Name;
+        return string.IsNullOrWhiteSpace(error)
+            ? $"The container runtime did not return a stats snapshot for runtime replica '{resourceLabel}' (container '{containerName}')."
+            : $"The container runtime could not read stats for runtime replica '{resourceLabel}' (container '{containerName}'): {error.Trim()}";
+    }
 
     private static string GetAttribute(ResourceManagerResource resource, string name) =>
         resource.ResourceAttributes.TryGetValue(name, out var value)

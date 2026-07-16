@@ -617,8 +617,10 @@ only the generated metric-card view. The tab summarizes single-instance
 container stats and replicated app resource usage from materialized
 replica/container monitoring snapshots when the active runtime can resolve the
 selected container host. Missing CPU, memory, network, process, or provider
-counters are shown as not collected rather than zero. For the shared model, see
-[Resource Monitoring and Usage](../monitoring-and-usage.md).
+counters are shown as not collected rather than zero. Local Docker monitoring
+fallbacks should name the runtime replica and backing container when Docker
+stats cannot be read. For the shared model, see [Resource Monitoring and
+Usage](../monitoring-and-usage.md).
 
 ## Image Deployment Procedure
 

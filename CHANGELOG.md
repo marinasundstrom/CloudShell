@@ -26,6 +26,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Projected local Docker container app replica network aliases onto
   runtime-managed replica resources so load-balancer routing and diagnostics
   can use the same stable backend identity the runtime applies to containers.
+- Improved local Docker container app replica monitoring fallback messages so
+  missing or unreadable Docker stats include the runtime replica and backing
+  container context.
 
 ### 2026-07-15
 
