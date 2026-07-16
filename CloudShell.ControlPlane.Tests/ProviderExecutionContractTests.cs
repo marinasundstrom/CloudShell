@@ -1865,6 +1865,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task DeviceRegistryLifecycleHandler_FailsWhenRuntimeControllerIsMissing()
+    {
+        var registry = CreateGraphResource("iot.device-registry:devices", "devices");
+        var handler = new DeviceRegistryStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.DeviceRegistryStart,
+            TargetResourceId = registry.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "iot.device-registry:devices:start:1",
+            TargetResourceSnapshot = registry,
+            ResourceSnapshot = [registry]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("iot.deviceRegistry.runtimeControllerMissing", diagnostic.Code);
+        Assert.Equal(registry.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task DeviceRegistryLifecycleOperationProvider_ProjectsUnavailableWithoutRuntimeController()
+    {
+        var registry = CreateGraphResource("iot.device-registry:devices", "devices");
+        var provider = new DeviceRegistryStartOperationProvider();
+
+        var projection = Assert.IsType<DeviceRegistryLifecycleOperation>(
+            await provider.ProjectAsync(
+                registry,
+                new ResourceOperationResolution(
+                    DeviceRegistryResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        registry,
+                        [registry]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Device Registry runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task IdentityProvisioningSetupOperation_DispatchesSetupInstruction()
     {
         var identityProvisioning = CreateGraphResource(

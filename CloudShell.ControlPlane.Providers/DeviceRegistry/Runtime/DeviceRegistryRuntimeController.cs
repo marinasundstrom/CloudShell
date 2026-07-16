@@ -257,5 +257,27 @@ public sealed class NoopDeviceRegistryRuntimeController :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            DeviceRegistryRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
+}
+
+internal static class DeviceRegistryRuntimeReadiness
+{
+    public const string DiagnosticCode = "iot.deviceRegistry.runtimeControllerMissing";
+
+    public static bool IsMissing(IDeviceRegistryRuntimeController? runtimeController) =>
+        runtimeController is null or NoopDeviceRegistryRuntimeController;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"Device Registry resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no Device Registry runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }

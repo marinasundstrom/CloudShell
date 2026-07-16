@@ -60,6 +60,13 @@ on the vault resource. The registry can then be started through its lifecycle
 actions, using the same host-local process runtime pattern as Configuration
 Store and Secrets Vault.
 
+Lifecycle actions require a Device Registry runtime controller. The built-in
+provider registration supplies the local process runtime controller for normal
+hosts. If a custom or direct operation path is constructed without that
+controller, Resource Manager projects lifecycle actions as unavailable with a
+missing-controller reason, and direct provider-execution calls return the same
+readiness failure as a diagnostic instead of succeeding as a no-op.
+
 Enrollment requires a provider-owned proof token before policy matching can
 issue device credentials. The token is configured on the Device Registry service
 host as `CloudShell:DeviceRegistryService:EnrollmentToken`; it is not part of

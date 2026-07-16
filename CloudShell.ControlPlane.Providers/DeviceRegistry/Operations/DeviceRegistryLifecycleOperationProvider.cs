@@ -97,14 +97,21 @@ public abstract class DeviceRegistryLifecycleOperationProvider :
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _runtimeController,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        DeviceRegistryRuntimeReadiness.IsMissing(_runtimeController)
+            ? DeviceRegistryRuntimeReadiness.CreateMissingReason(resource, OperationId)
+            : null;
 }
 
 public sealed class DeviceRegistryLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
     IDeviceRegistryRuntimeController runtimeController,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -118,9 +125,14 @@ public sealed class DeviceRegistryLifecycleOperation(
 
     public ResourceOperationId OperationId => Definition.Id;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>
