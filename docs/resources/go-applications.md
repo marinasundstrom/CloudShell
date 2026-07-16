@@ -45,6 +45,13 @@ Resource model patterns as other application resources. The default local
 runtime tracks process state and exposes process logs and metrics through
 Resource Manager.
 
+Lifecycle actions require a Go app runtime controller. The built-in provider
+registration supplies the local process runtime controller for normal hosts.
+If a custom or direct operation path is constructed without that controller,
+Resource Manager projects lifecycle actions as unavailable with a
+missing-controller reason, and direct provider-execution calls return the same
+readiness failure as a diagnostic instead of succeeding as a no-op.
+
 ## Runtime SDK
 
 Go workloads use the experimental runtime SDK under `sdk/go/cloudshell` to call

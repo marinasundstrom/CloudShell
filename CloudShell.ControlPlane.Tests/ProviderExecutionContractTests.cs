@@ -1883,6 +1883,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task GoAppLifecycleHandler_FailsWhenRuntimeControllerIsMissing()
+    {
+        var app = CreateGraphResource("application.go-app:api", "api");
+        var handler = new GoAppStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.GoAppStart,
+            TargetResourceId = app.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application.go-app:api:start:1",
+            TargetResourceSnapshot = app,
+            ResourceSnapshot = [app]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.goApp.runtimeControllerMissing", diagnostic.Code);
+        Assert.Equal(app.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task GoAppLifecycleOperationProvider_ProjectsUnavailableWithoutRuntimeController()
+    {
+        var app = CreateGraphResource("application.go-app:api", "api");
+        var provider = new GoAppStartOperationProvider();
+
+        var projection = Assert.IsType<GoAppLifecycleOperation>(
+            await provider.ProjectAsync(
+                app,
+                new ResourceOperationResolution(
+                    GoAppResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        app,
+                        [app]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Go app runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task PythonAppLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var app = CreateGraphResource("application.python-app:api", "api", revision: 31);

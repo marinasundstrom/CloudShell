@@ -97,14 +97,21 @@ public abstract class GoAppLifecycleOperationProvider :
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _runtimeController,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        GoAppRuntimeReadiness.IsMissing(_runtimeController)
+            ? GoAppRuntimeReadiness.CreateMissingReason(resource, OperationId)
+            : null;
 }
 
 public sealed class GoAppLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
     IGoAppRuntimeController runtimeController,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -118,9 +125,12 @@ public sealed class GoAppLifecycleOperation(
 
     public ResourceOperationId OperationId => Definition.Id;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
     public string? UnavailableReason =>
+        unavailableReason ??
         Definition.UnavailableReason ??
         ApplicationArtifactResourceValidation.GetLifecycleUnavailableReason(Resource, OperationId);
 

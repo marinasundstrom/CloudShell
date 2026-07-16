@@ -478,7 +478,10 @@ public sealed class NoopGoAppRuntimeController :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            GoAppRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
 
     public IReadOnlyList<GoAppRuntimeOutputEntry> ReadOutput(
         string resourceId,
@@ -490,4 +493,23 @@ public sealed class NoopGoAppRuntimeController :
         string resourceId,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+}
+
+internal static class GoAppRuntimeReadiness
+{
+    public const string DiagnosticCode = "application.goApp.runtimeControllerMissing";
+
+    public static bool IsMissing(IGoAppRuntimeController? runtimeController) =>
+        runtimeController is null or NoopGoAppRuntimeController;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"Go app resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no Go app runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }
