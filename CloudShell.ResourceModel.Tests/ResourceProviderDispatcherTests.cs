@@ -2792,7 +2792,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(restart);
         Assert.True(await restart.CanExecuteAsync());
         Assert.NotNull(reconcile);
-        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.False(await reconcile.CanExecuteAsync());
         Assert.Equal("appdb", Assert.Single(reconcile.PlanReconciliation().Databases).Name);
 
         var applyPlan = await serviceProvider

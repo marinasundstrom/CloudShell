@@ -1161,6 +1161,30 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task SqlServerAccessReconcileHandler_FailsWhenReconcilerIsMissing()
+    {
+        var sqlServer = CreateGraphResource("sql-server:app", "app");
+        var handler = new SqlServerAccessReconcileExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.SqlServerAccessReconcile,
+            TargetResourceId = sqlServer.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "sql-server:app:1",
+            TargetResourceSnapshot = sqlServer,
+            ResourceSnapshot = [sqlServer]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.sqlServer.accessReconcilerMissing", diagnostic.Code);
+        Assert.Equal(sqlServer.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task LoadBalancerApplyConfigurationOperation_DispatchesApplyInstruction()
     {
         var loadBalancer = CreateGraphResource("load-balancer:public", "public", revision: 12);

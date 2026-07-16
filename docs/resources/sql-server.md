@@ -136,6 +136,12 @@ instance is running. The action uses the provider's SQL administrator path;
 workloads still receive provider-neutral resource identity credentials rather
 than the bootstrap administrator password.
 
+Access reconciliation uses the provider-execution boundary. SQL Server
+definitions can still be valid when no concrete access reconciler is
+registered, but the projected reconcile action is unavailable with a
+missing-reconciler reason. Direct provider-execution calls return the same
+diagnostic instead of reporting a silent no-op success.
+
 ## Overview
 
 The SQL Server overview leads with SQL service details: projected TDS endpoint,

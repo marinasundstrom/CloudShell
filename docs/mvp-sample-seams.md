@@ -85,6 +85,9 @@ CloudShell Docker containers were left running.
   for `cloudshell.volume` and the older `storage.volume` local-volume type
   before dispatch and returns matching provider-execution diagnostics if
   invoked directly.
+- Graph-backed SQL Server access reconciliation now reports missing reconciler
+  readiness before dispatch and returns a matching provider-execution
+  diagnostic if invoked directly.
 
 ## Active Tie-Off Order
 
