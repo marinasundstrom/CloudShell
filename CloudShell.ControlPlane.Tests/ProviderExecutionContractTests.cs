@@ -2537,6 +2537,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task SecretsVaultInspectHandler_FailsWhenInspectorIsMissing()
+    {
+        var secretsVault = CreateGraphResource("secrets.vault:secrets", "secrets");
+        var handler = new SecretsVaultInspectExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.SecretsVaultInspect,
+            TargetResourceId = secretsVault.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "secrets.vault:secrets:inspect:1",
+            TargetResourceSnapshot = secretsVault,
+            ResourceSnapshot = [secretsVault]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("secrets.vault.inspectorMissing", diagnostic.Code);
+        Assert.Equal(secretsVault.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task SecretsVaultInspectOperationProvider_ProjectsUnavailableWithoutInspector()
+    {
+        var secretsVault = CreateGraphResource("secrets.vault:secrets", "secrets");
+        var provider = new SecretsVaultInspectOperationProvider();
+
+        var projection = Assert.IsType<SecretsVaultInspectOperation>(
+            await provider.ProjectAsync(
+                secretsVault,
+                new ResourceOperationResolution(
+                    SecretsVaultResourceTypeProvider.Operations.Inspect,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        secretsVault,
+                        [secretsVault]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Secrets Vault inspector", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ContainerApplicationLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 9);

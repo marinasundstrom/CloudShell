@@ -90,6 +90,11 @@ Certificates tab. Secret values and certificate payloads stay in
 provider-owned runtime state and sidecar definition files; Resource Manager
 only projects non-secret metadata such as counts, content type, thumbprint,
 subject, validity dates, and private-key presence.
+The `secrets.vault.inspect` operation also uses the provider-execution
+boundary. The built-in resource-type registration supplies a runtime
+inspector; if the operation path is constructed without one, the inspect action
+is unavailable with a missing-inspector reason and direct provider-execution
+calls return the same diagnostic.
 
 Load balancer HTTPS entrypoints can reference a Secrets Vault certificate
 through a typed certificate reference. The load balancer resource stores only

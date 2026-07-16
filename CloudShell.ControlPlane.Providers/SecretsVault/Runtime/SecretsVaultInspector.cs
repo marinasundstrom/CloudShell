@@ -13,7 +13,27 @@ public sealed class NoopSecretsVaultInspector :
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
         Resource resource,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            SecretsVaultInspectorReadiness.CreateMissingDiagnostic(resource)
+        ]);
+}
+
+internal static class SecretsVaultInspectorReadiness
+{
+    public const string DiagnosticCode = "secrets.vault.inspectorMissing";
+
+    public static bool IsMissing(ISecretsVaultInspector? inspector) =>
+        inspector is null or NoopSecretsVaultInspector;
+
+    public static string CreateMissingReason(Resource resource) =>
+        $"Secrets Vault resource '{resource.EffectiveResourceId}' cannot be inspected because no Secrets Vault inspector is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(Resource resource) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource),
+            resource.EffectiveResourceId);
 }
 
 public sealed class SecretsVaultRuntimeInspector(
