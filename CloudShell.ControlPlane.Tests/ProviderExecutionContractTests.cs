@@ -2373,6 +2373,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task HostConfigurationSourceInspectHandler_FailsWhenInspectorIsMissing()
+    {
+        var source = CreateGraphResource("configuration.host:local", "local");
+        var handler = new HostConfigurationSourceInspectExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.HostConfigurationSourceInspect,
+            TargetResourceId = source.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "configuration.host:local:inspect:1",
+            TargetResourceSnapshot = source,
+            ResourceSnapshot = [source]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("configuration.host.inspectorMissing", diagnostic.Code);
+        Assert.Equal(source.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task HostConfigurationSourceInspectOperationProvider_ProjectsUnavailableWithoutInspector()
+    {
+        var source = CreateGraphResource("configuration.host:local", "local");
+        var provider = new HostConfigurationSourceInspectOperationProvider();
+
+        var projection = Assert.IsType<HostConfigurationSourceInspectOperation>(
+            await provider.ProjectAsync(
+                source,
+                new ResourceOperationResolution(
+                    HostConfigurationSourceResourceTypeProvider.Operations.Inspect,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        source,
+                        [source]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no host configuration source inspector", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ConfigurationStoreInspectOperation_DispatchesInspectInstruction()
     {
         var configurationStore = CreateGraphResource("configuration.store:settings", "settings", revision: 61);

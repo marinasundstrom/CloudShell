@@ -1106,7 +1106,8 @@ public sealed class ResourceProviderDispatcherTests
         var inspect = await projection.GetInspectOperationAsync();
 
         Assert.NotNull(inspect);
-        Assert.True(await inspect.CanExecuteAsync());
+        Assert.False(await inspect.CanExecuteAsync());
+        Assert.Contains("no host configuration source inspector", inspect.UnavailableReason, StringComparison.Ordinal);
         Assert.Equal(0, inspect.PlanInspection().EntryCount);
     }
 

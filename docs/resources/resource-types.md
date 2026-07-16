@@ -756,6 +756,10 @@ Common optional attributes:
 - `configuration.source`
 
 Do not author `configuration.settings.count`; it is provider-managed.
+The `configuration.host.inspect` operation requires a host configuration
+source inspector; type registration alone projects the operation but marks it
+unavailable with a missing-inspector reason until the runtime adapter is
+registered.
 
 ```yaml
 resources:

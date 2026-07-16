@@ -81,6 +81,13 @@ if a host or test constructs the operation path without one, the inspect action
 is unavailable with a missing-inspector reason and direct provider-execution
 calls return the same diagnostic instead of reporting a silent no-op success.
 
+Host configuration source inspection follows the same boundary. A
+`configuration.host.inspect` operation is projected for graph-backed host
+configuration source resources, but it is unavailable when no host
+configuration source inspector is registered. Direct provider-execution calls
+return a missing-inspector diagnostic instead of treating the absent adapter as
+a successful empty inspection.
+
 Graph-backed Secrets Vault resources contribute **Secrets** and
 **Certificates** tabs under the same host/runtime boundary. Existing secret and
 certificate values are masked in the UI and preserved unless a replacement
