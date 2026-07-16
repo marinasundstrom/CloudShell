@@ -115,8 +115,8 @@ shape.
 
 When the local Docker container-app runtime is registered, container apps do
 not need separate per-app runtime registration. The runtime reads the resolved
-resource state: image-only apps run the declared image, `container.buildContext`
-apps build through Docker, and `project.path` apps publish through the .NET SDK
+resource state: image-only apps run the declared `image`, `buildContext` apps
+build through Docker, and `project.path` apps publish through the .NET SDK
 container target when no Dockerfile-backed build context is present.
 Runtime options may still override local names, ingress directories, probe
 ports, telemetry endpoints, or migration-time project paths, but those options
@@ -165,10 +165,10 @@ specified as a host name or URI string. Runtime orchestrators use the URI
 authority when they need a pullable image reference, for example
 `http://localhost:5000` becomes `localhost:5000/team/api:dev`.
 
-The registry is projected as the non-secret `container.registry` resource
-attribute and is included in workload descriptors. Registry credentials are
-provider-owned configuration, not resource attributes. Container app and Docker
-declarations can specify credentials with
+The registry is authored as the non-secret `registry` field, resolves to the
+provider-owned `container.registry` attribute, and is included in workload
+descriptors. Registry credentials are provider-owned configuration, not
+resource attributes. Container app and Docker declarations can specify credentials with
 `WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`.
 The provider reads the password from the named environment variable at
 execution time and uses Docker `login --password-stdin` before launching the
@@ -180,8 +180,8 @@ exposing the password value.
 Start and Restart readiness also validate that the selected container host
 resource is available, that host credentials are available, and that the host
 advertises the capability needed by the workload. Image-backed apps require
-`container.image`; project-container builds additionally require
-`container.build`.
+`container.image`; project-container builds additionally require the container
+build capability.
 
 The Container app registration and configuration tabs expose the registry next
 to the image setting. Docker host registration/configuration exposes a registry
@@ -361,8 +361,10 @@ desired count.
 Programmatic declarations opt in with `.WithReplicas(...)` or by passing a
 replica count greater than one to the container app declaration helpers.
 
-Container apps project replica intent through `container.replicas.enabled` and
-`container.replicas`. The current MVP supports updating that explicit count;
+Container apps author replica intent through `replicas`, which resolves to the
+provider-owned `container.replicas` attribute. The Resource Manager projection
+also derives compatibility facts such as `container.replicas.enabled`. The
+current MVP supports updating that explicit count;
 autoscaling policy, traffic splitting, and richer replica health are future
 resource-model work. The Scale and replicas tab is also diagnostic: it lists
 materialized runtime replica resources only after scaling is enabled.

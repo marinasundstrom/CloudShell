@@ -694,7 +694,7 @@ class ProjectApplicationResource(ResourceBuilder):
         if self.endpoints:
             document["endpoints"] = self.endpoints
         if self.container is not None:
-            document["container"] = _prune(dict(self.container))
+            document.update(_prune(dict(self.container)))
         if self.health_checks:
             document["health"] = {"checks": self.health_checks}
         if self.console_logs:
@@ -773,7 +773,7 @@ class JavaScriptAppResource(ProjectApplicationResource):
         if self.endpoints:
             document["endpoints"] = self.endpoints
         if self.container is not None:
-            document["container"] = _prune(dict(self.container))
+            document.update(_prune(dict(self.container)))
         if self.health_checks:
             document["health"] = {"checks": self.health_checks}
         if self.console_logs:

@@ -542,18 +542,18 @@ export class ResourceBuilder implements ResourceHandle {
       this.resourceId = `${this.typeId}:${this.name}`;
     }
 
-    this.withAttribute("container.image", options.image ?? image);
-    this.withAttribute("container.replicas", options.replicas ?? 1);
+    this.withAttribute("image", options.image ?? image);
+    this.withAttribute("replicas", options.replicas ?? 1);
     if (options.registry) {
-      this.withAttribute("container.registry", options.registry);
+      this.withAttribute("registry", options.registry);
     }
 
     if (options.buildContext) {
-      this.withAttribute("container.buildContext", options.buildContext);
+      this.withAttribute("buildContext", options.buildContext);
     }
 
     if (options.dockerfile) {
-      this.withAttribute("container.dockerfile", options.dockerfile);
+      this.withAttribute("dockerfile", options.dockerfile);
     }
 
     if (sourceEndpointAttribute) {

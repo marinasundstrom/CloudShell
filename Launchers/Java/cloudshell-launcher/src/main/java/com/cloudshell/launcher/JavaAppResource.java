@@ -169,7 +169,7 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
         }
 
         if (containerApp) {
-            appendContainer(builder, indent + 1, !healthChecks.isEmpty() || consoleLogs);
+            appendContainerProperties(builder, indent + 1, !healthChecks.isEmpty() || consoleLogs);
         }
 
         if (!healthChecks.isEmpty()) {
@@ -189,23 +189,20 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
         return this;
     }
 
-    private void appendContainer(StringBuilder builder, int indent, boolean trailingComma) {
-        line(builder, indent, "\"container\": {");
-        property(builder, indent + 1, "image", json(containerImage), true);
-        property(builder, indent + 1, "replicas", Integer.toString(containerReplicas), containerRegistry != null || containerBuildContext != null || containerDockerfile != null);
+    private void appendContainerProperties(StringBuilder builder, int indent, boolean trailingComma) {
+        property(builder, indent, "image", json(containerImage), true);
+        property(builder, indent, "replicas", Integer.toString(containerReplicas), containerRegistry != null || containerBuildContext != null || containerDockerfile != null || trailingComma);
         if (containerRegistry != null) {
-            property(builder, indent + 1, "registry", json(containerRegistry), containerBuildContext != null || containerDockerfile != null);
+            property(builder, indent, "registry", json(containerRegistry), containerBuildContext != null || containerDockerfile != null || trailingComma);
         }
 
         if (containerBuildContext != null) {
-            property(builder, indent + 1, "buildContext", json(containerBuildContext), containerDockerfile != null);
+            property(builder, indent, "buildContext", json(containerBuildContext), containerDockerfile != null || trailingComma);
         }
 
         if (containerDockerfile != null) {
-            property(builder, indent + 1, "dockerfile", json(containerDockerfile), false);
+            property(builder, indent, "dockerfile", json(containerDockerfile), trailingComma);
         }
-
-        line(builder, indent, "}" + (trailingComma ? "," : ""));
     }
 
     private String createDefaultContainerImage(String tag) {

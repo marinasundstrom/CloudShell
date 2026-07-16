@@ -255,9 +255,9 @@ func TestBuildsGoAppAsContainerAppTemplate(t *testing.T) {
 	assertEqual(t, "application.container-app", resource["type"])
 	assertEqual(t, "applications.container-app", resource["providerId"])
 	assertEqual(t, "application.container-app:api", resource["resourceId"])
-	assertNestedEqual(t, "container.image", "cloudshell-go-api:dev", resource, "container", "image")
-	assertNestedEqual(t, "container.buildContext", "samples/GoApp/App", resource, "container", "buildContext")
-	assertNestedEqual(t, "container.dockerfile", "Dockerfile", resource, "container", "dockerfile")
+	assertEqual(t, "cloudshell-go-api:dev", resource["image"])
+	assertEqual(t, "samples/GoApp/App", resource["buildContext"])
+	assertEqual(t, "Dockerfile", resource["dockerfile"])
 
 	endpoints := resource["endpoints"].([]any)
 	if len(endpoints) != 1 {
@@ -269,9 +269,8 @@ func TestBuildsGoAppAsContainerAppTemplate(t *testing.T) {
 		t.Fatal("expected endpoint requests to move out of project")
 	}
 
-	container := resource["container"].(map[string]any)
-	if _, ok := container["endpointRequests"]; ok {
-		t.Fatal("expected endpoint requests to move out of container")
+	if _, ok := resource["container"]; ok {
+		t.Fatal("expected container app fields to move out of container")
 	}
 }
 

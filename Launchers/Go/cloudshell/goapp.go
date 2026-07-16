@@ -265,7 +265,7 @@ func (r *GoAppResource) build() map[string]any {
 	}
 
 	if r.containerApp {
-		document["container"] = r.containerDocument()
+		r.applyContainerDocument(document)
 	}
 
 	document["project"] = project
@@ -296,24 +296,20 @@ func (r *GoAppResource) build() map[string]any {
 	return document
 }
 
-func (r *GoAppResource) containerDocument() map[string]any {
-	container := map[string]any{
-		"image":    r.containerImage,
-		"replicas": r.containerReplicas,
-	}
+func (r *GoAppResource) applyContainerDocument(document map[string]any) {
+	document["image"] = r.containerImage
+	document["replicas"] = r.containerReplicas
 	if r.containerRegistry != "" {
-		container["registry"] = r.containerRegistry
+		document["registry"] = r.containerRegistry
 	}
 
 	if r.containerBuildContext != "" {
-		container["buildContext"] = r.containerBuildContext
+		document["buildContext"] = r.containerBuildContext
 	}
 
 	if r.containerDockerfile != "" {
-		container["dockerfile"] = r.containerDockerfile
+		document["dockerfile"] = r.containerDockerfile
 	}
-
-	return container
 }
 
 func defaultContainerImage(language string, name string, tag string) string {

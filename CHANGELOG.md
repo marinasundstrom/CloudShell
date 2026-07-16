@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Changed container app resource definition authoring so image, registry,
+  build, Dockerfile, and replica fields serialize at the resource root while
+  preserving provider-owned `container.*` canonical attribute IDs.
 - Changed schema-aware resource template authoring so endpoint request
   attributes serialize as the resource-level `endpoints` field instead of
   project- or container-grouped endpoint request fields.

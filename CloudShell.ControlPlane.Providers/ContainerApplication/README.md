@@ -8,7 +8,7 @@
 
 ## Ported
 
-- Image, registry, and replica attributes.
+- Image, registry, build, and replica attributes with root authored paths.
 - Endpoint request attributes using the shared networking endpoint request shape.
 - Type-level endpoint-source and monitoring expectations, with log-source
   declarations authored as `logs.sources` attributes on graph container-app
@@ -33,8 +33,9 @@
   deployment, revision, scale, monitoring, and endpoint-action UI instead of
   depending on the legacy application provider's concrete resource model.
 - Resource Manager projection parity for replica-mode UI triggers. Graph state
-  keeps `container.replicas` as the declarative value, while the Resource
-  Manager bridge derives compatibility facts such as
+  keeps the provider-owned `container.replicas` attribute as the declarative
+  value while authored definitions use `replicas`; the Resource Manager bridge
+  derives compatibility facts such as
   `container.replicas.enabled` and `deployment.replicas.requestedSlots` so
   existing deployment and monitoring views render replicated apps correctly.
   Runtime-projected replica children declare their operational monitoring and
@@ -143,7 +144,7 @@ services
 
 The local Docker runtime handles graph `application.container-app` resources
 from their declared resource state. Image-only apps run the declared image
-directly. Apps with `container.buildContext` build through Docker, and apps
+directly. Apps with authored `buildContext` build through Docker, and apps
 with `project.path` publish through the .NET SDK container target when no
 Dockerfile-backed build context is supplied. The runtime synthesizes local
 container, network-alias, ingress, and hidden replica resource names from the
@@ -201,20 +202,20 @@ model cleanup work after switch-over.
       "providerId": "docker"
     }
   ],
+  "image": "cloudshell-application-api:20260622.2",
+  "registry": "docker.io",
+  "replicas": 3,
+  "endpoints": [
+    {
+      "name": "http",
+      "protocol": "http",
+      "targetPort": 8080,
+      "host": "localhost",
+      "port": 5092,
+      "exposure": "Local"
+    }
+  ],
   "attributes": {
-    "container.image": "cloudshell-application-api:20260622.2",
-    "container.registry": "docker.io",
-    "container.replicas": 3,
-    "endpoints": [
-      {
-        "name": "http",
-        "protocol": "http",
-        "targetPort": 8080,
-        "host": "localhost",
-        "port": 5092,
-        "exposure": "Local"
-      }
-    ],
     "health.checks": {
       "checks": [
         {

@@ -40,10 +40,9 @@ handled by the orchestrator/controller path. Separate provider-specific paths
 that directly remove all replicas, recreate ingress, or remap backends during
 image and replica updates are temporary POC seams to remove.
 
-After the first resource-definition readability cleanup removes unnecessary
-language wrapper groups, a later container-app authoring slice should revisit
-the container group. The desired authored shape is intentionally closer to a
-Tye-style service declaration:
+Container app authoring now keeps resource-local fields at the resource root
+unless a group carries domain meaning. The authored shape is intentionally
+closer to a Tye-style service declaration:
 
 ```yaml
 resources:
@@ -66,12 +65,11 @@ resources:
         mode: None
 ```
 
-`endpoints` is the preferred authored name for endpoint-request semantics
-across resource types. It resolves to provider-owned endpoint request
-attributes such as the container app provider's `container.endpointRequests`
-canonical ID. The next container app simplification slice should review which
-container fields can move to root resource-local paths and which should remain
-grouped because `container` still carries domain meaning.
+`image`, `registry`, `replicas`, `buildContext`, `dockerfile`, and `endpoints`
+are root authored fields. They resolve to provider-owned canonical attributes
+such as `container.image`, `container.replicas`, and
+`container.endpointRequests`. `routing` remains grouped because session
+affinity and future traffic policy fields carry domain meaning together.
 
 This proposal tracks the container app resource itself. Related proposals own
 adjacent subdomains:
@@ -626,10 +624,11 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   revision capacity/configuration and which require a new deployment revision.
 * Keep graph-backed container apps compatible with existing provider-specific
   UI by projecting the effective replica-mode facts that views use for
-  deployment, monitoring, and scale decisions. The graph should keep
-  `container.replicas` as the declarative configuration; Resource Manager
-  projection can derive `container.replicas.enabled` and requested replica
-  slots for existing runtime/UI consumers.
+  deployment, monitoring, and scale decisions. Authored definitions should use
+  `replicas`, which resolves to the provider-owned `container.replicas`
+  attribute; Resource Manager projection can derive
+  `container.replicas.enabled` and requested replica slots for existing
+  runtime/UI consumers.
 * Keep supported samples green with a broad container app scenario that uses
   SQL Server, mounted storage, service discovery, secrets/configuration,
   identity, structured logs, traces, and name/public exposure.

@@ -403,12 +403,10 @@ test("builds Java Maven app as a container app", () => {
   assert.equal(java.buildTool, "maven");
   assert.equal(java.buildArguments, "clean package -DskipTests");
   assert.equal(java.java, undefined);
-  assert.deepEqual(java.container, {
-    image: "cloudshell-java-java-api:dev",
-    replicas: 1,
-    buildContext: "samples/JavaApp/App",
-    dockerfile: "Dockerfile"
-  });
+  assert.equal(java.image, "cloudshell-java-java-api:dev");
+  assert.equal(java.replicas, 1);
+  assert.equal(java.buildContext, "samples/JavaApp/App");
+  assert.equal(java.dockerfile, "Dockerfile");
   assert.deepEqual(java.endpoints, [
     {
       name: "http",
@@ -427,7 +425,7 @@ test("builds Java Maven app as a container app", () => {
     }
   ]);
   assert.equal((java.project as { endpointRequests?: unknown }).endpointRequests, undefined);
-  assert.equal((java.container as { endpointRequests?: unknown }).endpointRequests, undefined);
+  assert.equal(java.container, undefined);
 });
 
 function loadParityFixture(name: string): unknown {

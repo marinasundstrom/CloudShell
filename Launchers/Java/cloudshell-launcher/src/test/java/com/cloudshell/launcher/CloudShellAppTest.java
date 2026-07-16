@@ -141,8 +141,9 @@ public final class CloudShellAppTest {
         assertContains(containerJson, "\"resourceId\": \"application.container-app:api\"");
         assertContains(containerJson, "\"buildTool\": \"maven\"");
         assertContains(containerJson, "\"buildArguments\": \"clean package\"");
-        assertContains(containerJson, "\"container\": {");
+        assertDoesNotContain(containerJson, "\"container\": {");
         assertContains(containerJson, "\"image\": \"cloudshell-java-api:dev\"");
+        assertContains(containerJson, "\"replicas\": 1");
         assertContains(containerJson, "\"buildContext\": \"samples/JavaApp/App\"");
         assertContains(containerJson, "\"dockerfile\": \"Dockerfile\"");
     }

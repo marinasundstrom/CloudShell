@@ -46,16 +46,21 @@ public sealed class ContainerApplicationResourceTypeProvider :
             [Attributes.ContainerImage] = new(
                 Required: true,
                 RequiredMessage: "Container image is required.",
+                Path: "image",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ContainerRegistry] = new(
                 DefaultValue: "docker.io",
+                Path: "registry",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ContainerBuildContext] = new(
+                Path: "buildContext",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ContainerDockerfile] = new(
+                Path: "dockerfile",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ContainerReplicas] = new(
                 DefaultValue: 1,
+                Path: "replicas",
                 ValueType: ResourceAttributeValueType.Integer),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
@@ -63,10 +68,13 @@ public sealed class ContainerApplicationResourceTypeProvider :
                 path: "endpoints"),
             [Attributes.RoutingSessionAffinityMode] = new(
                 DefaultValue: "None",
+                Path: "routing.sessionAffinity.mode",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.RoutingSessionAffinityCookieName] = new(
+                Path: "routing.sessionAffinity.cookieName",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.RoutingSessionAffinityDurationSeconds] = new(
+                Path: "routing.sessionAffinity.durationSeconds",
                 ValueType: ResourceAttributeValueType.Integer)
         },
         Capabilities:

@@ -148,13 +148,13 @@ class CloudShellPythonLauncherTests(unittest.TestCase):
         self.assertEqual("application.container-app", api["type"])
         self.assertEqual("applications.container-app", api["providerId"])
         self.assertEqual("application.container-app:api", api["resourceId"])
-        self.assertEqual("cloudshell-python-api:dev", api["container"]["image"])
-        self.assertEqual(1, api["container"]["replicas"])
-        self.assertEqual("samples/PythonAppHost/App", api["container"]["buildContext"])
-        self.assertEqual("Dockerfile", api["container"]["dockerfile"])
+        self.assertEqual("cloudshell-python-api:dev", api["image"])
+        self.assertEqual(1, api["replicas"])
+        self.assertEqual("samples/PythonAppHost/App", api["buildContext"])
+        self.assertEqual("Dockerfile", api["dockerfile"])
         self.assertEqual(1, len(api["endpoints"]))
         self.assertNotIn("endpointRequests", api["project"])
-        self.assertNotIn("endpointRequests", api["container"])
+        self.assertNotIn("container", api)
 
     def test_writes_json_template(self):
         app = CloudShellDistributedApplication.create_builder("write-template")

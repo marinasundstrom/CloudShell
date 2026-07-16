@@ -321,9 +321,8 @@ ambiguous rather than guessed. Full canonical IDs remain valid in that case and
 are the explicit escape hatch for choosing the intended attribute.
 
 ```yaml
-container:
-  image: cloudshell-signalr-api:20260630.1
-  replicas: 3
+image: cloudshell-signalr-api:20260630.1
+replicas: 3
 endpoints:
   - name: http
     protocol: http
@@ -553,10 +552,10 @@ attributes as `endpoints`. All endpoint request attributes use the same shared
 `networking.endpointRequest` shape. This keeps the model flexible without
 making endpoints a graph-native primitive.
 
-Endpoint authoring is the first resource-definition grouping cleanup. Later
-slices should continue reviewing resource-local groupings, starting with
-container app authoring fields, and keep groups only where the group carries
-domain meaning.
+Endpoint authoring and container app root fields are the first
+resource-definition grouping cleanups. Later slices should continue reviewing
+resource-local groupings and keep groups only where the group carries domain
+meaning.
 
 ## Endpoint Mappings
 

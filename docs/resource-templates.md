@@ -21,9 +21,8 @@ The preferred authoring format is YAML:
 resources:
   - type: application.container-app
     name: api
-    container:
-      image: api:latest
-      replicas: 3
+    image: api:latest
+    replicas: 3
 ```
 
 YAML resource entries use the author-friendly `type` alias for
@@ -37,10 +36,8 @@ document shape:
     {
       "name": "api",
       "type": "application.container-app",
-      "container": {
-        "image": "api:latest",
-        "replicas": 3
-      }
+      "image": "api:latest",
+      "replicas": 3
     }
   ]
 }
@@ -57,16 +54,17 @@ CLR convenience properties such as `resourceAttributes`,
 `resourceAttributeValues`, `effectiveResourceId`, and `capabilityPayloads`
 must not appear in authored or exported templates.
 
-Attribute IDs use periods to describe logical hierarchy. Templates should
-project those IDs as nested attribute groups for readability, for example
-`container.image` as `container.image` and `logs.sources` as
-`logs.sources` in the document tree. The serializer flattens the grouped
-document shape back to canonical IDs before validation and provider execution.
-The older `attributes` wrapper and full dotted names such as
-`container.replicas` remain valid input forms, but exported templates hoist
-attributes beside fixed resource fields by default. If an attribute group name
-collides with a fixed resource field such as `metadata` or `operations`, keep
-that attribute under the `attributes` wrapper.
+Attribute IDs identify provider-owned schema fields. Resource type definitions
+can declare authored paths that differ from those IDs; for example,
+`application.container-app` exports the canonical `container.image` attribute
+as the root `image` field, while log sources still use the meaningful
+`logs.sources` group. The serializer flattens authored paths back to canonical
+IDs before validation and provider execution. The older `attributes` wrapper
+and full dotted names such as `container.replicas` remain valid input forms,
+but exported templates prefer descriptor paths beside fixed resource fields by
+default. If an attribute group name collides with a fixed resource field such
+as `metadata` or `operations`, keep that attribute under the `attributes`
+wrapper.
 
 Resource-id references can use the compact `resourceId` form in templates. For
 example, `dependsOn: [{ resourceId: cloudshell.container-host:default }]`
@@ -140,8 +138,7 @@ definition:
 resources:
   - type: application.container-app
     name: api
-    container:
-      image: ghcr.io/example/api:20260629.1
+    image: ghcr.io/example/api:20260629.1
 ```
 
 Changing the requested replica slots is the same resource-state operation:
@@ -150,8 +147,7 @@ Changing the requested replica slots is the same resource-state operation:
 resources:
   - type: application.container-app
     name: api
-    container:
-      replicas: 4
+    replicas: 4
 ```
 
 The container app provider and Resource Manager deployment controller decide

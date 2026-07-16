@@ -14,14 +14,17 @@ resources:
   - type: application.container-app
     name: api
     displayName: API
-    container:
-      image: api:latest
-      replicas: 3
+    image: api:latest
+    replicas: 3
 metadata:
   source: test
 """;
 
-        var template = ResourceTemplateSerializer.DeserializeTemplate(yaml);
+        var template = ResourceTemplateSerializer.DeserializeTemplate(
+            yaml,
+            ResourceTemplateFormat.Yaml,
+            new ResourceTemplateSerializerOptions(
+                [new ContainerApplicationResourceTypeProvider().TypeDefinition]));
 
         Assert.Equal("local", template.Name);
         Assert.Equal("test", template.Metadata?["source"]);
@@ -41,7 +44,7 @@ metadata:
     }
 
     [Fact]
-    public void DeserializeTemplate_YamlFlattensNestedAttributeGroups()
+    public void DeserializeTemplate_YamlResolvesContainerAppAuthoredPaths()
     {
         const string yaml = """
 resources:
@@ -60,15 +63,18 @@ resources:
         origin: providerDefault
         purpose: default
         availability: resourceRunning
-    container:
-      image: cloudshell-signalr-api:20260630.1
-      replicas: 3
-      routing:
-        sessionAffinity:
-          mode: Cookie
+    image: cloudshell-signalr-api:20260630.1
+    replicas: 3
+    routing:
+      sessionAffinity:
+        mode: Cookie
 """;
 
-        var template = ResourceTemplateSerializer.DeserializeTemplate(yaml);
+        var template = ResourceTemplateSerializer.DeserializeTemplate(
+            yaml,
+            ResourceTemplateFormat.Yaml,
+            new ResourceTemplateSerializerOptions(
+                [new ContainerApplicationResourceTypeProvider().TypeDefinition]));
 
         var resource = Assert.Single(template.Resources);
         Assert.Equal("cloudshell-signalr-api:20260630.1", resource.ResourceAttributes["container.image"]);
@@ -283,14 +289,22 @@ resources:
                 [ResourceAttributeId.Create("container.image")] = "api:latest"
             });
 
-        var yaml = ResourceTemplateSerializer.SerializeDefinition(definition);
-        var roundTripped = ResourceTemplateSerializer.DeserializeDefinition(yaml);
+        var options = new ResourceTemplateSerializerOptions(
+            [new ContainerApplicationResourceTypeProvider().TypeDefinition]);
+        var yaml = ResourceTemplateSerializer.SerializeDefinition(
+            definition,
+            ResourceTemplateFormat.Yaml,
+            options);
+        var roundTripped = ResourceTemplateSerializer.DeserializeDefinition(
+            yaml,
+            ResourceTemplateFormat.Yaml,
+            options);
 
         Assert.Contains("type: application.container-app", yaml);
-        Assert.Contains("container:", yaml);
         Assert.Contains("image: api:latest", yaml);
         Assert.Contains("resourceId: application.database:db", yaml);
         Assert.DoesNotContain("attributes:", yaml);
+        Assert.DoesNotContain("container:", yaml);
         Assert.DoesNotContain("container.image:", yaml);
         Assert.DoesNotContain("typeId: application.container-app", yaml);
         Assert.DoesNotContain("typeId: application.database", yaml);
@@ -337,7 +351,7 @@ resources:
     }
 
     [Fact]
-    public void SerializeDefinition_YamlGroupsDottedAttributes()
+    public void SerializeDefinition_YamlUsesContainerAppAuthoredPaths()
     {
         var definition = new ResourceDefinition(
             "api",
@@ -352,10 +366,17 @@ resources:
                         ResourceLogSourceDefinitionValues.JsonConsole))
             });
 
-        var yaml = ResourceTemplateSerializer.SerializeDefinition(definition);
-        var roundTripped = ResourceTemplateSerializer.DeserializeDefinition(yaml);
+        var options = new ResourceTemplateSerializerOptions(
+            [new ContainerApplicationResourceTypeProvider().TypeDefinition]);
+        var yaml = ResourceTemplateSerializer.SerializeDefinition(
+            definition,
+            ResourceTemplateFormat.Yaml,
+            options);
+        var roundTripped = ResourceTemplateSerializer.DeserializeDefinition(
+            yaml,
+            ResourceTemplateFormat.Yaml,
+            options);
 
-        Assert.Contains("container:", yaml);
         Assert.Contains("image: cloudshell-signalr-api:20260630.1", yaml);
         Assert.Contains("replicas: 3", yaml);
         Assert.Contains("routing:", yaml);
@@ -365,6 +386,7 @@ resources:
         Assert.Contains("sources:", yaml);
         Assert.Contains("format: jsonConsole", yaml);
         Assert.DoesNotContain("attributes:", yaml);
+        Assert.DoesNotContain("container:", yaml);
         Assert.DoesNotContain("container.image:", yaml);
         Assert.DoesNotContain("logs.sources:", yaml);
         Assert.Equal(

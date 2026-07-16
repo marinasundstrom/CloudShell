@@ -687,7 +687,7 @@ select resources by role without hard-coding resource types.
 Examples:
 
 - `project.path`
-- `container.image`
+- `container.image` with authored path `image`
 - `container.revision`
 - `javascript-app:runtime` with authored path `runtime`
 - `javascript-app:project.path` with authored path `project.path`
@@ -725,9 +725,11 @@ storage, and runtime adapters use to identify a value. The authoring path is
 the name or nested path used in templates, generated docs, UI grouping, and
 import/export projections.
 
-Today many attribute IDs, such as `container.image`, `project.path`, and
-`health.checks`, also define their exported document hierarchy. That remains a
-compatibility rule, but it should not be the long-term contract. A resource
+Today many attribute IDs, such as `project.path` and `health.checks`, also
+define their exported document hierarchy. Others, such as the container app
+provider's `container.image`, now export through a resource-local authored path
+such as `image`. Dotted-ID grouping remains a compatibility rule, but it should
+not be the long-term contract. A resource
 type may need two attributes with the same logical field name under different
 contexts, or two providers may expose the same authored path for different
 resource types while keeping distinct canonical schema IDs.
@@ -736,6 +738,7 @@ resource types while keeping distinct canonical schema IDs.
 authoring/projection paths separately from the canonical ID:
 
 ```csharp
+["container.image"] = new(Path: "image");
 ["javascript-app:runtime"] = new(Path: "runtime");
 ["javascript-app:project.path"] = new(Path: "project.path");
 ```

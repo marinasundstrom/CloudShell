@@ -17,14 +17,14 @@ Resource templates contain a `resources` array:
 resources:
   - type: application.container-app
     name: api
-    container:
-      image: ghcr.io/acme/api:dev
+    image: ghcr.io/acme/api:dev
 ```
 
 Resource IDs default to `<type>:<name>` when omitted. Use `resourceId` only
-when a resource must keep a specific stable ID. Dotted attribute IDs are
-authored as nested YAML groups, so `container.image` becomes
-`container: { image: ... }`.
+when a resource must keep a specific stable ID. Attribute definitions may
+declare authored paths that differ from canonical IDs. Prefer the documented
+authored paths, such as `image` for the container app provider's canonical
+`container.image` attribute.
 
 Simple dependency references can use compact resource-id form:
 
@@ -126,8 +126,7 @@ resources:
         typeId: secrets.vault
       - resourceId: cloudshell.volume:app-data
         typeId: cloudshell.volume
-    container:
-      image: ghcr.io/acme/api:dev
+    image: ghcr.io/acme/api:dev
     endpoints:
       - name: http
         protocol: http
@@ -242,8 +241,7 @@ resource endpoint.
 resources:
   - type: application.container-app
     name: api
-    container:
-      image: ghcr.io/acme/api:dev
+    image: ghcr.io/acme/api:dev
     endpoints:
       - name: http
         protocol: http
@@ -310,8 +308,7 @@ front door address or internal route.
 resources:
   - type: application.container-app
     name: api
-    container:
-      image: ghcr.io/acme/api:dev
+    image: ghcr.io/acme/api:dev
     endpoints:
       - name: http
         protocol: http
@@ -632,16 +629,16 @@ This is the preferred type for managed container workloads.
 
 Required authoring:
 
-- `container.image`
+- `image`
 
 Common optional attributes:
 
-- `container.registry`
-- `container.buildContext`
-- `container.dockerfile`
-- `container.replicas`
+- `registry`
+- `buildContext`
+- `dockerfile`
+- `replicas`
 - `endpoints`
-- `container.routing.sessionAffinity.*`
+- `routing.sessionAffinity.*`
 - `project.path` when the runtime builds from a local project
 - `storage.volume.mounts`
 - `dependsOn` for an explicit `cloudshell.container-host` or `docker.host`
@@ -653,13 +650,12 @@ resources:
     dependsOn:
       - resourceId: docker.host:local
         typeId: docker.host
-    container:
-      image: ghcr.io/acme/api:dev
-      registry: ghcr.io
-      replicas: 2
-      routing:
-        sessionAffinity:
-          mode: None
+    image: ghcr.io/acme/api:dev
+    registry: ghcr.io
+    replicas: 2
+    routing:
+      sessionAffinity:
+        mode: None
     endpoints:
       - name: http
         protocol: http
@@ -1106,8 +1102,7 @@ Volume consumers use the `storage.volume` capability attribute:
 resources:
   - type: application.container-app
     name: api
-    container:
-      image: ghcr.io/acme/api:dev
+    image: ghcr.io/acme/api:dev
     storage:
       volume:
         mounts:
@@ -1421,9 +1416,8 @@ resources:
         typeId: secrets.vault
       - resourceId: application.sql-database:app-db
         typeId: application.sql-database
-    container:
-      image: ghcr.io/acme/api:dev
-      replicas: 2
+    image: ghcr.io/acme/api:dev
+    replicas: 2
     endpoints:
       - name: http
         protocol: http
