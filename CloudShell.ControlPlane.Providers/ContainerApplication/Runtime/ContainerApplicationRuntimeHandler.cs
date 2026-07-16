@@ -31,6 +31,12 @@ public sealed class NoopContainerApplicationRuntimeHandler :
     public const string RuntimeUnavailableDiagnosticCode =
         "application.container.runtimeUnavailable";
 
+    public static bool IsMissing(IContainerApplicationRuntimeHandler? runtimeHandler) =>
+        runtimeHandler is null or NoopContainerApplicationRuntimeHandler;
+
+    public static string CreateRuntimeUnavailableReason(Resource resource, ResourceOperationId operationId) =>
+        $"Container application resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no container application runtime is configured for this host.";
+
     public ContainerApplicationRuntimeStatus GetStatus(Resource resource) =>
         ContainerApplicationRuntimeStatus.Unknown;
 
@@ -61,7 +67,7 @@ public sealed class NoopContainerApplicationRuntimeHandler :
         [
             ResourceDefinitionDiagnostic.Error(
                 RuntimeUnavailableDiagnosticCode,
-                $"No container application runtime is configured for this host. The '{operationId}' operation cannot be applied until a container app runtime or orchestrator is registered.",
+                CreateRuntimeUnavailableReason(resource, operationId),
                 resource.EffectiveResourceId)
         ]);
 }

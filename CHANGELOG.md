@@ -29,6 +29,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved local Docker container app runtime failure diagnostics so lifecycle,
   image, replica, and orchestrator paths include the runtime operation and
   target resource while preserving provider error details.
+- Changed graph-backed container app lifecycle, image apply, and replica apply
+  actions to project missing runtime-handler readiness before dispatch while
+  keeping direct provider execution aligned on the runtime-unavailable
+  diagnostic.
 - Projected local Docker container app replica network aliases onto
   runtime-managed replica resources so load-balancer routing and diagnostics
   can use the same stable backend identity the runtime applies to containers.

@@ -2558,13 +2558,24 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal(5092, Assert.Single(projection.EndpointRequests).Port);
         Assert.Equal(host.EffectiveResourceId, projection.ContainerHostResourceId);
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);
-        Assert.True(await (await projection.GetStartOperationAsync())!.CanExecuteAsync());
-        Assert.True(await (await projection.GetStopOperationAsync())!.CanExecuteAsync());
-        Assert.True(await (await projection.GetRestartOperationAsync())!.CanExecuteAsync());
+        var startOperation = (await projection.GetStartOperationAsync())!;
+        var stopOperation = (await projection.GetStopOperationAsync())!;
+        var restartOperation = (await projection.GetRestartOperationAsync())!;
+        Assert.False(await startOperation.CanExecuteAsync());
+        Assert.False(await stopOperation.CanExecuteAsync());
+        Assert.False(await restartOperation.CanExecuteAsync());
+        Assert.Contains(
+            "no container application runtime is configured",
+            startOperation.UnavailableReason,
+            StringComparison.Ordinal);
         var imageUpdate = await projection.GetImageUpdateOperationAsync();
 
         Assert.NotNull(imageUpdate);
-        Assert.True(await imageUpdate.CanExecuteAsync());
+        Assert.False(await imageUpdate.CanExecuteAsync());
+        Assert.Contains(
+            "no container application runtime is configured",
+            imageUpdate.UnavailableReason,
+            StringComparison.Ordinal);
 
         var changes = imageUpdate.UpdateImage("ghcr.io/example/api:v2", replicas: 3);
 

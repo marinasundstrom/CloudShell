@@ -272,6 +272,14 @@ The Deployment tab also shows deployment readiness before enabling the deploy
 command. It reports missing manage permission, missing image input, no-op
 deployments, and invalid requested replica counts.
 
+Container app lifecycle, image apply, and replica apply actions require a
+container app runtime handler. The built-in local Docker provider supplies the
+runtime for normal local hosts. If a custom or direct operation path is
+constructed without that runtime, Resource Manager projects those actions as
+unavailable with a missing-runtime reason, and direct provider-execution calls
+return the same runtime-unavailable diagnostic instead of succeeding as a
+no-op.
+
 The same tab shows the current running image, deployment status, requested and
 materialized replica counts, and recent orchestrator deployment, readiness,
 routing, rollback, and cleanup activity for the app resource. The Deployment

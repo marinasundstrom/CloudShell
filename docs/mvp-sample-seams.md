@@ -62,6 +62,9 @@ CloudShell Docker containers were left running.
 - Local Docker container app runtime failures now include the runtime
   operation and target resource for lifecycle, image, replica, and orchestrator
   paths while preserving the original provider error details.
+- Graph-backed container app lifecycle, image apply, and replica apply actions
+  now report missing runtime-handler readiness before dispatch and return the
+  same runtime-unavailable diagnostic if invoked directly.
 - Endpoint-mapping reconciliation now turns provider-returned error signals
   into graph operation diagnostics or Resource Manager procedure signals
   instead of reporting those mappings as successfully provisioned.

@@ -49,6 +49,8 @@ public abstract class ContainerApplicationLifecycleOperationProvider(
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IContainerApplicationRuntimeHandler? _runtimeHandler = runtimeHandler;
+
     private readonly IProviderExecutionDispatcher _dispatcher =
         dispatcher ?? CreateDefaultDispatcher(
             runtimeHandler ?? new NoopContainerApplicationRuntimeHandler());
@@ -85,7 +87,13 @@ public abstract class ContainerApplicationLifecycleOperationProvider(
             new ContainerApplicationLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        NoopContainerApplicationRuntimeHandler.IsMissing(_runtimeHandler)
+            ? NoopContainerApplicationRuntimeHandler.CreateRuntimeUnavailableReason(resource, OperationId)
+            : null;
 
     private static IProviderExecutionDispatcher CreateDefaultDispatcher(
         IContainerApplicationRuntimeHandler runtimeHandler) =>
@@ -100,7 +108,8 @@ public abstract class ContainerApplicationLifecycleOperationProvider(
 public sealed class ContainerApplicationLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -112,9 +121,11 @@ public sealed class ContainerApplicationLifecycleOperation(
 
     public ResourceOperationId OperationId => Definition.Id;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason => unavailableReason ?? Definition.UnavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

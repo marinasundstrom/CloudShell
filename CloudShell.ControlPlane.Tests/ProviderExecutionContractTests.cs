@@ -3193,6 +3193,30 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ContainerApplicationLifecycleHandler_FailsWhenRuntimeHandlerIsMissing()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var handler = new ContainerApplicationStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationStart,
+            TargetResourceId = containerApp.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:start:1",
+            TargetResourceSnapshot = containerApp,
+            ResourceSnapshot = [containerApp]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(NoopContainerApplicationRuntimeHandler.RuntimeUnavailableDiagnosticCode, diagnostic.Code);
+        Assert.Equal(containerApp.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task ContainerApplicationImageUpdateOperation_DispatchesImageApplyInstruction()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders", revision: 10);
@@ -3280,6 +3304,30 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ContainerApplicationImageApplyHandler_FailsWhenRuntimeHandlerIsMissing()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var handler = new ContainerApplicationImageApplyExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationImageApply,
+            TargetResourceId = containerApp.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:image:1",
+            TargetResourceSnapshot = containerApp,
+            ResourceSnapshot = [containerApp]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(NoopContainerApplicationRuntimeHandler.RuntimeUnavailableDiagnosticCode, diagnostic.Code);
+        Assert.Equal(containerApp.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task ContainerApplicationReplicasApplyHandler_ReturnsRuntimeDiagnostics()
     {
         var containerApp = CreateGraphResource("container-app:orders", "orders");
@@ -3306,6 +3354,30 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
         Assert.Equal([diagnostic], result.Diagnostics);
         Assert.Same(containerApp, Assert.Single(runtimeHandler.ReplicaInvocations));
+    }
+
+    [Fact]
+    public async Task ContainerApplicationReplicasApplyHandler_FailsWhenRuntimeHandlerIsMissing()
+    {
+        var containerApp = CreateGraphResource("container-app:orders", "orders");
+        var handler = new ContainerApplicationReplicasApplyExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ContainerApplicationReplicasApply,
+            TargetResourceId = containerApp.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "container-app:orders:replicas:1",
+            TargetResourceSnapshot = containerApp,
+            ResourceSnapshot = [containerApp]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(NoopContainerApplicationRuntimeHandler.RuntimeUnavailableDiagnosticCode, diagnostic.Code);
+        Assert.Equal(containerApp.EffectiveResourceId, diagnostic.Target);
     }
 
     [Fact]

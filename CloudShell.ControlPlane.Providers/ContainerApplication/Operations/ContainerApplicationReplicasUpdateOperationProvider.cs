@@ -6,6 +6,8 @@ public sealed class ContainerApplicationReplicasUpdateOperationProvider(
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IContainerApplicationRuntimeHandler? _runtimeHandler = runtimeHandler;
+
     private readonly IProviderExecutionDispatcher _dispatcher =
         dispatcher ?? new InProcessProviderExecutionDispatcher(
             [new ContainerApplicationReplicasApplyExecutionHandler(runtimeHandler)]);
@@ -43,13 +45,20 @@ public sealed class ContainerApplicationReplicasUpdateOperationProvider(
             new ContainerApplicationReplicasUpdateOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        NoopContainerApplicationRuntimeHandler.IsMissing(_runtimeHandler)
+            ? NoopContainerApplicationRuntimeHandler.CreateRuntimeUnavailableReason(resource, OperationId)
+            : null;
 }
 
 public sealed class ContainerApplicationReplicasUpdateOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -61,9 +70,11 @@ public sealed class ContainerApplicationReplicasUpdateOperation(
 
     public ResourceOperationId OperationId => ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason => unavailableReason ?? Definition.UnavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>
