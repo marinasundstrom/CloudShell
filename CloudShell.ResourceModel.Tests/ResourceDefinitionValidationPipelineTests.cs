@@ -39,7 +39,11 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.Same(result.Resource, startOperation.Resource);
         Assert.Same(result.Resource, startOperation.Context.Resource);
         Assert.Equal(ResourceDefinitionValueSource.TypeDefinition, startOperation.Definition.Source);
-        Assert.True(await startOperation.CanExecuteAsync());
+        Assert.False(await startOperation.CanExecuteAsync());
+        Assert.Contains(
+            "no executable application runtime controller",
+            startOperation.UnavailableReason,
+            StringComparison.Ordinal);
 
         var projectionResolver = new ResourceProjectionResolver(
             [new ExecutableApplicationResourceProjectionProvider()]);
@@ -55,9 +59,13 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.Single(volumes);
         Assert.Equal("App_Data", volumes[0].TargetPath);
         Assert.NotNull(projectedStartOperation);
-        Assert.True(projectedStartOperation.IsAvailable);
+        Assert.False(projectedStartOperation.IsAvailable);
+        Assert.Contains(
+            "no executable application runtime controller",
+            projectedStartOperation.UnavailableReason,
+            StringComparison.Ordinal);
         var execution = await projectedStartOperation.ExecuteAsync();
-        Assert.False(execution.HasErrors);
+        Assert.True(execution.HasErrors);
     }
 
     [Fact]

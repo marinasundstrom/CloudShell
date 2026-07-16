@@ -203,8 +203,8 @@ public sealed class PythonAppResourceTypeTests
                 operation,
                 new ResourceOperationProjectionContext()));
 
-        Assert.True(await projection.CanExecuteAsync());
-        Assert.Null(projection.UnavailableReason);
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Python app runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
     }
 
     private static CloudShell.ResourceModel.Resource Resolve(ResourceDefinition definition)

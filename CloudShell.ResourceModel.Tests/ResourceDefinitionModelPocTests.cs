@@ -47,7 +47,11 @@ public sealed class ResourceDefinitionModelPocTests
         Assert.Equal("volume:data", volume.Volume);
         var startOperation = await executable.GetStartOperationAsync();
         Assert.NotNull(startOperation);
-        Assert.True(await startOperation.CanExecuteAsync());
+        Assert.False(await startOperation.CanExecuteAsync());
+        Assert.Contains(
+            "no executable application runtime controller",
+            startOperation.UnavailableReason,
+            StringComparison.Ordinal);
 
         var plan = await CreateApplyPlanner().PlanApplyAsync(
             validation,
