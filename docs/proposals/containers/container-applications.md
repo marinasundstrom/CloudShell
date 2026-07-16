@@ -66,12 +66,12 @@ resources:
         mode: None
 ```
 
-`endpoints` is the preferred authored name for the existing endpoint-request
-semantics. It should resolve to the same provider intent as today's
-`container.endpointRequests`; only the authoring path should become more
-readable. This should be a separate migration because `container` is currently
-a meaningful domain group, and removing it needs a deliberate review of which
-container fields should become root fields and which should remain grouped.
+`endpoints` is the preferred authored name for endpoint-request semantics
+across resource types. It resolves to provider-owned endpoint request
+attributes such as the container app provider's `container.endpointRequests`
+canonical ID. The next container app simplification slice should review which
+container fields can move to root resource-local paths and which should remain
+grouped because `container` still carries domain meaning.
 
 This proposal tracks the container app resource itself. Related proposals own
 adjacent subdomains:

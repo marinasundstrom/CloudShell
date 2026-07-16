@@ -561,7 +561,7 @@ export class ResourceBuilder implements ResourceHandle {
     }
 
     if (endpointRequests.length > 0) {
-      this.withAttribute("container.endpointRequests", endpointRequests);
+      this.withAttribute("endpoints", endpointRequests);
     }
 
     return this;
@@ -930,7 +930,7 @@ export class JavaScriptAppResourceBuilder extends ResourceBuilder {
         ...options,
         buildContext: options.buildContext ?? this.projectPath
       },
-      "project.endpointRequests",
+      "endpoints",
       this.endpointRequests);
   }
 
@@ -963,7 +963,7 @@ export class JavaScriptAppResourceBuilder extends ResourceBuilder {
       assignment: options.assignment,
       network
     }));
-    return this.withAttribute("project.endpointRequests", this.endpointRequests);
+    return this.withAttribute("endpoints", this.endpointRequests);
   }
 
   public withHttpEndpoint(options: Omit<EndpointRequestOptions, "protocol"> = {}): this {
@@ -1096,7 +1096,7 @@ export class JavaAppResourceBuilder extends ResourceBuilder {
         ...options,
         buildContext: options.buildContext ?? this.projectPath
       },
-      "project.endpointRequests",
+      "endpoints",
       this.endpointRequests);
   }
 
@@ -1129,7 +1129,7 @@ export class JavaAppResourceBuilder extends ResourceBuilder {
       assignment: options.assignment,
       network
     }));
-    return this.withAttribute("project.endpointRequests", this.endpointRequests);
+    return this.withAttribute("endpoints", this.endpointRequests);
   }
 
   public withHttpEndpoint(options: Omit<EndpointRequestOptions, "protocol"> = {}): this {

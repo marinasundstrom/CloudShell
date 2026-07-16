@@ -107,7 +107,7 @@ resources:
       username: guest
       password: guest
     vhost: my_vhost
-    endpointRequests:
+    endpoints:
       - name: amqp
         protocol: tcp
         targetPort: 5672

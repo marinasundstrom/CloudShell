@@ -128,12 +128,12 @@ resources:
         typeId: cloudshell.volume
     container:
       image: ghcr.io/acme/api:dev
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 8080
-          port: 5080
-          exposure: Local
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        port: 5080
+        exposure: Local
     storage:
       volume:
         mounts:
@@ -207,7 +207,7 @@ resources:
       - resourceId: cloudshell.volume:rabbitmq-data
         typeId: cloudshell.volume
     version: "3"
-    endpointRequests:
+    endpoints:
       - name: amqp
         protocol: tcp
         targetPort: 5672
@@ -244,11 +244,11 @@ resources:
     name: api
     container:
       image: ghcr.io/acme/api:dev
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 8080
-          exposure: Public
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        exposure: Public
 
   - type: cloudshell.loadBalancer
     name: public
@@ -312,10 +312,10 @@ resources:
     name: api
     container:
       image: ghcr.io/acme/api:dev
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 8080
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
 
   - type: cloudshell.virtualNetwork
     name: app-net
@@ -385,7 +385,7 @@ Common optional attributes:
 - `project.arguments`
 - `project.hotReload`
 - `project.useLaunchSettings`
-- `project.endpointRequests`
+- `endpoints`
 - `project.environmentVariables`
 - `project.serviceDiscoveryName`
 - `project.references`
@@ -400,15 +400,15 @@ resources:
       hotReload: true
       useLaunchSettings: true
       serviceDiscoveryName: api
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 8080
-          port: 5080
-          exposure: Local
       environmentVariables:
         ASPNETCORE_ENVIRONMENT:
           value: Development
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        port: 5080
+        exposure: Local
 ```
 
 Executable mode uses a flat resource-type-local attribute so exported
@@ -438,7 +438,7 @@ Common optional attributes:
 - `packageManager`
 - `script`
 - `arguments`
-- `project.endpointRequests`
+- `endpoints`
 - `project.environmentVariables`
 - `project.serviceDiscoveryName`
 - `project.references`
@@ -463,12 +463,12 @@ resources:
     name: frontend
     project:
       path: ./web
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 5173
-          port: 5173
-          exposure: Local
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 5173
+        port: 5173
+        exposure: Local
     runtime: node
     packageManager: npm
     script: dev
@@ -489,7 +489,7 @@ Common optional attributes:
 - `classPath`
 - `jvmArguments`
 - `arguments`
-- `project.endpointRequests`
+- `endpoints`
 - `project.environmentVariables`
 - `project.serviceDiscoveryName`
 - `project.references`
@@ -515,12 +515,12 @@ resources:
     name: java-api
     project:
       path: ./app
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 8080
-          port: 8080
-          exposure: Local
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        port: 8080
+        exposure: Local
     command: java
     artifactPath: ./target/app.jar
     jvmArguments: -Xmx512m
@@ -541,7 +541,7 @@ Common optional attributes:
 - `packagePath`
 - `binaryPath`
 - `arguments`
-- `project.endpointRequests`
+- `endpoints`
 - `project.environmentVariables`
 - `project.serviceDiscoveryName`
 - `project.references`
@@ -566,12 +566,12 @@ resources:
     name: go-api
     project:
       path: ./app
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 8080
-          port: 8080
-          exposure: Local
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        port: 8080
+        exposure: Local
     command: go
     packagePath: .
 ```
@@ -590,7 +590,7 @@ Common optional attributes:
 - `scriptPath`
 - `module`
 - `arguments`
-- `project.endpointRequests`
+- `endpoints`
 - `project.environmentVariables`
 - `project.serviceDiscoveryName`
 - `project.references`
@@ -615,12 +615,12 @@ resources:
     name: api
     project:
       path: ./app
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 5188
-          port: 5188
-          exposure: Local
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 5188
+        port: 5188
+        exposure: Local
     command: python3
     scriptPath: app.py
 ```
@@ -640,7 +640,7 @@ Common optional attributes:
 - `container.buildContext`
 - `container.dockerfile`
 - `container.replicas`
-- `container.endpointRequests`
+- `endpoints`
 - `container.routing.sessionAffinity.*`
 - `project.path` when the runtime builds from a local project
 - `storage.volume.mounts`
@@ -657,15 +657,15 @@ resources:
       image: ghcr.io/acme/api:dev
       registry: ghcr.io
       replicas: 2
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 8080
-          port: 5080
-          exposure: Public
       routing:
         sessionAffinity:
           mode: None
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        port: 5080
+        exposure: Public
 ```
 
 ### `application.sql-server`
@@ -681,7 +681,7 @@ Common optional attributes:
 
 - `edition`
 - `databases`
-- `endpointRequests`
+- `endpoints`
 - `storage.volume.mounts`
 - `dependsOn` for an explicit `cloudshell.container-host` or `docker.host`
 
@@ -694,7 +694,7 @@ resources:
         typeId: cloudshell.container-host
     version: "2022"
     edition: Developer
-    endpointRequests:
+    endpoints:
       - name: tds
         protocol: tcp
         targetPort: 1433
@@ -746,7 +746,7 @@ Required authoring:
 Common optional attributes:
 
 - `rabbitmq.managementUi`
-- `endpointRequests`
+- `endpoints`
 - `storage.volume.mounts`
 - `dependsOn` for an explicit `cloudshell.container-host` or `docker.host`
 
@@ -760,7 +760,7 @@ resources:
     version: "3"
     rabbitmq:
       managementUi: true
-    endpointRequests:
+    endpoints:
       - name: amqp
         protocol: tcp
         targetPort: 5672
@@ -1388,7 +1388,7 @@ resources:
       - resourceId: cloudshell.volume:sql-data
         typeId: cloudshell.volume
     version: "2022"
-    endpointRequests:
+    endpoints:
       - name: tds
         protocol: tcp
         targetPort: 1433
@@ -1424,12 +1424,12 @@ resources:
     container:
       image: ghcr.io/acme/api:dev
       replicas: 2
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 8080
-          port: 5080
-          exposure: Public
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        port: 5080
+        exposure: Public
 
   - type: cloudshell.loadBalancer
     name: public

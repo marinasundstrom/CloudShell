@@ -22,7 +22,11 @@ final class EndpointRequest {
     }
 
     void appendJson(StringBuilder builder, int indent) {
-        line(builder, indent, "\"endpointRequests\": [");
+        appendJson(builder, indent, false);
+    }
+
+    void appendJson(StringBuilder builder, int indent, boolean trailingComma) {
+        line(builder, indent, "\"endpoints\": [");
         line(builder, indent + 1, "{");
         property(builder, indent + 2, "name", json(name), true);
         property(builder, indent + 2, "protocol", json(protocol), true);
@@ -38,6 +42,6 @@ final class EndpointRequest {
         property(builder, indent + 3, "providerId", json(network.providerId()), false);
         line(builder, indent + 2, "}");
         line(builder, indent + 1, "}");
-        line(builder, indent, "]");
+        line(builder, indent, "]" + (trailingComma ? "," : ""));
     }
 }

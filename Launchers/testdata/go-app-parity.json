@@ -149,24 +149,24 @@
         ]
       },
       "name": "api",
-      "project": {
-        "endpointRequests": [
-          {
-            "name": "http",
-            "protocol": "http",
-            "targetPort": 5186,
-            "host": "localhost",
-            "port": 5186,
-            "exposure": "Local",
-            "network": {
-              "resourceId": "network:host",
-              "relationship": "reference",
-              "addressingMode": "resourceId",
-              "typeId": "cloudshell.network",
-              "providerId": "cloudshell.network"
-            }
+      "endpoints": [
+        {
+          "name": "http",
+          "protocol": "http",
+          "targetPort": 5186,
+          "host": "localhost",
+          "port": 5186,
+          "exposure": "Local",
+          "network": {
+            "resourceId": "network:host",
+            "relationship": "reference",
+            "addressingMode": "resourceId",
+            "typeId": "cloudshell.network",
+            "providerId": "cloudshell.network"
           }
-        ],
+        }
+      ],
+      "project": {
         "environmentVariables": {
           "PORT": {
             "value": "5186"

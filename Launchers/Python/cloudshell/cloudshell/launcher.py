@@ -681,23 +681,20 @@ class ProjectApplicationResource(ResourceBuilder):
 
     def build(self) -> dict[str, Any]:
         document = self._common_document()
-        endpoint_requests = None if self.container is not None else self.endpoints
         project = _prune(
             {
                 "path": self.project_path,
                 "serviceDiscoveryName": self.service_discovery_name,
                 "environmentVariables": self.environment_variables,
                 "references": self.references,
-                "endpointRequests": endpoint_requests,
             }
         )
         if project:
             document["project"] = project
+        if self.endpoints:
+            document["endpoints"] = self.endpoints
         if self.container is not None:
-            container = dict(self.container)
-            if self.endpoints:
-                container["endpointRequests"] = self.endpoints
-            document["container"] = _prune(container)
+            document["container"] = _prune(dict(self.container))
         if self.health_checks:
             document["health"] = {"checks": self.health_checks}
         if self.console_logs:
@@ -753,7 +750,6 @@ class JavaScriptAppResource(ProjectApplicationResource):
 
     def build(self) -> dict[str, Any]:
         document = self._common_document()
-        endpoint_requests = None if self.container is not None else self.endpoints
         document.update(
             _prune(
                 {
@@ -770,16 +766,14 @@ class JavaScriptAppResource(ProjectApplicationResource):
                 "serviceDiscoveryName": self.service_discovery_name,
                 "environmentVariables": self.environment_variables,
                 "references": self.references,
-                "endpointRequests": endpoint_requests,
             }
         )
         if project:
             document["project"] = project
+        if self.endpoints:
+            document["endpoints"] = self.endpoints
         if self.container is not None:
-            container = dict(self.container)
-            if self.endpoints:
-                container["endpointRequests"] = self.endpoints
-            document["container"] = _prune(container)
+            document["container"] = _prune(dict(self.container))
         if self.health_checks:
             document["health"] = {"checks": self.health_checks}
         if self.console_logs:

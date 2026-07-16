@@ -44,12 +44,12 @@ resources:
     name: api
     project:
       path: src/api
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 5185
-          port: 5185
-          exposure: Local
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 5185
+        port: 5185
+        exposure: Local
     artifactPath: target/app.jar
     jvmArguments: -Xmx256m
 ```

@@ -105,7 +105,8 @@ class CloudShellPythonLauncherTests(unittest.TestCase):
             settings["attributes"]["access.grants"][0]["principal"]["id"],
         )
         self.assertEqual(2, len(api["health"]["checks"]))
-        self.assertEqual("network:host", api["project"]["endpointRequests"][0]["network"]["resourceId"])
+        self.assertEqual("network:host", api["endpoints"][0]["network"]["resourceId"])
+        self.assertNotIn("endpointRequests", api["project"])
 
     def test_builds_javascript_app_template(self):
         app = CloudShellDistributedApplication.create_builder("python-declared-js")
@@ -124,7 +125,8 @@ class CloudShellPythonLauncherTests(unittest.TestCase):
         self.assertEqual("node", frontend["runtime"])
         self.assertEqual("pnpm", frontend["packageManager"])
         self.assertEqual("dev", frontend["script"])
-        self.assertEqual("http", frontend["project"]["endpointRequests"][0]["protocol"])
+        self.assertEqual("http", frontend["endpoints"][0]["protocol"])
+        self.assertNotIn("endpointRequests", frontend["project"])
 
     def test_builds_python_app_as_container_app_template(self):
         app = CloudShellDistributedApplication.create_builder("python-container")
@@ -150,8 +152,9 @@ class CloudShellPythonLauncherTests(unittest.TestCase):
         self.assertEqual(1, api["container"]["replicas"])
         self.assertEqual("samples/PythonAppHost/App", api["container"]["buildContext"])
         self.assertEqual("Dockerfile", api["container"]["dockerfile"])
-        self.assertEqual(1, len(api["container"]["endpointRequests"]))
+        self.assertEqual(1, len(api["endpoints"]))
         self.assertNotIn("endpointRequests", api["project"])
+        self.assertNotIn("endpointRequests", api["container"])
 
     def test_writes_json_template(self):
         app = CloudShellDistributedApplication.create_builder("write-template")

@@ -171,25 +171,25 @@ test("builds a resource template with JavaScript app and configuration store", (
           name: "Sample--ApiKey"
         }
       }
-    },
-    endpointRequests: [
-      {
-        name: "http",
-        protocol: "http",
-        targetPort: 5173,
-        host: "localhost",
-        port: 5173,
-        exposure: "Local",
-        network: {
-          resourceId: "network:host",
-          relationship: "reference",
-          addressingMode: "resourceId",
-          typeId: "cloudshell.network",
-          providerId: "cloudshell.network"
-        }
-      }
-    ]
+    }
   });
+  assert.deepEqual(frontend.endpoints, [
+    {
+      name: "http",
+      protocol: "http",
+      targetPort: 5173,
+      host: "localhost",
+      port: 5173,
+      exposure: "Local",
+      network: {
+        resourceId: "network:host",
+        relationship: "reference",
+        addressingMode: "resourceId",
+        typeId: "cloudshell.network",
+        providerId: "cloudshell.network"
+      }
+    }
+  ]);
   assert.equal(frontend.runtime, "node");
   assert.equal(frontend.packageManager, "npm");
   assert.equal(frontend.script, "dev");
@@ -352,25 +352,25 @@ test("builds a Java app resource template", () => {
   assert.equal(java.java, undefined);
   assert.deepEqual(java.project, {
     path: "samples/JavaApp/App",
-    serviceDiscoveryName: "java-api",
-    endpointRequests: [
-      {
-        name: "http",
-        protocol: "http",
-        targetPort: 5185,
-        host: "localhost",
-        port: 5185,
-        exposure: "Local",
-        network: {
-          resourceId: "network:host",
-          relationship: "reference",
-          addressingMode: "resourceId",
-          typeId: "cloudshell.network",
-          providerId: "cloudshell.network"
-        }
-      }
-    ]
+    serviceDiscoveryName: "java-api"
   });
+  assert.deepEqual(java.endpoints, [
+    {
+      name: "http",
+      protocol: "http",
+      targetPort: 5185,
+      host: "localhost",
+      port: 5185,
+      exposure: "Local",
+      network: {
+        resourceId: "network:host",
+        relationship: "reference",
+        addressingMode: "resourceId",
+        typeId: "cloudshell.network",
+        providerId: "cloudshell.network"
+      }
+    }
+  ]);
 });
 
 test("builds Java Maven app as a container app", () => {
@@ -407,26 +407,27 @@ test("builds Java Maven app as a container app", () => {
     image: "cloudshell-java-java-api:dev",
     replicas: 1,
     buildContext: "samples/JavaApp/App",
-    dockerfile: "Dockerfile",
-    endpointRequests: [
-      {
-        name: "http",
-        protocol: "http",
-        targetPort: 8080,
-        host: "localhost",
-        port: 5185,
-        exposure: "Local",
-        network: {
-          resourceId: "network:host",
-          relationship: "reference",
-          addressingMode: "resourceId",
-          typeId: "cloudshell.network",
-          providerId: "cloudshell.network"
-        }
-      }
-    ]
+    dockerfile: "Dockerfile"
   });
+  assert.deepEqual(java.endpoints, [
+    {
+      name: "http",
+      protocol: "http",
+      targetPort: 8080,
+      host: "localhost",
+      port: 5185,
+      exposure: "Local",
+      network: {
+        resourceId: "network:host",
+        relationship: "reference",
+        addressingMode: "resourceId",
+        typeId: "cloudshell.network",
+        providerId: "cloudshell.network"
+      }
+    }
+  ]);
   assert.equal((java.project as { endpointRequests?: unknown }).endpointRequests, undefined);
+  assert.equal((java.container as { endpointRequests?: unknown }).endpointRequests, undefined);
 });
 
 function loadParityFixture(name: string): unknown {

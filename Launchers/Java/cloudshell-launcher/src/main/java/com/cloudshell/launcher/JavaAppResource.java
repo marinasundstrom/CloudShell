@@ -161,12 +161,13 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
         }
 
         appendEnvironmentVariables(builder, indent + 2, true);
-        appendReferences(builder, indent + 2, references, !containerApp && endpoint != null);
-        if (!containerApp && endpoint != null) {
-            endpoint.appendJson(builder, indent + 2);
+        appendReferences(builder, indent + 2, references, false);
+
+        line(builder, indent + 1, "}" + (endpoint != null || containerApp || !healthChecks.isEmpty() || consoleLogs ? "," : ""));
+        if (endpoint != null) {
+            endpoint.appendJson(builder, indent + 1, containerApp || !healthChecks.isEmpty() || consoleLogs);
         }
 
-        line(builder, indent + 1, "}" + (containerApp || !healthChecks.isEmpty() || consoleLogs ? "," : ""));
         if (containerApp) {
             appendContainer(builder, indent + 1, !healthChecks.isEmpty() || consoleLogs);
         }
@@ -191,21 +192,17 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
     private void appendContainer(StringBuilder builder, int indent, boolean trailingComma) {
         line(builder, indent, "\"container\": {");
         property(builder, indent + 1, "image", json(containerImage), true);
-        property(builder, indent + 1, "replicas", Integer.toString(containerReplicas), containerRegistry != null || containerBuildContext != null || containerDockerfile != null || endpoint != null);
+        property(builder, indent + 1, "replicas", Integer.toString(containerReplicas), containerRegistry != null || containerBuildContext != null || containerDockerfile != null);
         if (containerRegistry != null) {
-            property(builder, indent + 1, "registry", json(containerRegistry), containerBuildContext != null || containerDockerfile != null || endpoint != null);
+            property(builder, indent + 1, "registry", json(containerRegistry), containerBuildContext != null || containerDockerfile != null);
         }
 
         if (containerBuildContext != null) {
-            property(builder, indent + 1, "buildContext", json(containerBuildContext), containerDockerfile != null || endpoint != null);
+            property(builder, indent + 1, "buildContext", json(containerBuildContext), containerDockerfile != null);
         }
 
         if (containerDockerfile != null) {
-            property(builder, indent + 1, "dockerfile", json(containerDockerfile), endpoint != null);
-        }
-
-        if (endpoint != null) {
-            endpoint.appendJson(builder, indent + 1);
+            property(builder, indent + 1, "dockerfile", json(containerDockerfile), false);
         }
 
         line(builder, indent, "}" + (trailingComma ? "," : ""));

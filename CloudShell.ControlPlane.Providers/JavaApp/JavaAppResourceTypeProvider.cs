@@ -86,7 +86,7 @@ public sealed class JavaAppResourceTypeProvider :
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
-                path: "project.endpointRequests"),
+                path: "endpoints"),
             [Attributes.EnvironmentVariables] = new(
                 Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
                 Path: "project.environmentVariables",

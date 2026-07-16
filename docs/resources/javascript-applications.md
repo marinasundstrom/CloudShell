@@ -54,12 +54,12 @@ resources:
     name: frontend
     project:
       path: src/frontend
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 5173
-          port: 5173
-          exposure: Local
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 5173
+        port: 5173
+        exposure: Local
     runtime: node
     packageManager: pnpm
     script: dev

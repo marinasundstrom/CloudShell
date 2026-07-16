@@ -64,7 +64,7 @@ explicit startup-order hint and should not be used as the discovery mechanism.
     "project.hotReload": false,
     "project.useLaunchSettings": false,
     "project.serviceDiscoveryName": "api",
-    "project.endpointRequests": [
+    "endpoints": [
       {
         "name": "http",
         "protocol": "http",

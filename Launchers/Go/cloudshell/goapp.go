@@ -261,12 +261,10 @@ func (r *GoAppResource) build() map[string]any {
 	}
 
 	if len(r.endpoints) > 0 {
-		if r.containerApp {
-			document["container"] = r.containerDocument()
-		} else {
-			project["endpointRequests"] = r.endpoints
-		}
-	} else if r.containerApp {
+		document["endpoints"] = r.endpoints
+	}
+
+	if r.containerApp {
 		document["container"] = r.containerDocument()
 	}
 
@@ -313,10 +311,6 @@ func (r *GoAppResource) containerDocument() map[string]any {
 
 	if r.containerDockerfile != "" {
 		container["dockerfile"] = r.containerDockerfile
-	}
-
-	if len(r.endpoints) > 0 {
-		container["endpointRequests"] = r.endpoints
 	}
 
 	return container

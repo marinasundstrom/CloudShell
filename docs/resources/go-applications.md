@@ -55,12 +55,12 @@ resources:
     name: api
     project:
       path: src/api
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 8080
-          port: 8080
-          exposure: Local
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        port: 8080
+        exposure: Local
     command: go
     packagePath: ./cmd/api
 ```

@@ -67,7 +67,7 @@ runtime integration for the provider.
   "attributes": {
     "version": "2022",
     "edition": "Developer",
-    "endpointRequests": [
+    "endpoints": [
       {
         "name": "tds",
         "protocol": "tcp",

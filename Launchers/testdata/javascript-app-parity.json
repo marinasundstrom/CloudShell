@@ -75,21 +75,21 @@
           {
             "resourceId": "secrets.vault:secrets"
           }
-        ],
-        "endpointRequests": [
-          {
-            "name": "http",
-            "protocol": "http",
-            "targetPort": 5173,
-            "host": "localhost",
-            "port": 5173,
-            "exposure": "Local",
-            "network": {
-              "resourceId": "network:host"
-            }
-          }
         ]
       },
+      "endpoints": [
+        {
+          "name": "http",
+          "protocol": "http",
+          "targetPort": 5173,
+          "host": "localhost",
+          "port": 5173,
+          "exposure": "Local",
+          "network": {
+            "resourceId": "network:host"
+          }
+        }
+      ],
       "runtime": "node",
       "packageManager": "npm",
       "script": "dev",

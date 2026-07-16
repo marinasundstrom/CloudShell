@@ -49,7 +49,8 @@ public sealed class RabbitMQResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.Boolean),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
+                path: "endpoints"),
             [Attributes.UserName] = new(
                 Description: "Optional RabbitMQ bootstrap username. Omit to use the provider/runtime default.",
                 ValueType: ResourceAttributeValueType.String),

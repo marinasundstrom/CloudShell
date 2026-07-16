@@ -170,6 +170,8 @@ public static class SqlServerResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
+        graph.AddResourceTypeDefinition(new SqlServerResourceTypeProvider().TypeDefinition);
+
         var builder = new SqlServerResourceDefinitionBuilder(name);
         graph.Add(builder);
         return builder;

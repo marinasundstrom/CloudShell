@@ -1537,7 +1537,7 @@ endpoint value shape. They can translate resolved graph attributes such as
 ASP.NET Core project endpoint requests into Resource Manager
 `ResourceEndpoint` contracts and `ResourceEndpointNetworkMapping` addresses.
 This keeps the generic bridge from knowing provider-specific attribute ids such
-as `project.endpointRequests`, while still proving that graph-backed resources
+as `endpoints`, while still proving that graph-backed resources
 can feed Resource Manager's existing endpoint surfaces.
 
 The Resource Manager bridge can also accept an observability resolver or

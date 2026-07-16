@@ -428,11 +428,21 @@ resources:
                     })
             });
 
-        var yaml = ResourceTemplateSerializer.SerializeDefinition(definition);
-        var roundTripped = ResourceTemplateSerializer.DeserializeDefinition(yaml);
+        var options = new ResourceTemplateSerializerOptions(
+            [new ContainerApplicationResourceTypeProvider().TypeDefinition]);
+        var yaml = ResourceTemplateSerializer.SerializeDefinition(
+            definition,
+            ResourceTemplateFormat.Yaml,
+            options);
+        var roundTripped = ResourceTemplateSerializer.DeserializeDefinition(
+            yaml,
+            ResourceTemplateFormat.Yaml,
+            options);
 
+        Assert.Contains("endpoints:", yaml);
         Assert.Contains("network:", yaml);
         Assert.Contains("resourceId: network:host", yaml);
+        Assert.DoesNotContain("endpointRequests:", yaml);
         Assert.DoesNotContain("value: network:host", yaml);
         Assert.DoesNotContain("relationship: reference", yaml);
         Assert.DoesNotContain("addressingMode: resourceId", yaml);
@@ -536,25 +546,25 @@ resources:
               "name": "Sample--Message"
             }
           }
-        },
-        "endpointRequests": [
-          {
-            "name": "http",
-            "protocol": "http",
-            "targetPort": 5173,
-            "host": "localhost",
-            "port": 5173,
-            "exposure": "Local",
-            "network": {
-              "resourceId": "network:host",
-              "relationship": "reference",
-              "addressingMode": "resourceId",
-              "typeId": "cloudshell.network",
-              "providerId": "cloudshell.network"
-            }
-          }
-        ]
+        }
       },
+      "endpoints": [
+        {
+          "name": "http",
+          "protocol": "http",
+          "targetPort": 5173,
+          "host": "localhost",
+          "port": 5173,
+          "exposure": "Local",
+          "network": {
+            "resourceId": "network:host",
+            "relationship": "reference",
+            "addressingMode": "resourceId",
+            "typeId": "cloudshell.network",
+            "providerId": "cloudshell.network"
+          }
+        }
+      ],
       "runtime": "node",
       "packageManager": "npm",
       "script": "dev",

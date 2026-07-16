@@ -68,7 +68,8 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
                 ValueType: ResourceAttributeValueType.Boolean),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
+                path: "endpoints"),
             [Attributes.EnvironmentVariables] = new(
                 Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
                 ValueType: ResourceAttributeValueType.ComplexType),

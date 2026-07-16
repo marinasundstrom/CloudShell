@@ -324,7 +324,7 @@ are the explicit escape hatch for choosing the intended attribute.
 container:
   image: cloudshell-signalr-api:20260630.1
   replicas: 3
-  endpointRequests:
+endpoints:
   - name: http
     protocol: http
     targetPort: 8080
@@ -527,29 +527,36 @@ Common endpoint request shape:
 }
 ```
 
-Current providers declare endpoint requests as provider-owned attributes, for
-example:
+Endpoint requests are provider-owned attributes, but their preferred authored
+path is the resource-level `endpoints` field because endpoint exposure is a
+general resource concern:
 
 ```json
 {
-  "attributes": {
-    "container.endpointRequests": [
-      {
-        "name": "http",
-        "protocol": "http",
-        "targetPort": 8080,
-        "host": "localhost",
-        "port": 5092,
-        "exposure": "Local"
-      }
-    ]
-  }
+  "endpoints": [
+    {
+      "name": "http",
+      "protocol": "http",
+      "targetPort": 8080,
+      "host": "localhost",
+      "port": 5092,
+      "exposure": "Local"
+    }
+  ]
 }
 ```
 
-`project.endpointRequests` and `container.endpointRequests` currently use the
-same shared `networking.endpointRequest` shape. This keeps the model flexible
-without making endpoints a graph-native primitive.
+Canonical IDs such as `project.endpointRequests` and
+`container.endpointRequests` still identify provider-owned attributes in code
+and compatibility input, but schema-aware import/export should render those
+attributes as `endpoints`. All endpoint request attributes use the same shared
+`networking.endpointRequest` shape. This keeps the model flexible without
+making endpoints a graph-native primitive.
+
+Endpoint authoring is the first resource-definition grouping cleanup. Later
+slices should continue reviewing resource-local groupings, starting with
+container app authoring fields, and keep groups only where the group carries
+domain meaning.
 
 ## Endpoint Mappings
 

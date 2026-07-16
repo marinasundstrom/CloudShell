@@ -61,12 +61,12 @@ resources:
     name: api
     project:
       path: src/api
-      endpointRequests:
-        - name: http
-          protocol: http
-          targetPort: 5188
-          port: 5188
-          exposure: Local
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 5188
+        port: 5188
+        exposure: Local
     command: python3
     scriptPath: app.py
 ```

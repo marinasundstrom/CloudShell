@@ -400,6 +400,8 @@ public static class ContainerApplicationResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
+        graph.AddResourceTypeDefinition(new ContainerApplicationResourceTypeProvider().TypeDefinition);
+
         var builder = new ContainerApplicationResourceDefinitionBuilder(name)
             .WithRuntimeMonitoring()
             .WithRuntimeLogSources();

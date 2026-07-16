@@ -205,7 +205,7 @@ model cleanup work after switch-over.
     "container.image": "cloudshell-application-api:20260622.2",
     "container.registry": "docker.io",
     "container.replicas": 3,
-    "container.endpointRequests": [
+    "endpoints": [
       {
         "name": "http",
         "protocol": "http",

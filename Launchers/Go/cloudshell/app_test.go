@@ -259,15 +259,19 @@ func TestBuildsGoAppAsContainerAppTemplate(t *testing.T) {
 	assertNestedEqual(t, "container.buildContext", "samples/GoApp/App", resource, "container", "buildContext")
 	assertNestedEqual(t, "container.dockerfile", "Dockerfile", resource, "container", "dockerfile")
 
-	container := resource["container"].(map[string]any)
-	endpoints := container["endpointRequests"].([]any)
+	endpoints := resource["endpoints"].([]any)
 	if len(endpoints) != 1 {
-		t.Fatalf("expected one container endpoint request, got %d", len(endpoints))
+		t.Fatalf("expected one endpoint request, got %d", len(endpoints))
 	}
 
 	project := resource["project"].(map[string]any)
 	if _, ok := project["endpointRequests"]; ok {
-		t.Fatal("expected endpoint requests to move from project to container")
+		t.Fatal("expected endpoint requests to move out of project")
+	}
+
+	container := resource["container"].(map[string]any)
+	if _, ok := container["endpointRequests"]; ok {
+		t.Fatal("expected endpoint requests to move out of container")
 	}
 }
 

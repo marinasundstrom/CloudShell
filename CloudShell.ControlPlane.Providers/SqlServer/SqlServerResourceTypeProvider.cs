@@ -48,7 +48,8 @@ public sealed class SqlServerResourceTypeProvider :
                 itemType: ResourceAttributeValueType.ComplexType),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
+                path: "endpoints")
         },
         Capabilities:
         [

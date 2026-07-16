@@ -59,7 +59,8 @@ public sealed class ContainerApplicationResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.Integer),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
+                path: "endpoints"),
             [Attributes.RoutingSessionAffinityMode] = new(
                 DefaultValue: "None",
                 ValueType: ResourceAttributeValueType.String),

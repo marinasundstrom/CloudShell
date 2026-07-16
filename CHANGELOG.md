@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Changed schema-aware resource template authoring so endpoint request
+  attributes serialize as the resource-level `endpoints` field instead of
+  project- or container-grouped endpoint request fields.
 - Improved resource action capability and unsupported-action errors so
   resources whose providers do not implement procedure execution report the
   provider name, action display name, and resource label before dispatch.
