@@ -1029,8 +1029,13 @@ public sealed class ResourceManagerIntegrationTests
         var operation = Assert.IsType<LocalVolumeProvisionOperation>(resolution.Operation);
         Assert.Same(resolution.Resource, operation.Resource);
         Assert.Equal(LocalVolumeResourceTypeProvider.Operations.Provision, resolution.OperationId);
-        Assert.True(await operation.CanExecuteAsync());
-        Assert.False((await operation.ExecuteAsync()).HasErrors);
+        Assert.False(await operation.CanExecuteAsync());
+        Assert.Contains("no local volume provisioner", operation.UnavailableReason, StringComparison.Ordinal);
+        var execution = await operation.ExecuteAsync();
+
+        Assert.True(execution.HasErrors);
+        Assert.Contains(execution.Diagnostics, diagnostic =>
+            diagnostic.Code == "storage.volume.provisionUnavailable");
     }
 
     [Fact]
