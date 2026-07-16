@@ -700,7 +700,8 @@ public sealed class ResourceProviderDispatcherTests
         var reconcile = await projection.GetReconcileOperationAsync();
 
         Assert.NotNull(reconcile);
-        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.False(await reconcile.CanExecuteAsync());
+        Assert.Contains("no service reconciler", reconcile.UnavailableReason, StringComparison.Ordinal);
         Assert.Equal("logical", reconcile.PlanReconcile().RoutingMode);
     }
 

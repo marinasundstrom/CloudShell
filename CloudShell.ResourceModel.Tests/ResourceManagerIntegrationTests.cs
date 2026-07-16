@@ -5308,6 +5308,56 @@ resources:
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_ProjectsServiceReconcileUnavailableWithoutReconciler()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerApplicationResourceType();
+        services.AddNetworkResourceType();
+        services.AddServiceResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+        var target = graph
+            .AddContainerApplication("api")
+            .WithImage("example/api:1.0");
+        var network = graph.AddNetwork("default");
+        var definition = graph
+            .AddService("api-service")
+            .DependsOnTarget(target)
+            .DependsOnNetwork(network)
+            .WithRoutingMode("logical");
+
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("service", environmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 10, 5, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(definition.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<ServiceResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        var reconcileOperation = await projection.GetReconcileOperationAsync();
+
+        Assert.NotNull(reconcileOperation);
+        Assert.False(await reconcileOperation.CanExecuteAsync());
+        Assert.Contains("no service reconciler", reconcileOperation.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_RejectsServiceWithNonNetworkReference()
     {
         var services = new ServiceCollection();

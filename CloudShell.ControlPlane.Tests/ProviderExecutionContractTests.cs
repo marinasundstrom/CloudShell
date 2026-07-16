@@ -2093,6 +2093,30 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ServiceReconcileHandler_FailsWhenReconcilerIsMissing()
+    {
+        var service = CreateGraphResource("service:orders", "orders");
+        var handler = new ServiceReconcileExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ServiceReconcile,
+            TargetResourceId = service.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "service:orders:reconcile:1",
+            TargetResourceSnapshot = service,
+            ResourceSnapshot = [service]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("service.reconcilerMissing", diagnostic.Code);
+        Assert.Equal(service.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task DockerHostInspectOperation_DispatchesInspectInstruction()
     {
         var dockerHost = CreateGraphResource("docker.host:local", "local", revision: 47);

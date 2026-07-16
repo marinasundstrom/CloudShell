@@ -95,6 +95,9 @@ CloudShell Docker containers were left running.
   readiness before dispatch and returns a matching provider-execution
   diagnostic if invoked directly, so the ThirdPartyIdentity bridge does not
   mask a missing setup adapter.
+- Graph-backed service reconciliation now reports missing reconciler readiness
+  before dispatch and returns a matching provider-execution diagnostic if
+  invoked directly, so logical service materialization cannot silently no-op.
 
 ## Active Tie-Off Order
 

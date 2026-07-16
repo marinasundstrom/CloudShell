@@ -5,11 +5,13 @@ public sealed class ServiceReconcileOperationProvider :
     IResourceOperationProjector
 {
     private readonly IProviderExecutionDispatcher _dispatcher;
+    private readonly IServiceReconciler? _reconciler;
 
     public ServiceReconcileOperationProvider(
         IServiceReconciler? reconciler = null,
         IProviderExecutionDispatcher? dispatcher = null)
     {
+        _reconciler = reconciler;
         _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
             [
                 new ServiceReconcileExecutionHandler(reconciler)
@@ -49,13 +51,20 @@ public sealed class ServiceReconcileOperationProvider :
             new ServiceReconcileOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        ServiceReconcilerReadiness.IsMissing(_reconciler)
+            ? ServiceReconcilerReadiness.CreateMissingReason(resource)
+            : null;
 }
 
 public sealed class ServiceReconcileOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -67,9 +76,14 @@ public sealed class ServiceReconcileOperation(
 
     public ResourceOperationId OperationId => ServiceResourceTypeProvider.Operations.Reconcile;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>
