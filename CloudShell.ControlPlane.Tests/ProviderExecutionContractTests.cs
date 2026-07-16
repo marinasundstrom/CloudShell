@@ -2035,6 +2035,74 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task SqlDatabaseEnsureCreatedHandler_FailsWhenCreationHandlerIsMissing()
+    {
+        var sqlServer = CreateGraphResource("application.sql-server:app", "app-sql");
+        var database = CreateGraphResource(
+            "application.sql-database:app",
+            "app-db",
+            dependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    sqlServer.EffectiveResourceId,
+                    SqlServerResourceTypeProvider.ResourceTypeId,
+                    SqlServerResourceTypeProvider.ProviderId)
+            ]);
+        var handler = new SqlDatabaseEnsureCreatedExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.SqlDatabaseEnsureCreated,
+            TargetResourceId = database.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application.sql-database:app:ensure-created:1",
+            TargetResourceSnapshot = database,
+            ResourceSnapshot = [database, sqlServer]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.sqlDatabase.creationHandlerMissing", diagnostic.Code);
+        Assert.Equal(database.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task SqlDatabaseEnsureCreatedOperationProvider_ProjectsUnavailableWithoutCreationHandler()
+    {
+        var sqlServer = CreateGraphResource("application.sql-server:app", "app-sql");
+        var database = CreateGraphResource(
+            "application.sql-database:app",
+            "app-db",
+            dependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    sqlServer.EffectiveResourceId,
+                    SqlServerResourceTypeProvider.ResourceTypeId,
+                    SqlServerResourceTypeProvider.ProviderId)
+            ]);
+        var provider = new SqlDatabaseEnsureCreatedOperationProvider();
+
+        var projection = Assert.IsType<SqlDatabaseEnsureCreatedOperation>(
+            await provider.ProjectAsync(
+                database,
+                new ResourceOperationResolution(
+                    SqlDatabaseResourceTypeProvider.Operations.EnsureCreated,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        database,
+                        [database, sqlServer]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no SQL database creation handler", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ServiceReconcileOperation_DispatchesReconcileInstruction()
     {
         var service = CreateGraphResource("service:orders", "orders", revision: 43);

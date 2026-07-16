@@ -2887,7 +2887,8 @@ public sealed class ResourceProviderDispatcherTests
         var ensureCreated = await projection.GetEnsureCreatedOperationAsync();
 
         Assert.NotNull(ensureCreated);
-        Assert.True(await ensureCreated.CanExecuteAsync());
+        Assert.False(await ensureCreated.CanExecuteAsync());
+        Assert.Contains("no SQL database creation handler", ensureCreated.UnavailableReason, StringComparison.Ordinal);
         Assert.Equal(definition.EffectiveResourceId, ensureCreated.PlanEnsureCreated().ResourceId);
 
         var applyPlan = await serviceProvider

@@ -25,7 +25,27 @@ public sealed class NoopSqlDatabaseCreationHandler :
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> EnsureCreatedAsync(
         SqlDatabaseCreationContext context,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            SqlDatabaseCreationReadiness.CreateMissingDiagnostic(context.Database)
+        ]);
+}
+
+internal static class SqlDatabaseCreationReadiness
+{
+    public const string DiagnosticCode = "application.sqlDatabase.creationHandlerMissing";
+
+    public static bool IsMissing(ISqlDatabaseCreationHandler? creationHandler) =>
+        creationHandler is null or NoopSqlDatabaseCreationHandler;
+
+    public static string CreateMissingReason(Resource resource) =>
+        $"SQL database resource '{resource.EffectiveResourceId}' cannot be ensured because no SQL database creation handler is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(Resource resource) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource),
+            resource.EffectiveResourceId);
 }
 
 public sealed class ContextSqlDatabaseServerResolver :

@@ -117,7 +117,10 @@ the assumption that the database should exist, while creating the database
 schema remains an application or migration responsibility. Local development
 and test resources can opt in with `DeclareDatabase(...).EnsureCreated()`,
 which is a separate provider operation request to create the database if it is
-missing before database grants are reconciled. CloudShell does not drop
+missing before database grants are reconciled. The operation requires a SQL
+database creation handler; type registration alone projects the action but
+marks it unavailable with a missing-handler reason, and direct
+provider-execution calls return the same diagnostic. CloudShell does not drop
 databases or project database connection strings for workloads.
 
 Database read/write grant intent can be assigned to SQL Server resources

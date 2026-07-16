@@ -5,13 +5,16 @@ public sealed class SqlDatabaseEnsureCreatedOperationProvider :
     IResourceOperationProjector
 {
     private readonly IProviderExecutionDispatcher _dispatcher;
+    private readonly ISqlDatabaseCreationHandler? _creationHandler;
 
     public SqlDatabaseEnsureCreatedOperationProvider(
+        ISqlDatabaseCreationHandler? creationHandler = null,
         IProviderExecutionDispatcher? dispatcher = null)
     {
+        _creationHandler = creationHandler;
         _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
             [
-                new SqlDatabaseEnsureCreatedExecutionHandler()
+                new SqlDatabaseEnsureCreatedExecutionHandler(creationHandler)
             ]);
     }
 
@@ -48,13 +51,20 @@ public sealed class SqlDatabaseEnsureCreatedOperationProvider :
             new SqlDatabaseEnsureCreatedOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        SqlDatabaseCreationReadiness.IsMissing(_creationHandler)
+            ? SqlDatabaseCreationReadiness.CreateMissingReason(resource)
+            : null;
 }
 
 public sealed class SqlDatabaseEnsureCreatedOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -66,9 +76,14 @@ public sealed class SqlDatabaseEnsureCreatedOperation(
 
     public ResourceOperationId OperationId => SqlDatabaseResourceTypeProvider.Operations.EnsureCreated;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

@@ -535,6 +535,9 @@ on the SQL Server; it is not an operation and does not create it by default.
 Local development and test declarations can call
 `DeclareDatabase(...).EnsureCreated()` as a separate provider operation request
 to create the database if it is missing before access grants are reconciled.
+That operation needs a registered SQL database creation handler; without one,
+Resource Manager marks the action unavailable and direct provider-execution
+calls return a missing-handler diagnostic.
 Future SQL Server builder slices should add
 validated SQL Server concepts such as version and edition instead of arbitrary
 image selection, and should materialize access grants into SQL users, roles, or
