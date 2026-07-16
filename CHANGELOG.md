@@ -65,6 +65,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed graph-backed service reconciliation to fail closed when no service
   reconciler is registered, and to project the same missing-reconciler reason
   as the operation unavailable reason before dispatch.
+- Changed graph-backed storage inspection to fail closed when no storage
+  inspector is registered, and to project the same missing-inspector reason as
+  the operation unavailable reason before dispatch.
 
 ### 2026-07-15
 

@@ -5094,6 +5094,48 @@ resources:
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_ProjectsStorageInspectUnavailableWithoutInspector()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddStorageResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+        var storage = graph.AddLocalStorage(
+            "local",
+            "Data/storage/local");
+
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("storage", environmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 8, 5, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(storage.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<StorageResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        var inspectOperation = await projection.GetInspectOperationAsync();
+
+        Assert.NotNull(inspectOperation);
+        Assert.False(await inspectOperation.CanExecuteAsync());
+        Assert.Contains("no storage inspector", inspectOperation.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesCloudShellVolumeAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

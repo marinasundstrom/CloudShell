@@ -515,7 +515,8 @@ public sealed class ResourceProviderDispatcherTests
         var inspect = await projection.GetInspectOperationAsync();
 
         Assert.NotNull(inspect);
-        Assert.True(await inspect.CanExecuteAsync());
+        Assert.False(await inspect.CanExecuteAsync());
+        Assert.Contains("no storage inspector", inspect.UnavailableReason, StringComparison.Ordinal);
         Assert.Equal("FileSystem", inspect.PlanInspection().Medium);
     }
 

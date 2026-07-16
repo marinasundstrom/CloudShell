@@ -2291,6 +2291,30 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task StorageInspectHandler_FailsWhenInspectorIsMissing()
+    {
+        var storage = CreateGraphResource("cloudshell.storage:local", "local");
+        var handler = new StorageInspectExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.StorageInspect,
+            TargetResourceId = storage.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "cloudshell.storage:local:inspect:1",
+            TargetResourceSnapshot = storage,
+            ResourceSnapshot = [storage]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("storage.inspectorMissing", diagnostic.Code);
+        Assert.Equal(storage.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task HostConfigurationSourceInspectOperation_DispatchesInspectInstruction()
     {
         var source = CreateGraphResource("configuration.host:local", "local", revision: 59);

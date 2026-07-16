@@ -46,6 +46,10 @@ Current operation:
 Local Storage supports the `FileSystem` medium and can own volume resources
 under a filesystem root. Provider-owned credentials, protected APIs, or
 external storage state must remain behind provider contracts.
+Storage inspection uses the provider-execution boundary. If no concrete
+storage inspector is registered, the projected inspect action is unavailable
+with a missing-inspector reason and direct provider-execution calls return the
+same diagnostic instead of reporting a silent no-op success.
 
 ## Volume Resources
 

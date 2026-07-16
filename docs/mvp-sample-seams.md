@@ -98,6 +98,10 @@ CloudShell Docker containers were left running.
 - Graph-backed service reconciliation now reports missing reconciler readiness
   before dispatch and returns a matching provider-execution diagnostic if
   invoked directly, so logical service materialization cannot silently no-op.
+- Graph-backed storage inspection now reports missing inspector readiness
+  before dispatch and returns a matching provider-execution diagnostic if
+  invoked directly, so storage observation does not look successful without an
+  adapter.
 
 ## Active Tie-Off Order
 
