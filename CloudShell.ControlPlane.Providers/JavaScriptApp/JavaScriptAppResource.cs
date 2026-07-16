@@ -11,7 +11,7 @@ public sealed class JavaScriptAppResource(
 
     public string? Engine =>
         Resource.Attributes.GetString(
-            JavaScriptAppResourceTypeProvider.Attributes.Engine);
+            JavaScriptAppResourceTypeProvider.Attributes.Runtime);
 
     public string? PackageManager =>
         Resource.Attributes.GetString(

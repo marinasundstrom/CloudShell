@@ -1440,7 +1440,7 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("src/frontend", app.ResourceAttributeValues[
             JavaScriptAppResourceTypeProvider.Attributes.ProjectPath].StringValue);
         Assert.Equal("node", app.ResourceAttributeValues[
-            JavaScriptAppResourceTypeProvider.Attributes.Engine].StringValue);
+            JavaScriptAppResourceTypeProvider.Attributes.Runtime].StringValue);
         Assert.Equal("pnpm", app.ResourceAttributeValues[
             JavaScriptAppResourceTypeProvider.Attributes.PackageManager].StringValue);
         Assert.Equal("dev", app.ResourceAttributeValues[
@@ -1514,7 +1514,7 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("src/frontend", appDefinition.ResourceAttributeValues[
             JavaScriptAppResourceTypeProvider.Attributes.ProjectPath].StringValue);
         Assert.Equal("node", appDefinition.ResourceAttributeValues[
-            JavaScriptAppResourceTypeProvider.Attributes.Engine].StringValue);
+            JavaScriptAppResourceTypeProvider.Attributes.Runtime].StringValue);
         Assert.Equal("npm", appDefinition.ResourceAttributeValues[
             JavaScriptAppResourceTypeProvider.Attributes.PackageManager].StringValue);
         Assert.Equal("dev", appDefinition.ResourceAttributeValues[
