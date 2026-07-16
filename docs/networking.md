@@ -635,6 +635,12 @@ entrypoints and maps routes to target resource endpoints first, with raw target
 ports available as a convenience when the target has not projected a named
 endpoint yet.
 
+Graph-backed Traefik configuration apply uses the provider-execution boundary.
+If route targets cannot be resolved from the projected resource graph, the
+applier returns load-balancer route-resolution diagnostics rather than throwing
+out of the execution handler. This keeps MVP routing readiness visible through
+the same operation result shape that future agent-backed execution will report.
+
 ## References
 
 - [Virtual Network Resource Proposal](proposals/networking/virtual-network-resource.md)

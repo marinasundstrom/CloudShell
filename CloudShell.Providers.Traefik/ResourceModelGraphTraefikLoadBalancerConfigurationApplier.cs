@@ -39,6 +39,16 @@ public sealed class ResourceModelGraphTraefikLoadBalancerConfigurationApplier(
                     resource.EffectiveResourceId)
             ];
         }
+        catch (InvalidOperationException exception)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "network.loadBalancer.routeResolutionFailed",
+                    exception.Message,
+                    resource.EffectiveResourceId)
+            ];
+        }
 
         ResourceProcedureResult result;
         try

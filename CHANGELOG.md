@@ -32,6 +32,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved endpoint-mapping reconciliation so provider-returned error signals
   become graph operation diagnostics or Resource Manager procedure signals
   instead of being counted as successful provisioned mappings.
+- Improved graph-backed Traefik load-balancer apply diagnostics so unresolved
+  route targets return provider-execution error diagnostics instead of escaping
+  the execution handler as exceptions.
 
 ### 2026-07-15
 

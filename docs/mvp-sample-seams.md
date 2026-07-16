@@ -65,6 +65,9 @@ CloudShell Docker containers were left running.
 - Endpoint-mapping reconciliation now turns provider-returned error signals
   into graph operation diagnostics or Resource Manager procedure signals
   instead of reporting those mappings as successfully provisioned.
+- Graph-backed Traefik load-balancer apply now turns unresolved route targets
+  into provider-execution diagnostics, keeping routing readiness failures
+  visible at the operation boundary instead of surfacing as raw exceptions.
 
 ## Active Tie-Off Order
 

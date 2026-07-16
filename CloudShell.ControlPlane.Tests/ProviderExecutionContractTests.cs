@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CloudShell.ControlPlane.Providers;
+using CloudShell.Providers.Traefik;
 using CloudShell.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 using GraphResource = CloudShell.ResourceModel.Resource;
@@ -1067,6 +1068,65 @@ public sealed class ProviderExecutionContractTests
         Assert.NotNull(applier.Context);
         Assert.Same(loadBalancer, applier.Context.Resource);
         Assert.Equal([loadBalancer, route], applier.Context.Resources);
+    }
+
+    [Fact]
+    public async Task LoadBalancerConfigurationApplyHandler_ReturnsRouteResolutionDiagnostics()
+    {
+        var loadBalancer = CreateGraphResourceWithAttributeValues(
+            "load-balancer:public",
+            "public",
+            new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Provider] =
+                    ResourceAttributeValue.String("traefik"),
+                [LoadBalancerResourceTypeProvider.Attributes.Entrypoints] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerEntrypointValue(
+                            "web",
+                            "Http",
+                            8080)
+                    }),
+                [LoadBalancerResourceTypeProvider.Attributes.Routes] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerRouteValue(
+                            "api",
+                            "API",
+                            "Http",
+                            "web",
+                            new LoadBalancerRouteMatchValue("api.local", "/"),
+                            new LoadBalancerRouteTargetValue(
+                                ResourceReference.ReferenceResourceId("application:api"),
+                                "http"))
+                    })
+            });
+        var handler = new LoadBalancerConfigurationApplyExecutionHandler(
+            new ResourceModelGraphTraefikLoadBalancerConfigurationApplier(
+                new TraefikLoadBalancerProvider(new TraefikProviderOptions
+                {
+                    DynamicConfigurationDirectory = CreateTempDirectory()
+                })));
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.LoadBalancerConfigurationApply,
+            TargetResourceId = loadBalancer.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "load-balancer:public:apply:1",
+            TargetResourceSnapshot = loadBalancer,
+            ResourceSnapshot = [loadBalancer]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("network.loadBalancer.routeResolutionFailed", diagnostic.Code);
+        Assert.Equal(loadBalancer.EffectiveResourceId, diagnostic.Target);
+        Assert.Contains("application:api", diagnostic.Message);
     }
 
     [Fact]
@@ -3734,5 +3794,55 @@ public sealed class ProviderExecutionContractTests
             capabilities,
             operations,
             []);
+    }
+
+    private static GraphResource CreateGraphResourceWithAttributeValues(
+        string resourceId,
+        string name,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue> attributes)
+    {
+        var classId = ResourceClassId.Create("test");
+        var typeId = ResourceTypeId.Create("test.resource");
+        var attributeSet = new ResourceAttributeSet(
+            attributes.Select(pair => new ResourceAttributeResolution(
+                pair.Key,
+                pair.Value,
+                ResourceDefinitionValueSource.TypeDefinition)));
+        var capabilities = new ResourceCapabilitySet([]);
+        var operations = new ResourceOperationSet([]);
+        var resourceClass = new ResourceClass(
+            new ResourceClassDefinition(classId),
+            attributeSet,
+            capabilities,
+            operations);
+        var resourceType = new ResourceType(
+            new ResourceTypeDefinition(typeId, classId),
+            resourceClass,
+            attributeSet,
+            capabilities,
+            operations);
+
+        return new GraphResource(
+            new ResourceState(
+                name,
+                typeId,
+                ResourceId: resourceId,
+                Attributes: new ResourceAttributeValueMap(attributes)),
+            resourceClass,
+            resourceType,
+            attributeSet,
+            capabilities,
+            operations,
+            []);
+    }
+
+    private static string CreateTempDirectory()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "cloudshell-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        return directory;
     }
 }
