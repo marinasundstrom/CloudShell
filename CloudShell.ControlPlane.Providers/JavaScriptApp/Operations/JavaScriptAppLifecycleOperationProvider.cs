@@ -97,14 +97,21 @@ public abstract class JavaScriptAppLifecycleOperationProvider :
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _runtimeController,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        JavaScriptAppRuntimeReadiness.IsMissing(_runtimeController)
+            ? JavaScriptAppRuntimeReadiness.CreateMissingReason(resource, OperationId)
+            : null;
 }
 
 public sealed class JavaScriptAppLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
     IJavaScriptAppRuntimeController runtimeController,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -118,9 +125,12 @@ public sealed class JavaScriptAppLifecycleOperation(
 
     public ResourceOperationId OperationId => Definition.Id;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
     public string? UnavailableReason =>
+        unavailableReason ??
         Definition.UnavailableReason ??
         ApplicationArtifactResourceValidation.GetLifecycleUnavailableReason(Resource, OperationId);
 

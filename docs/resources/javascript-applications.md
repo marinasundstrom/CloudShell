@@ -47,6 +47,13 @@ runtime starts the declared package-manager script from the project directory,
 tracks process state, and exposes process logs and metrics through Resource
 Manager.
 
+Lifecycle actions require a JavaScript app runtime controller. The built-in
+provider registration supplies the local process runtime controller for normal
+hosts. If a custom or direct operation path is constructed without that
+controller, Resource Manager projects lifecycle actions as unavailable with a
+missing-controller reason, and direct provider-execution calls return the same
+readiness failure as a diagnostic instead of succeeding as a no-op.
+
 Use `AsContainerApp(...)` when a JavaScript app should be authored as a JavaScript
 project but run as a scalable container app:
 

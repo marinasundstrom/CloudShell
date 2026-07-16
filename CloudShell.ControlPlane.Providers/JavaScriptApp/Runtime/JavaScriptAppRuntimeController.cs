@@ -459,7 +459,10 @@ public sealed class NoopJavaScriptAppRuntimeController :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            JavaScriptAppRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
 
     public IReadOnlyList<JavaScriptAppRuntimeOutputEntry> ReadOutput(
         string resourceId,
@@ -471,4 +474,23 @@ public sealed class NoopJavaScriptAppRuntimeController :
         string resourceId,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+}
+
+internal static class JavaScriptAppRuntimeReadiness
+{
+    public const string DiagnosticCode = "application.javascriptApp.runtimeControllerMissing";
+
+    public static bool IsMissing(IJavaScriptAppRuntimeController? runtimeController) =>
+        runtimeController is null or NoopJavaScriptAppRuntimeController;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"JavaScript app resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no JavaScript app runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }
