@@ -13,7 +13,27 @@ public sealed class NoopConfigurationStoreInspector :
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
         Resource resource,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            ConfigurationStoreInspectorReadiness.CreateMissingDiagnostic(resource)
+        ]);
+}
+
+internal static class ConfigurationStoreInspectorReadiness
+{
+    public const string DiagnosticCode = "configuration.store.inspectorMissing";
+
+    public static bool IsMissing(IConfigurationStoreInspector? inspector) =>
+        inspector is null or NoopConfigurationStoreInspector;
+
+    public static string CreateMissingReason(Resource resource) =>
+        $"Configuration Store resource '{resource.EffectiveResourceId}' cannot be inspected because no Configuration Store inspector is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(Resource resource) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource),
+            resource.EffectiveResourceId);
 }
 
 public sealed class ConfigurationStoreRuntimeInspector(

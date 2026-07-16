@@ -2431,6 +2431,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ConfigurationStoreInspectHandler_FailsWhenInspectorIsMissing()
+    {
+        var configurationStore = CreateGraphResource("configuration.store:settings", "settings");
+        var handler = new ConfigurationStoreInspectExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ConfigurationStoreInspect,
+            TargetResourceId = configurationStore.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "configuration.store:settings:inspect:1",
+            TargetResourceSnapshot = configurationStore,
+            ResourceSnapshot = [configurationStore]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("configuration.store.inspectorMissing", diagnostic.Code);
+        Assert.Equal(configurationStore.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task ConfigurationStoreInspectOperationProvider_ProjectsUnavailableWithoutInspector()
+    {
+        var configurationStore = CreateGraphResource("configuration.store:settings", "settings");
+        var provider = new ConfigurationStoreInspectOperationProvider();
+
+        var projection = Assert.IsType<ConfigurationStoreInspectOperation>(
+            await provider.ProjectAsync(
+                configurationStore,
+                new ResourceOperationResolution(
+                    ConfigurationStoreResourceTypeProvider.Operations.Inspect,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        configurationStore,
+                        [configurationStore]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Configuration Store inspector", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SecretsVaultInspectOperation_DispatchesInspectInstruction()
     {
         var secretsVault = CreateGraphResource("secrets.vault:secrets", "secrets", revision: 67);

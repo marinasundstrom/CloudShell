@@ -102,6 +102,9 @@ CloudShell Docker containers were left running.
   before dispatch and returns a matching provider-execution diagnostic if
   invoked directly, so storage observation does not look successful without an
   adapter.
+- Graph-backed Configuration Store inspection now reports missing inspector
+  readiness when the runtime inspector is absent and returns a matching
+  provider-execution diagnostic if invoked directly.
 
 ## Active Tie-Off Order
 

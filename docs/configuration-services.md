@@ -75,6 +75,11 @@ Resource Manager when the UI host has access to the provider runtime manager.
 That tab manages provider-owned runtime settings and rewrites the sidecar
 definition file used by the backing Configuration Store service. Setting values
 do not become Resource graph attributes.
+The `configuration.store.inspect` operation uses the provider-execution
+boundary. The built-in resource-type registration supplies a runtime inspector;
+if a host or test constructs the operation path without one, the inspect action
+is unavailable with a missing-inspector reason and direct provider-execution
+calls return the same diagnostic instead of reporting a silent no-op success.
 
 Graph-backed Secrets Vault resources contribute **Secrets** and
 **Certificates** tabs under the same host/runtime boundary. Existing secret and
