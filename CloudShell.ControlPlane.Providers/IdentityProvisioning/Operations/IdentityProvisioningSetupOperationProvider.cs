@@ -5,15 +5,16 @@ public sealed class IdentityProvisioningSetupOperationProvider :
     IResourceOperationProjector
 {
     private readonly IProviderExecutionDispatcher _dispatcher;
+    private readonly IIdentityProvisioningSetupHandler? _setupHandler;
 
     public IdentityProvisioningSetupOperationProvider(
         IIdentityProvisioningSetupHandler? setupHandler = null,
         IProviderExecutionDispatcher? dispatcher = null)
     {
-        var handler = setupHandler ?? new NoopIdentityProvisioningSetupHandler();
+        _setupHandler = setupHandler;
         _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
             [
-                new IdentityProvisioningSetupExecutionHandler(handler)
+                new IdentityProvisioningSetupExecutionHandler(setupHandler)
             ]);
     }
 
@@ -50,13 +51,20 @@ public sealed class IdentityProvisioningSetupOperationProvider :
             new IdentityProvisioningSetupOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        IdentityProvisioningSetupHandlerReadiness.IsMissing(_setupHandler)
+            ? IdentityProvisioningSetupHandlerReadiness.CreateMissingReason(resource)
+            : null;
 }
 
 public sealed class IdentityProvisioningSetupOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -69,9 +77,14 @@ public sealed class IdentityProvisioningSetupOperation(
     public ResourceOperationId OperationId =>
         IdentityProvisioningResourceTypeProvider.Operations.Setup;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

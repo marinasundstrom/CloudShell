@@ -2445,7 +2445,8 @@ public sealed class ResourceProviderDispatcherTests
         var setup = await projection.GetSetupOperationAsync();
 
         Assert.NotNull(setup);
-        Assert.True(await setup.CanExecuteAsync());
+        Assert.False(await setup.CanExecuteAsync());
+        Assert.Contains("no identity provisioning setup handler", setup.UnavailableReason, StringComparison.Ordinal);
         Assert.Equal("Built-in Identity", setup.PlanSetup().IdentityProvider);
     }
 

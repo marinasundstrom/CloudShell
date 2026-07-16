@@ -5521,6 +5521,49 @@ resources:
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_ProjectsIdentityProvisioningSetupUnavailableWithoutSetupHandler()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddIdentityProvisioningResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+        var identity = graph
+            .AddIdentityProvisioning("built-in")
+            .WithIdentityProvider("Built-in Identity")
+            .WithProviderKind("built-in");
+
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("identity-provisioning", environmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 2, 5, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(identity.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<IdentityProvisioningResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        var setupOperation = await projection.GetSetupOperationAsync();
+
+        Assert.NotNull(setupOperation);
+        Assert.False(await setupOperation.CanExecuteAsync());
+        Assert.Contains("no identity provisioning setup handler", setupOperation.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlServerAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

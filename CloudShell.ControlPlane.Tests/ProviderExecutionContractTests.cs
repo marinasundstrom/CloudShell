@@ -1928,6 +1928,32 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task IdentityProvisioningSetupHandler_FailsWhenSetupHandlerIsMissing()
+    {
+        var identityProvisioning = CreateGraphResource(
+            "cloudshell.identity-provisioning:keycloak",
+            "keycloak");
+        var handler = new IdentityProvisioningSetupExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.IdentityProvisioningSetup,
+            TargetResourceId = identityProvisioning.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "cloudshell.identity-provisioning:keycloak:setup:1",
+            TargetResourceSnapshot = identityProvisioning,
+            ResourceSnapshot = [identityProvisioning]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("identity.provisioning.setupHandlerMissing", diagnostic.Code);
+        Assert.Equal(identityProvisioning.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task SqlDatabaseEnsureCreatedOperation_DispatchesEnsureCreatedInstruction()
     {
         var sqlServer = CreateGraphResource("application.sql-server:app", "app-sql");

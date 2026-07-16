@@ -59,6 +59,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed graph-backed RabbitMQ access reconciliation to fail closed when no
   access reconciler is registered, and to project the same missing-reconciler
   reason as the operation unavailable reason before dispatch.
+- Changed graph-backed identity provisioning setup to fail closed when no
+  setup handler is registered, and to project the same missing-handler reason
+  as the operation unavailable reason before dispatch.
 
 ### 2026-07-15
 

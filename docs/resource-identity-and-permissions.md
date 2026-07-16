@@ -563,6 +563,14 @@ surface:
   acquisition settings when a selected provider needs workload-specific token
   configuration.
 
+Graph-backed `cloudshell.identity-provisioning` resources expose a
+`setupIdentityProvider` resource operation for provider-level setup. That
+operation dispatches through the provider execution boundary to an
+`IIdentityProvisioningSetupHandler`. If no setup handler is registered, the
+operation is projected as unavailable and direct execution returns the
+`identity.provisioning.setupHandlerMissing` diagnostic instead of treating the
+missing adapter as a successful no-op setup.
+
 The Control Plane builds provisioning requests from declared resource
 identities and matching permission grants, grouped by resolved resource
 identity provider. A concrete provider adapter can call the backing authority

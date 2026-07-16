@@ -91,6 +91,10 @@ CloudShell Docker containers were left running.
 - Graph-backed RabbitMQ access reconciliation now reports missing reconciler
   readiness before dispatch and returns a matching provider-execution
   diagnostic if invoked directly.
+- Graph-backed identity provisioning setup now reports missing setup-handler
+  readiness before dispatch and returns a matching provider-execution
+  diagnostic if invoked directly, so the ThirdPartyIdentity bridge does not
+  mask a missing setup adapter.
 
 ## Active Tie-Off Order
 
