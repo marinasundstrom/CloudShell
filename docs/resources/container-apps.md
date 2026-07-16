@@ -487,9 +487,10 @@ The container app materializes them as hidden runtime-managed child resources
 for diagnostics, relationship inspection, scoped health, logs, telemetry, and
 lifetime tracking. The current application provider creates replica resources
 from the orchestrator service descriptor with replica ordinal, replica count,
-container name, and revision metadata. Provider-observed backing container IDs,
-placement, health, and materialization state are future enrichment. Hidden
-replica resources are not automatically internal artifacts: they can remain
+container name, network alias when available, and revision metadata.
+Provider-observed backing container IDs, placement, health, and
+materialization state are future enrichment. Hidden replica resources are not
+automatically internal artifacts: they can remain
 part of the resource graph for the container app while staying out of the
 top-level inventory by default. Resource Manager decides whether to present
 them on app-owned views.

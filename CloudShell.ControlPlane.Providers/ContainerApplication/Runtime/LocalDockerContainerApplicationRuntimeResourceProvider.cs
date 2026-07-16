@@ -72,6 +72,7 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
     {
         var resourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(definition, replica);
         var containerName = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(definition, replica);
+        var networkAlias = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaNetworkAlias(definition, replica);
         var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
         var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
         var replicaName = $"Replica {replicaOrdinal}";
@@ -109,6 +110,7 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
                 [ResourceAttributeNames.DeploymentReplicaGroupId] = replicaGroupId,
                 [ResourceAttributeNames.RuntimeKind] = "containerReplica",
                 [ResourceAttributeNames.RuntimeContainerName] = containerName,
+                [ResourceAttributeNames.RuntimeNetworkAlias] = networkAlias,
                 [ResourceAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                 [ResourceAttributeNames.RuntimeReplicaCount] = totalReplicas,
                 [ResourceAttributeNames.RuntimeRevision] = runtimeRevisionId,

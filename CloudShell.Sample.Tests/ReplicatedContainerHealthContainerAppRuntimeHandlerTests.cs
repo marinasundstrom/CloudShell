@@ -1624,6 +1624,9 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal(
             LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(ordinal),
             replica.ResourceAttributes[ResourceAttributeNames.RuntimeContainerName]);
+        Assert.Equal(
+            LocalDockerContainerApplicationRuntimeConventions.CreateReplicaNetworkAlias(ordinal),
+            replica.ResourceAttributes[ResourceAttributeNames.RuntimeNetworkAlias]);
         Assert.Equal(ordinal.ToString(CultureInfo.InvariantCulture), replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
         Assert.Equal("2", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
         Assert.Equal(expectedRevisionId, replica.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);

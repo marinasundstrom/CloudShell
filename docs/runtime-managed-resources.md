@@ -100,6 +100,7 @@ as:
 - `deployment.replicaGroup.id`
 - `runtime.kind`
 - `runtime.container.name` when a backing container name is available
+- `runtime.network.alias` when the runtime attaches a stable network alias
 - `runtime.replica.ordinal`
 - `runtime.replica.count`
 - `runtime.revision`
