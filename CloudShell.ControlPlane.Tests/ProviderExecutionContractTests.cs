@@ -2175,6 +2175,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task DockerHostInspectHandler_FailsWhenInspectorIsMissing()
+    {
+        var dockerHost = CreateGraphResource("docker.host:local", "local");
+        var handler = new DockerHostInspectExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.DockerHostInspect,
+            TargetResourceId = dockerHost.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "docker.host:local:inspect:1",
+            TargetResourceSnapshot = dockerHost,
+            ResourceSnapshot = [dockerHost]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("docker.host.inspectorMissing", diagnostic.Code);
+        Assert.Equal(dockerHost.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task DockerHostInspectOperationProvider_ProjectsUnavailableWithoutInspector()
+    {
+        var dockerHost = CreateGraphResource("docker.host:local", "local");
+        var provider = new DockerHostInspectOperationProvider();
+
+        var projection = Assert.IsType<DockerHostInspectOperation>(
+            await provider.ProjectAsync(
+                dockerHost,
+                new ResourceOperationResolution(
+                    DockerHostResourceTypeProvider.Operations.Inspect,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        dockerHost,
+                        [dockerHost]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Docker Host inspector", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ContainerHostInspectOperation_DispatchesInspectInstruction()
     {
         var containerHost = CreateGraphResource("cloudshell.container-host:local", "local", revision: 49);

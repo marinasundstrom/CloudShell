@@ -877,6 +877,10 @@ Common optional attributes:
 - `container.registry`
 - `docker.host.default`
 
+The `docker.host.inspect` operation requires a Docker Host inspector; type
+registration alone projects the operation but marks it unavailable with a
+missing-inspector reason until the runtime adapter is registered.
+
 ```yaml
 resources:
   - type: docker.host

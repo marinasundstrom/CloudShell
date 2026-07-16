@@ -5,11 +5,13 @@ public sealed class DockerHostInspectOperationProvider :
     IResourceOperationProjector
 {
     private readonly IProviderExecutionDispatcher _dispatcher;
+    private readonly IDockerHostInspector? _inspector;
 
     public DockerHostInspectOperationProvider(
         IDockerHostInspector? inspector = null,
         IProviderExecutionDispatcher? dispatcher = null)
     {
+        _inspector = inspector;
         _dispatcher = dispatcher ?? new InProcessProviderExecutionDispatcher(
             [
                 new DockerHostInspectExecutionHandler(inspector)
@@ -49,13 +51,20 @@ public sealed class DockerHostInspectOperationProvider :
             new DockerHostInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        DockerHostInspectorReadiness.IsMissing(_inspector)
+            ? DockerHostInspectorReadiness.CreateMissingReason(resource)
+            : null;
 }
 
 public sealed class DockerHostInspectOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -67,9 +76,14 @@ public sealed class DockerHostInspectOperation(
 
     public ResourceOperationId OperationId => DockerHostResourceTypeProvider.Operations.Inspect;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>
