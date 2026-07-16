@@ -81,6 +81,10 @@ CloudShell Docker containers were left running.
   readiness for network, virtual-network, local host-network, and macOS
   host-network resources before dispatch and returns matching
   provider-execution diagnostics if invoked directly.
+- Graph-backed volume provisioning now reports missing provisioner readiness
+  for `cloudshell.volume` and the older `storage.volume` local-volume type
+  before dispatch and returns matching provider-execution diagnostics if
+  invoked directly.
 
 ## Active Tie-Off Order
 

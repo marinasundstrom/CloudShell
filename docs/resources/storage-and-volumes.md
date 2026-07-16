@@ -73,6 +73,12 @@ Current operation:
 
 - `storage.volume.provision`
 
+Volume provisioning uses the provider-execution boundary. `cloudshell.volume`
+and the older `storage.volume` local-volume type keep valid declarations when
+no concrete provisioner is registered, but the projected provision action is
+unavailable with a missing-provisioner reason. Direct provider-execution calls
+return the same diagnostic instead of reporting a silent no-op success.
+
 Access modes use `StorageVolumeAccessMode` in builders and project to the
 volume attributes. The current default is `ReadWriteOnce`.
 

@@ -49,6 +49,10 @@ on `git blame --follow`, and then by the broad type of change.
   resources when no reconciler is registered, and to project the same
   missing-reconciler reason as the operation unavailable reason before
   dispatch.
+- Changed graph-backed volume provisioning to fail closed for
+  `cloudshell.volume` and the older `storage.volume` local-volume type when no
+  provisioner is registered, and to project the same missing-provisioner reason
+  as the operation unavailable reason before dispatch.
 
 ### 2026-07-15
 

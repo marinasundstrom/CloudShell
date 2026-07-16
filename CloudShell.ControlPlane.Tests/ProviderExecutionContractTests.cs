@@ -1079,6 +1079,30 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task LocalVolumeProvisionHandler_FailsWhenProvisionerIsMissing()
+    {
+        var volume = CreateGraphResource("volume:data", "data");
+        var handler = new LocalVolumeProvisionExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.FileSystemProvision,
+            TargetResourceId = volume.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "volume:data:1",
+            TargetResourceSnapshot = volume,
+            ResourceSnapshot = [volume]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("storage.volume.provisionerMissing", diagnostic.Code);
+        Assert.Equal(volume.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task SqlServerReconcileAccessOperation_DispatchesAccessReconcileInstruction()
     {
         var sqlServer = CreateGraphResource("sql-server:app", "app", revision: 4);
@@ -1354,6 +1378,30 @@ public sealed class ProviderExecutionContractTests
         Assert.Equal(ProviderExecutionStatus.Succeeded, result.Status);
         Assert.Equal([diagnostic], result.Diagnostics);
         Assert.Same(volume, Assert.Single(provisioner.Invocations));
+    }
+
+    [Fact]
+    public async Task CloudShellVolumeProvisionHandler_FailsWhenProvisionerIsMissing()
+    {
+        var volume = CreateGraphResource("volume:data", "data");
+        var handler = new CloudShellVolumeProvisionExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.StorageVolumeProvision,
+            TargetResourceId = volume.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "volume:data:provision:1",
+            TargetResourceSnapshot = volume,
+            ResourceSnapshot = [volume]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("cloudshell.volume.provisionerMissing", diagnostic.Code);
+        Assert.Equal(volume.EffectiveResourceId, diagnostic.Target);
     }
 
     [Fact]

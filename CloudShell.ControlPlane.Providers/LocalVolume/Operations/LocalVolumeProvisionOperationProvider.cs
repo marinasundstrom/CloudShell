@@ -5,11 +5,13 @@ public sealed class LocalVolumeProvisionOperationProvider :
     IResourceOperationProjector
 {
     private readonly IProviderExecutionDispatcher _dispatcher;
+    private readonly ILocalVolumeProvisioner? _provisioner;
 
     public LocalVolumeProvisionOperationProvider(
         IProviderExecutionDispatcher? dispatcher = null,
         ILocalVolumeProvisioner? provisioner = null)
     {
+        _provisioner = provisioner;
         _dispatcher = dispatcher ??
             new InProcessProviderExecutionDispatcher(
                 [new LocalVolumeProvisionExecutionHandler(provisioner)]);
@@ -62,13 +64,20 @@ public sealed class LocalVolumeProvisionOperationProvider :
             new LocalVolumeProvisionOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        LocalVolumeProvisionerReadiness.IsMissing(_provisioner)
+            ? LocalVolumeProvisionerReadiness.CreateMissingReason(resource)
+            : null;
 }
 
 public sealed class LocalVolumeProvisionOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -80,11 +89,16 @@ public sealed class LocalVolumeProvisionOperation(
 
     public ResourceOperationId OperationId => LocalVolumeResourceTypeProvider.Operations.Provision;
 
-    public bool IsAvailable => Definition.IsAvailable && HasRequiredState(Resource);
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        HasRequiredState(Resource) &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason =>
-        Definition.UnavailableReason ??
-        (HasRequiredState(Resource) ? null : "A local volume requires a storage medium.");
+    public string? UnavailableReason { get; } =
+        operation.UnavailableReason ??
+        (HasRequiredState(context.Resource)
+            ? unavailableReason
+            : "A local volume requires a storage medium.");
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

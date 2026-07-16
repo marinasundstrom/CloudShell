@@ -452,7 +452,7 @@ public sealed class ResourceProviderDispatcherTests
         var provision = await projection.GetProvisionOperationAsync();
 
         Assert.NotNull(provision);
-        Assert.True(await provision.CanExecuteAsync());
+        Assert.False(await provision.CanExecuteAsync());
     }
 
     [Fact]
@@ -582,7 +582,7 @@ public sealed class ResourceProviderDispatcherTests
         var provision = await projection.GetProvisionOperationAsync();
 
         Assert.NotNull(provision);
-        Assert.True(await provision.CanExecuteAsync());
+        Assert.False(await provision.CanExecuteAsync());
         Assert.Equal("FileSystem", provision.PlanProvision().StorageMedium);
         Assert.Equal([storage.EffectiveResourceId], provision.PlanProvision().References.Select(reference => reference.Value));
     }

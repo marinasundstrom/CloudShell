@@ -6,6 +6,8 @@ public sealed class CloudShellVolumeProvisionOperationProvider(
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly ICloudShellVolumeProvisioner? _provisioner = provisioner;
+
     private readonly IProviderExecutionDispatcher _dispatcher =
         dispatcher ?? new InProcessProviderExecutionDispatcher(
             [new CloudShellVolumeProvisionExecutionHandler(provisioner)]);
@@ -57,13 +59,20 @@ public sealed class CloudShellVolumeProvisionOperationProvider(
             new CloudShellVolumeProvisionOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        CloudShellVolumeProvisionerReadiness.IsMissing(_provisioner)
+            ? CloudShellVolumeProvisionerReadiness.CreateMissingReason(resource)
+            : null;
 }
 
 public sealed class CloudShellVolumeProvisionOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -75,11 +84,16 @@ public sealed class CloudShellVolumeProvisionOperation(
 
     public ResourceOperationId OperationId => CloudShellVolumeResourceTypeProvider.Operations.Provision;
 
-    public bool IsAvailable => Definition.IsAvailable && HasRequiredState(Resource);
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        HasRequiredState(Resource) &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason =>
-        Definition.UnavailableReason ??
-        (HasRequiredState(Resource) ? null : "A volume requires a storage medium.");
+    public string? UnavailableReason { get; } =
+        operation.UnavailableReason ??
+        (HasRequiredState(context.Resource)
+            ? unavailableReason
+            : "A volume requires a storage medium.");
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>
