@@ -83,6 +83,13 @@ instead of failing later during `dotnet build`.
 The configured working directory must also exist before Start or Restart can
 dispatch.
 
+Lifecycle actions also require a .NET app runtime controller. The built-in
+provider registration supplies the local process runtime controller for normal
+hosts. If a custom or direct operation path is constructed without that
+controller, Resource Manager projects lifecycle actions as unavailable with a
+missing-controller reason, and direct provider-execution calls return the same
+readiness failure as a diagnostic instead of succeeding as a no-op.
+
 Pass `hotReload: true` to opt into `dotnet watch`. When hot reload is enabled,
 CloudShell starts watch mode with `--non-interactive` and sets
 `DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true`, so rude edits restart the app instead

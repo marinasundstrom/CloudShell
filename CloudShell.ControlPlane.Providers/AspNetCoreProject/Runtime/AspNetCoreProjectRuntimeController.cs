@@ -745,7 +745,10 @@ public sealed class NoopAspNetCoreProjectRuntimeController :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            AspNetCoreProjectRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
 
     public IReadOnlyList<AspNetCoreProjectRuntimeOutputEntry> ReadOutput(
         string resourceId,
@@ -757,6 +760,25 @@ public sealed class NoopAspNetCoreProjectRuntimeController :
         string resourceId,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+}
+
+internal static class AspNetCoreProjectRuntimeReadiness
+{
+    public const string DiagnosticCode = "application.aspNetCoreProject.runtimeControllerMissing";
+
+    public static bool IsMissing(IAspNetCoreProjectRuntimeController? runtimeController) =>
+        runtimeController is null or NoopAspNetCoreProjectRuntimeController;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"ASP.NET Core project resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no ASP.NET Core project runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }
 
 public static class AspNetCoreProjectEnvironmentNames

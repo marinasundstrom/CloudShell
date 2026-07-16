@@ -1550,6 +1550,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task AspNetCoreProjectLifecycleHandler_FailsWhenRuntimeControllerIsMissing()
+    {
+        var project = CreateGraphResource("application:api", "api");
+        var handler = new AspNetCoreProjectStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.AspNetCoreProjectStart,
+            TargetResourceId = project.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application:api:start:1",
+            TargetResourceSnapshot = project,
+            ResourceSnapshot = [project]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.aspNetCoreProject.runtimeControllerMissing", diagnostic.Code);
+        Assert.Equal(project.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task AspNetCoreProjectLifecycleOperationProvider_ProjectsUnavailableWithoutRuntimeController()
+    {
+        var project = CreateGraphResource("application:api", "api");
+        var provider = new AspNetCoreProjectStartOperationProvider();
+
+        var projection = Assert.IsType<AspNetCoreProjectLifecycleOperation>(
+            await provider.ProjectAsync(
+                project,
+                new ResourceOperationResolution(
+                    AspNetCoreProjectResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        project,
+                        [project]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no ASP.NET Core project runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task JavaScriptAppLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var app = CreateGraphResource("application.javascript-app:frontend", "frontend", revision: 19);
