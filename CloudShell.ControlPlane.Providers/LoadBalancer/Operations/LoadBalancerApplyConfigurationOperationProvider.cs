@@ -6,6 +6,8 @@ public sealed class LoadBalancerApplyConfigurationOperationProvider(
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly ILoadBalancerConfigurationApplier? _configurationApplier =
+        configurationApplier;
     private readonly IProviderExecutionDispatcher _dispatcher =
         dispatcher ?? new InProcessProviderExecutionDispatcher(
             [new LoadBalancerConfigurationApplyExecutionHandler(configurationApplier)]);
@@ -43,13 +45,21 @@ public sealed class LoadBalancerApplyConfigurationOperationProvider(
             new LoadBalancerApplyConfigurationOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        LoadBalancerConfigurationApplierReadiness.IsMissing(_configurationApplier)
+            ? LoadBalancerConfigurationApplierReadiness
+                .CreateMissingConfigurationApplierReason(resource)
+            : null;
 }
 
 public sealed class LoadBalancerApplyConfigurationOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -61,9 +71,10 @@ public sealed class LoadBalancerApplyConfigurationOperation(
 
     public ResourceOperationId OperationId => LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable && string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason => Definition.UnavailableReason ?? unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

@@ -1163,7 +1163,10 @@ public sealed class ResourceProviderDispatcherTests
         var apply = await projection.GetApplyConfigurationOperationAsync();
 
         Assert.NotNull(apply);
-        Assert.True(await apply.CanExecuteAsync());
+        Assert.False(await apply.CanExecuteAsync());
+        Assert.Contains(
+            "No load-balancer configuration applier is registered for provider 'traefik'.",
+            apply.UnavailableReason);
         Assert.Equal(0, apply.PlanApply().RouteCount);
     }
 

@@ -172,6 +172,9 @@ registered `ILoadBalancerConfigurationApplier` for the selected provider
 resolves the route targets and writes provider-owned configuration. If no
 configuration applier is registered, apply fails with a provider-execution
 diagnostic instead of reporting a silent no-op success.
+Resource Manager also projects the apply operation as unavailable with that
+same reason before dispatch, so a missing load-balancer provider package is a
+readiness problem rather than a successful no-op.
 
 Load-balancer setup validates route shape before persisting the resource:
 entrypoint names and route IDs must be unique after normalization, routes must

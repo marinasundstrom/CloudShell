@@ -38,6 +38,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed graph-backed load-balancer apply to fail with a provider-execution
   diagnostic when no configuration applier is registered instead of reporting
   a silent no-op success.
+- Changed graph-backed load-balancer apply readiness so the projected
+  operation is unavailable with the same missing configuration-applier reason
+  before dispatch when no provider package is registered.
 
 ### 2026-07-15
 

@@ -8,13 +8,17 @@ public interface ILoadBalancerConfigurationApplier
         CancellationToken cancellationToken = default);
 }
 
-public sealed class NoopLoadBalancerConfigurationApplier :
-    ILoadBalancerConfigurationApplier
+internal static class LoadBalancerConfigurationApplierReadiness
 {
-    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
-        Resource resource,
-        ResourceProjectionExecutionContext context,
-        CancellationToken cancellationToken = default)
+    public const string MissingConfigurationApplierDiagnosticCode =
+        "network.loadBalancer.configurationApplierMissing";
+
+    public static bool IsMissing(
+        ILoadBalancerConfigurationApplier? configurationApplier) =>
+        configurationApplier is null or NoopLoadBalancerConfigurationApplier;
+
+    public static string CreateMissingConfigurationApplierReason(
+        Resource resource)
     {
         var provider = resource.Attributes.GetString(
             LoadBalancerResourceTypeProvider.Attributes.Provider);
@@ -22,12 +26,28 @@ public sealed class NoopLoadBalancerConfigurationApplier :
             ? "No load-balancer configuration applier is registered."
             : $"No load-balancer configuration applier is registered for provider '{provider}'.";
 
-        return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
-        [
-            ResourceDefinitionDiagnostic.Error(
-                "network.loadBalancer.configurationApplierMissing",
-                $"{providerDetail} Register a load-balancer provider package before applying configuration for resource '{resource.Name}' ({resource.EffectiveResourceId}).",
-                resource.EffectiveResourceId)
-        ]);
+        return $"{providerDetail} Register a load-balancer provider package before applying configuration for resource '{resource.Name}' ({resource.EffectiveResourceId}).";
     }
+
+    public static ResourceDefinitionDiagnostic CreateMissingConfigurationApplierDiagnostic(
+        Resource resource) =>
+        ResourceDefinitionDiagnostic.Error(
+            MissingConfigurationApplierDiagnosticCode,
+            CreateMissingConfigurationApplierReason(resource),
+            resource.EffectiveResourceId);
+}
+
+public sealed class NoopLoadBalancerConfigurationApplier :
+    ILoadBalancerConfigurationApplier
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
+        Resource resource,
+        ResourceProjectionExecutionContext context,
+        CancellationToken cancellationToken = default)
+    =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            LoadBalancerConfigurationApplierReadiness
+                .CreateMissingConfigurationApplierDiagnostic(resource)
+        ]);
 }

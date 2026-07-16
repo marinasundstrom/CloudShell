@@ -642,7 +642,8 @@ out of the execution handler. This keeps MVP routing readiness visible through
 the same operation result shape that future agent-backed execution will report.
 If no graph-backed load-balancer configuration applier is registered, the
 default execution handler reports a provider-execution diagnostic instead of a
-successful no-op.
+successful no-op. The projected apply operation uses the same missing-applier
+reason as its unavailable reason before dispatch.
 
 ## References
 

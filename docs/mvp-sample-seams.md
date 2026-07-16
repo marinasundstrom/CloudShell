@@ -71,6 +71,9 @@ CloudShell Docker containers were left running.
 - Graph-backed load-balancer apply now reports a provider-execution diagnostic
   when no configuration applier is registered, so missing provider packages do
   not look like successful configuration writes.
+- Graph-backed load-balancer apply readiness now uses the same missing
+  configuration-applier reason before dispatch, keeping Resource Manager
+  action state aligned with execution diagnostics.
 
 ## Active Tie-Off Order
 
