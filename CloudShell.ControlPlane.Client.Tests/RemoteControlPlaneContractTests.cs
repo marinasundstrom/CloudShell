@@ -286,6 +286,22 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_MapsActionCapabilityUnavailableReasons()
+    {
+        await using var app = await CreateAppAsync(includeLifecycleResource: true);
+        var controlPlane = CreateClient(app);
+
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync(
+            [ContractLifecycleResourceProvider.ResourceId]);
+
+        var lifecycleCapabilities = Assert.Single(capabilities).Value;
+        Assert.False(lifecycleCapabilities.CanExecuteAction(ResourceActionIds.Stop));
+        Assert.Equal(
+            "Provider 'Contract Lifecycle' does not support action 'Stop' for resource 'Contract Lifecycle'.",
+            lifecycleCapabilities.GetActionUnavailableReason(ResourceActionIds.Stop));
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_MapsResourcesWithoutLifecycleState()
     {
         await using var app = await CreateAppAsync(includeStatelessResource: true);
@@ -1551,6 +1567,22 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(
             "Resource 'contract:lifecycle' does not expose action 'missing'.",
             exception.Message);
+    }
+
+    [Fact]
+    public async Task ControlPlaneApi_ReturnsProblemForUnsupportedProviderAction()
+    {
+        await using var app = await CreateAppAsync(includeLifecycleResource: true);
+        var client = app.GetTestClient();
+
+        var response = await client.PostAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(ContractLifecycleResourceProvider.ResourceId)}/actions/stop",
+            null);
+
+        await AssertProblemAsync(
+            response,
+            "Provider 'Contract Lifecycle' does not support action 'Stop' for resource 'Contract Lifecycle'.",
+            ControlPlaneErrorCodes.ResourceActionUnsupported);
     }
 
     [Fact]
