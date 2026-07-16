@@ -140,7 +140,16 @@ public sealed class ResourceModelGraphEndpointMappingReconciler(
                 $"Endpoint mapping '{mapping.Id}' requires provider resource '{provider.Id}', but no endpoint mapping provisioner can materialize it. {FormatProvisionerCount()}");
         }
 
-        await provisioner.ProvisionEndpointMappingAsync(provisioningContext, cancellationToken);
+        var result = await provisioner.ProvisionEndpointMappingAsync(provisioningContext, cancellationToken);
+        var errors = result.Signals
+            .Where(signal => signal.Severity == ResourceSignalSeverity.Error)
+            .ToArray();
+        if (errors.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Endpoint mapping '{mapping.Id}' provider resource '{provider.Id}' reported provisioning error. {FormatProcedureResult(result, errors)}");
+        }
+
         return true;
     }
 
@@ -252,6 +261,31 @@ public sealed class ResourceModelGraphEndpointMappingReconciler(
         endpointMappingProvisioners.Count == 0
             ? "No endpoint mapping provisioners are registered."
             : $"Registered endpoint mapping provisioners: {endpointMappingProvisioners.Count}.";
+
+    private static string FormatProcedureResult(
+        ResourceProcedureResult result,
+        IReadOnlyList<ResourceProcedureSignal> errors)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(result.Message))
+        {
+            parts.Add($"Result: {result.Message.Trim()}");
+        }
+
+        var errorMessages = errors
+            .Select(error => error.Message)
+            .Where(message => !string.IsNullOrWhiteSpace(message))
+            .Select(message => message.Trim())
+            .ToArray();
+        if (errorMessages.Length > 0)
+        {
+            parts.Add($"Errors: {string.Join(" ", errorMessages)}");
+        }
+
+        return parts.Count == 0
+            ? "No additional provider details were returned."
+            : string.Join(" ", parts);
+    }
 
     private static string FormatAvailableEndpointNames(
         ResourceManagerResource resource)

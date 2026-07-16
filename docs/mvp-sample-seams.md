@@ -62,6 +62,9 @@ CloudShell Docker containers were left running.
 - Local Docker container app runtime failures now include the runtime
   operation and target resource for lifecycle, image, replica, and orchestrator
   paths while preserving the original provider error details.
+- Endpoint-mapping reconciliation now turns provider-returned error signals
+  into operation diagnostics instead of reporting those mappings as
+  successfully provisioned.
 
 ## Active Tie-Off Order
 

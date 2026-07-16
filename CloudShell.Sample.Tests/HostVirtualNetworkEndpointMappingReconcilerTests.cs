@@ -207,6 +207,70 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
         Assert.Contains($"Available endpoint mapper resources: '{hostNetworkingResourceId}', '{networkResourceId}'.", diagnostic.Message);
     }
 
+    [Fact]
+    public async Task ReconcileEndpointMappings_ReportsProvisionerErrorSignals()
+    {
+        const string hostNetworkingResourceId = "cloudshell.hostNetworking.local:host-local";
+        const string apiResourceId = "application.dotnet-app:vnet-api";
+        const string networkResourceId = "cloudshell.virtualNetwork:sample-vnet";
+        var provisioner = new RecordingEndpointMappingProvisioner(
+            new ResourceProcedureResult(
+                "Provisioner could not start the local proxy.",
+                signals:
+                [
+                    ResourceProcedureSignal.Error("The requested public port is already in use.")
+                ]));
+        using var serviceProvider = CreateServiceProvider(provisioner);
+        var graph = new ResourceGraphBuilder();
+        var hostNetwork = graph
+            .AddLocalHostNetwork("host-local")
+            .WithResourceId(hostNetworkingResourceId);
+        var api = graph
+            .AddDotnetProject(
+                "vnet-api",
+                "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+            .WithResourceId(apiResourceId)
+            .AddEndpointRequest(
+                "http",
+                "http",
+                host: "localhost",
+                port: 5291,
+                exposure: "Local");
+
+        graph
+            .AddVirtualNetwork("sample-vnet")
+            .WithResourceId(networkResourceId)
+            .DependsOn(hostNetwork)
+            .DependsOn(api)
+            .AsDefault()
+            .WithMappingProviders(hostNetworkingResourceId)
+            .AddEndpoint(
+                "api-public",
+                "http",
+                5292,
+                "Public")
+            .MapEndpoint(
+                "api-public",
+                api,
+                "http",
+                hostNetwork,
+                "mapping:api-public",
+                "API public ingress");
+
+        await ApplyTemplateAsync(serviceProvider, graph);
+
+        var execution = await ExecuteReconcileEndpointMappingsAsync(
+            serviceProvider,
+            networkResourceId);
+
+        var diagnostic = Assert.Single(execution.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("network.endpointMappingProvisioningFailed", diagnostic.Code);
+        Assert.Contains("provider resource 'cloudshell.hostNetworking.local:host-local' reported provisioning error", diagnostic.Message);
+        Assert.Contains("Result: Provisioner could not start the local proxy.", diagnostic.Message);
+        Assert.Contains("Errors: The requested public port is already in use.", diagnostic.Message);
+    }
+
     private static string FormatDiagnostics(
         IEnumerable<ResourceDefinitionDiagnostic> diagnostics) =>
         string.Join(
@@ -268,7 +332,8 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
         return await operation.ExecuteAsync();
     }
 
-    private sealed class RecordingEndpointMappingProvisioner : IResourceEndpointMappingProvisioner
+    private sealed class RecordingEndpointMappingProvisioner(
+        ResourceProcedureResult? result = null) : IResourceEndpointMappingProvisioner
     {
         public List<ResourceEndpointMappingProvisioningContext> Contexts { get; } = [];
 
@@ -281,7 +346,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
             CancellationToken cancellationToken = default)
         {
             Contexts.Add(context);
-            return Task.FromResult(ResourceProcedureResult.Completed(
+            return Task.FromResult(result ?? ResourceProcedureResult.Completed(
                 $"Recorded endpoint mapping '{context.Mapping.Id}'."));
         }
     }
