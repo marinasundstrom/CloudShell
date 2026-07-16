@@ -20,6 +20,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved resource action capability and unsupported-action errors so
   resources whose providers do not implement procedure execution report the
   provider name, action display name, and resource label before dispatch.
+- Improved local Docker container app runtime failure diagnostics so lifecycle,
+  image, replica, and orchestrator paths include the runtime operation and
+  target resource while preserving provider error details.
 
 ### 2026-07-15
 

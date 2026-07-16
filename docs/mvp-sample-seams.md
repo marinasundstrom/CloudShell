@@ -59,6 +59,9 @@ CloudShell Docker containers were left running.
   when a resource advertises an action but the provider does not support
   procedure execution, improving disabled-action titles and readiness
   diagnostics before dispatch.
+- Local Docker container app runtime failures now include the runtime
+  operation and target resource for lifecycle, image, replica, and orchestrator
+  paths while preserving the original provider error details.
 
 ## Active Tie-Off Order
 

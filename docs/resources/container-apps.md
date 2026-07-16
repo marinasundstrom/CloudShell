@@ -598,6 +598,12 @@ an operation. Missing hosts, missing credentials, unsupported capabilities, and
 occupied local ports should appear as action capability reasons or diagnostics
 instead of provider exception text.
 
+Local Docker runtime failures keep provider details such as publish, build,
+Docker, or Traefik errors, but wrap them with the runtime operation and target
+resource so lifecycle, image rollout, replica scaling, and orchestrator
+routing failures can be traced back to the container app path that produced
+them.
+
 The Scale and replicas tab is diagnostic as well as mutating. It renders
 requested replica slots first, polls for changes while the app is running, and
 shows materialized runtime replicas, repair/unhealthy state, and last result

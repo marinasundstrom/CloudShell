@@ -91,7 +91,9 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal("localDockerContainerApplication.runtimeFailed", diagnostic.Code);
-        Assert.Equal("publish timed out", diagnostic.Message);
+        Assert.Contains("starting the app", diagnostic.Message);
+        Assert.Contains(LocalDockerContainerApplicationRuntimeConventions.ApiResourceId, diagnostic.Message);
+        Assert.Contains("publish timed out", diagnostic.Message);
         var command = Assert.Single(commandRunner.Commands);
         Assert.Equal("dotnet", command.FileName);
         Assert.Equal("publish", command.Arguments[0]);
@@ -257,6 +259,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("localDockerContainerApplication.runtimeFailed", diagnostic.Code);
+        Assert.Contains("starting the app", diagnostic.Message);
+        Assert.Contains(LocalDockerContainerApplicationRuntimeConventions.ApiResourceId, diagnostic.Message);
         Assert.Contains("replica failed", diagnostic.Message);
         Assert.Collection(
             commandRunner.Commands,

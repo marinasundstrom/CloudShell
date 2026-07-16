@@ -169,6 +169,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         CancellationToken cancellationToken = default)
     {
         var definition = ResolveDefinition(resource);
+        var operationDescription = DescribeLifecycleOperation(operationId);
         try
         {
             switch (operationId.ToString())
@@ -195,7 +196,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
         catch (Exception exception)
         {
-            return [RuntimeFailed(resource, exception)];
+            return [RuntimeFailed(resource, operationDescription, exception)];
         }
     }
 
@@ -253,7 +254,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
         catch (Exception exception)
         {
-            return [RuntimeFailed(resource, exception)];
+            return [RuntimeFailed(resource, "applying image changes", exception)];
         }
     }
 
@@ -316,7 +317,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
         catch (Exception exception)
         {
-            return [RuntimeFailed(resource, exception)];
+            return [RuntimeFailed(resource, "applying replica changes", exception)];
         }
     }
 
@@ -336,7 +337,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
         catch (Exception exception)
         {
-            return [RuntimeFailed(resource, exception)];
+            return [RuntimeFailed(resource, "preparing orchestrator service runtime", exception)];
         }
     }
 
@@ -362,7 +363,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
         catch (Exception exception)
         {
-            return [RuntimeFailed(resource, exception)];
+            return [RuntimeFailed(resource, "reconciling orchestrator service routing", exception)];
         }
     }
 
@@ -382,7 +383,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
         catch (Exception exception)
         {
-            return [RuntimeFailed(resource, exception)];
+            return [RuntimeFailed(resource, "tearing down orchestrator service routing", exception)];
         }
     }
 
@@ -425,7 +426,10 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
         catch (Exception exception)
         {
-            return [RuntimeFailed(resource, exception)];
+            return [RuntimeFailed(
+                resource,
+                $"executing orchestrator service instance action '{action.Id}'",
+                exception)];
         }
     }
 
@@ -1299,12 +1303,22 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         return (image[..separator], image[(separator + 1)..]);
     }
 
+    private static string DescribeLifecycleOperation(ResourceOperationId operationId) =>
+        operationId.ToString() switch
+        {
+            ResourceActionIds.Start => "starting the app",
+            ResourceActionIds.Stop => "stopping the app",
+            ResourceActionIds.Restart => "restarting the app",
+            _ => $"executing resource operation '{operationId}'"
+        };
+
     private static ResourceDefinitionDiagnostic RuntimeFailed(
         GraphResource resource,
+        string operationDescription,
         Exception exception) =>
         ResourceDefinitionDiagnostic.Error(
             "localDockerContainerApplication.runtimeFailed",
-            exception.Message,
+            $"Local Docker container app runtime failed while {operationDescription} for '{resource.EffectiveResourceId}': {exception.Message}",
             resource.EffectiveResourceId);
 
     private sealed record RuntimeStatusProbeResult(
