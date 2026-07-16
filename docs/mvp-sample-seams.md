@@ -55,6 +55,10 @@ CloudShell Docker containers were left running.
 - Name-mapping generated links now honor explicit target endpoint names: if the
   declared endpoint is missing, Resource Manager does not synthesize a link
   from the target resource's first endpoint.
+- Resource action capabilities now report the provider, action, and resource
+  when a resource advertises an action but the provider does not support
+  procedure execution, improving disabled-action titles and readiness
+  diagnostics before dispatch.
 
 ## Active Tie-Off Order
 

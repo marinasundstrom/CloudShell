@@ -191,3 +191,9 @@ resource can provide. Resource action capabilities are returned through
 `ResourceOperationCapabilities` and describe whether a specific resource action
 can execute now, including authorization, state, provider support, dependency
 warnings, and unavailable reasons.
+
+When a resource advertises an action but its registered provider cannot execute
+resource procedures, the action capability reason names the provider, action,
+and resource before dispatch. Resource Manager uses that reason for disabled
+action titles and readiness diagnostics, and the Control Plane API returns the
+same unsupported-action message if a caller invokes the action anyway.

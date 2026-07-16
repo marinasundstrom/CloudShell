@@ -237,6 +237,24 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Empty(provider.ExecutedActions);
     }
 
+    [Fact]
+    public async Task GetResourceOperationCapabilities_ReturnsUnsupportedProviderActionReason()
+    {
+        var resource = CreateResource("target", ResourceState.Running);
+        var controlPlane = CreateControlPlane(
+            [resource],
+            new TestReadOnlyResourceProvider());
+
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync([resource.Id]);
+
+        var capability = Assert.Single(capabilities).Value;
+        Assert.False(capability.CanExecuteAction(ResourceActionIds.Stop));
+        Assert.Equal(
+            "Provider 'Test' does not support action 'Stop' for resource 'target'.",
+            capability.GetActionUnavailableReason(ResourceActionIds.Stop));
+        Assert.DoesNotContain(ResourceActionIds.Stop, capability.ExecutableActionIds);
+    }
+
     [Theory]
     [InlineData(ResourceState.Running, ResourceActionIds.Start)]
     [InlineData(ResourceState.Stopping, ResourceActionIds.Start)]
@@ -344,7 +362,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Stop)));
 
         Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnsupported, exception.Error.Code);
-        Assert.Equal("Resource 'target' does not support actions.", exception.Message);
+        Assert.Equal("Provider 'Test' does not support action 'Stop' for resource 'target'.", exception.Message);
     }
 
     [Fact]

@@ -684,7 +684,10 @@ public sealed class InProcessControlPlane(
 
         if (GetProcedureProvider(resource) is null)
         {
-            throw new ControlPlaneException(ControlPlaneError.ResourceActionUnsupported(resource.Name));
+            throw new ControlPlaneException(ControlPlaneError.ResourceActionUnsupported(
+                ResourceDisplayLabels.GetName(resource),
+                resource.Provider,
+                action.DisplayName));
         }
 
         var unavailableReason = GetActionUnavailableReason(resource, action);
@@ -3200,7 +3203,7 @@ public sealed class InProcessControlPlane(
             return new ResourceActionCapability(
                 action.Id,
                 false,
-                "The resource provider does not support procedures.");
+                FormatActionUnsupportedReason(resource, action));
         }
 
         var unavailableReason = GetActionUnavailableReason(resource, action);
@@ -3449,6 +3452,11 @@ public sealed class InProcessControlPlane(
         string.Equals(permission, CloudShellPermissions.Resources.Manage, StringComparison.OrdinalIgnoreCase)
             ? permission
             : $"{permission}' or '{CloudShellPermissions.Resources.Manage}";
+
+    private static string FormatActionUnsupportedReason(
+        Resource resource,
+        ResourceAction action) =>
+        $"Provider '{resource.Provider}' does not support action '{action.DisplayName}' for resource '{ResourceDisplayLabels.GetName(resource)}'.";
 
     private static string? GetActionUnavailableReason(
         Resource resource,

@@ -43,6 +43,14 @@ public sealed record ControlPlaneError(
             ControlPlaneErrorCodes.ResourceActionUnsupported,
             $"Resource '{resourceName}' does not support actions.");
 
+    public static ControlPlaneError ResourceActionUnsupported(
+        string resourceName,
+        string providerName,
+        string actionName) =>
+        new(
+            ControlPlaneErrorCodes.ResourceActionUnsupported,
+            $"Provider '{providerName}' does not support action '{actionName}' for resource '{resourceName}'.");
+
     public static ControlPlaneError ResourceDeleteUnsupported(string resourceName) =>
         new(
             ControlPlaneErrorCodes.ResourceDeleteUnsupported,
