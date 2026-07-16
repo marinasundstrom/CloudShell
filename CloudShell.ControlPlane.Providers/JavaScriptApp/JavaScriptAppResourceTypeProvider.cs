@@ -15,15 +15,15 @@ public sealed class JavaScriptAppResourceTypeProvider :
 
     public static class Attributes
     {
-        public static readonly ResourceAttributeId ProjectPath = "project.path";
-        public static readonly ResourceAttributeId Engine = "javascript.engine";
-        public static readonly ResourceAttributeId PackageManager = "javascript.packageManager";
-        public static readonly ResourceAttributeId Script = "javascript.script";
-        public static readonly ResourceAttributeId Arguments = "javascript.arguments";
-        public static readonly ResourceAttributeId EndpointRequests = "project.endpointRequests";
-        public static readonly ResourceAttributeId EnvironmentVariables = "project.environmentVariables";
-        public static readonly ResourceAttributeId ServiceDiscoveryName = "project.serviceDiscoveryName";
-        public static readonly ResourceAttributeId References = "project.references";
+        public static readonly ResourceAttributeId ProjectPath = "javascript-app:project.path";
+        public static readonly ResourceAttributeId Runtime = "javascript-app:runtime";
+        public static readonly ResourceAttributeId PackageManager = "javascript-app:packageManager";
+        public static readonly ResourceAttributeId Script = "javascript-app:script";
+        public static readonly ResourceAttributeId Arguments = "javascript-app:arguments";
+        public static readonly ResourceAttributeId EndpointRequests = "javascript-app:project.endpointRequests";
+        public static readonly ResourceAttributeId EnvironmentVariables = "javascript-app:project.environmentVariables";
+        public static readonly ResourceAttributeId ServiceDiscoveryName = "javascript-app:project.serviceDiscoveryName";
+        public static readonly ResourceAttributeId References = "javascript-app:project.references";
     }
 
     public static class Operations
@@ -42,6 +42,7 @@ public sealed class JavaScriptAppResourceTypeProvider :
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
             [Attributes.ProjectPath] = new(
+                Path: "project.path",
                 ValueType: ResourceAttributeValueType.String),
             [ApplicationArtifactAttributeIds.SourceKind] = new(
                 ValueType: ResourceAttributeValueType.String),
@@ -51,27 +52,35 @@ public sealed class JavaScriptAppResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.Boolean),
             [ApplicationArtifactAttributeIds.Source] = new(
                 ValueType: ResourceAttributeValueType.ComplexType),
-            [Attributes.Engine] = new(
+            [Attributes.Runtime] = new(
                 DefaultValue: "node",
+                Path: "runtime",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.PackageManager] = new(
                 DefaultValue: "npm",
+                Path: "packageManager",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Script] = new(
                 DefaultValue: "dev",
+                Path: "script",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Arguments] = new(
+                Path: "arguments",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
+                path: "project.endpointRequests"),
             [Attributes.EnvironmentVariables] = new(
                 Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
+                Path: "project.environmentVariables",
                 ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ServiceDiscoveryName] = new(
+                Path: "project.serviceDiscoveryName",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.References] = ResourceAttributeDefinition.Collection(
-                itemType: ResourceAttributeValueType.ResourceReference)
+                itemType: ResourceAttributeValueType.ResourceReference,
+                path: "project.references")
         },
         Capabilities:
         [

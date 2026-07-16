@@ -15,19 +15,19 @@ public sealed class JavaAppResourceTypeProvider :
 
     public static class Attributes
     {
-        public static readonly ResourceAttributeId ProjectPath = "project.path";
-        public static readonly ResourceAttributeId Command = "java.command";
-        public static readonly ResourceAttributeId BuildTool = "java.buildTool";
-        public static readonly ResourceAttributeId BuildArguments = "java.buildArguments";
-        public static readonly ResourceAttributeId ArtifactPath = "java.artifactPath";
-        public static readonly ResourceAttributeId MainClass = "java.mainClass";
-        public static readonly ResourceAttributeId ClassPath = "java.classPath";
-        public static readonly ResourceAttributeId JvmArguments = "java.jvmArguments";
-        public static readonly ResourceAttributeId Arguments = "java.arguments";
-        public static readonly ResourceAttributeId EndpointRequests = "project.endpointRequests";
-        public static readonly ResourceAttributeId EnvironmentVariables = "project.environmentVariables";
-        public static readonly ResourceAttributeId ServiceDiscoveryName = "project.serviceDiscoveryName";
-        public static readonly ResourceAttributeId References = "project.references";
+        public static readonly ResourceAttributeId ProjectPath = "java-app:project.path";
+        public static readonly ResourceAttributeId Command = "java-app:command";
+        public static readonly ResourceAttributeId BuildTool = "java-app:buildTool";
+        public static readonly ResourceAttributeId BuildArguments = "java-app:buildArguments";
+        public static readonly ResourceAttributeId ArtifactPath = "java-app:artifactPath";
+        public static readonly ResourceAttributeId MainClass = "java-app:mainClass";
+        public static readonly ResourceAttributeId ClassPath = "java-app:classPath";
+        public static readonly ResourceAttributeId JvmArguments = "java-app:jvmArguments";
+        public static readonly ResourceAttributeId Arguments = "java-app:arguments";
+        public static readonly ResourceAttributeId EndpointRequests = "java-app:project.endpointRequests";
+        public static readonly ResourceAttributeId EnvironmentVariables = "java-app:project.environmentVariables";
+        public static readonly ResourceAttributeId ServiceDiscoveryName = "java-app:project.serviceDiscoveryName";
+        public static readonly ResourceAttributeId References = "java-app:project.references";
     }
 
     public static class Operations
@@ -46,6 +46,7 @@ public sealed class JavaAppResourceTypeProvider :
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
             [Attributes.ProjectPath] = new(
+                Path: "project.path",
                 ValueType: ResourceAttributeValueType.String),
             [ApplicationArtifactAttributeIds.SourceKind] = new(
                 ValueType: ResourceAttributeValueType.String),
@@ -57,33 +58,45 @@ public sealed class JavaAppResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.Command] = new(
                 DefaultValue: "java",
+                Path: "command",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.BuildTool] = new(
                 Description: "Optional Java project build tool to run before starting the app. Supported values are 'maven' and 'gradle'.",
+                Path: "buildTool",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.BuildArguments] = new(
                 Description: "Optional build-tool arguments. Defaults to 'package' for Maven and 'build' for Gradle.",
+                Path: "buildArguments",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ArtifactPath] = new(
+                Path: "artifactPath",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.MainClass] = new(
+                Path: "mainClass",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ClassPath] = new(
+                Path: "classPath",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.JvmArguments] = new(
+                Path: "jvmArguments",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Arguments] = new(
+                Path: "arguments",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
+                path: "project.endpointRequests"),
             [Attributes.EnvironmentVariables] = new(
                 Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
+                Path: "project.environmentVariables",
                 ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ServiceDiscoveryName] = new(
+                Path: "project.serviceDiscoveryName",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.References] = ResourceAttributeDefinition.Collection(
-                itemType: ResourceAttributeValueType.ResourceReference)
+                itemType: ResourceAttributeValueType.ResourceReference,
+                path: "project.references")
         },
         Capabilities:
         [

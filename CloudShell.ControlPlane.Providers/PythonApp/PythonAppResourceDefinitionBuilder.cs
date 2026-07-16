@@ -327,6 +327,8 @@ public static class PythonAppResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
+        graph.AddResourceTypeDefinition(new PythonAppResourceTypeProvider().TypeDefinition);
+
         var builder = new PythonAppResourceDefinitionBuilder(name)
             .WithProjectPath(projectPath)
             .WithCommand("python3")

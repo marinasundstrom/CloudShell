@@ -211,17 +211,20 @@ public static class CloudShellHostLauncher
     public static Task<CloudShellHostLauncherResult> ApplyAsync(
         ResourceTemplate template,
         CloudShellHostLauncherOptions options,
+        ResourceTemplateSerializerOptions? serializerOptions = null,
         CancellationToken cancellationToken = default) =>
         ApplyAsync(
             template,
             options,
             DefaultCloudShellHostLauncherCommandRunner.Instance,
+            serializerOptions,
             cancellationToken);
 
     public static async Task<CloudShellHostLauncherResult> ApplyAsync(
         ResourceTemplate template,
         CloudShellHostLauncherOptions options,
         ICloudShellHostLauncherCommandRunner commandRunner,
+        ResourceTemplateSerializerOptions? serializerOptions = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(template);
@@ -238,6 +241,7 @@ public static class CloudShellHostLauncher
             template,
             templatePath,
             options.TemplateFormat,
+            serializerOptions,
             cancellationToken);
 
         var templateApplyArguments = BuildTemplateApplyArguments(templatePath, options);
@@ -266,6 +270,7 @@ public static class CloudShellHostLauncher
     public static async Task<CloudShellHostLauncherResult> RunAsync(
         ResourceTemplate template,
         CloudShellHostLauncherOptions options,
+        ResourceTemplateSerializerOptions? serializerOptions = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(template);
@@ -281,6 +286,7 @@ public static class CloudShellHostLauncher
             template,
             templatePath,
             options.TemplateFormat,
+            serializerOptions,
             cancellationToken);
 
         var hostUrl = options.HostUrl ?? options.ControlPlaneUrl ??
@@ -315,6 +321,7 @@ public static class CloudShellHostLauncher
             var applyResult = await ApplyAsync(
                 template,
                 applyOptions,
+                serializerOptions,
                 cancellationToken);
             if (applyResult.ExitCode != 0)
             {
@@ -338,6 +345,7 @@ public static class CloudShellHostLauncher
         ResourceTemplate template,
         string path,
         ResourceTemplateFormat format = ResourceTemplateFormat.Yaml,
+        ResourceTemplateSerializerOptions? serializerOptions = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(template);
@@ -345,7 +353,7 @@ public static class CloudShellHostLauncher
 
         var fullPath = Path.GetFullPath(path);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        var document = ResourceTemplateSerializer.SerializeTemplate(template, format);
+        var document = ResourceTemplateSerializer.SerializeTemplate(template, format, serializerOptions);
         await File.WriteAllTextAsync(fullPath, document, cancellationToken);
         return fullPath;
     }

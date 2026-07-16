@@ -482,7 +482,7 @@ configuration payload with the resource-type-specific configuration, such as:
 - executable path, arguments, and working directory
 - .NET app project path or executable path, application arguments, and hot
   reload mode when running from project source
-- JavaScript app project path, Node.js engine selection, package manager,
+- JavaScript app project path, Node.js runtime selection, package manager,
   development script, and application arguments
 - Java app project path, JVM command, artifact path, classpath/main-class
   settings, JVM arguments, and application arguments

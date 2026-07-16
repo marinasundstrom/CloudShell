@@ -235,19 +235,15 @@ func (r *GoAppResource) setApp(app *App) {
 
 func (r *GoAppResource) build() map[string]any {
 	document := r.commonDocument()
-	goAttributes := map[string]any{
-		"command":     r.command,
-		"packagePath": r.packagePath,
-	}
+	document["command"] = r.command
+	document["packagePath"] = r.packagePath
 	if r.binaryPath != "" {
-		goAttributes["binaryPath"] = r.binaryPath
+		document["binaryPath"] = r.binaryPath
 	}
 
 	if r.arguments != "" {
-		goAttributes["arguments"] = r.arguments
+		document["arguments"] = r.arguments
 	}
-
-	document["go"] = goAttributes
 
 	project := map[string]any{
 		"path": r.projectPath,

@@ -327,6 +327,8 @@ public static class GoAppResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
+        graph.AddResourceTypeDefinition(new GoAppResourceTypeProvider().TypeDefinition);
+
         var builder = new GoAppResourceDefinitionBuilder(name)
             .WithProjectPath(projectPath)
             .WithCommand("go")

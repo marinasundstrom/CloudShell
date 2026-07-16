@@ -434,16 +434,28 @@ Required authoring:
 
 Common optional attributes:
 
-- `javascript.engine`
-- `javascript.packageManager`
-- `javascript.script`
-- `javascript.arguments`
+- `runtime`
+- `packageManager`
+- `script`
+- `arguments`
 - `project.endpointRequests`
 - `project.environmentVariables`
 - `project.serviceDiscoveryName`
 - `project.references`
 - `container.*` attributes when the app is projected as a container app
 - `storage.volume.mounts`
+
+Minimal declaration:
+
+```yaml
+resources:
+  - type: application.javascript-app
+    name: frontend
+    project:
+      path: ./web
+```
+
+Endpoint and command selection:
 
 ```yaml
 resources:
@@ -457,10 +469,9 @@ resources:
           targetPort: 5173
           port: 5173
           exposure: Local
-    javascript:
-      engine: node
-      packageManager: npm
-      script: dev
+    runtime: node
+    packageManager: npm
+    script: dev
 ```
 
 ### `application.java-app`
@@ -470,20 +481,33 @@ Use for a Java or JVM project launched through the local Java runtime.
 Required authoring:
 
 - `project.path`
-- one of `java.artifactPath` or `java.mainClass`
+- one of `artifactPath` or `mainClass`
 
 Common optional attributes:
 
-- `java.command`
-- `java.classPath`
-- `java.jvmArguments`
-- `java.arguments`
+- `command`
+- `classPath`
+- `jvmArguments`
+- `arguments`
 - `project.endpointRequests`
 - `project.environmentVariables`
 - `project.serviceDiscoveryName`
 - `project.references`
 - `container.*` attributes when the app is projected as a container app
 - `storage.volume.mounts`
+
+Minimal declaration:
+
+```yaml
+resources:
+  - type: application.java-app
+    name: java-api
+    project:
+      path: ./app
+    artifactPath: ./target/app.jar
+```
+
+Endpoint and JVM argument selection:
 
 ```yaml
 resources:
@@ -497,10 +521,9 @@ resources:
           targetPort: 8080
           port: 8080
           exposure: Local
-    java:
-      command: java
-      artifactPath: ./target/app.jar
-      jvmArguments: -Xmx512m
+    command: java
+    artifactPath: ./target/app.jar
+    jvmArguments: -Xmx512m
 ```
 
 ### `application.go-app`
@@ -514,16 +537,28 @@ Required authoring:
 
 Common optional attributes:
 
-- `go.command`
-- `go.packagePath`
-- `go.binaryPath`
-- `go.arguments`
+- `command`
+- `packagePath`
+- `binaryPath`
+- `arguments`
 - `project.endpointRequests`
 - `project.environmentVariables`
 - `project.serviceDiscoveryName`
 - `project.references`
 - `container.*` attributes when the app is projected as a container app
 - `storage.volume.mounts`
+
+Minimal declaration:
+
+```yaml
+resources:
+  - type: application.go-app
+    name: go-api
+    project:
+      path: ./app
+```
+
+Endpoint and package-path selection:
 
 ```yaml
 resources:
@@ -537,9 +572,57 @@ resources:
           targetPort: 8080
           port: 8080
           exposure: Local
-    go:
-      command: go
-      packagePath: .
+    command: go
+    packagePath: .
+```
+
+### `application.python-app`
+
+Use for a Python project launched through the local Python runtime.
+
+Required authoring:
+
+- `project.path`
+
+Common optional attributes:
+
+- `command`
+- `scriptPath`
+- `module`
+- `arguments`
+- `project.endpointRequests`
+- `project.environmentVariables`
+- `project.serviceDiscoveryName`
+- `project.references`
+- `container.*` attributes when the app is projected as a container app
+- `storage.volume.mounts`
+
+Minimal declaration:
+
+```yaml
+resources:
+  - type: application.python-app
+    name: api
+    project:
+      path: ./app
+```
+
+Endpoint and script selection:
+
+```yaml
+resources:
+  - type: application.python-app
+    name: api
+    project:
+      path: ./app
+      endpointRequests:
+        - name: http
+          protocol: http
+          targetPort: 5188
+          port: 5188
+          exposure: Local
+    command: python3
+    scriptPath: app.py
 ```
 
 ### `application.container-app`

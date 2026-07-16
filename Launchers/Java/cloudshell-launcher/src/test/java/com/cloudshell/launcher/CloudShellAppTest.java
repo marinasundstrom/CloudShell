@@ -71,8 +71,11 @@ public final class CloudShellAppTest {
         String json = app.toJson();
         assertContains(json, "\"type\": \"application.java-app\"");
         assertContains(json, "\"providerId\": \"applications.java-app\"");
+        assertContains(json, "\"command\": \"java\"");
+        assertContains(json, "\"artifactPath\": \"target/app.jar\"");
         assertContains(json, "\"buildTool\": \"maven\"");
         assertContains(json, "\"buildArguments\": \"clean package -DskipTests\"");
+        assertDoesNotContain(json, "\"java\": {");
         assertContains(json, "\"resourceId\": \"configuration.store:settings\"");
         assertContains(json, "\"providerId\": \"secrets-vault\"");
         assertContains(json, "\"seed\": {");
@@ -222,6 +225,12 @@ public final class CloudShellAppTest {
     private static void assertContains(String value, String expected) {
         if (!value.contains(expected)) {
             throw new AssertionError("Expected generated template to contain: " + expected + "\n" + value);
+        }
+    }
+
+    private static void assertDoesNotContain(String value, String unexpected) {
+        if (value.contains(unexpected)) {
+            throw new AssertionError("Expected generated template not to contain: " + unexpected + "\n" + value);
         }
     }
 

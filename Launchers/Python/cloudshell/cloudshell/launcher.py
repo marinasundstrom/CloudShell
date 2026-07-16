@@ -733,7 +733,7 @@ class JavaScriptAppResource(ProjectApplicationResource):
         self.with_default_console_log_source()
 
     def with_engine(self, engine: str) -> "JavaScriptAppResource":
-        self.attributes["engine"] = _require(engine, "JavaScript engine")
+        self.attributes["runtime"] = _require(engine, "JavaScript engine")
         return self
 
     def with_package_manager(self, package_manager: str) -> "JavaScriptAppResource":
@@ -752,15 +752,52 @@ class JavaScriptAppResource(ProjectApplicationResource):
         return self
 
     def build(self) -> dict[str, Any]:
-        document = super().build()
-        document["javascript"] = _prune(
+        document = self._common_document()
+        endpoint_requests = None if self.container is not None else self.endpoints
+        document.update(
+            _prune(
+                {
+                    "runtime": self.attributes.get("runtime"),
+                    "packageManager": self.attributes.get("packageManager"),
+                    "script": self.attributes.get("script"),
+                    "arguments": self.attributes.get("arguments"),
+                }
+            )
+        )
+        project = _prune(
             {
-                "engine": self.attributes.get("engine"),
-                "packageManager": self.attributes.get("packageManager"),
-                "script": self.attributes.get("script"),
-                "arguments": self.attributes.get("arguments"),
+                "path": self.project_path,
+                "serviceDiscoveryName": self.service_discovery_name,
+                "environmentVariables": self.environment_variables,
+                "references": self.references,
+                "endpointRequests": endpoint_requests,
             }
         )
+        if project:
+            document["project"] = project
+        if self.container is not None:
+            container = dict(self.container)
+            if self.endpoints:
+                container["endpointRequests"] = self.endpoints
+            document["container"] = _prune(container)
+        if self.health_checks:
+            document["health"] = {"checks": self.health_checks}
+        if self.console_logs:
+            document["logs"] = {
+                "sources": [
+                    {
+                        "id": "console",
+                        "name": "Console logs",
+                        "kind": "processOutput",
+                        "format": self.attributes["consoleLogFormat"],
+                        "capabilities": ["read", "stream"],
+                        "description": "Provider-captured process console output.",
+                        "origin": "providerDefault",
+                        "purpose": "default",
+                        "availability": "resourceRunning",
+                    }
+                ]
+            }
         return _prune(document)
 
 
@@ -796,13 +833,15 @@ class PythonAppResource(ProjectApplicationResource):
 
     def build(self) -> dict[str, Any]:
         document = super().build()
-        document["python"] = _prune(
-            {
-                "command": self.attributes.get("command"),
-                "scriptPath": self.attributes.get("scriptPath"),
-                "module": self.attributes.get("module"),
-                "arguments": self.attributes.get("arguments"),
-            }
+        document.update(
+            _prune(
+                {
+                    "command": self.attributes.get("command"),
+                    "scriptPath": self.attributes.get("scriptPath"),
+                    "module": self.attributes.get("module"),
+                    "arguments": self.attributes.get("arguments"),
+                }
+            )
         )
         return _prune(document)
 

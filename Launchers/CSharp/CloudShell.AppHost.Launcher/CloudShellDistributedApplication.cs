@@ -81,6 +81,7 @@ public sealed class CloudShellDistributedApplicationBuilder
             BuildTemplate(environmentId, metadata),
             path,
             format,
+            CreateSerializerOptions(),
             cancellationToken);
 
     public Task<CloudShellHostLauncherResult> ApplyAsync(
@@ -89,6 +90,7 @@ public sealed class CloudShellDistributedApplicationBuilder
         CloudShellHostLauncher.ApplyAsync(
             BuildTemplate(options?.EnvironmentId, options?.Metadata),
             options ?? new CloudShellHostLauncherOptions(),
+            CreateSerializerOptions(),
             cancellationToken);
 
     public Task<CloudShellHostLauncherResult> RunAsync(
@@ -97,6 +99,7 @@ public sealed class CloudShellDistributedApplicationBuilder
         CloudShellHostLauncher.RunAsync(
             BuildTemplate(options?.EnvironmentId, options?.Metadata),
             options ?? new CloudShellHostLauncherOptions(),
+            CreateSerializerOptions(),
             cancellationToken);
 
     public async Task<int> LaunchAsync(
@@ -125,9 +128,15 @@ public sealed class CloudShellDistributedApplicationBuilder
         }
 
         var template = BuildTemplate(launcherOptions.EnvironmentId, launcherOptions.Metadata);
-        Console.Write(ResourceTemplateSerializer.SerializeTemplate(template, launcherOptions.TemplateFormat));
+        Console.Write(ResourceTemplateSerializer.SerializeTemplate(
+            template,
+            launcherOptions.TemplateFormat,
+            CreateSerializerOptions()));
         return 0;
     }
+
+    private ResourceTemplateSerializerOptions CreateSerializerOptions() =>
+        new(Resources.ResourceTypeDefinitions.Values);
 
     private IReadOnlyDictionary<string, string>? MergeMetadata(
         IReadOnlyDictionary<string, string>? metadata)

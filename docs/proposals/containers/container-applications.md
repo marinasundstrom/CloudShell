@@ -40,6 +40,39 @@ handled by the orchestrator/controller path. Separate provider-specific paths
 that directly remove all replicas, recreate ingress, or remap backends during
 image and replica updates are temporary POC seams to remove.
 
+After the first resource-definition readability cleanup removes unnecessary
+language wrapper groups, a later container-app authoring slice should revisit
+the container group. The desired authored shape is intentionally closer to a
+Tye-style service declaration:
+
+```yaml
+resources:
+  - type: application.container-app
+    name: api
+    dependsOn:
+      - resourceId: docker.host:local
+        typeId: docker.host
+    image: ghcr.io/acme/api:dev
+    registry: ghcr.io
+    replicas: 2
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        port: 5080
+        exposure: Public
+    routing:
+      sessionAffinity:
+        mode: None
+```
+
+`endpoints` is the preferred authored name for the existing endpoint-request
+semantics. It should resolve to the same provider intent as today's
+`container.endpointRequests`; only the authoring path should become more
+readable. This should be a separate migration because `container` is currently
+a meaningful domain group, and removing it needs a deliberate review of which
+container fields should become root fields and which should remain grouped.
+
 This proposal tracks the container app resource itself. Related proposals own
 adjacent subdomains:
 

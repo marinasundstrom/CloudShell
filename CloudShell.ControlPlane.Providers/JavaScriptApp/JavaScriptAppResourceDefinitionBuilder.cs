@@ -326,6 +326,8 @@ public static class JavaScriptAppResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
+        graph.AddResourceTypeDefinition(new JavaScriptAppResourceTypeProvider().TypeDefinition);
+
         var builder = new JavaScriptAppResourceDefinitionBuilder(name)
             .WithProjectPath(projectPath)
             .WithEngine("node")

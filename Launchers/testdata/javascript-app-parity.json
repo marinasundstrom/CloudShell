@@ -90,6 +90,9 @@
           }
         ]
       },
+      "runtime": "node",
+      "packageManager": "npm",
+      "script": "dev",
       "health": {
         "checks": [
           {
@@ -133,11 +136,6 @@
             "availability": "resourceRunning"
           }
         ]
-      },
-      "javascript": {
-        "engine": "node",
-        "packageManager": "npm",
-        "script": "dev"
       }
     },
     {

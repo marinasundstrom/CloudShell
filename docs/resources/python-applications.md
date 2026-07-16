@@ -22,11 +22,19 @@ and [Container apps](container-apps.md).
 Programmatic C# declarations use `AddPythonApp(...)` with a scoped resource
 name and project path:
 
+```yaml
+resources:
+  - type: application.python-app
+    name: api
+    project:
+      path: src/api
+```
+
+The equivalent C# declaration is:
+
 ```csharp
 resources
-    .AddPythonApp("api", "src/api")
-    .WithDisplayName("Python API")
-    .WithHttpEndpoint(port: 5188, targetPort: 5188, host: "localhost");
+    .AddPythonApp("api", "src/api");
 ```
 
 The default local runtime starts:
@@ -35,17 +43,33 @@ The default local runtime starts:
 python3 app.py
 ```
 
-`python.command`, `python.scriptPath`, `python.module`, and
-`python.arguments` describe the local process shape without making a specific
-Python web framework part of the CloudShell resource model. When
-`python.module` is configured, the runtime starts `python3 -m <module>` instead
-of a script path.
+`command`, `scriptPath`, `module`, and `arguments` describe the local process
+shape without making a specific Python web framework part of the CloudShell
+resource model. When `module` is configured, the runtime starts
+`python3 -m <module>` instead of a script path.
 
 The default command is currently `python3` on every operating system. Windows
-hosts that use the Python launcher convention can set `python.command` to `py`
-or another interpreter command explicitly; CloudShell passes the selected
-command and each argument as discrete process values rather than shell-quoted
-text.
+hosts that use the Python launcher convention can set `command` to `py` or
+another interpreter command explicitly; CloudShell passes the selected command
+and each argument as discrete process values rather than shell-quoted text.
+
+Endpoint and script choices are scenario-specific additions:
+
+```yaml
+resources:
+  - type: application.python-app
+    name: api
+    project:
+      path: src/api
+      endpointRequests:
+        - name: http
+          protocol: http
+          targetPort: 5188
+          port: 5188
+          exposure: Local
+    command: python3
+    scriptPath: app.py
+```
 
 Python app resources can declare endpoint requests, environment variables,
 service references, health checks, log sources, and volume mounts using the
@@ -65,8 +89,7 @@ resources
 
 The projection changes the Resource Manager resource to
 `application.container-app` while retaining Python project metadata such as
-`project.path`, `python.command`, `python.scriptPath`, `python.module`, and
-`python.arguments`.
+`project.path`, `command`, `scriptPath`, `module`, and `arguments`.
 
 Python launcher declarations use the Python-native `as_container_app(...)`
 method for the same projection:

@@ -73,8 +73,9 @@ class CloudShellPythonLauncherTests(unittest.TestCase):
         api = template["resources"][2]
         self.assertEqual("application.python-app", api["type"])
         self.assertEqual("applications.python-app", api["providerId"])
-        self.assertEqual("python3", api["python"]["command"])
-        self.assertEqual("app.py", api["python"]["scriptPath"])
+        self.assertEqual("python3", api["command"])
+        self.assertEqual("app.py", api["scriptPath"])
+        self.assertNotIn("python", api)
         self.assertEqual("/workspace/app", api["project"]["path"])
         self.assertEqual("api", api["project"]["serviceDiscoveryName"])
         self.assertEqual(
@@ -119,9 +120,11 @@ class CloudShellPythonLauncherTests(unittest.TestCase):
         self.assertEqual("application.javascript-app", js.resource_type)
         frontend = template["resources"][0]
         self.assertEqual("applications.javascript-app", frontend["providerId"])
-        self.assertEqual("node", frontend["javascript"]["engine"])
-        self.assertEqual("pnpm", frontend["javascript"]["packageManager"])
-        self.assertEqual("dev", frontend["javascript"]["script"])
+        self.assertEqual("/workspace/frontend", frontend["project"]["path"])
+        self.assertEqual("node", frontend["runtime"])
+        self.assertEqual("pnpm", frontend["packageManager"])
+        self.assertEqual("dev", frontend["script"])
+        self.assertEqual("http", frontend["project"]["endpointRequests"][0]["protocol"])
 
     def test_builds_python_app_as_container_app_template(self):
         app = CloudShellDistributedApplication.create_builder("python-container")

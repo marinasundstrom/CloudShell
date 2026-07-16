@@ -291,6 +291,7 @@ public class ResourceGraphBuilder(
     IResourceIdConvention? resourceIdConvention = null)
 {
     private readonly List<IResourceDefinitionBuilder> _resources = [];
+    private readonly Dictionary<ResourceTypeId, ResourceTypeDefinition> _resourceTypeDefinitions = [];
     private readonly Dictionary<string, ResourceIdentityDeclaration> _resourceIdentities =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourceAccessGrantDeclaration> _permissionGrants = [];
@@ -298,6 +299,9 @@ public class ResourceGraphBuilder(
         resourceIdConvention ?? DefaultResourceIdConvention.Instance;
 
     public IReadOnlyList<IResourceDefinitionBuilder> ResourceBuilders => _resources;
+
+    public IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> ResourceTypeDefinitions =>
+        _resourceTypeDefinitions;
 
     public ResourceGraphBuilder DefineResources(
         Action<ResourceGraphBuilder> configure)
@@ -333,6 +337,14 @@ public class ResourceGraphBuilder(
         }
 
         _resources.Add(resource);
+        return this;
+    }
+
+    public ResourceGraphBuilder AddResourceTypeDefinition(ResourceTypeDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        _resourceTypeDefinitions[definition.TypeId] = definition;
         return this;
     }
 

@@ -900,19 +900,23 @@ export class JavaScriptAppResourceBuilder extends ResourceBuilder {
   }
 
   public withEngine(engine: string): this {
-    return this.withAttribute("javascript.engine", engine);
+    return this.withRuntime(engine);
+  }
+
+  public withRuntime(runtime: string): this {
+    return this.withAttribute("runtime", runtime);
   }
 
   public withPackageManager(packageManager: string): this {
-    return this.withAttribute("javascript.packageManager", packageManager);
+    return this.withAttribute("packageManager", packageManager);
   }
 
   public withScript(script: string): this {
-    return this.withAttribute("javascript.script", script);
+    return this.withAttribute("script", script);
   }
 
   public withArguments(args: string): this {
-    return this.withAttribute("javascript.arguments", args);
+    return this.withAttribute("arguments", args);
   }
 
   public withServiceDiscovery(name: string = this.name): this {
@@ -1046,39 +1050,39 @@ export class JavaAppResourceBuilder extends ResourceBuilder {
   }
 
   public withCommand(command: string): this {
-    return this.withAttribute("java.command", command);
+    return this.withAttribute("command", command);
   }
 
   public withArtifactPath(artifactPath: string): this {
-    return this.withAttribute("java.artifactPath", artifactPath);
+    return this.withAttribute("artifactPath", artifactPath);
   }
 
   public withMainClass(mainClass: string): this {
-    return this.withAttribute("java.mainClass", mainClass);
+    return this.withAttribute("mainClass", mainClass);
   }
 
   public withClassPath(classPath: string): this {
-    return this.withAttribute("java.classPath", classPath);
+    return this.withAttribute("classPath", classPath);
   }
 
   public withJvmArguments(args: string): this {
-    return this.withAttribute("java.jvmArguments", args);
+    return this.withAttribute("jvmArguments", args);
   }
 
   public withArguments(args: string): this {
-    return this.withAttribute("java.arguments", args);
+    return this.withAttribute("arguments", args);
   }
 
   public withMavenBuild(args: string = "package"): this {
     return this
-      .withAttribute("java.buildTool", "maven")
-      .withAttribute("java.buildArguments", args);
+      .withAttribute("buildTool", "maven")
+      .withAttribute("buildArguments", args);
   }
 
   public withGradleBuild(args: string = "build"): this {
     return this
-      .withAttribute("java.buildTool", "gradle")
-      .withAttribute("java.buildArguments", args);
+      .withAttribute("buildTool", "gradle")
+      .withAttribute("buildArguments", args);
   }
 
   public withServiceDiscovery(name: string = this.name): this {

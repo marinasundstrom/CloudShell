@@ -555,11 +555,9 @@ resources:
           }
         ]
       },
-      "javascript": {
-        "engine": "node",
-        "packageManager": "npm",
-        "script": "dev"
-      },
+      "runtime": "node",
+      "packageManager": "npm",
+      "script": "dev",
       "health": {
         "checks": [
           {
@@ -597,7 +595,9 @@ resources:
 
         var template = ResourceTemplateSerializer.DeserializeTemplate(
             json,
-            ResourceTemplateFormat.Json);
+            ResourceTemplateFormat.Json,
+            new ResourceTemplateSerializerOptions(
+                [new JavaScriptAppResourceTypeProvider().TypeDefinition]));
 
         Assert.Equal("typescript-hosting-poc", template.Name);
         Assert.Equal("typescript", template.Metadata?["cloudshell.source"]);
@@ -612,18 +612,18 @@ resources:
         var frontend = Assert.Single(template.Resources, resource =>
             resource.Name == "typescript-frontend");
         Assert.Equal(ResourceTypeId.Create("application.javascript-app"), frontend.TypeId);
-        Assert.Equal("samples/JavaScriptApp/App", frontend.ResourceAttributes["project.path"]);
-        Assert.Equal("node", frontend.ResourceAttributes["javascript.engine"]);
+        Assert.Equal("samples/JavaScriptApp/App", frontend.ResourceAttributes["javascript-app:project.path"]);
+        Assert.Equal("node", frontend.ResourceAttributes["javascript-app:runtime"]);
 
         var references = frontend.ResourceAttributeValues[
-            ResourceAttributeId.Create("project.references")].ArrayValue ?? [];
+            ResourceAttributeId.Create("javascript-app:project.references")].ArrayValue ?? [];
         var reference = Assert.Single(references);
         Assert.True(reference.TryGetResourceReference(out var resourceReference));
         Assert.True(resourceReference.TryGetResourceId(out var referencedResourceId));
         Assert.Equal("configuration.store:typescript-app-settings", referencedResourceId);
 
         var endpoint = Assert.Single(frontend.ResourceAttributeValues[
-            ResourceAttributeId.Create("project.endpointRequests")].ArrayValue ?? []);
+            ResourceAttributeId.Create("javascript-app:project.endpointRequests")].ArrayValue ?? []);
         Assert.Equal("http", endpoint.ObjectValue!["name"].StringValue);
         Assert.True(endpoint.ObjectValue["network"].TryGetResourceReference(out var networkReference));
         Assert.True(networkReference.TryGetResourceId(out var networkResourceId));
@@ -632,6 +632,57 @@ resources:
         var healthChecks = frontend.GetCapability<ResourceHealthCheckDefinitionSet>(
             ResourceHealthCheckCapabilityIds.HealthChecks);
         Assert.Equal("health", Assert.Single(healthChecks!.Checks ?? []).Name);
+    }
+
+    [Fact]
+    public void SerializeTemplate_UsesResourceAttributePathsWhenProvided()
+    {
+        var template = new ResourceTemplate(
+            "javascript-app",
+            [
+                new(
+                    "frontend",
+                    ResourceTypeId.Create("application.javascript-app"),
+                    Attributes: new ResourceAttributeValueMap(new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        ["javascript-app:project.path"] = "samples/JavaScriptApp/App",
+                        ["javascript-app:runtime"] = "node",
+                        ["javascript-app:packageManager"] = "npm",
+                        ["javascript-app:script"] = "dev"
+                    }))
+            ]);
+        var options = new ResourceTemplateSerializerOptions(
+            [
+                new(
+                    ResourceTypeId.Create("application.javascript-app"),
+                    ResourceClassId.Create("project"),
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["javascript-app:project.path"] = new(Path: "project.path"),
+                        ["javascript-app:runtime"] = new(Path: "runtime"),
+                        ["javascript-app:packageManager"] = new(Path: "packageManager"),
+                        ["javascript-app:script"] = new(Path: "script")
+                    })
+            ]);
+
+        var yaml = ResourceTemplateSerializer.SerializeTemplate(
+            template,
+            ResourceTemplateFormat.Yaml,
+            options);
+        var roundTripped = ResourceTemplateSerializer.DeserializeTemplate(
+            yaml,
+            ResourceTemplateFormat.Yaml,
+            options);
+        var resource = Assert.Single(roundTripped.Resources);
+
+        Assert.Contains("project:", yaml);
+        Assert.Contains("path: samples/JavaScriptApp/App", yaml);
+        Assert.Contains("runtime: node", yaml);
+        Assert.DoesNotContain("javascript-app:runtime", yaml);
+        Assert.Equal("samples/JavaScriptApp/App", resource.ResourceAttributes["javascript-app:project.path"]);
+        Assert.Equal("node", resource.ResourceAttributes["javascript-app:runtime"]);
+        Assert.Equal("npm", resource.ResourceAttributes["javascript-app:packageManager"]);
+        Assert.Equal("dev", resource.ResourceAttributes["javascript-app:script"]);
     }
 
     [Fact]

@@ -52,6 +52,9 @@ public abstract class ContainerizableResourceDefinitionBuilder<TBuilder>(
             SetScalarAttribute(
                 ContainerApplicationResourceTypeProvider.Attributes.ContainerBuildContext,
                 buildContext);
+            SetScalarAttribute(
+                ResourceAttributeId.Create("project.path"),
+                buildContext);
         }
 
         if (!string.IsNullOrWhiteSpace(dockerfile))

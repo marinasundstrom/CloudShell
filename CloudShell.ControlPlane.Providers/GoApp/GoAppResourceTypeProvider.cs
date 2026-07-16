@@ -15,15 +15,15 @@ public sealed class GoAppResourceTypeProvider :
 
     public static class Attributes
     {
-        public static readonly ResourceAttributeId ProjectPath = "project.path";
-        public static readonly ResourceAttributeId Command = "go.command";
-        public static readonly ResourceAttributeId PackagePath = "go.packagePath";
-        public static readonly ResourceAttributeId BinaryPath = "go.binaryPath";
-        public static readonly ResourceAttributeId Arguments = "go.arguments";
-        public static readonly ResourceAttributeId EndpointRequests = "project.endpointRequests";
-        public static readonly ResourceAttributeId EnvironmentVariables = "project.environmentVariables";
-        public static readonly ResourceAttributeId ServiceDiscoveryName = "project.serviceDiscoveryName";
-        public static readonly ResourceAttributeId References = "project.references";
+        public static readonly ResourceAttributeId ProjectPath = "go-app:project.path";
+        public static readonly ResourceAttributeId Command = "go-app:command";
+        public static readonly ResourceAttributeId PackagePath = "go-app:packagePath";
+        public static readonly ResourceAttributeId BinaryPath = "go-app:binaryPath";
+        public static readonly ResourceAttributeId Arguments = "go-app:arguments";
+        public static readonly ResourceAttributeId EndpointRequests = "go-app:project.endpointRequests";
+        public static readonly ResourceAttributeId EnvironmentVariables = "go-app:project.environmentVariables";
+        public static readonly ResourceAttributeId ServiceDiscoveryName = "go-app:project.serviceDiscoveryName";
+        public static readonly ResourceAttributeId References = "go-app:project.references";
     }
 
     public static class Operations
@@ -42,6 +42,7 @@ public sealed class GoAppResourceTypeProvider :
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
             [Attributes.ProjectPath] = new(
+                Path: "project.path",
                 ValueType: ResourceAttributeValueType.String),
             [ApplicationArtifactAttributeIds.SourceKind] = new(
                 ValueType: ResourceAttributeValueType.String),
@@ -53,24 +54,32 @@ public sealed class GoAppResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.Command] = new(
                 DefaultValue: "go",
+                Path: "command",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.PackagePath] = new(
                 DefaultValue: ".",
+                Path: "packagePath",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.BinaryPath] = new(
+                Path: "binaryPath",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Arguments] = new(
+                Path: "arguments",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
+                path: "project.endpointRequests"),
             [Attributes.EnvironmentVariables] = new(
                 Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
+                Path: "project.environmentVariables",
                 ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ServiceDiscoveryName] = new(
+                Path: "project.serviceDiscoveryName",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.References] = ResourceAttributeDefinition.Collection(
-                itemType: ResourceAttributeValueType.ResourceReference)
+                itemType: ResourceAttributeValueType.ResourceReference,
+                path: "project.references")
         },
         Capabilities:
         [

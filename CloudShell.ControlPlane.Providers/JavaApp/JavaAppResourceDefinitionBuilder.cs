@@ -345,6 +345,8 @@ public static class JavaAppResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
+        graph.AddResourceTypeDefinition(new JavaAppResourceTypeProvider().TypeDefinition);
+
         var builder = new JavaAppResourceDefinitionBuilder(name)
             .WithProjectPath(projectPath)
             .WithCommand("java")

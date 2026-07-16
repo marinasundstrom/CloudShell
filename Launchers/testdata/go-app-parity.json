@@ -102,10 +102,8 @@
         }
       ],
       "displayName": "Go API",
-      "go": {
-        "command": "go",
-        "packagePath": "."
-      },
+      "command": "go",
+      "packagePath": ".",
       "health": {
         "checks": [
           {

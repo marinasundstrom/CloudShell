@@ -20,11 +20,19 @@ see [Executable applications](executable-applications.md),
 Programmatic C# declarations use `AddGoApp(...)` with a scoped resource name
 and project path:
 
+```yaml
+resources:
+  - type: application.go-app
+    name: api
+    project:
+      path: src/api
+```
+
+The equivalent C# declaration is:
+
 ```csharp
 resources
-    .AddGoApp("api", "src/api", packagePath: "./cmd/api")
-    .WithDisplayName("Go API")
-    .WithHttpEndpoint(port: 8080, targetPort: 8080, host: "localhost");
+    .AddGoApp("api", "src/api");
 ```
 
 The default local runtime starts:
@@ -33,11 +41,29 @@ The default local runtime starts:
 go run .
 ```
 
-`go.command`, `go.packagePath`, `go.binaryPath`, and `go.arguments` let
-resource authors describe the local process shape without making a specific Go
-web framework part of the CloudShell resource model. When `go.binaryPath` is
-configured, the runtime starts that binary from the project directory instead
-of invoking `go run`.
+`command`, `packagePath`, `binaryPath`, and `arguments` let resource authors
+describe the local process shape without making a specific Go web framework
+part of the CloudShell resource model. When `binaryPath` is configured, the
+runtime starts that binary from the project directory instead of invoking
+`go run`.
+
+Endpoint and package-path choices are scenario-specific additions:
+
+```yaml
+resources:
+  - type: application.go-app
+    name: api
+    project:
+      path: src/api
+      endpointRequests:
+        - name: http
+          protocol: http
+          targetPort: 8080
+          port: 8080
+          exposure: Local
+    command: go
+    packagePath: ./cmd/api
+```
 
 Go app resources can declare endpoint requests, environment variables, service
 references, health checks, log sources, and volume mounts using the same
@@ -87,8 +113,7 @@ resources
 
 The projection changes the Resource Manager resource to
 `application.container-app` while retaining Go project metadata such as
-`project.path`, `go.command`, `go.packagePath`, `go.binaryPath`, and
-`go.arguments`.
+`project.path`, `command`, `packagePath`, `binaryPath`, and `arguments`.
 
 `samples/GoContainerApp` demonstrates this path from the Go launcher. It
 declares a Go app as an `application.container-app`, seeds Configuration Store

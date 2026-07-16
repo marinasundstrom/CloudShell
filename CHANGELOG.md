@@ -117,6 +117,10 @@ on `git blame --follow`, and then by the broad type of change.
   JavaScript app runtime controller is registered, and to project the same
   missing-controller reason as the operation unavailable reason before
   dispatch.
+- Changed JavaScript app declarations and launcher parity output to use
+  readable authored paths from resource attribute metadata, so canonical IDs
+  such as `javascript-app:runtime` render as `runtime` and
+  `javascript-app:project.path` renders as `project.path`.
 - Changed graph-backed Java app lifecycle actions to fail closed when no Java
   app runtime controller is registered, and to project the same
   missing-controller reason as the operation unavailable reason before

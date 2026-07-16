@@ -16,17 +16,43 @@ see [JavaScript applications](javascript-applications.md),
 Programmatic C# declarations use `AddJavaApp(...)` with a scoped resource name,
 project path, and artifact path:
 
-```csharp
-resources
-    .AddJavaApp("api", "src/api", "target/app.jar")
-    .WithDisplayName("Java API")
-    .WithJvmArguments("-Xmx256m")
-    .WithHttpEndpoint(port: 5185, targetPort: 5185, host: "localhost");
+```yaml
+resources:
+  - type: application.java-app
+    name: api
+    project:
+      path: src/api
+    artifactPath: target/app.jar
 ```
 
-The default local runtime starts `java -jar <artifactPath>`. `java.command`,
-`java.jvmArguments`, `java.arguments`, `java.mainClass`, and `java.classPath`
-let launchers describe other JVM process shapes.
+The equivalent C# declaration is:
+
+```csharp
+resources
+    .AddJavaApp("api", "src/api", "target/app.jar");
+```
+
+The default local runtime starts `java -jar <artifactPath>`. `command`,
+`jvmArguments`, `arguments`, `mainClass`, and `classPath` let launchers
+describe other JVM process shapes.
+
+Endpoint and JVM argument choices are scenario-specific additions:
+
+```yaml
+resources:
+  - type: application.java-app
+    name: api
+    project:
+      path: src/api
+      endpointRequests:
+        - name: http
+          protocol: http
+          targetPort: 5185
+          port: 5185
+          exposure: Local
+    artifactPath: target/app.jar
+    jvmArguments: -Xmx256m
+```
 
 Java app resources can also declare a provider-owned project build that runs
 before Start or Restart launches the JVM process. Use `AddJavaMavenApp(...)`
@@ -38,6 +64,19 @@ should be refreshed at resource start:
 resources
     .AddJavaMavenApp("api", "src/api", "target/api.jar", "clean package -DskipTests")
     .WithHttpEndpoint(port: 5185, targetPort: 5185, host: "localhost");
+```
+
+The same shape in a template keeps build metadata at the resource root:
+
+```yaml
+resources:
+  - type: application.java-app
+    name: api
+    project:
+      path: src/api
+    artifactPath: target/api.jar
+    buildTool: maven
+    buildArguments: clean package -DskipTests
 ```
 
 The lower-level `.WithMavenBuild(...)` and `.WithGradleBuild(...)` helpers are

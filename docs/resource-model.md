@@ -689,6 +689,8 @@ Examples:
 - `project.path`
 - `container.image`
 - `container.revision`
+- `javascript-app:runtime` with authored path `runtime`
+- `javascript-app:project.path` with authored path `project.path`
 - `network.kind`
 - `storage.medium`
 - `storage.runtimeStatus`
@@ -700,8 +702,12 @@ Rules:
 
 - Treat the attribute ID as stable schema identity, not as the only source of
   authoring hierarchy or UI grouping.
+- Use owner-qualified IDs for resource-local attributes, usually with the
+  resource type or contributing capability as the namespace.
 - Prefer lower-camel authoring names and explicit schema metadata for grouping
   when the attribute contract needs a document path.
+- Do not group attributes in templates unless the group has meaning for the
+  resource shape.
 - Dotted lower-camel IDs remain valid for existing shared namespaces and
   compatibility, but new attributes should not rely on the ID string alone to
   imply hierarchy.
@@ -727,30 +733,28 @@ contexts, or two providers may expose the same authored path for different
 resource types while keeping distinct canonical schema IDs.
 
 `ResourceAttributeDefinition` metadata can therefore declare optional
-authoring/projection names separately from the canonical ID:
+authoring/projection paths separately from the canonical ID:
 
 ```csharp
-public sealed record ResourceAttributeDefinition
-{
-    public required ResourceAttributeId Id { get; init; }
-    public string? Path { get; init; }
-    public string? DisplayName { get; init; }
-    public string? Description { get; init; }
-    public IReadOnlyList<string> Aliases { get; init; } = [];
-}
+["javascript-app:runtime"] = new(Path: "runtime");
+["javascript-app:project.path"] = new(Path: "project.path");
 ```
 
-The current metadata contract exists on the definition object. Import/export
-logic still needs to be migrated incrementally so templates prefer `Path` and
-accept `Aliases` before falling back to dotted-ID grouping. The Resource model
-includes a schema-local `ResourceAttributePathResolver` that can resolve
-canonical IDs, authored paths, and aliases to canonical `ResourceAttributeId`
-values and report ambiguous paths before a caller applies them. A resolver can
-be built from the composed schema for one resource: the resource class, the
-resource type, and any selected capabilities that contribute behavior-specific
-attributes. This lets a capability make additional authored attributes valid
-for a resource without forcing those attributes into the resource type's ID
-namespace.
+The Resource model serializer uses `Path` metadata when the caller supplies
+the relevant resource type definitions. Serialization renders attributes using
+the authored path, and deserialization resolves those paths back to canonical
+IDs. The path, not the ID, is what determines whether the document uses a
+nested object. For example, `javascript-app:runtime` renders as `runtime`,
+while `javascript-app:project.path` renders as `project.path`.
+
+The Resource model includes a schema-local `ResourceAttributePathResolver` that
+can resolve canonical IDs, authored paths, and aliases to canonical
+`ResourceAttributeId` values and report ambiguous paths before a caller applies
+them. A resolver can be built from the composed schema for one resource: the
+resource class, the resource type, and any selected capabilities that
+contribute behavior-specific attributes. This lets a capability make
+additional authored attributes valid for a resource while keeping those
+attributes in the capability's ID namespace.
 Because the resolver is built from one composed schema at a time, the same
 authored path can be reused by another schema and resolve to a different
 canonical attribute ID there. The owning schema is what gives the path meaning;

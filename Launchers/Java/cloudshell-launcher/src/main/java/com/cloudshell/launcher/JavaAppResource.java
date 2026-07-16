@@ -144,18 +144,16 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
         StringBuilder builder = new StringBuilder();
         line(builder, indent, "{");
         appendCommon(builder, indent + 1);
-        line(builder, indent + 1, "\"java\": {");
-        property(builder, indent + 2, "command", json("java"), true);
-        property(builder, indent + 2, "artifactPath", json(artifactPath), buildTool != null);
+        property(builder, indent + 1, "command", json("java"), true);
+        property(builder, indent + 1, "artifactPath", json(artifactPath), true);
         if (buildTool != null) {
-            property(builder, indent + 2, "buildTool", json(buildTool), buildArguments != null);
+            property(builder, indent + 1, "buildTool", json(buildTool), true);
         }
 
         if (buildArguments != null) {
-            property(builder, indent + 2, "buildArguments", json(buildArguments), false);
+            property(builder, indent + 1, "buildArguments", json(buildArguments), true);
         }
 
-        line(builder, indent + 1, "},");
         line(builder, indent + 1, "\"project\": {");
         property(builder, indent + 2, "path", json(projectPath), true);
         if (serviceDiscoveryName != null) {

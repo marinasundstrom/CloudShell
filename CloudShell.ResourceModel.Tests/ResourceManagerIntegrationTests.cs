@@ -3234,10 +3234,10 @@ resources:
         Assert.Equal(ResourceManagerClass.Project, projectedApp.ResourceClass);
         Assert.Equal(ResourceManagerResourceState.Stopped, projectedApp.State);
         Assert.Equal(JavaScriptAppResourceTypeProvider.ProviderId, projectedApp.Provider);
-        Assert.Equal("src/frontend", projectedApp.ResourceAttributes["project.path"]);
-        Assert.Equal("node", projectedApp.ResourceAttributes["javascript.engine"]);
-        Assert.Equal("npm", projectedApp.ResourceAttributes["javascript.packageManager"]);
-        Assert.Equal("dev", projectedApp.ResourceAttributes["javascript.script"]);
+        Assert.Equal("src/frontend", projectedApp.ResourceAttributes[JavaScriptAppResourceTypeProvider.Attributes.ProjectPath]);
+        Assert.Equal("node", projectedApp.ResourceAttributes[JavaScriptAppResourceTypeProvider.Attributes.Runtime]);
+        Assert.Equal("npm", projectedApp.ResourceAttributes[JavaScriptAppResourceTypeProvider.Attributes.PackageManager]);
+        Assert.Equal("dev", projectedApp.ResourceAttributes[JavaScriptAppResourceTypeProvider.Attributes.Script]);
         Assert.Empty(projectedApp.DependsOn);
         Assert.Equal("http://localhost:5173", projectedApp.PrimaryEndpoint);
         Assert.Contains(projectedApp.ResourceCapabilities, capability =>
@@ -3411,10 +3411,10 @@ resources:
         Assert.Equal(ResourceManagerClass.Project, projectedApp.ResourceClass);
         Assert.Equal(ResourceManagerResourceState.Stopped, projectedApp.State);
         Assert.Equal(JavaAppResourceTypeProvider.ProviderId, projectedApp.Provider);
-        Assert.Equal("src/api", projectedApp.ResourceAttributes["project.path"]);
-        Assert.Equal("java", projectedApp.ResourceAttributes["java.command"]);
-        Assert.Equal("target/app.jar", projectedApp.ResourceAttributes["java.artifactPath"]);
-        Assert.Equal("-Xmx256m", projectedApp.ResourceAttributes["java.jvmArguments"]);
+        Assert.Equal("src/api", projectedApp.ResourceAttributes[JavaAppResourceTypeProvider.Attributes.ProjectPath]);
+        Assert.Equal("java", projectedApp.ResourceAttributes[JavaAppResourceTypeProvider.Attributes.Command]);
+        Assert.Equal("target/app.jar", projectedApp.ResourceAttributes[JavaAppResourceTypeProvider.Attributes.ArtifactPath]);
+        Assert.Equal("-Xmx256m", projectedApp.ResourceAttributes[JavaAppResourceTypeProvider.Attributes.JvmArguments]);
         Assert.Empty(projectedApp.DependsOn);
         Assert.Equal("http://localhost:5185", projectedApp.PrimaryEndpoint);
         Assert.Contains(projectedApp.ResourceCapabilities, capability =>

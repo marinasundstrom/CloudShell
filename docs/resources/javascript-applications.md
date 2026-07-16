@@ -4,11 +4,11 @@ Use the JavaScript app resource type for local JavaScript and Node.js
 applications that should participate in the CloudShell local development
 resource graph. These resources project as `application.javascript-app`.
 
-The first JavaScript app provider assumes the app runs on Node.js. It records
-that assumption as `javascript.engine: node` and uses package-manager/script
-attributes for the development command. Future extensions can add more focused
-registration helpers for frameworks such as Vite, Next.js, or workers without
-changing the base resource type.
+The JavaScript app provider defaults to the Node.js runtime. It records that
+assumption as a resource-local `runtime: node` attribute and uses
+package-manager/script attributes for the development command. Future
+extensions can add more focused registration helpers for frameworks such as
+Vite, Next.js, or workers without changing the base resource type.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For related resource types,
@@ -20,25 +20,67 @@ see [ASP.NET Core applications](aspnet-core-applications.md),
 
 Programmatic declarations use `AddJavaScriptApp(...)` with a scoped resource
 name and project path. The provider derives the canonical resource ID from the
-name:
+name. A minimal JavaScript app declaration only needs the type, name, and
+project path:
+
+```yaml
+resources:
+  - type: application.javascript-app
+    name: frontend
+    project:
+      path: src/frontend
+```
+
+The equivalent C# declaration is:
 
 ```csharp
 resources
-    .AddJavaScriptApp("frontend", "src/frontend")
-    .WithDisplayName("Frontend")
-    .WithPackageManager("pnpm")
-    .WithScript("dev")
-    .WithHttpEndpoint(port: 5173, targetPort: 5173, host: "localhost");
+    .AddJavaScriptApp("frontend", "src/frontend");
 ```
 
 The default declaration assumes:
 
 ```yaml
-javascript:
-  engine: node
-  packageManager: npm
-  script: dev
+runtime: node
+packageManager: npm
+script: dev
 ```
+
+Endpoint, package-manager, and script choices are scenario-specific additions:
+
+```yaml
+resources:
+  - type: application.javascript-app
+    name: frontend
+    project:
+      path: src/frontend
+      endpointRequests:
+        - name: http
+          protocol: http
+          targetPort: 5173
+          port: 5173
+          exposure: Local
+    runtime: node
+    packageManager: pnpm
+    script: dev
+```
+
+The C# builder shape for that scenario is:
+
+```csharp
+resources
+    .AddJavaScriptApp("frontend", "src/frontend")
+    .WithPackageManager("pnpm")
+    .WithScript("dev")
+    .WithHttpEndpoint(port: 5173, targetPort: 5173, host: "localhost");
+```
+
+JavaScript app attribute IDs are owner-qualified for provider/runtime code, but
+the serialized paths stay resource-local and readable. For example:
+
+- `javascript-app:project.path` renders as `project.path`.
+- `javascript-app:runtime` renders as `runtime`.
+- `javascript-app:packageManager` renders as `packageManager`.
 
 JavaScript app resources can declare endpoint requests, environment variables,
 service references, health checks, log sources, and volume mounts using the
@@ -67,13 +109,14 @@ resources
 
 The projection changes the Resource Manager resource to
 `application.container-app` while retaining JavaScript project metadata such as
-`project.path`, `javascript.engine`, `javascript.packageManager`, and
-`javascript.script`. That lets the same authored app participate in container
-app deployment, replica, monitoring, and runtime views. For JavaScript, the
-current packaging path expects a container build context and normally a
-project-owned Dockerfile. Docker is the first local runtime target; the
-resource model stores container intent so other OCI-compatible targets such as
-Podman can be added behind the container host boundary.
+`project.path`, `runtime`, `packageManager`, and `script`. That lets the same
+authored app participate in container app deployment, replica, monitoring, and
+runtime views. For JavaScript, the current packaging path expects a container
+build context and normally a project-owned Dockerfile. Docker is the first
+local runtime target; the resource model stores container intent so other
+OCI-compatible targets such as Podman can be added behind the container host
+boundary.
+boundary.
 
 When a JavaScript app references Configuration Store or Secrets Vault
 resources, the provider derives `CLOUDSHELL_CONFIGURATION_*` and

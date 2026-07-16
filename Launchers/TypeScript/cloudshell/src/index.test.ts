@@ -136,11 +136,6 @@ test("builds a resource template with JavaScript app and configuration store", (
     "identity.name": "typescript-frontend",
     "identity.provisionOnStartup": true
   });
-  assert.deepEqual(frontend.javascript, {
-    engine: "node",
-    packageManager: "npm",
-    script: "dev"
-  });
   assert.deepEqual(frontend.project, {
     path: "samples/TypeScriptAppHost/App",
     serviceDiscoveryName: "typescript-frontend",
@@ -195,6 +190,9 @@ test("builds a resource template with JavaScript app and configuration store", (
       }
     ]
   });
+  assert.equal(frontend.runtime, "node");
+  assert.equal(frontend.packageManager, "npm");
+  assert.equal(frontend.script, "dev");
   assert.deepEqual(frontend.health, {
     checks: [
       {
@@ -347,12 +345,11 @@ test("builds a Java app resource template", () => {
 
   assert.equal(java.type, "application.java-app");
   assert.equal(java.resourceId, "application.java-app:java-api");
-  assert.deepEqual(java.java, {
-    command: "java",
-    artifactPath: "target/cloudshell-java-app-sample.jar",
-    jvmArguments: "-Xmx256m",
-    arguments: "--sample"
-  });
+  assert.equal(java.command, "java");
+  assert.equal(java.artifactPath, "target/cloudshell-java-app-sample.jar");
+  assert.equal(java.jvmArguments, "-Xmx256m");
+  assert.equal(java.arguments, "--sample");
+  assert.equal(java.java, undefined);
   assert.deepEqual(java.project, {
     path: "samples/JavaApp/App",
     serviceDiscoveryName: "java-api",
@@ -401,12 +398,11 @@ test("builds Java Maven app as a container app", () => {
   assert.equal(java.type, "application.container-app");
   assert.equal(java.providerId, "applications.container-app");
   assert.equal(java.resourceId, "application.container-app:java-api");
-  assert.deepEqual(java.java, {
-    command: "java",
-    artifactPath: "target/cloudshell-java-app-sample.jar",
-    buildTool: "maven",
-    buildArguments: "clean package -DskipTests"
-  });
+  assert.equal(java.command, "java");
+  assert.equal(java.artifactPath, "target/cloudshell-java-app-sample.jar");
+  assert.equal(java.buildTool, "maven");
+  assert.equal(java.buildArguments, "clean package -DskipTests");
+  assert.equal(java.java, undefined);
   assert.deepEqual(java.container, {
     image: "cloudshell-java-java-api:dev",
     replicas: 1,

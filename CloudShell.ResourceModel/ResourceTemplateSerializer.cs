@@ -47,7 +47,8 @@ public static class ResourceTemplateSerializer
 
     public static ResourceTemplate DeserializeTemplate(
         string document,
-        ResourceTemplateFormat format = ResourceTemplateFormat.Yaml)
+        ResourceTemplateFormat format = ResourceTemplateFormat.Yaml,
+        ResourceTemplateSerializerOptions? options = null)
     {
         if (string.IsNullOrWhiteSpace(document))
         {
@@ -58,17 +59,18 @@ public static class ResourceTemplateSerializer
         {
             ResourceTemplateFormat.Json => DeserializeJson<ResourceTemplate>(
                 document,
-                new ResourceTemplateSerializationContext(IsTemplateRoot: true)),
+                new ResourceTemplateSerializationContext(IsTemplateRoot: true, Options: options)),
             ResourceTemplateFormat.Yaml => DeserializeYaml<ResourceTemplate>(
                 document,
-                new ResourceTemplateSerializationContext(IsTemplateRoot: true)),
+                new ResourceTemplateSerializationContext(IsTemplateRoot: true, Options: options)),
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
         };
     }
 
     public static ResourceDefinition DeserializeDefinition(
         string document,
-        ResourceTemplateFormat format = ResourceTemplateFormat.Yaml)
+        ResourceTemplateFormat format = ResourceTemplateFormat.Yaml,
+        ResourceTemplateSerializerOptions? options = null)
     {
         if (string.IsNullOrWhiteSpace(document))
         {
@@ -79,17 +81,18 @@ public static class ResourceTemplateSerializer
         {
             ResourceTemplateFormat.Json => DeserializeJson<ResourceDefinition>(
                 document,
-                new ResourceTemplateSerializationContext(IsResourceDefinition: true)),
+                new ResourceTemplateSerializationContext(IsResourceDefinition: true, Options: options)),
             ResourceTemplateFormat.Yaml => DeserializeYaml<ResourceDefinition>(
                 document,
-                new ResourceTemplateSerializationContext(IsResourceDefinition: true)),
+                new ResourceTemplateSerializationContext(IsResourceDefinition: true, Options: options)),
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
         };
     }
 
     public static string SerializeTemplate(
         ResourceTemplate template,
-        ResourceTemplateFormat format = ResourceTemplateFormat.Yaml)
+        ResourceTemplateFormat format = ResourceTemplateFormat.Yaml,
+        ResourceTemplateSerializerOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(template);
 
@@ -97,17 +100,18 @@ public static class ResourceTemplateSerializer
         {
             ResourceTemplateFormat.Json => SerializeJson(
                 template,
-                new ResourceTemplateSerializationContext(IsTemplateRoot: true)),
+                new ResourceTemplateSerializationContext(IsTemplateRoot: true, Options: options)),
             ResourceTemplateFormat.Yaml => SerializeYaml(
                 template,
-                new ResourceTemplateSerializationContext(IsTemplateRoot: true)),
+                new ResourceTemplateSerializationContext(IsTemplateRoot: true, Options: options)),
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
         };
     }
 
     public static string SerializeDefinition(
         ResourceDefinition definition,
-        ResourceTemplateFormat format = ResourceTemplateFormat.Yaml)
+        ResourceTemplateFormat format = ResourceTemplateFormat.Yaml,
+        ResourceTemplateSerializerOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
@@ -115,10 +119,10 @@ public static class ResourceTemplateSerializer
         {
             ResourceTemplateFormat.Json => SerializeJson(
                 definition,
-                new ResourceTemplateSerializationContext(IsResourceDefinition: true)),
+                new ResourceTemplateSerializationContext(IsResourceDefinition: true, Options: options)),
             ResourceTemplateFormat.Yaml => SerializeYaml(
                 definition,
-                new ResourceTemplateSerializationContext(IsResourceDefinition: true)),
+                new ResourceTemplateSerializationContext(IsResourceDefinition: true, Options: options)),
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
         };
     }
@@ -178,9 +182,13 @@ public static class ResourceTemplateSerializer
                 .Select(item => NormalizeYamlObject(
                     item,
                     context.ItemsAreResourceDefinitions
-                        ? new ResourceTemplateSerializationContext(IsResourceDefinition: true)
+                        ? new ResourceTemplateSerializationContext(
+                            IsResourceDefinition: true,
+                            Options: context.Options)
                         : context.ItemsAreDependencyReferences
-                            ? new ResourceTemplateSerializationContext(IsDependencyReference: true)
+                            ? new ResourceTemplateSerializationContext(
+                                IsDependencyReference: true,
+                                Options: context.Options)
                         : default))
                 .ToArray(),
             _ => value
@@ -193,6 +201,11 @@ public static class ResourceTemplateSerializer
         var normalized = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         var hoistedAttributes = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         var hasTypeId = map.Keys.Any(key => IsKey(key, "typeId"));
+        var resourceTypeId = context.IsResourceDefinition
+            ? ReadResourceTypeId(map)
+            : null;
+        var attributeDefinitions = ResolveAttributeDefinitions(context.Options, resourceTypeId);
+        var attributePathResolver = ResourceAttributePathResolver.FromDefinitions(attributeDefinitions);
 
         foreach (var (rawKey, rawValue) in map)
         {
@@ -207,7 +220,20 @@ public static class ResourceTemplateSerializer
             if (context.IsResourceDefinition &&
                 !IsResourceDefinitionProperty(key))
             {
-                hoistedAttributes[key] = NormalizeYamlObject(rawValue, default);
+                var normalizedValue = NormalizeYamlObject(rawValue, default);
+                if (attributeDefinitions is null)
+                {
+                    hoistedAttributes[key] = normalizedValue;
+                }
+                else
+                {
+                    AddHoistedAttribute(
+                        hoistedAttributes,
+                        attributePathResolver,
+                        key,
+                        normalizedValue);
+                }
+
                 continue;
             }
 
@@ -217,10 +243,14 @@ public static class ResourceTemplateSerializer
                     : key;
             var childContext = context.IsTemplateRoot &&
                 string.Equals(key, "resources", StringComparison.OrdinalIgnoreCase)
-                    ? new ResourceTemplateSerializationContext(ItemsAreResourceDefinitions: true)
+                    ? new ResourceTemplateSerializationContext(
+                        ItemsAreResourceDefinitions: true,
+                        Options: context.Options)
                     : context.IsResourceDefinition &&
                     string.Equals(key, "dependsOn", StringComparison.OrdinalIgnoreCase)
-                        ? new ResourceTemplateSerializationContext(ItemsAreDependencyReferences: true)
+                        ? new ResourceTemplateSerializationContext(
+                            ItemsAreDependencyReferences: true,
+                            Options: context.Options)
                     : default;
             normalized[normalizedKey] = NormalizeYamlObject(rawValue, childContext);
         }
@@ -249,9 +279,13 @@ public static class ResourceTemplateSerializer
                 .Select(item => NormalizeJsonElement(
                     item,
                     context.ItemsAreResourceDefinitions
-                        ? new ResourceTemplateSerializationContext(IsResourceDefinition: true)
+                        ? new ResourceTemplateSerializationContext(
+                            IsResourceDefinition: true,
+                            Options: context.Options)
                         : context.ItemsAreDependencyReferences
-                            ? new ResourceTemplateSerializationContext(IsDependencyReference: true)
+                            ? new ResourceTemplateSerializationContext(
+                                IsDependencyReference: true,
+                                Options: context.Options)
                             : default))
                 .ToArray(),
             JsonValueKind.String => value.GetString(),
@@ -272,6 +306,12 @@ public static class ResourceTemplateSerializer
         var hoistedAttributes = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         var hasTypeId = value.EnumerateObject().Any(property =>
             string.Equals(property.Name, "typeId", StringComparison.OrdinalIgnoreCase));
+        var resourceTypeId = context.IsResourceDefinition
+            ? ReadResourceTypeId(value)
+            : null;
+        var attributeDefinitions = context.AttributeDefinitions ??
+            ResolveAttributeDefinitions(context.Options, resourceTypeId);
+        var attributePathResolver = ResourceAttributePathResolver.FromDefinitions(attributeDefinitions);
 
         foreach (var property in value.EnumerateObject())
         {
@@ -285,7 +325,20 @@ public static class ResourceTemplateSerializer
             if (context.IsResourceDefinition &&
                 !IsResourceDefinitionProperty(property.Name))
             {
-                hoistedAttributes[property.Name] = NormalizeJsonElement(property.Value, default);
+                var normalizedValue = NormalizeJsonElement(property.Value, default);
+                if (attributeDefinitions is null)
+                {
+                    hoistedAttributes[property.Name] = normalizedValue;
+                }
+                else
+                {
+                    AddHoistedAttribute(
+                        hoistedAttributes,
+                        attributePathResolver,
+                        property.Name,
+                        normalizedValue);
+                }
+
                 continue;
             }
 
@@ -295,10 +348,14 @@ public static class ResourceTemplateSerializer
                     : property.Name;
             var childContext = context.IsTemplateRoot &&
                 string.Equals(property.Name, "resources", StringComparison.OrdinalIgnoreCase)
-                    ? new ResourceTemplateSerializationContext(ItemsAreResourceDefinitions: true)
+                    ? new ResourceTemplateSerializationContext(
+                        ItemsAreResourceDefinitions: true,
+                        Options: context.Options)
                     : context.IsResourceDefinition &&
                     string.Equals(property.Name, "dependsOn", StringComparison.OrdinalIgnoreCase)
-                        ? new ResourceTemplateSerializationContext(ItemsAreDependencyReferences: true)
+                        ? new ResourceTemplateSerializationContext(
+                            ItemsAreDependencyReferences: true,
+                            Options: context.Options)
                         : default;
             normalized[normalizedKey] = NormalizeJsonElement(property.Value, childContext);
         }
@@ -341,9 +398,13 @@ public static class ResourceTemplateSerializer
                 .Select(item => ConvertJsonElement(
                     item,
                     context.ItemsAreResourceDefinitions
-                        ? new ResourceTemplateSerializationContext(IsResourceDefinition: true)
+                        ? new ResourceTemplateSerializationContext(
+                            IsResourceDefinition: true,
+                            Options: context.Options)
                         : context.ItemsAreDependencyReferences
-                            ? new ResourceTemplateSerializationContext(IsDependencyReference: true)
+                            ? new ResourceTemplateSerializationContext(
+                                IsDependencyReference: true,
+                                Options: context.Options)
                         : default))
                 .ToArray(),
             JsonValueKind.String => value.GetString(),
@@ -367,13 +428,19 @@ public static class ResourceTemplateSerializer
             return reference;
         }
 
+        var resourceTypeId = context.IsResourceDefinition
+            ? ReadResourceTypeId(value)
+            : null;
+        var attributeDefinitions = context.AttributeDefinitions ??
+            ResolveAttributeDefinitions(context.Options, resourceTypeId);
+
         if (context.IsAttributeMap)
         {
             foreach (var property in value.EnumerateObject())
             {
                 AddDottedProperty(
                     normalized,
-                    property.Name,
+                    ResolveDocumentAttributePath(attributeDefinitions, property.Name),
                     ConvertJsonElement(
                         GetDocumentAttributeValue(property.Name, property.Value),
                         default));
@@ -394,7 +461,10 @@ public static class ResourceTemplateSerializer
             {
                 var convertedAttributes = ConvertJsonElement(
                     property.Value,
-                    new ResourceTemplateSerializationContext(IsAttributeMap: true));
+                    new ResourceTemplateSerializationContext(
+                        IsAttributeMap: true,
+                        Options: context.Options,
+                        AttributeDefinitions: attributeDefinitions));
                 if (convertedAttributes is Dictionary<string, object?> attributes)
                 {
                     HoistAttributeProperties(normalized, attributes);
@@ -405,13 +475,20 @@ public static class ResourceTemplateSerializer
 
             var childContext = context.IsTemplateRoot &&
                 string.Equals(property.Name, "resources", StringComparison.OrdinalIgnoreCase)
-                    ? new ResourceTemplateSerializationContext(ItemsAreResourceDefinitions: true)
+                    ? new ResourceTemplateSerializationContext(
+                        ItemsAreResourceDefinitions: true,
+                        Options: context.Options)
                     : context.IsResourceDefinition &&
                     string.Equals(property.Name, "dependsOn", StringComparison.OrdinalIgnoreCase)
-                        ? new ResourceTemplateSerializationContext(ItemsAreDependencyReferences: true)
+                        ? new ResourceTemplateSerializationContext(
+                            ItemsAreDependencyReferences: true,
+                            Options: context.Options)
                         : context.IsResourceDefinition &&
                         string.Equals(property.Name, "attributes", StringComparison.OrdinalIgnoreCase)
-                            ? new ResourceTemplateSerializationContext(IsAttributeMap: true)
+                            ? new ResourceTemplateSerializationContext(
+                                IsAttributeMap: true,
+                                Options: context.Options,
+                                AttributeDefinitions: attributeDefinitions)
                     : default;
             normalized[key] = ConvertJsonElement(property.Value, childContext);
         }
@@ -421,6 +498,96 @@ public static class ResourceTemplateSerializer
 
     private static bool IsResourceDefinitionProperty(string key) =>
         ResourceDefinitionProperties.Contains(key);
+
+    private static ResourceTypeId? ReadResourceTypeId(IDictionary<object, object> map)
+    {
+        foreach (var (key, value) in map)
+        {
+            if ((IsKey(key, "type") || IsKey(key, "typeId")) &&
+                value is not null &&
+                !string.IsNullOrWhiteSpace(value.ToString()))
+            {
+                return ResourceTypeId.Create(value.ToString()!.Trim());
+            }
+        }
+
+        return null;
+    }
+
+    private static ResourceTypeId? ReadResourceTypeId(JsonElement value)
+    {
+        if (TryGetString(value, "typeId", out var typeId) ||
+            TryGetString(value, "type", out typeId))
+        {
+            return ResourceTypeId.Create(typeId);
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? ResolveAttributeDefinitions(
+        ResourceTemplateSerializerOptions? options,
+        ResourceTypeId? resourceTypeId)
+    {
+        if (options is null ||
+            resourceTypeId is null ||
+            !options.ResourceTypes.TryGetValue(resourceTypeId.Value, out var resourceType))
+        {
+            return null;
+        }
+
+        return resourceType.Attributes;
+    }
+
+    private static string ResolveAttributePath(
+        ResourceAttributePathResolver resolver,
+        string path) =>
+        resolver.ResolveOrCreate(path).ToString();
+
+    private static void AddHoistedAttribute(
+        Dictionary<string, object?> attributes,
+        ResourceAttributePathResolver resolver,
+        string path,
+        object? value)
+    {
+        if (resolver.TryResolve(path, out var attributeId))
+        {
+            attributes[attributeId.ToString()] = value;
+            return;
+        }
+
+        if (value is Dictionary<string, object?> objectValue)
+        {
+            foreach (var (childKey, childValue) in objectValue)
+            {
+                AddHoistedAttribute(
+                    attributes,
+                    resolver,
+                    string.IsNullOrWhiteSpace(path)
+                        ? childKey
+                        : $"{path}.{childKey}",
+                    childValue);
+            }
+
+            return;
+        }
+
+        attributes[ResolveAttributePath(resolver, path)] = value;
+    }
+
+    private static string ResolveDocumentAttributePath(
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? definitions,
+        string attributeId)
+    {
+        if (definitions is null ||
+            !definitions.TryGetValue(ResourceAttributeId.Create(attributeId), out var definition) ||
+            string.IsNullOrWhiteSpace(definition.Path))
+        {
+            return attributeId;
+        }
+
+        return definition.Path.Trim();
+    }
 
     private static void MergeHoistedAttributes(
         Dictionary<string, object?> normalized,
@@ -580,5 +747,22 @@ public static class ResourceTemplateSerializer
         bool ItemsAreResourceDefinitions = false,
         bool ItemsAreDependencyReferences = false,
         bool IsDependencyReference = false,
-        bool IsAttributeMap = false);
+        bool IsAttributeMap = false,
+        ResourceTemplateSerializerOptions? Options = null,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? AttributeDefinitions = null);
+}
+
+public sealed class ResourceTemplateSerializerOptions
+{
+    public ResourceTemplateSerializerOptions(
+        IEnumerable<ResourceTypeDefinition>? resourceTypes = null)
+    {
+        ResourceTypes = resourceTypes?
+            .ToDictionary(
+                resourceType => resourceType.TypeId,
+                resourceType => resourceType)
+            ?? new Dictionary<ResourceTypeId, ResourceTypeDefinition>();
+    }
+
+    public IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> ResourceTypes { get; }
 }

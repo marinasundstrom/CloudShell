@@ -147,8 +147,11 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	assertEqual(t, "CloudShell.Configuration/stores/settings/read/action", grant["permission"])
 	principal := grant["principal"].(map[string]any)
 	assertEqual(t, "application.go-app:api/identities/api", principal["id"])
-	assertNestedEqual(t, "go.command", "go", goResource, "go", "command")
-	assertNestedEqual(t, "go.packagePath", ".", goResource, "go", "packagePath")
+	assertEqual(t, "go", goResource["command"])
+	assertEqual(t, ".", goResource["packagePath"])
+	if _, ok := goResource["go"]; ok {
+		t.Fatal("expected Go command attributes at the resource root")
+	}
 	assertNestedEqual(t, "project.path", "samples/GoApp/App", goResource, "project", "path")
 	assertNestedEqual(t, "project.serviceDiscoveryName", "api", goResource, "project", "serviceDiscoveryName")
 

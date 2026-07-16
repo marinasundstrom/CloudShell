@@ -15,15 +15,15 @@ public sealed class PythonAppResourceTypeProvider :
 
     public static class Attributes
     {
-        public static readonly ResourceAttributeId ProjectPath = "project.path";
-        public static readonly ResourceAttributeId Command = "python.command";
-        public static readonly ResourceAttributeId ScriptPath = "python.scriptPath";
-        public static readonly ResourceAttributeId Module = "python.module";
-        public static readonly ResourceAttributeId Arguments = "python.arguments";
-        public static readonly ResourceAttributeId EndpointRequests = "project.endpointRequests";
-        public static readonly ResourceAttributeId EnvironmentVariables = "project.environmentVariables";
-        public static readonly ResourceAttributeId ServiceDiscoveryName = "project.serviceDiscoveryName";
-        public static readonly ResourceAttributeId References = "project.references";
+        public static readonly ResourceAttributeId ProjectPath = "python-app:project.path";
+        public static readonly ResourceAttributeId Command = "python-app:command";
+        public static readonly ResourceAttributeId ScriptPath = "python-app:scriptPath";
+        public static readonly ResourceAttributeId Module = "python-app:module";
+        public static readonly ResourceAttributeId Arguments = "python-app:arguments";
+        public static readonly ResourceAttributeId EndpointRequests = "python-app:project.endpointRequests";
+        public static readonly ResourceAttributeId EnvironmentVariables = "python-app:project.environmentVariables";
+        public static readonly ResourceAttributeId ServiceDiscoveryName = "python-app:project.serviceDiscoveryName";
+        public static readonly ResourceAttributeId References = "python-app:project.references";
     }
 
     public static class Operations
@@ -42,6 +42,7 @@ public sealed class PythonAppResourceTypeProvider :
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
             [Attributes.ProjectPath] = new(
+                Path: "project.path",
                 ValueType: ResourceAttributeValueType.String),
             [ApplicationArtifactAttributeIds.SourceKind] = new(
                 ValueType: ResourceAttributeValueType.String),
@@ -53,24 +54,32 @@ public sealed class PythonAppResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.Command] = new(
                 DefaultValue: "python3",
+                Path: "command",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ScriptPath] = new(
                 DefaultValue: "app.py",
+                Path: "scriptPath",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Module] = new(
+                Path: "module",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Arguments] = new(
+                Path: "arguments",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
+                path: "project.endpointRequests"),
             [Attributes.EnvironmentVariables] = new(
                 Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
+                Path: "project.environmentVariables",
                 ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ServiceDiscoveryName] = new(
+                Path: "project.serviceDiscoveryName",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.References] = ResourceAttributeDefinition.Collection(
-                itemType: ResourceAttributeValueType.ResourceReference)
+                itemType: ResourceAttributeValueType.ResourceReference,
+                path: "project.references")
         },
         Capabilities:
         [
