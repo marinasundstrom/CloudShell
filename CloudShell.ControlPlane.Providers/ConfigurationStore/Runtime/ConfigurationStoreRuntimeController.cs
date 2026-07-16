@@ -211,5 +211,27 @@ public sealed class NoopConfigurationStoreRuntimeController :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            ConfigurationStoreRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
+}
+
+internal static class ConfigurationStoreRuntimeReadiness
+{
+    public const string DiagnosticCode = "configuration.store.runtimeControllerMissing";
+
+    public static bool IsMissing(IConfigurationStoreRuntimeController? runtimeController) =>
+        runtimeController is null or NoopConfigurationStoreRuntimeController;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"Configuration Store resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no Configuration Store runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }

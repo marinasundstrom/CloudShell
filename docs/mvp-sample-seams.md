@@ -130,6 +130,10 @@ CloudShell Docker containers were left running.
   controller readiness when the operation path is constructed without the
   built-in process runtime and return matching provider-execution diagnostics
   if invoked directly.
+- Graph-backed Configuration Store lifecycle actions now report missing
+  runtime-controller readiness when the operation path is constructed without
+  the built-in process runtime and return matching provider-execution
+  diagnostics if invoked directly.
 
 ## Active Tie-Off Order
 

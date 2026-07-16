@@ -3683,6 +3683,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task ConfigurationStoreLifecycleHandler_FailsWhenRuntimeControllerIsMissing()
+    {
+        var configurationStore = CreateGraphResource("configuration-store:default", "default");
+        var handler = new ConfigurationStoreStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.ConfigurationStoreStart,
+            TargetResourceId = configurationStore.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "configuration-store:default:start:1",
+            TargetResourceSnapshot = configurationStore,
+            ResourceSnapshot = [configurationStore]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("configuration.store.runtimeControllerMissing", diagnostic.Code);
+        Assert.Equal(configurationStore.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task ConfigurationStoreLifecycleOperationProvider_ProjectsUnavailableWithoutRuntimeController()
+    {
+        var configurationStore = CreateGraphResource("configuration-store:default", "default");
+        var provider = new ConfigurationStoreStartOperationProvider();
+
+        var projection = Assert.IsType<ConfigurationStoreLifecycleOperation>(
+            await provider.ProjectAsync(
+                configurationStore,
+                new ResourceOperationResolution(
+                    ConfigurationStoreResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        configurationStore,
+                        [configurationStore]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Configuration Store runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SecretsVaultLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var secretsVault = CreateGraphResource("secrets-vault:default", "default", revision: 8);

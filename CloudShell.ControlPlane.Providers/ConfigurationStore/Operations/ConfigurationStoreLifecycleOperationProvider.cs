@@ -71,7 +71,13 @@ public abstract class ConfigurationStoreLifecycleOperationProvider(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _runtimeController,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        ConfigurationStoreRuntimeReadiness.IsMissing(_runtimeController)
+            ? ConfigurationStoreRuntimeReadiness.CreateMissingReason(resource, OperationId)
+            : null;
 
     private static IProviderExecutionDispatcher CreateDefaultDispatcher(
         IConfigurationStoreRuntimeController runtimeController) =>
@@ -87,7 +93,8 @@ public sealed class ConfigurationStoreLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
     IConfigurationStoreRuntimeController runtimeController,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -99,9 +106,14 @@ public sealed class ConfigurationStoreLifecycleOperation(
 
     public ResourceOperationId OperationId => Definition.Id;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason { get; } =
+        string.IsNullOrWhiteSpace(unavailableReason)
+            ? operation.UnavailableReason
+            : unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

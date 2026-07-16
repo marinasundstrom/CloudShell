@@ -197,6 +197,13 @@ resource type. Today it is a host-local process for development; a future
 configuration provider can replace that with a container image while keeping the
 resource model and logs attached to the configuration service resource.
 
+Lifecycle actions require a Configuration Store runtime controller. The built-in
+provider registration supplies the local process runtime controller for normal
+hosts. If a custom or direct operation path is constructed without that
+controller, Resource Manager projects the lifecycle action as unavailable with a
+missing-controller reason, and direct provider-execution calls return the same
+readiness failure as a diagnostic instead of succeeding as a no-op.
+
 ## Application Access
 
 Executable applications receive configuration service connection details through

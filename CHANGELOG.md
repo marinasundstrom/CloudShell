@@ -97,6 +97,10 @@ on `git blame --follow`, and then by the broad type of change.
   Event Broker runtime controller is registered, and to project the same
   missing-controller reason as the operation unavailable reason before
   dispatch.
+- Changed graph-backed Configuration Store lifecycle actions to fail closed
+  when no Configuration Store runtime controller is registered, and to project
+  the same missing-controller reason as the operation unavailable reason before
+  dispatch.
 
 ### 2026-07-15
 
