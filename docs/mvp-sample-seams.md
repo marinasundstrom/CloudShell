@@ -74,6 +74,9 @@ CloudShell Docker containers were left running.
 - Graph-backed load-balancer apply readiness now uses the same missing
   configuration-applier reason before dispatch, keeping Resource Manager
   action state aligned with execution diagnostics.
+- Graph-backed DNS/name-mapping reconciliation now reports missing reconciler
+  readiness before dispatch and returns the same provider-execution diagnostic
+  if invoked directly, avoiding silent no-op name publishing.
 
 ## Active Tie-Off Order
 

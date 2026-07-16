@@ -574,6 +574,12 @@ zone selects a publishing provider, the zone exposes a
 `reconcileNameMappings` action so operators can apply or re-apply the expected
 records.
 
+Graph-backed DNS/name-mapping reconciliation uses the provider-execution
+boundary. If no name-mapping reconciler is registered, the projected reconcile
+operation is unavailable with a missing-reconciler reason, and direct execution
+returns the same provider-execution diagnostic instead of reporting a
+successful no-op.
+
 The first local publishing provider is `local-hostnames`. It supports exact
 host mappings and writes a CloudShell-managed block to a hosts-file style
 target. The provider can be pointed at a custom file for safe development and

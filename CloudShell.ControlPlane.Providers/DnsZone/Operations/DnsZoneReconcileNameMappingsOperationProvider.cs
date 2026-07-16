@@ -4,12 +4,14 @@ public sealed class DnsZoneReconcileNameMappingsOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IDnsZoneNameMappingReconciler? _nameMappingReconciler;
     private readonly IProviderExecutionDispatcher _dispatcher;
 
     public DnsZoneReconcileNameMappingsOperationProvider(
         IProviderExecutionDispatcher? dispatcher = null,
         IDnsZoneNameMappingReconciler? nameMappingReconciler = null)
     {
+        _nameMappingReconciler = nameMappingReconciler;
         _dispatcher = dispatcher ??
             new InProcessProviderExecutionDispatcher(
                 [new DnsZoneNameMappingExecutionHandler(nameMappingReconciler)]);
@@ -48,13 +50,21 @@ public sealed class DnsZoneReconcileNameMappingsOperationProvider :
             new DnsZoneReconcileNameMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        DnsZoneNameMappingReconcilerReadiness.IsMissing(_nameMappingReconciler)
+            ? DnsZoneNameMappingReconcilerReadiness
+                .CreateMissingReconcilerReason(resource)
+            : null;
 }
 
 public sealed class DnsZoneReconcileNameMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -66,9 +76,10 @@ public sealed class DnsZoneReconcileNameMappingsOperation(
 
     public ResourceOperationId OperationId => DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable && string.IsNullOrWhiteSpace(UnavailableReason);
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason => Definition.UnavailableReason ?? unavailableReason;
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>

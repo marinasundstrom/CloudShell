@@ -1919,7 +1919,10 @@ public sealed class ResourceProviderDispatcherTests
         var reconcile = await projection.GetReconcileNameMappingsOperationAsync();
 
         Assert.NotNull(reconcile);
-        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.False(await reconcile.CanExecuteAsync());
+        Assert.Contains(
+            "No DNS name-mapping reconciler is registered for provider 'hosts-file'.",
+            reconcile.UnavailableReason);
         Assert.Equal("local", reconcile.PlanReconcile().ZoneName);
         Assert.Equal("hosts-file", reconcile.PlanReconcile().Provider);
     }

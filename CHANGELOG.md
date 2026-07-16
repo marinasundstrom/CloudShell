@@ -41,6 +41,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed graph-backed load-balancer apply readiness so the projected
   operation is unavailable with the same missing configuration-applier reason
   before dispatch when no provider package is registered.
+- Changed graph-backed DNS/name-mapping reconciliation to fail closed when no
+  reconciler is registered, and to project the same missing-reconciler reason
+  as the operation unavailable reason before dispatch.
 
 ### 2026-07-15
 

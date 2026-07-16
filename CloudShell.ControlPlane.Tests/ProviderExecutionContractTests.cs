@@ -885,6 +885,39 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task DnsZoneNameMappingHandler_FailsWhenReconcilerIsMissing()
+    {
+        var zone = CreateGraphResource(
+            "dns-zone:private",
+            "private",
+            attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DnsZoneResourceTypeProvider.Attributes.Provider] = "hosts-file"
+            });
+        var handler = new DnsZoneNameMappingExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.DnsNameMappingReconcile,
+            TargetResourceId = zone.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "dns-zone:private:1",
+            TargetResourceSnapshot = zone,
+            ResourceSnapshot = [zone]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("dns.zone.nameMappingReconcilerMissing", diagnostic.Code);
+        Assert.Equal(zone.EffectiveResourceId, diagnostic.Target);
+        Assert.Contains("provider 'hosts-file'", diagnostic.Message);
+        Assert.Contains(zone.EffectiveResourceId, diagnostic.Message);
+    }
+
+    [Fact]
     public async Task LocalVolumeProvisionOperation_DispatchesFileSystemProvisionInstruction()
     {
         var volume = CreateGraphResource(
