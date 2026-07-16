@@ -483,7 +483,10 @@ public sealed class NoopPythonAppRuntimeController :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            PythonAppRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
 
     public IReadOnlyList<PythonAppRuntimeOutputEntry> ReadOutput(
         string resourceId,
@@ -495,4 +498,23 @@ public sealed class NoopPythonAppRuntimeController :
         string resourceId,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+}
+
+internal static class PythonAppRuntimeReadiness
+{
+    public const string DiagnosticCode = "application.pythonApp.runtimeControllerMissing";
+
+    public static bool IsMissing(IPythonAppRuntimeController? runtimeController) =>
+        runtimeController is null or NoopPythonAppRuntimeController;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"Python app resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no Python app runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }

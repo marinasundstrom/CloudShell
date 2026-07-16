@@ -77,6 +77,13 @@ same Resource model patterns as other application resources. The default local
 runtime tracks process state and exposes process logs and metrics through
 Resource Manager.
 
+Lifecycle actions require a Python app runtime controller. The built-in
+provider registration supplies the local process runtime controller for normal
+hosts. If a custom or direct operation path is constructed without that
+controller, Resource Manager projects lifecycle actions as unavailable with a
+missing-controller reason, and direct provider-execution calls return the same
+readiness failure as a diagnostic instead of succeeding as a no-op.
+
 Use `AsContainerApp(...)` when a Python app should be authored as a Python
 project but run as a scalable container app:
 

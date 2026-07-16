@@ -1994,6 +1994,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task PythonAppLifecycleHandler_FailsWhenRuntimeControllerIsMissing()
+    {
+        var app = CreateGraphResource("application.python-app:api", "api");
+        var handler = new PythonAppStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.PythonAppStart,
+            TargetResourceId = app.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application.python-app:api:start:1",
+            TargetResourceSnapshot = app,
+            ResourceSnapshot = [app]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.pythonApp.runtimeControllerMissing", diagnostic.Code);
+        Assert.Equal(app.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task PythonAppLifecycleOperationProvider_ProjectsUnavailableWithoutRuntimeController()
+    {
+        var app = CreateGraphResource("application.python-app:api", "api");
+        var provider = new PythonAppStartOperationProvider();
+
+        var projection = Assert.IsType<PythonAppLifecycleOperation>(
+            await provider.ProjectAsync(
+                app,
+                new ResourceOperationResolution(
+                    PythonAppResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        app,
+                        [app]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Python app runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task DeviceRegistryLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var registry = CreateGraphResource("iot.device-registry:devices", "devices", revision: 33);

@@ -97,14 +97,21 @@ public abstract class PythonAppLifecycleOperationProvider :
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _runtimeController,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        PythonAppRuntimeReadiness.IsMissing(_runtimeController)
+            ? PythonAppRuntimeReadiness.CreateMissingReason(resource, OperationId)
+            : null;
 }
 
 public sealed class PythonAppLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
     IPythonAppRuntimeController runtimeController,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -118,9 +125,12 @@ public sealed class PythonAppLifecycleOperation(
 
     public ResourceOperationId OperationId => Definition.Id;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
     public string? UnavailableReason =>
+        unavailableReason ??
         Definition.UnavailableReason ??
         ApplicationArtifactResourceValidation.GetLifecycleUnavailableReason(Resource, OperationId);
 
