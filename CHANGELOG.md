@@ -117,6 +117,10 @@ on `git blame --follow`, and then by the broad type of change.
   JavaScript app runtime controller is registered, and to project the same
   missing-controller reason as the operation unavailable reason before
   dispatch.
+- Changed graph-backed Java app lifecycle actions to fail closed when no Java
+  app runtime controller is registered, and to project the same
+  missing-controller reason as the operation unavailable reason before
+  dispatch.
 
 ### 2026-07-15
 

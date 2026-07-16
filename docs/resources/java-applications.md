@@ -52,6 +52,13 @@ Build stdout and stderr are captured in the resource log buffer with the
 `application.javaApp.buildFailed` diagnostic and does not start the JVM
 process.
 
+Lifecycle actions require a Java app runtime controller. The built-in provider
+registration supplies the local process runtime controller for normal hosts.
+If a custom or direct operation path is constructed without that controller,
+Resource Manager projects lifecycle actions as unavailable with a
+missing-controller reason, and direct provider-execution calls return the same
+readiness failure as a diagnostic instead of succeeding as a no-op.
+
 Use `AsContainerApp(...)` when a Java app should be authored as a Java project
 but run as a container app. Maven or Gradle build-on-start settings remain on
 the projected container app, so the local Docker runtime runs the Java build

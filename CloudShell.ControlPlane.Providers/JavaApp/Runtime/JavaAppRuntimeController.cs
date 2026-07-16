@@ -549,7 +549,10 @@ public sealed class NoopJavaAppRuntimeController :
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            JavaAppRuntimeReadiness.CreateMissingDiagnostic(resource, operationId)
+        ]);
 
     public IReadOnlyList<JavaAppRuntimeOutputEntry> ReadOutput(
         string resourceId,
@@ -561,4 +564,23 @@ public sealed class NoopJavaAppRuntimeController :
         string resourceId,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+}
+
+internal static class JavaAppRuntimeReadiness
+{
+    public const string DiagnosticCode = "application.javaApp.runtimeControllerMissing";
+
+    public static bool IsMissing(IJavaAppRuntimeController? runtimeController) =>
+        runtimeController is null or NoopJavaAppRuntimeController;
+
+    public static string CreateMissingReason(Resource resource, ResourceOperationId operationId) =>
+        $"Java app resource '{resource.EffectiveResourceId}' cannot execute '{operationId}' because no Java app runtime controller is registered.";
+
+    public static ResourceDefinitionDiagnostic CreateMissingDiagnostic(
+        Resource resource,
+        ResourceOperationId operationId) =>
+        ResourceDefinitionDiagnostic.Error(
+            DiagnosticCode,
+            CreateMissingReason(resource, operationId),
+            resource.EffectiveResourceId);
 }

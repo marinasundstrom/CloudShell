@@ -97,14 +97,21 @@ public abstract class JavaAppLifecycleOperationProvider :
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _runtimeController,
-                _dispatcher));
+                _dispatcher,
+                GetUnavailableReason(resource)));
+
+    private string? GetUnavailableReason(Resource resource) =>
+        JavaAppRuntimeReadiness.IsMissing(_runtimeController)
+            ? JavaAppRuntimeReadiness.CreateMissingReason(resource, OperationId)
+            : null;
 }
 
 public sealed class JavaAppLifecycleOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
     IJavaAppRuntimeController runtimeController,
-    IProviderExecutionDispatcher dispatcher) : IResourceOperationExecutorProjection
+    IProviderExecutionDispatcher dispatcher,
+    string? unavailableReason = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -118,9 +125,12 @@ public sealed class JavaAppLifecycleOperation(
 
     public ResourceOperationId OperationId => Definition.Id;
 
-    public bool IsAvailable => Definition.IsAvailable;
+    public bool IsAvailable =>
+        Definition.IsAvailable &&
+        string.IsNullOrWhiteSpace(UnavailableReason);
 
     public string? UnavailableReason =>
+        unavailableReason ??
         Definition.UnavailableReason ??
         ApplicationArtifactResourceValidation.GetLifecycleUnavailableReason(Resource, OperationId);
 

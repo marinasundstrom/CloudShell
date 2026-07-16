@@ -1772,6 +1772,54 @@ public sealed class ProviderExecutionContractTests
     }
 
     [Fact]
+    public async Task JavaAppLifecycleHandler_FailsWhenRuntimeControllerIsMissing()
+    {
+        var app = CreateGraphResource("application.java-app:api", "api");
+        var handler = new JavaAppStartExecutionHandler();
+        var request = new ProviderExecutionRequest
+        {
+            AssignmentId = "assignment-1",
+            InstructionType = ProviderExecutionInstructionTypes.JavaAppStart,
+            TargetResourceId = app.EffectiveResourceId,
+            DesiredGeneration = 1,
+            IdempotencyKey = "application.java-app:api:start:1",
+            TargetResourceSnapshot = app,
+            ResourceSnapshot = [app]
+        };
+
+        var result = await handler.ExecuteAsync(request);
+
+        Assert.Equal(ProviderExecutionStatus.Failed, result.Status);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.javaApp.runtimeControllerMissing", diagnostic.Code);
+        Assert.Equal(app.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task JavaAppLifecycleOperationProvider_ProjectsUnavailableWithoutRuntimeController()
+    {
+        var app = CreateGraphResource("application.java-app:api", "api");
+        var provider = new JavaAppStartOperationProvider();
+
+        var projection = Assert.IsType<JavaAppLifecycleOperation>(
+            await provider.ProjectAsync(
+                app,
+                new ResourceOperationResolution(
+                    JavaAppResourceTypeProvider.Operations.Start,
+                    ResourceDefinitionJson.EmptyObject,
+                    ResourceDefinitionValueSource.TypeDefinition,
+                    IsEnabled: true,
+                    AllowOverride: false),
+                new ResourceOperationProjectionContext(
+                    ExecutionContext: new ResourceProjectionExecutionContext(
+                        app,
+                        [app]))));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Contains("no Java app runtime controller", projection.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GoAppLifecycleOperation_DispatchesLifecycleInstruction()
     {
         var app = CreateGraphResource("application.go-app:api", "api", revision: 29);
