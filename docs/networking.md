@@ -243,9 +243,9 @@ provider selected to materialize it.
 During reconciliation, the network validates that each mapping source endpoint
 belongs to the reconciled network resource and that a source endpoint is mapped
 only once. The selected provider then validates and materializes any
-runtime-specific behavior it owns. Provider-returned error signals are surfaced
-as reconcile diagnostics and must not be counted as successfully provisioned
-mappings.
+runtime-specific behavior it owns. Provider-returned error signals are
+surfaced as graph reconcile diagnostics or Resource Manager procedure signals
+and must not be counted as successfully provisioned mappings.
 
 The reconcile action uses the same validation path for action availability.
 Resource Manager can disable the action and show a reason when a mapping

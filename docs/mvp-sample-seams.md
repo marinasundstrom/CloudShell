@@ -63,8 +63,8 @@ CloudShell Docker containers were left running.
   operation and target resource for lifecycle, image, replica, and orchestrator
   paths while preserving the original provider error details.
 - Endpoint-mapping reconciliation now turns provider-returned error signals
-  into operation diagnostics instead of reporting those mappings as
-  successfully provisioned.
+  into graph operation diagnostics or Resource Manager procedure signals
+  instead of reporting those mappings as successfully provisioned.
 
 ## Active Tie-Off Order
 

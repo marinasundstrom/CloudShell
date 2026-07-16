@@ -977,13 +977,14 @@ public sealed class PlatformResourceProvider(
         ValidateEndpointMappings(context.Resource.Id, network);
 
         var provisionedCount = 0;
+        var procedureResults = new List<ResourceProcedureResult>();
         foreach (var mapping in network.NetworkEndpointMappings)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var source = ResolveEndpointReference(resourceManager, mapping.Id, mapping.Source, "source");
             var target = ResolveEndpointReference(resourceManager, mapping.Id, mapping.Target, "target");
             var provider = ValidateMappingProvider(resourceManager, mapping);
-            if (await TryProvisionEndpointMappingAsync(
+            var result = await TryProvisionEndpointMappingAsync(
                     context.Resource,
                     network,
                     mapping,
@@ -991,16 +992,26 @@ public sealed class PlatformResourceProvider(
                     target,
                     provider,
                     resourceManager,
-                    cancellationToken))
+                    cancellationToken);
+            if (result.ProcedureResult is not null)
+            {
+                procedureResults.Add(result.ProcedureResult);
+            }
+
+            if (result.Provisioned)
             {
                 provisionedCount++;
             }
         }
 
-        var message = provisionedCount == 0
+        var message = provisionedCount == 0 && procedureResults.Count == 0
             ? $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s)."
             : $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s), provisioned {provisionedCount}.";
-        return ResourceProcedureResult.Completed(message);
+        return new ResourceProcedureResult(
+            message,
+            signals: procedureResults
+                .SelectMany(result => result.Signals)
+                .ToArray());
     }
 
     private static void ValidateEndpointMappings(
@@ -1743,7 +1754,7 @@ public sealed class PlatformResourceProvider(
             : $"{route.Kind}:{route.EntrypointName}:{host}:{pathPrefix}";
     }
 
-    private async Task<bool> TryProvisionEndpointMappingAsync(
+    private async Task<EndpointMappingProvisioningResult> TryProvisionEndpointMappingAsync(
         Resource networkResource,
         NetworkResourceDefinition network,
         ResourceEndpointMappingDefinition mapping,
@@ -1755,7 +1766,7 @@ public sealed class PlatformResourceProvider(
     {
         if (!RequiresEndpointMappingProvisioner(networkResource, network, provider))
         {
-            return false;
+            return new EndpointMappingProvisioningResult(false);
         }
 
         var provisioningContext = new ResourceEndpointMappingProvisioningContext(
@@ -1777,8 +1788,9 @@ public sealed class PlatformResourceProvider(
                 $"Endpoint mapping '{mapping.Id}' requires provider resource '{provider.Id}', but no activated host networking service can materialize it.");
         }
 
-        await provisioner.ProvisionEndpointMappingAsync(provisioningContext, cancellationToken);
-        return true;
+        var result = await provisioner.ProvisionEndpointMappingAsync(provisioningContext, cancellationToken);
+        var hasErrors = result.Signals.Any(signal => signal.Severity == ResourceSignalSeverity.Error);
+        return new EndpointMappingProvisioningResult(!hasErrors, result);
     }
 
     private bool CanProvisionEndpointMapping(
@@ -3421,6 +3433,10 @@ public sealed class PlatformResourceProvider(
         Resource Resource,
         ResourceEndpoint Endpoint,
         ResourceEndpointNetworkMapping? EndpointNetworkMapping);
+
+    private sealed record EndpointMappingProvisioningResult(
+        bool Provisioned,
+        ResourceProcedureResult? ProcedureResult = null);
 
     private sealed record EndpointAssignment(
         string ResourceId,

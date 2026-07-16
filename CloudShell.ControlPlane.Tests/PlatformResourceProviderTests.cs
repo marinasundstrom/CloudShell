@@ -268,6 +268,82 @@ public sealed class PlatformResourceProviderTests
     }
 
     [Fact]
+    public async Task ExecuteActionAsync_ReconcileEndpointMappingsPreservesProvisionerErrorSignals()
+    {
+        var store = CreatePlatformStore();
+        var provisioner = new RecordingEndpointMappingProvisioner(
+            new ResourceProcedureResult(
+                "Provisioner could not start the local proxy.",
+                signals:
+                [
+                    ResourceProcedureSignal.Error("The requested public port is already in use.")
+                ]));
+        var provider = new PlatformResourceProvider(
+            store,
+            new PlatformResourceOptions(),
+            endpointMappingProvisioners: [provisioner]);
+        var registrations = new TestResourceRegistrationStore([]);
+        await provider.SetupNetworkAsync(
+            new NetworkResourceDefinition(
+                "network:host",
+                "Host",
+                Kind: NetworkResourceKind.Host),
+            null,
+            registrations);
+        await provider.SetupNetworkAsync(
+            new NetworkResourceDefinition(
+                "network:app",
+                "App Network",
+                Endpoints:
+                [
+                    new ResourceEndpointRequest(
+                        "api-public",
+                        ResourceEndpointProtocol.Http,
+                        TargetPort: 5292,
+                        Host: "localhost",
+                        Port: 5292,
+                        Exposure: ResourceExposureScope.Public)
+                ],
+                EndpointMappings:
+                [
+                    new ResourceEndpointMappingDefinition(
+                        "mapping:api-public",
+                        "API public ingress",
+                        new ResourceEndpointReference("network:app", "api-public"),
+                        new ResourceEndpointReference("application:api", "http"),
+                        NetworkResourceId: "network:app",
+                        ProviderResourceId: "network:host")
+                ],
+                Kind: NetworkResourceKind.Virtual),
+            null,
+            registrations);
+        var network = provider.GetResources().Single(resource => resource.Id == "network:app");
+        var hostNetwork = provider.GetResources().Single(resource => resource.Id == "network:host");
+        var api = CreateResource(
+            "application:api",
+            "API",
+            [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Local, 5291)],
+            endpointNetworkMappings:
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    "application:api",
+                    "http",
+                    "http://localhost:5291")
+            ]);
+        var resourceManager = new TestResourceManagerStore([network, hostNetwork, api]);
+
+        var result = await provider.ExecuteActionAsync(
+            new ResourceProcedureContext(network, null, null, registrations, resourceManager),
+            network.ResourceActions.Single(action => action.Id == PlatformResourceProvider.ReconcileEndpointMappingsActionId));
+
+        Assert.Equal("Reconciled 1 endpoint mapping(s), provisioned 0.", result.Message);
+        var signal = Assert.Single(result.Signals);
+        Assert.Equal(ResourceSignalSeverity.Error, signal.Severity);
+        Assert.Equal("The requested public port is already in use.", signal.Message);
+        Assert.Single(provisioner.Contexts);
+    }
+
+    [Fact]
     public async Task SetupServiceAsync_UsesConventionalPortForImplicitEndpoint()
     {
         var conventionalPort = GetFreePort();
@@ -500,6 +576,66 @@ public sealed class PlatformResourceProviderTests
         listener.Start();
         port = ((IPEndPoint)listener.LocalEndpoint).Port;
         return listener;
+    }
+
+    private static Resource CreateResource(
+        string id,
+        string name,
+        IReadOnlyList<ResourceEndpoint> endpoints,
+        IReadOnlyList<ResourceEndpointNetworkMapping>? endpointNetworkMappings = null) =>
+        new(
+            id,
+            name,
+            "Test",
+            "Test",
+            "test",
+            ResourceState.Running,
+            endpoints,
+            "test",
+            DateTimeOffset.UtcNow,
+            [],
+            EndpointNetworkMappings: endpointNetworkMappings);
+
+    private sealed class RecordingEndpointMappingProvisioner(
+        ResourceProcedureResult result) : IResourceEndpointMappingProvisioner
+    {
+        public List<ResourceEndpointMappingProvisioningContext> Contexts { get; } = [];
+
+        public bool CanProvisionEndpointMapping(
+            ResourceEndpointMappingProvisioningContext context) =>
+            true;
+
+        public Task<ResourceProcedureResult> ProvisionEndpointMappingAsync(
+            ResourceEndpointMappingProvisioningContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Contexts.Add(context);
+            return Task.FromResult(result);
+        }
+    }
+
+    private sealed class TestResourceManagerStore(IReadOnlyList<Resource> resources) : IResourceManagerStore
+    {
+        public IReadOnlyList<IResourceProvider> Providers => [];
+
+        public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
+
+        public IReadOnlyList<Resource> GetAvailableResources() => resources;
+
+        public IReadOnlyList<Resource> GetResources() => resources;
+
+        public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
+
+        public ResourceClass? GetResourceTypeClass(string resourceType) => null;
+
+        public Resource? GetResource(string id) =>
+            resources.FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
+
+        public IReadOnlyList<Resource> GetChildren(string resourceId) => [];
+
+        public ResourceGroup? GetGroupForResource(string resourceId) => null;
+
+        public bool IsRegistered(string resourceId) => GetResource(resourceId) is not null;
     }
 
     private sealed class TestResourceRegistrationStore(IReadOnlyList<ResourceRegistration> registrations) :

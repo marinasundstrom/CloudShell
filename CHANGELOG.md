@@ -29,9 +29,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved local Docker container app replica monitoring fallback messages so
   missing or unreadable Docker stats include the runtime replica and backing
   container context.
-- Improved graph endpoint-mapping reconciliation so provider-returned error
-  signals become operation diagnostics instead of being counted as successful
-  provisioned mappings.
+- Improved endpoint-mapping reconciliation so provider-returned error signals
+  become graph operation diagnostics or Resource Manager procedure signals
+  instead of being counted as successful provisioned mappings.
 
 ### 2026-07-15
 
