@@ -54,7 +54,7 @@ else
                 <FluentOption TOption="string" Value="">Select a target</FluentOption>
                 @foreach (var target in GetTargetCandidates())
                 {
-                    <FluentOption TOption="string" Value="@target.Id">@ResourceDisplayLabels.GetLabel(target)</FluentOption>
+                    <FluentOption TOption="string" Value="@target.Id">@ResourceDisplayLabels.GetQualifiedLabel(target)</FluentOption>
                 }
             </FluentSelect>
 
@@ -86,7 +86,7 @@ else
                 <FluentOption TOption="string" Value="">Use zone provider</FluentOption>
                 @foreach (var provider in GetNamePublisherCandidates())
                 {
-                    <FluentOption TOption="string" Value="@provider.Id">@ResourceDisplayLabels.GetLabel(provider)</FluentOption>
+                    <FluentOption TOption="string" Value="@provider.Id">@ResourceDisplayLabels.GetQualifiedLabel(provider)</FluentOption>
                 }
             </FluentSelect>
 
@@ -170,14 +170,14 @@ else
             .Where(resource => !IsNetworkBoundaryResource(resource))
             .Where(resource => resource.Endpoints.Count > 0 || resource.HasCapability(ResourceCapabilityIds.EndpointSource))
             .Where(IsInDnsZoneGroup)
-            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<Resource> GetNamePublisherCandidates() =>
         Resources
             .Where(resource => resource.HasCapability(ResourceCapabilityIds.NetworkingNamePublisher))
             .Where(IsInDnsZoneGroup)
-            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<ResourceEndpoint> GetTargetEndpoints(string resourceId) =>

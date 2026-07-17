@@ -22,6 +22,9 @@ on `git blame --follow`, and then by the broad type of change.
   names while keeping scoped resource names visible when they differ.
 - Improved DNS zone overview name-mapping rows so target and provider
   resources use the same qualified-label format as generated diagnostics.
+- Improved DNS/name-mapping authoring selectors so zone, target, and
+  publishing-provider choices use qualified labels and remain distinguishable
+  when display names differ from resource names.
 - Updated the MVP sample seam audit baseline after the broad
   `CloudShell.Sample.Tests` run passed with 122 tests, including the Bun
   JavaScript app sample.
