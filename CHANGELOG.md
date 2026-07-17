@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified container-app scaling status labels so running replicas and
+  reconciled slots do not expose materialization terminology.
 - Clarified Resource Manager usage views so trend estimates are described as
   forecasts instead of projections.
 - Improved Log Explorer read and streaming failures so the UI shows stable

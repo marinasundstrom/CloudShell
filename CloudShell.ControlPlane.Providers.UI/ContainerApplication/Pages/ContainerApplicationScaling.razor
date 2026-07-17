@@ -41,7 +41,7 @@ else
             <dd>@ReplicaSlots.Count.ToString(CultureInfo.InvariantCulture)</dd>
             <dt>Occupied slots</dt>
             <dd>@OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
-            <dt>Materialized slots</dt>
+            <dt>Running replicas</dt>
             <dd>@GetMaterializedSlotsLabel()</dd>
             <dt>Slot state</dt>
             <dd>@GetReplicaSlotStateSummary()</dd>
@@ -624,7 +624,7 @@ else
     private static string GetMaterializationLabel(Resource resource) =>
         GetAttribute(resource, ResourceAttributeNames.RuntimeMaterialization, "unknown") switch
         {
-            "orchestratorMaterialized" => "Materialized",
+            "orchestratorMaterialized" => "Running",
             "orchestratorPending" => "Pending",
             "orchestratorFailed" => "Failed",
             var materialization when !string.IsNullOrWhiteSpace(materialization) => materialization,
@@ -644,7 +644,7 @@ else
             ResourceReplicaSlotReconciliationStatus.Repairing => "Repairing",
             ResourceReplicaSlotReconciliationStatus.Repaired => "Repaired",
             ResourceReplicaSlotReconciliationStatus.RepairFailed => "Repair failed",
-            ResourceReplicaSlotReconciliationStatus.Materialized => "Materialized",
+            ResourceReplicaSlotReconciliationStatus.Materialized => "Reconciled",
             null => "not observed",
             _ => state.Status.ToString()
         };
