@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified storage mount diagnostics so Resource Manager warns about inactive
+  mounts without exposing materialization terminology.
 - Clarified the resource detail fallback message so missing resource
   selections no longer refer to projected details.
 - Improved Resource Manager readiness and routing diagnostics so referenced
