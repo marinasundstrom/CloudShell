@@ -113,6 +113,8 @@ on `git blame --follow`, and then by the broad type of change.
   update state are described without source-kind wording.
 - Clarified container-app Revisions fallback labels so missing revision data
   does not use runtime-revision wording.
+- Clarified Environment dashboard revision columns so deployment and replica
+  tables use app-revision wording instead of runtime-revision wording.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
