@@ -197,6 +197,51 @@ resource type. Today it is a host-local process for development; a future
 configuration provider can replace that with a container image while keeping the
 resource model and logs attached to the configuration service resource.
 
+## Future Container-Backed Instances
+
+Configuration Store and Secrets Vault resources should continue to be modeled
+as resource instances, not as special Control Plane services. A
+`configuration.store` resource is one configuration store. A `secrets.vault`
+resource is one vault. The service process or container that serves that
+instance is the resource's runtime realization.
+
+The current implementation already gives each instance an isolated host-local
+process and provider-owned state, which is sufficient for the local-development
+MVP. CloudShell should not prioritize replacing that working isolation before
+the app-centric MVP is stable. The future path is to let a provider materialize
+the same resource instance as a container-backed runtime when a host profile or
+environment requires stronger isolation, operational packaging, or more
+production-like lifecycle behavior.
+
+That future shape should preserve the same user-facing resource model:
+
+- the Control Plane owns the `configuration.store` or `secrets.vault` resource,
+  lifecycle policy, permissions, dependency relationships, endpoint projection,
+  logs, health, and Resource Manager operations
+- the provider owns the runtime implementation, state format, seed import,
+  secret/configuration data plane, and diagnostics needed to operate the
+  instance
+- the execution boundary materializes the provider runtime as a local process,
+  container, external managed service, or future agent assignment without
+  changing the authored resource definition
+- other resources reference the store or vault by resource ID, not by the
+  process ID, container ID, or host-local implementation details
+
+This is the same direction as SQL Server and other provider-backed service
+resources: the resource is the stable management and dependency boundary, while
+the backing process or container is an implementation detail. Runtime helper
+containers, sidecars, process handles, data files, and provider caches should
+remain provider-owned runtime state unless they need their own independent
+resource identity for diagnostics, authorization, lifecycle actions, or
+relationships.
+
+When the execution/agent boundary is introduced, Configuration Store and
+Secrets Vault providers should be able to move their local service startup
+behind that boundary as typed provider execution. The Control Plane should
+still orchestrate desired state and observe status through the provider
+contracts; it should not require users to author a separate app or container
+resource just to get an isolated vault or configuration store.
+
 Lifecycle actions require a Configuration Store runtime controller. The built-in
 provider registration supplies the local process runtime controller for normal
 hosts. If a custom or direct operation path is constructed without that
