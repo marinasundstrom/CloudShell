@@ -138,7 +138,19 @@ else
             {
                 <div>
                     <strong>Startup dependencies</strong>
-                    <span>@FormatList(Resource.DependsOn)</span>
+                    @foreach (var dependency in DependencyRows)
+                    {
+                        @if (dependency.Resource is null)
+                        {
+                            <span>@dependency.Label</span>
+                        }
+                        else
+                        {
+                            <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(dependency.ResourceId)">
+                                @dependency.Label
+                            </FluentAnchor>
+                        }
+                    }
                 </div>
             }
         </div>
@@ -151,6 +163,7 @@ else
 
     private Resource? Resource { get; set; }
     private IReadOnlyList<AttributeRow> AttributeRows { get; set; } = [];
+    private IReadOnlyList<ResourceDependencyRow> DependencyRows { get; set; } = [];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -163,6 +176,9 @@ else
                 .OrderBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(attribute => new AttributeRow(attribute.Key, FormatAttributeValue(attribute.Key, attribute.Value)))
                 .ToArray();
+        DependencyRows = Resource is null
+            ? []
+            : await CreateDependencyRowsAsync(Resource);
     }
 
     private string GetAttributeSummary() =>
@@ -211,5 +227,34 @@ else
             : string.Join(", ", items);
     }
 
+    private async Task<IReadOnlyList<ResourceDependencyRow>> CreateDependencyRowsAsync(Resource resource)
+    {
+        var dependencyIds = resource.DependsOn
+            .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (dependencyIds.Length == 0)
+        {
+            return [];
+        }
+
+        var resourcesById = (await ResourceManager.ListResourcesAsync())
+            .ToDictionary(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase);
+        return dependencyIds
+            .Select(dependencyId =>
+            {
+                resourcesById.TryGetValue(dependencyId, out var dependency);
+                var label = dependency is null
+                    ? $"{ResourceDisplayLabels.GetName(dependencyId)} (unavailable)"
+                    : ResourceDisplayLabels.GetQualifiedLabel(dependency);
+                return new ResourceDependencyRow(dependencyId, label, dependency);
+            })
+            .OrderBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private sealed record AttributeRow(string Name, string Value);
+
+    private sealed record ResourceDependencyRow(string ResourceId, string Label, Resource? Resource);
 }

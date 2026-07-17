@@ -1135,6 +1135,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("version", graphSqlConfigurationHtml);
         Assert.Contains("Endpoints", graphSqlConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphSqlConfigurationHtml);
+        Assert.Contains("SQL Data", graphSqlConfigurationHtml);
 
         var graphSqlDatabasesHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString("application:databases")}");

@@ -66,6 +66,8 @@ on `git blame --follow`, and then by the broad type of change.
   consistently.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
+- Improved the shared application Configuration tab so startup dependencies
+  resolve to linked, qualified Resource Manager labels when available.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.
