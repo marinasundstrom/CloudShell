@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified DNS and name-mapping views so routing status no longer appears as
+  materialization status in Resource Manager.
 - Hid the resource detail Endpoints section when a selected resource has no
   endpoint entries to show.
 - Clarified the application package editor so visible labels and validation

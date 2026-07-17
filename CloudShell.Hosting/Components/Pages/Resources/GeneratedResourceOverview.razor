@@ -201,7 +201,7 @@
             <dt>@L["Resolved target endpoint"]</dt>
             <dd>
                 <EndpointLink Address="@resolvedEndpoint" />
-                <small class="muted">@L["Projected from the target resource endpoint"]</small>
+                <small class="muted">@L["Resolved from the target resource endpoint"]</small>
             </dd>
         }
         @if (!string.IsNullOrWhiteSpace(Resource.ParentResourceId))
@@ -213,7 +213,7 @@
         <dd>@ResourceNameMappingDisplay.GetExposureLabel(Resource)</dd>
         <dt>@L["Provider"]</dt>
         <dd>@FormatNameMappingProvider(Resource)</dd>
-        <dt>@L["Materialization"]</dt>
+        <dt>@L["Routing status"]</dt>
         <dd>@ResourceNameMappingDisplay.GetMaterializationLabel(Resource, Localize)</dd>
     </dl>;
 
@@ -1085,7 +1085,7 @@
         {
             L["Exposure: {0}", ResourceNameMappingDisplay.GetExposureLabel(view.Mapping)].Value,
             FormatNameMappingProvider(view.Mapping),
-            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping, Localize)].Value
+            L["Routing status: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping, Localize)].Value
         };
 
         var zone = string.IsNullOrWhiteSpace(view.Mapping.ParentResourceId)

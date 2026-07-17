@@ -125,7 +125,7 @@ else
         {
             $"Exposure: {GetAttribute(mapping, ResourceAttributeNames.NameMappingExposure, ResourceExposureScope.Public.ToString())}",
             GetProviderLabel(mapping),
-            $"Materialization: {ResourceNameMappingDisplay.GetMaterializationLabel(mapping, Localize)}"
+            $"Routing status: {ResourceNameMappingDisplay.GetMaterializationLabel(mapping, Localize)}"
         };
 
         if (!string.Equals(
