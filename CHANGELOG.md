@@ -85,6 +85,8 @@ on `git blame --follow`, and then by the broad type of change.
   reads as deployment state instead of replica-slot internals.
 - Clarified the container-app Scale and replicas view so visible labels use
   replica positions and reconciliation wording instead of slot internals.
+- Clarified the container-app Revisions page so inferred revision fallbacks
+  describe running replicas and revision IDs without resource-model wording.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface

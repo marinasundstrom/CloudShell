@@ -166,7 +166,7 @@ else
             ? FormatRevisionCreated(CurrentRevision)
             : string.Create(
                 CultureInfo.CurrentCulture,
-                $"Observed {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} running replica resource{Pluralize(MaterializedReplicas.Count)}.");
+                $"Observed {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} running replica{Pluralize(MaterializedReplicas.Count)}.");
 
     private int GetCurrentRequestedReplicas() =>
         CurrentRevision is not null
@@ -188,12 +188,12 @@ else
     private string FormatCurrentProvisionedBy() =>
         CurrentRevision is not null
             ? FormatProvisionedBy(CurrentRevision)
-            : "running state";
+            : "Running state";
 
     private string FormatInferredRevisionHeadline() =>
         string.Create(
             CultureInfo.CurrentCulture,
-            $"Active revision inferred from {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} running replica resource{Pluralize(MaterializedReplicas.Count)}.");
+            $"Active revision inferred from {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} running replica{Pluralize(MaterializedReplicas.Count)}.");
 
     private string FormatInferredRevisionMetadata()
     {
@@ -232,7 +232,7 @@ else
         {
             $"Requested replicas: {GetRequestedReplicas(revision).ToString(CultureInfo.InvariantCulture)}",
             $"Change: {FormatChangeKind(revision)}",
-            $"Runtime revision: {revision.RuntimeRevisionId}"
+            $"Revision id: {revision.RuntimeRevisionId}"
         };
         if (revision.EnvironmentRevisionNumber is > 0)
         {
