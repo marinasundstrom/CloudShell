@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified Logs and Telemetry navigation copy so extension-provided logs are
+  described as log sources instead of artifacts.
 - Clarified Environment map summary counts so routing and topology entries are
   described as relationships instead of artifacts.
 - Clarified container-app scaling status labels so running replicas and
