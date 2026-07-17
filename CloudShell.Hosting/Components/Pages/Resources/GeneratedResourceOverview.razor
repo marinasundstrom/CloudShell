@@ -382,7 +382,7 @@
         {
             ResourceIdentityBindingKind.Provider => L["Provider-backed"].Value,
             ResourceIdentityBindingKind.Required => L["Required by resource"].Value,
-            _ => kind.ToString()
+            _ => L["Unknown"].Value
         };
 
     private bool TryFormatDeclarationPersistence(
@@ -437,7 +437,7 @@
             ResourceExposureScope.Local => L["local"].Value,
             ResourceExposureScope.Network => L["network"].Value,
             ResourceExposureScope.Public => L["public"].Value,
-            _ => exposure.ToString()
+            _ => L["unknown"].Value
         };
 
     private IReadOnlyList<EndpointMappingDisplay> GetOverviewEndpointMappings()

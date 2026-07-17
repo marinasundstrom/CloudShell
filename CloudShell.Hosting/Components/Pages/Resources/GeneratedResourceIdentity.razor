@@ -317,7 +317,7 @@
         {
             ResourceIdentityBindingKind.Provider => L["Provider-backed"].Value,
             ResourceIdentityBindingKind.Required => L["Required by resource"].Value,
-            _ => kind.ToString()
+            _ => L["Unknown"].Value
         };
 
     private string FormatIdentityReference(ResourceIdentityReference identity)
