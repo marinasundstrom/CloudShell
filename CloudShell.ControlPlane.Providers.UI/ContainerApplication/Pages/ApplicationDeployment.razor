@@ -380,7 +380,7 @@ else
     private string GetDeploymentRequestedReplicas() =>
         Resource is not null && IsReplicaModeEnabled(Resource)
             ? GetDeploymentRequestedReplicasValue(Resource).ToString(CultureInfo.InvariantCulture)
-            : "not enabled";
+            : "Not enabled";
 
     private int GetDeploymentRequestedReplicasValue(Resource resource) =>
         ActiveDeployment?.ReplicaGroup?.RequestedReplicas ??
@@ -402,7 +402,7 @@ else
     private string GetDeploymentMaterializedReplicas() =>
         Resource is not null && IsReplicaModeEnabled(Resource)
             ? GetDeploymentMaterializedReplicaCount().ToString(CultureInfo.InvariantCulture)
-            : "not enabled";
+            : "Not enabled";
 
     private int GetDeploymentMaterializedReplicaCount()
     {

@@ -99,6 +99,8 @@ on `git blame --follow`, and then by the broad type of change.
   event groups instead of raw event type IDs.
 - Clarified application package editor empty revision labels so missing
   package selections use display labels.
+- Clarified container-app Deployment replica summary fallbacks so disabled
+  replica fields use display labels.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
