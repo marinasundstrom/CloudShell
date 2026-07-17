@@ -25,6 +25,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved DNS/name-mapping authoring selectors so zone, target, and
   publishing-provider choices use qualified labels and remain distinguishable
   when display names differ from resource names.
+- Improved load-balancer route authoring selectors and generated route names
+  so container-host and target-resource references use qualified labels.
 - Updated the MVP sample seam audit baseline after the broad
   `CloudShell.Sample.Tests` run passed with 122 tests, including the Bun
   JavaScript app sample.

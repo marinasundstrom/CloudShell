@@ -25,7 +25,7 @@
             <FluentOption TOption="string" Value="">Default container host</FluentOption>
             @foreach (var host in GetHostCandidates())
             {
-                <FluentOption TOption="string" Value="@host.Id">@ResourceDisplayLabels.GetLabel(host)</FluentOption>
+                <FluentOption TOption="string" Value="@host.Id">@ResourceDisplayLabels.GetQualifiedLabel(host)</FluentOption>
             }
         </FluentSelect>
 
@@ -95,7 +95,7 @@
                     <FluentOption TOption="string" Value="">Select a resource</FluentOption>
                     @foreach (var target in GetTargetCandidates())
                     {
-                        <FluentOption TOption="string" Value="@target.Id">@ResourceDisplayLabels.GetLabel(target)</FluentOption>
+                        <FluentOption TOption="string" Value="@target.Id">@ResourceDisplayLabels.GetQualifiedLabel(target)</FluentOption>
                     }
                 </FluentSelect>
 
@@ -134,7 +134,7 @@
                     <FluentOption TOption="string" Value="">Select a resource</FluentOption>
                     @foreach (var target in GetTargetCandidates())
                     {
-                        <FluentOption TOption="string" Value="@target.Id">@ResourceDisplayLabels.GetLabel(target)</FluentOption>
+                        <FluentOption TOption="string" Value="@target.Id">@ResourceDisplayLabels.GetQualifiedLabel(target)</FluentOption>
                     }
                 </FluentSelect>
 
@@ -254,7 +254,7 @@
         if (!string.IsNullOrWhiteSpace(requestedTargetResourceId) &&
             Resources.FirstOrDefault(resource => string.Equals(resource.Id, requestedTargetResourceId, StringComparison.OrdinalIgnoreCase)) is { } requestedTarget)
         {
-            Name = $"{ResourceDisplayLabels.GetLabel(requestedTarget)} load balancer";
+            Name = $"{ResourceDisplayLabels.GetQualifiedLabel(requestedTarget)} load balancer";
             ResourceId = $"load-balancer:{CreateRouteId(requestedTarget.Name)}";
         }
     }
@@ -264,7 +264,7 @@
             .Where(resource => !string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(IsContainerHostCandidate)
             .Where(IsInSelectedGroup)
-            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private static bool IsContainerHostCandidate(Resource resource) =>
@@ -283,7 +283,7 @@
             .Where(resource => !IsNetworkBoundaryResource(resource))
             .Where(resource => !string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(resource => resource.Endpoints.Count > 0 || resource.HasCapability(ResourceCapabilityIds.EndpointSource))
-            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<ResourceEndpoint> GetTargetEndpoints(string resourceId) =>
@@ -455,8 +455,8 @@
             routes.Add(new LoadBalancerRoute(
                 CreateRouteId("http", HttpHost, HttpPathPrefix),
                 string.IsNullOrWhiteSpace(HttpPathPrefix)
-                    ? $"{HttpHost} to {ResourceDisplayLabels.GetLabel(Resources, HttpTargetResourceId)}"
-                    : $"{HttpHost}{HttpPathPrefix} to {ResourceDisplayLabels.GetLabel(Resources, HttpTargetResourceId)}",
+                    ? $"{HttpHost} to {GetResourceLabel(HttpTargetResourceId)}"
+                    : $"{HttpHost}{HttpPathPrefix} to {GetResourceLabel(HttpTargetResourceId)}",
                 LoadBalancerRouteKind.Http,
                 "http",
                 new LoadBalancerRouteMatch(
@@ -475,7 +475,7 @@
 
             routes.Add(new LoadBalancerRoute(
                 CreateRouteId("tcp", TcpPort.ToString()),
-                $"tcp {TcpPort} to {ResourceDisplayLabels.GetLabel(Resources, TcpTargetResourceId)}",
+                $"tcp {TcpPort} to {GetResourceLabel(TcpTargetResourceId)}",
                 LoadBalancerRouteKind.Tcp,
                 GetTcpEntrypointName(),
                 new LoadBalancerRouteMatch(Port: Math.Max(1, TcpPort)),
@@ -514,6 +514,11 @@
     }
 
     private string GetTcpEntrypointName() => $"tcp-{Math.Max(1, TcpPort)}";
+
+    private string GetResourceLabel(string resourceId) =>
+        Resources.FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) is { } resource
+            ? ResourceDisplayLabels.GetQualifiedLabel(resource)
+            : ResourceDisplayLabels.GetName(resourceId);
 
     private CertificateReference? ResolveSelectedCertificateReference(string key) =>
         GetCertificateCandidates()
