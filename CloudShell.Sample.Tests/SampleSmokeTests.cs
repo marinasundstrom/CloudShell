@@ -1124,6 +1124,11 @@ public sealed class SampleSmokeTests
         Assert.Contains("Materialized deployment state", graphEnvironmentHtml);
         Assert.Contains("API", graphEnvironmentHtml);
 
+        var graphHealthHtml = await host.GetStringAsync("/health");
+        Assert.Contains("Health checks", graphHealthHtml);
+        Assert.Contains("Resources", graphHealthHtml);
+        Assert.Contains("API", graphHealthHtml);
+
         var graphSqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
         Assert.Contains("SQL Server", graphSqlDetailsHtml);

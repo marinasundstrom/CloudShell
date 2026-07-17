@@ -71,6 +71,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed Resource Template UI export/import to use registered resource type
   attribute paths, preventing container app exports from reintroducing the old
   `container:` wrapper for `image`, `replicas`, and routing fields.
+- Improved the Health dashboard so resource rows, history cards, activity
+  links, and ordering use qualified Resource Manager labels consistently.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.

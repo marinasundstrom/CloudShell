@@ -103,7 +103,7 @@
                                                                           OnClick="@(() => ToggleContainedResources(resource.Resource.Id))" />
                                                         }
                                                         <a class="resource-link" href="@BuildResourceRoute(resource.Resource.Id)">
-                                                            @resource.Resource.EffectiveDisplayName
+                                                            @GetResourceLabel(resource.Resource)
                                                         </a>
                                                     </span>
                                                     @if (resource.Children.Count > 0)
@@ -140,7 +140,7 @@
                 {
                     <div class="health-history-resource @(resource.Depth > 0 ? "contained" : null)">
                         <a class="resource-link" href="@BuildResourceRoute(resource.Resource.Id)">
-                            <strong>@resource.Resource.EffectiveDisplayName</strong>
+                            <strong>@GetResourceLabel(resource.Resource)</strong>
                         </a>
                         <ResourceHealthHistoryChart Compact="true"
                                                     Checks="GetChartChecks(resource.Resource)"
@@ -169,7 +169,7 @@
                 {
                     var summary = GetHealthSummary(resource.Resource);
                     <ShellActivityLink Href="@BuildResourceRoute(resource.Resource.Id)"
-                                       Title="@resource.Resource.EffectiveDisplayName"
+                                       Title="@GetResourceLabel(resource.Resource)"
                                        Summary="@GetActivitySummary(resource)">
                         <Leading>
                             <ResourceKindIcon Resource="@resource.Resource" />
@@ -204,7 +204,7 @@
         Resources
             .Where(HasHealthAssessment)
             .OrderBy(resource => GetHealthRank(GetHealthSummary(resource)?.Status))
-            .ThenBy(resource => resource.EffectiveDisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<HealthResourceRow> HealthResourceRows => BuildHealthResourceRows();
@@ -304,7 +304,7 @@
                 group => group.Key,
                 group => group
                     .OrderBy(resource => GetHealthRank(GetHealthSummary(resource)?.Status))
-                    .ThenBy(resource => resource.EffectiveDisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
                 StringComparer.OrdinalIgnoreCase);
         var rows = new List<HealthResourceRow>();
@@ -496,6 +496,9 @@
         ResourceManagerShellLinks.ResourceDetails(ShellRoutes,
             resourceId,
             ResourcePredefinedViewIds.Health);
+
+    private static string GetResourceLabel(Resource resource) =>
+        ResourceDisplayLabels.GetQualifiedLabel(resource);
 
     public void Dispose()
     {
