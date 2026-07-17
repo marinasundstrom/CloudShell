@@ -139,19 +139,25 @@ else
     {
         if (Resource is null)
         {
-            return "No environment variables are declared.";
+            return "No environment variables are configured.";
         }
 
         var count = CountEnvironmentVariables(Resource);
-        return count == 1
-            ? "1 environment variable is declared for this resource."
-            : $"{count} environment variables are declared for this resource.";
+        return count switch
+        {
+            0 => "No environment variables are configured for this resource.",
+            1 => "1 environment variable is configured for this resource.",
+            _ => $"{count} environment variables are configured for this resource."
+        };
     }
 
     private string GetDependencySummary() =>
-        DependencyRows.Count == 1
-            ? "1 startup dependency is declared for this resource."
-            : $"{DependencyRows.Count} startup dependencies are declared for this resource.";
+        DependencyRows.Count switch
+        {
+            0 => "No startup dependencies are configured for this resource.",
+            1 => "1 startup dependency is configured for this resource.",
+            _ => $"{DependencyRows.Count} startup dependencies are configured for this resource."
+        };
 
     private string GetCapabilityOperationSummary() =>
         $"{Resource?.ResourceCapabilities.Count ?? 0} capabilities and {Resource?.ResourceActions.Count ?? 0} operations are available.";
@@ -160,7 +166,7 @@ else
     {
         if (Resource is null)
         {
-            return "Not declared";
+            return "Not configured";
         }
 
         foreach (var attributeName in ServiceDiscoveryAttributeNames)
@@ -172,7 +178,7 @@ else
             }
         }
 
-        return "Not declared";
+        return "Not configured";
     }
 
     private static string FormatResourceTimestamp(DateTimeOffset timestamp) =>

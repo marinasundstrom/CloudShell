@@ -18,7 +18,7 @@ else
         @if (EnvironmentRows.Count == 0)
         {
             <EmptyState Title="No environment variables"
-                        Message="This resource does not declare environment variables." />
+                        Message="This resource has no environment variables configured." />
         }
         else
         {
@@ -85,9 +85,12 @@ else
     }
 
     private string GetEnvironmentSummary() =>
-        EnvironmentRows.Count == 1
-            ? "1 environment variable is declared for this resource."
-            : $"{EnvironmentRows.Count} environment variables are declared for this resource.";
+        EnvironmentRows.Count switch
+        {
+            0 => "No environment variables are configured for this resource.",
+            1 => "1 environment variable is configured for this resource.",
+            _ => $"{EnvironmentRows.Count} environment variables are configured for this resource."
+        };
 
     private static IReadOnlyList<EnvironmentRow> GetEnvironmentRows(Resource resource)
     {

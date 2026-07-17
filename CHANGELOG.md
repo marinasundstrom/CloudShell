@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified shared application Configuration and Environment tab summaries so
+  environment variables, service discovery, and startup dependencies use
+  configured-state wording instead of declaration terminology.
 - Clarified the shared application Storage tab so mounted storage summaries use
   configured storage wording instead of resource-definition terminology.
 - Clarified RabbitMQ topology and dashboard queue metadata so broker-reported
