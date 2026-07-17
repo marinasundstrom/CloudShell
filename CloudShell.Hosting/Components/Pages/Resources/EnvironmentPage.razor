@@ -633,7 +633,7 @@
 
     private static string GetDeploymentReplicaSummary(ResourceDeploymentRecord record) =>
         record.ReplicaGroup is null
-            ? "not available"
+            ? GetOptional(null)
             : string.Create(
                 CultureInfo.InvariantCulture,
                 $"{record.ReplicaGroup.MaterializedReplicas} of {record.ReplicaGroup.RequestedReplicas}");
@@ -649,7 +649,20 @@
             : row.EnvironmentRevisionId;
 
     private string GetEnvironmentRevisionStatus(ResourceDeploymentRecord record) =>
-        record.EnvironmentRevisionStatus?.ToString() ?? GetOptional(record.EnvironmentRevisionId);
+        record.EnvironmentRevisionStatus switch
+        {
+            ResourceOrchestratorRevisionStatus.Active => L["Active"].Value,
+            ResourceOrchestratorRevisionStatus.Superseded => L["Previous"].Value,
+            ResourceOrchestratorRevisionStatus.Failed => L["Failed"].Value,
+            ResourceOrchestratorRevisionStatus.Deleted => L["Removed"].Value,
+            ResourceOrchestratorRevisionStatus.Pending => L["Pending"].Value,
+            null when record.Status == ResourceOrchestratorDeploymentStatus.Active => L["Active"].Value,
+            null when record.Status == ResourceOrchestratorDeploymentStatus.Applying => L["Pending"].Value,
+            null when record.Status == ResourceOrchestratorDeploymentStatus.Failed => L["Failed"].Value,
+            null when record.Status == ResourceOrchestratorDeploymentStatus.Deleted => L["Removed"].Value,
+            null => GetOptional(record.EnvironmentRevisionId),
+            _ => L["Unknown"].Value
+        };
 
     private string GetCompletionLabel(ResourceDeploymentRecord record)
     {
@@ -768,12 +781,14 @@
         string ReplicaGroupId,
         string ReplicaSummary)
     {
+        private const string NotAvailable = "Not available";
+
         public static EnvironmentDeploymentRow Create(Resource resource)
         {
             var requestedReplicas = GetAttribute(resource, ResourceAttributeNames.DeploymentRequestedReplicas);
             var materializedReplicas = GetAttribute(resource, ResourceAttributeNames.DeploymentMaterializedReplicas);
-            var replicaSummary = requestedReplicas == "not available" && materializedReplicas == "not available"
-                ? "not available"
+            var replicaSummary = requestedReplicas == NotAvailable && materializedReplicas == NotAvailable
+                ? NotAvailable
                 : $"{materializedReplicas} of {requestedReplicas}";
 
             return new EnvironmentDeploymentRow(
@@ -788,7 +803,7 @@
         }
 
         private static string GetAttribute(Resource resource, string name) =>
-            resource.ResourceAttributes.GetValueOrDefault(name) ?? "not available";
+            resource.ResourceAttributes.GetValueOrDefault(name) ?? NotAvailable;
     }
 
     private static IReadOnlyList<EnvironmentReplicaGroupRow> CreateReplicaGroupRows(

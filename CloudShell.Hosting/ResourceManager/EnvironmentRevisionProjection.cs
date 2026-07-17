@@ -6,7 +6,7 @@ namespace CloudShell.Hosting.ResourceManager;
 public static class EnvironmentRevisionProjection
 {
     public const string BaselineRevisionId = "baseline-current";
-    private const string MissingValue = "not available";
+    private const string MissingValue = "Not available";
 
     public static IReadOnlyList<EnvironmentRevisionProjectionRow> CreateRows(
         IReadOnlyList<Resource> resources,
@@ -69,7 +69,7 @@ public static class EnvironmentRevisionProjection
             rows.Select(row => row.DeploymentId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             rows.Select(row => row.ServiceId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             rows.Select(row => row.ReplicaGroupId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-            rows.Select(row => row.Status).FirstOrDefault(IsProjected) ?? MissingValue,
+            FormatStatus(rows.Select(row => row.Status).FirstOrDefault(IsProjected)),
             "Deployment-produced environment revision");
     }
 
@@ -86,7 +86,7 @@ public static class EnvironmentRevisionProjection
             records.Select(record => record.DeploymentId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             records.Select(record => record.ServiceId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             records.Select(record => record.ReplicaGroup?.Id).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-            latest.EnvironmentRevisionStatus?.ToString() ?? latest.Status.ToString(),
+            FormatStatus(latest.EnvironmentRevisionStatus, latest.Status),
             "Deployment-produced environment revision",
             latest.EnvironmentRevisionNumber,
             latest.EnvironmentRevisionCreatedAt ?? latest.CompletedAt ?? latest.StartedAt,
@@ -98,6 +98,38 @@ public static class EnvironmentRevisionProjection
         !string.IsNullOrWhiteSpace(value) &&
         !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase) &&
         !string.Equals(value, MissingValue, StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatStatus(string? status) =>
+        string.IsNullOrWhiteSpace(status)
+            ? MissingValue
+            : status.ToLowerInvariant() switch
+            {
+                "active" => "Active",
+                "applying" => "Applying",
+                "deleted" => "Removed",
+                "failed" => "Failed",
+                "pending" => "Pending",
+                "superseded" => "Previous",
+                _ => status
+            };
+
+    private static string FormatStatus(
+        ResourceOrchestratorRevisionStatus? revisionStatus,
+        ResourceOrchestratorDeploymentStatus deploymentStatus) =>
+        revisionStatus switch
+        {
+            ResourceOrchestratorRevisionStatus.Active => "Active",
+            ResourceOrchestratorRevisionStatus.Superseded => "Previous",
+            ResourceOrchestratorRevisionStatus.Failed => "Failed",
+            ResourceOrchestratorRevisionStatus.Deleted => "Removed",
+            ResourceOrchestratorRevisionStatus.Pending => "Pending",
+            null when deploymentStatus == ResourceOrchestratorDeploymentStatus.Active => "Active",
+            null when deploymentStatus == ResourceOrchestratorDeploymentStatus.Applying => "Pending",
+            null when deploymentStatus == ResourceOrchestratorDeploymentStatus.Failed => "Failed",
+            null when deploymentStatus == ResourceOrchestratorDeploymentStatus.Deleted => "Removed",
+            null => MissingValue,
+            _ => "Unknown"
+        };
 
     private sealed record EnvironmentDeploymentProjectionRow(
         Resource Resource,

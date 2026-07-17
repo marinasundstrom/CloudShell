@@ -58,7 +58,7 @@ public sealed class EnvironmentRevisionProjectionTests
                 Assert.Equal(1, projected.DeploymentCount);
                 Assert.Equal(1, projected.ServiceCount);
                 Assert.Equal(1, projected.ReplicaGroupCount);
-                Assert.Equal("active", projected.LatestStatus);
+                Assert.Equal("Active", projected.LatestStatus);
                 Assert.Equal("Deployment-produced environment revision", projected.Description);
             });
     }
