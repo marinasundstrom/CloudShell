@@ -93,6 +93,8 @@ on `git blame --follow`, and then by the broad type of change.
   or secrets resources are labeled as missing resources.
 - Clarified the Resource Manager Essentials type field so it uses the resource
   type display name instead of the raw type ID.
+- Clarified Resource Manager settings copy so hidden system-managed resource
+  permissions are described without runtime-resource terminology.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
