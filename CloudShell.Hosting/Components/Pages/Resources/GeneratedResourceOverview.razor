@@ -226,7 +226,7 @@
         @if (Resource.Endpoints.Count > 0)
         {
             <dt>@L["Primary endpoint"]</dt>
-            <dd><EndpointLink Address="@Resource.PrimaryEndpoint" EmptyText="@L["none"].Value" /></dd>
+            <dd><EndpointLink Address="@Resource.PrimaryEndpoint" EmptyText="@L["None"].Value" /></dd>
             <dt>@L["Endpoints"]</dt>
             <dd>
                 <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Endpoints)">
@@ -248,7 +248,7 @@
                             <strong>@mapping.Name</strong>
                             <EndpointLink Address="@mapping.Address"
                                           Text="@mapping.Text"
-                                          EmptyText="@L["none"].Value" />
+                                          EmptyText="@L["None"].Value" />
                             <small>@mapping.Metadata</small>
                         </div>
                     }
@@ -1078,7 +1078,7 @@
         return @<span class="inline-resource-reference">
             @if (string.IsNullOrWhiteSpace(targetResourceId))
             {
-                <span class="muted">@L["none"]</span>
+                <span class="muted">@L["None"]</span>
             }
             else
             {
