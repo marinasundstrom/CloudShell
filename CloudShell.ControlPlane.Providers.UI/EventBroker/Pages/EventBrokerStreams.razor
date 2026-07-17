@@ -159,7 +159,7 @@ else
         }
         catch (Exception exception)
         {
-            Error = exception.Message;
+            Error = $"CloudShell could not read streams from this broker. {FormatStreamReadFailure(exception)}";
         }
     }
 
@@ -229,6 +229,15 @@ else
         timestamp is null
             ? "-"
             : timestamp.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+
+    private static string FormatStreamReadFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "Check that the HTTP event endpoint is reachable.",
+            TaskCanceledException => "The stream request timed out.",
+            UnauthorizedAccessException => "Check Event Broker read permissions for this resource.",
+            _ => "Check the broker endpoint and try again."
+        };
 
     private sealed record EventBrokerProtocolRow(
         string Name,

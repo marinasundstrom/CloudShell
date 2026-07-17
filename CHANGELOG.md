@@ -89,6 +89,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Clarified the SQL Server databases tab so loading, empty, summary, and
   verification text describes attached databases instead of resource projection
   internals.
+- Improved the Event Broker streams tab so stream read failures show stable,
+  actionable guidance instead of raw runtime exception text.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
