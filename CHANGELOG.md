@@ -77,6 +77,8 @@ on `git blame --follow`, and then by the broad type of change.
   resource types use display labels instead of raw type IDs.
 - Clarified storage volume overview and volume-list labels so consumer rows
   and volume metadata avoid raw resource type IDs.
+- Clarified the container-app Monitoring header so provider snapshot status
+  values use the same display labels as replica monitoring rows.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface

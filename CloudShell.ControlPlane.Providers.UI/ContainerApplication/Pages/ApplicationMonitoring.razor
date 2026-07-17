@@ -311,7 +311,7 @@ else
             var updated = ApplicationSnapshot.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
             return string.IsNullOrWhiteSpace(ApplicationSnapshot.Status)
                 ? $"Updated {updated}"
-                : $"{ApplicationSnapshot.Status} / updated {updated}";
+                : $"{FormatMonitoringStatus(ApplicationSnapshot)} / Updated {updated}";
         }
 
         return Rows.Count == 0
