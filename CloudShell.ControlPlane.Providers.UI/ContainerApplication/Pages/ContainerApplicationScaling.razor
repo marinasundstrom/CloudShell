@@ -135,8 +135,8 @@ else
             <h3>Replica slots</h3>
             @if (ReplicaSlots.Count == 0)
             {
-                <EmptyState Title="No replica slots are materialized"
-                            Message="No requested replica slots are materialized for this app yet." />
+                <EmptyState Title="No active replica slots"
+                            Message="No requested replica slots are active for this app yet." />
             }
             else
             {
@@ -148,7 +148,7 @@ else
                             <th>State</th>
                             <th>Revision</th>
                             <th>Container</th>
-                            <th>Materialization</th>
+                            <th>Runtime status</th>
                             <th>Reconciliation</th>
                             <th>Host</th>
                         </tr>
@@ -191,9 +191,9 @@ else
                                         <ResourceStateIndicator State="replica.State" Variant="pill" />
                                     }
                                 </td>
-                                <td>@(replica is null ? "not materialized" : GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version))</td>
+                                <td>@(replica is null ? "not running" : GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version))</td>
                                 <td>
-                                    <strong>@(replica is null ? "not materialized" : GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name))</strong>
+                                    <strong>@(replica is null ? "not running" : GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name))</strong>
                                 </td>
                                 <td>@(replica is null ? "vacant slot" : GetMaterializationLabel(replica))</td>
                                 <td>

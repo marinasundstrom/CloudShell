@@ -100,6 +100,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved Container Application deployment and scaling views so update
   failures show stable recovery guidance and readiness copy avoids internal
   runtime-materialization wording.
+- Clarified Container Application deployment, revision, monitoring, and scaling
+  copy so user-facing labels describe running replicas and deployment state
+  instead of materialization/projection internals.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
