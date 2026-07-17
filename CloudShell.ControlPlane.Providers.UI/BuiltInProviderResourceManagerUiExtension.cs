@@ -30,7 +30,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
     public CloudShellExtensionManifest Manifest => new(
         "cloudshell.control-plane.providers.resource-manager-ui",
         "Control Plane Providers Resource Manager UI",
-        "Adds Resource Manager UI support for built-in Resource model provider resource types.",
+        "Adds Resource Manager UI support for built-in provider resource types.",
         "0.1.0",
         [
             "resource-ui.application.executable",
@@ -68,7 +68,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 ".NET App",
-                "Create an application resource from an uploaded .NET artifact.",
+                "Create an application resource from an uploaded .NET application package.",
                 "web",
                 21,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -89,7 +89,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
                 "JavaScript App",
-                "Create an application resource from an uploaded JavaScript artifact.",
+                "Create an application resource from an uploaded JavaScript application package.",
                 "javascript",
                 22,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -110,7 +110,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
                 "Java App",
-                "Create an application resource from an uploaded Java artifact.",
+                "Create an application resource from an uploaded Java application package.",
                 "application",
                 23,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -131,7 +131,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 GoAppResourceTypeProvider.ResourceTypeId.ToString(),
                 "Go App",
-                "Create an application resource from an uploaded Go artifact.",
+                "Create an application resource from an uploaded Go application package.",
                 "application",
                 24,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -152,7 +152,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 PythonAppResourceTypeProvider.ResourceTypeId.ToString(),
                 "Python App",
-                "Create an application resource from an uploaded Python artifact.",
+                "Create an application resource from an uploaded Python application package.",
                 "application",
                 25,
                 probeOptions: new ResourceTypeProbeOptions(
