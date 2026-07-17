@@ -369,7 +369,7 @@
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
         {
-            TwinOperationMessage = exception.Message;
+            TwinOperationMessage = FormatTwinUpdateFailure(exception);
         }
         finally
         {
@@ -387,7 +387,7 @@
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
         {
-            DeviceOperationMessage = exception.Message;
+            DeviceOperationMessage = FormatDeviceOperationFailure(exception);
         }
         finally
         {
@@ -445,6 +445,22 @@
 
         return state;
     }
+
+    private static string FormatTwinUpdateFailure(Exception exception) =>
+        exception switch
+        {
+            JsonException => "Desired state must be a valid JSON object.",
+            HttpRequestException => "CloudShell could not reach the Device Registry service. Check the registry endpoint and try again.",
+            _ => "CloudShell could not update desired state for this device. Check the Device Registry service and try again."
+        };
+
+    private static string FormatDeviceOperationFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Device Registry service. Check the registry endpoint and try again.",
+            JsonException => "CloudShell could not read the Device Registry response. Refresh the device inventory and try again.",
+            _ => "CloudShell could not update this device. Check the Device Registry service and try again."
+        };
 
     private static string FormatTwinStateJson(
         IReadOnlyDictionary<string, JsonElement> state) =>
