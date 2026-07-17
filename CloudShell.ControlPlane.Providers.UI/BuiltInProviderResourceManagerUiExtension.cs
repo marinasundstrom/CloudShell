@@ -61,7 +61,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 .AddResourceType<SharedPages.RegisterApplicationResource>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Executable application",
-                "Inspect executable applications declared through Resource Manager.",
+                "Inspect executable applications managed through Resource Manager.",
                 "application",
                 20,
                 resourceClass: ResourceManagerResourceClass.Executable)
@@ -176,7 +176,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceType<ContainerAppPages.RegisterContainerApplicationResource>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container app",
-                "Inspect container applications declared through Resource Manager.",
+                "Inspect container applications managed through Resource Manager.",
                 "container",
                 26,
                 probeOptions: new ResourceTypeProbeOptions(SupportsHealth: true),
@@ -184,7 +184,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceType<SharedPages.RegisterApplicationResource>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Server",
-                "Inspect SQL Server resources declared through Resource Manager.",
+                "Inspect SQL Server resources managed through Resource Manager.",
                 "database-server",
                 27,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -198,42 +198,42 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceType<SharedPages.RegisterApplicationResource>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 "RabbitMQ",
-                "Inspect RabbitMQ broker resources declared through Resource Manager.",
+                "Inspect RabbitMQ broker resources managed through Resource Manager.",
                 "queue",
                 28,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 EventBrokerResourceTypeProvider.ResourceTypeId.ToString(),
                 "Event Broker",
-                "Inspect event broker resources declared through Resource Manager.",
+                "Inspect event broker resources managed through Resource Manager.",
                 "queue",
                 29,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Database",
-                "Inspect SQL database child resources declared through Resource Manager.",
+                "Inspect SQL database child resources managed through Resource Manager.",
                 "database-item",
                 30,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 "Configuration Store",
-                "Inspect configuration store resources declared through Resource Manager.",
+                "Inspect configuration store resources managed through Resource Manager.",
                 "settings",
                 31,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<SharedPages.RegisterResource>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 "Secrets Vault",
-                "Inspect secrets vault resources declared through Resource Manager.",
+                "Inspect secrets vault resources managed through Resource Manager.",
                 "key",
                 32,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)
             .AddResourceType<SharedPages.RegisterResource>(
                 DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
                 "Device Registry",
-                "Inspect device registry resources declared through Resource Manager.",
+                "Inspect device registry resources managed through Resource Manager.",
                 "devices",
                 33,
                 resourceClass: ResourceManagerResourceClass.Service)
@@ -285,63 +285,63 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceType<SharedPages.RegisterResource>(
                 IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(),
                 "Identity Provisioning",
-                "Inspect identity provisioning resources declared through Resource Manager.",
+                "Inspect identity provisioning resources managed through Resource Manager.",
                 "identity",
                 34,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 ContainerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container Host",
-                "Inspect container host resources declared through Resource Manager.",
+                "Inspect container host resources managed through Resource Manager.",
                 "container-host",
                 35,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 DockerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Host",
-                "Inspect Docker host resources declared through Resource Manager.",
+                "Inspect Docker host resources managed through Resource Manager.",
                 "container-host",
                 35,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 DockerContainerResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Container",
-                "Inspect Docker container resources declared through Resource Manager.",
+                "Inspect Docker container resources managed through Resource Manager.",
                 "container",
                 36,
                 resourceClass: ResourceManagerResourceClass.Container)
             .AddResourceType<SharedPages.RegisterResource>(
                 HostConfigurationSourceResourceTypeProvider.ResourceTypeId.ToString(),
                 "Host Configuration Source",
-                "Inspect host configuration source resources declared through Resource Manager.",
+                "Inspect host configuration source resources managed through Resource Manager.",
                 "settings",
                 37,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<SharedPages.RegisterResource>(
                 VirtualNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Virtual Network",
-                "Inspect virtual network resources declared through Resource Manager.",
+                "Inspect virtual network resources managed through Resource Manager.",
                 "network",
                 38,
                 resourceClass: ResourceManagerResourceClass.Network)
             .AddResourceType<SharedPages.RegisterResource>(
                 LocalHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Host Networking",
-                "Inspect local host networking resources declared through Resource Manager.",
+                "Inspect local host networking resources managed through Resource Manager.",
                 "network",
                 39,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 MacOSHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "macOS Host Networking",
-                "Inspect macOS host networking resources declared through Resource Manager.",
+                "Inspect macOS host networking resources managed through Resource Manager.",
                 "network",
                 40,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 LocalVolumeResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Volume",
-                "Inspect local volume resources declared through Resource Manager.",
+                "Inspect local volume resources managed through Resource Manager.",
                 "storage",
                 41,
                 resourceClass: ResourceManagerResourceClass.Storage)

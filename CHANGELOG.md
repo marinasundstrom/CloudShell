@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified built-in provider resource type descriptions so Resource Manager
+  navigation describes managed resources instead of declared resources.
 - Clarified application endpoint actions, storage dependency rows, and
   RabbitMQ endpoint labels so missing or fallback endpoint state uses
   configured-state wording.
