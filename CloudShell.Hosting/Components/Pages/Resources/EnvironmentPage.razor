@@ -237,7 +237,7 @@
                                                        Summary="@record.ServiceId">
                                     <TitleContent>
                                         <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, record.SourceResourceId)">
-                                            @(sourceResource?.EffectiveDisplayName ?? record.SourceResourceId)
+                                            @GetResourceDisplayLabel(sourceResource, record.SourceResourceId)
                                         </FluentAnchor>
                                     </TitleContent>
                                 </ResourceTableIdentity>
@@ -300,7 +300,7 @@
                                                        Summary="@row.DeploymentId">
                                     <TitleContent>
                                         <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, row.SourceResourceId)">
-                                            @(sourceResource?.EffectiveDisplayName ?? row.SourceResourceId)
+                                            @GetResourceDisplayLabel(sourceResource, row.SourceResourceId)
                                         </FluentAnchor>
                                     </TitleContent>
                                 </ResourceTableIdentity>
@@ -363,7 +363,7 @@
                                                        Summary="@row.Resource.Id">
                                     <TitleContent>
                                         <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, row.Resource.Id)">
-                                            @row.Resource.EffectiveDisplayName
+                                            @ResourceDisplayLabels.GetQualifiedLabel(row.Resource)
                                         </FluentAnchor>
                                     </TitleContent>
                                 </ResourceTableIdentity>
@@ -421,7 +421,7 @@
                                                        Summary="@state.ResourceId">
                                     <TitleContent>
                                         <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, state.ResourceId)">
-                                            @(resource?.EffectiveDisplayName ?? state.ResourceId)
+                                            @GetResourceDisplayLabel(resource, state.ResourceId)
                                         </FluentAnchor>
                                     </TitleContent>
                                 </ResourceTableIdentity>
@@ -548,7 +548,7 @@
         DeploymentRows = Resources
             .Where(resource => resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.DeploymentId))
             .Select(EnvironmentDeploymentRow.Create)
-            .OrderBy(row => row.Resource.Name, StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(row => ResourceDisplayLabels.GetQualifiedLabel(row.Resource), StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.Resource.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         DeploymentRecords = await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(MaxRecords: 100));
@@ -609,6 +609,11 @@
     private Resource? GetResource(string resourceId) =>
         Resources.FirstOrDefault(resource =>
             string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+
+    private static string GetResourceDisplayLabel(Resource? resource, string resourceId) =>
+        resource is null
+            ? resourceId
+            : ResourceDisplayLabels.GetQualifiedLabel(resource);
 
     private static string GetResourceIconName(Resource? resource, string fallback) =>
         resource is null

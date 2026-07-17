@@ -1118,6 +1118,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("CLOUDSHELL_TRACE_INGEST_ENDPOINT", graphApiEnvironmentHtml);
         Assert.DoesNotContain("CLOUDSHELL_IDENTITY_CLIENT_SECRET", graphApiEnvironmentHtml);
 
+        var graphEnvironmentHtml = await host.GetStringAsync("/environment");
+        Assert.Contains("Current environment", graphEnvironmentHtml);
+        Assert.Contains("Environment map", graphEnvironmentHtml);
+        Assert.Contains("Materialized deployment state", graphEnvironmentHtml);
+        Assert.Contains("API", graphEnvironmentHtml);
+
         var graphSqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
         Assert.Contains("SQL Server", graphSqlDetailsHtml);

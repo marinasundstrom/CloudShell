@@ -61,6 +61,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved the shared application Environment tab so configuration and secret
   references use readable Resource Manager labels and link to their referenced
   resources when available.
+- Improved the environment dashboard so deployment, replica-group, deployment
+  projection, and replica-slot tables use qualified resource labels
+  consistently.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.
