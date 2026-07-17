@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified generated identity views so identity binding kinds use display
+  labels instead of raw enum values.
 - Clarified RabbitMQ broker and SQL database provider views so state,
   exposure, and database source values use display labels instead of raw
   stored values.

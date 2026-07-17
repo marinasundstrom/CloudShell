@@ -373,9 +373,17 @@
     {
         var name = FormatIdentityName(identity);
         return string.IsNullOrWhiteSpace(identity.Subject)
-            ? L["{0} ({1})", name, identity.Kind].Value
+            ? L["{0} ({1})", name, FormatIdentityKind(identity.Kind)].Value
             : L["{0} ({1})", name, identity.Subject].Value;
     }
+
+    private string FormatIdentityKind(ResourceIdentityBindingKind kind) =>
+        kind switch
+        {
+            ResourceIdentityBindingKind.Provider => L["Provider-backed"].Value,
+            ResourceIdentityBindingKind.Required => L["Required by resource"].Value,
+            _ => kind.ToString()
+        };
 
     private bool TryFormatDeclarationPersistence(
         Resource resource,

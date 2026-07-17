@@ -86,7 +86,7 @@
                 <dt>@L["Name"]</dt>
                 <dd>@FormatIdentityName(identity)</dd>
                 <dt>@L["Kind"]</dt>
-                <dd>@identity.Kind</dd>
+                <dd>@FormatIdentityKind(identity.Kind)</dd>
                 <dt>@L["Provider"]</dt>
                 <dd>@FormatIdentityProvider(identity)</dd>
                 <dt>@L["Subject"]</dt>
@@ -311,6 +311,14 @@
         string.IsNullOrWhiteSpace(identity.Subject)
             ? L["Not assigned"].Value
             : identity.Subject;
+
+    private string FormatIdentityKind(ResourceIdentityBindingKind kind) =>
+        kind switch
+        {
+            ResourceIdentityBindingKind.Provider => L["Provider-backed"].Value,
+            ResourceIdentityBindingKind.Required => L["Required by resource"].Value,
+            _ => kind.ToString()
+        };
 
     private string FormatIdentityReference(ResourceIdentityReference identity)
     {
