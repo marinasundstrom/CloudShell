@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified the application package editor so visible labels and validation
+  messages use package wording instead of artifact terminology.
 - Clarified built-in provider UI descriptions so uploaded application
   packages are not described as artifacts.
 - Clarified the Resource Templates page so descriptions and diagnostics avoid
