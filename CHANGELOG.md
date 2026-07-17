@@ -63,6 +63,8 @@ on `git blame --follow`, and then by the broad type of change.
   reconciled slots do not expose materialization terminology.
 - Clarified Resource Manager usage views so trend estimates are described as
   forecasts instead of projections.
+- Gave Usage shell and resource-view entries a distinct icon so they no longer
+  visually collide with Telemetry.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface

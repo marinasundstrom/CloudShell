@@ -659,9 +659,9 @@ listed here before pulling in broader proposal work.
    for the landed model. The next roadmap action is better provider coverage,
    richer replica diagnostics, summary-first usage dashboards, drill-down by
    resource or metric, and better trend quality. Also clean up the common
-   Usage page and give Usage a distinct shell/resource-view icon so it no
-   longer visually collides with Telemetry. Live telemetry and monitoring
-   subscriptions for split-hosted UIs remain a later Control Plane API design
+   Usage page so it no longer feels like a raw statistics surface. Live
+   telemetry and monitoring subscriptions for split-hosted UIs remain a later
+   Control Plane API design
    question. Keep shared Telemetry pages for cross-resource investigation
    instead of forcing normal per-resource work through global views. Do not
    start broad new shell areas before the supported samples are stable. The
