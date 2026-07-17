@@ -86,6 +86,9 @@ on `git blame --follow`, and then by the broad type of change.
   reconciliation.
 - Clarified the Resource Manager RabbitMQ access-control notice so it matches
   the broker page guidance and avoids implementation wording.
+- Clarified the SQL Server databases tab so loading, empty, summary, and
+  verification text describes attached databases instead of resource projection
+  internals.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
