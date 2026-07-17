@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified SQL Server database summaries and source labels so configured
+  database resources do not surface declaration terminology.
 - Clarified Event Broker protocol summaries and stream connection errors so
   endpoint availability uses configured-state wording instead of declaration
   terminology.

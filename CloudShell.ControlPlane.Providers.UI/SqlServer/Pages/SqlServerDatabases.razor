@@ -128,9 +128,12 @@ else
     private string GetSummaryMessage()
     {
         var count = DatabaseRows.Count.ToString(CultureInfo.InvariantCulture);
-        return DatabaseRows.Count == 1
-            ? "1 database is attached to this SQL Server resource."
-            : $"{count} databases are attached to this SQL Server resource.";
+        return DatabaseRows.Count switch
+        {
+            0 => "No databases are attached to this SQL Server resource.",
+            1 => "1 database is attached to this SQL Server resource.",
+            _ => $"{count} databases are attached to this SQL Server resource."
+        };
     }
 
     private static bool IsDatabaseForServer(Resource database, string serverResourceId) =>
@@ -148,7 +151,7 @@ else
         var source = GetAttribute(
             resource,
             SqlDatabaseResourceTypeProvider.Attributes.Source.ToString(),
-            "declared");
+            "configured");
         var ensureCreated = TryGetBoolean(
             resource,
             SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated.ToString());
@@ -201,7 +204,7 @@ else
     private static string FormatSource(string source) =>
         source.Trim().ToLowerInvariant() switch
         {
-            "declared" => "Declared",
+            "configured" or "declared" => "Configured",
             "provider" => "Provider",
             "imported" => "Imported",
             { Length: > 0 } => "Other",
