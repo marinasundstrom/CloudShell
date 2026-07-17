@@ -13,6 +13,17 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-17
+
+#### Changed
+
+- Improved Resource Manager readiness and routing diagnostics so referenced
+  resources use the shared qualified-label format, preserving readable display
+  names while keeping scoped resource names visible when they differ.
+- Updated the MVP sample seam audit baseline after the broad
+  `CloudShell.Sample.Tests` run passed with 122 tests, including the Bun
+  JavaScript app sample.
+
 ### 2026-07-16
 
 #### Changed

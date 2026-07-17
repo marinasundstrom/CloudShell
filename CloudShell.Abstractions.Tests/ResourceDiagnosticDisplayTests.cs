@@ -460,6 +460,42 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
+    public void GetDiagnostics_UsesQualifiedResourceLabelsWhenDisplayNameDiffers()
+    {
+        var mapping = CreateNameMapping(
+            string.Empty,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NameMappingTargetEndpointName] = "http"
+            });
+        var target = CreateEndpointResource(
+            "application:orders-api",
+            "orders-api",
+            ResourceEndpoint.Http("admin", "orders.local", 8081),
+            displayName: "Orders API");
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            mapping with
+            {
+                Attributes = new Dictionary<string, string>(mapping.ResourceAttributes, StringComparer.OrdinalIgnoreCase)
+                {
+                    [ResourceAttributeNames.NameMappingTargetResourceId] = "application:orders-api"
+                }
+            },
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
+            {
+                [target.Id] = target
+            });
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
+        Assert.Equal("Name mapping target endpoint unavailable", diagnostic.Title);
+        Assert.Equal(
+            "Target endpoint 'http' could not be found on resource 'Orders API (orders-api)'.",
+            diagnostic.Message);
+    }
+
+    [Fact]
     public void GetDiagnostics_WarnsWhenLocalHostNameMappingTargetEndpointHasNoMappedAddress()
     {
         var mapping = CreateNameMapping(
@@ -925,7 +961,8 @@ public sealed class ResourceDiagnosticDisplayTests
         string id,
         string name,
         ResourceEndpoint endpoint,
-        IReadOnlyList<ResourceCapability>? capabilities = null) =>
+        IReadOnlyList<ResourceCapability>? capabilities = null,
+        string? displayName = null) =>
         new(
             id,
             name,
@@ -937,7 +974,8 @@ public sealed class ResourceDiagnosticDisplayTests
             "1.0",
             DateTimeOffset.UtcNow,
             [],
-            Capabilities: capabilities);
+            Capabilities: capabilities,
+            DisplayName: displayName);
 
     private static Resource CreateLoadBalancer(
         string? hostResourceId,

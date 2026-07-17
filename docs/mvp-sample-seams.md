@@ -21,9 +21,9 @@ The broad sample proof is currently green on the local Docker host:
 dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore --logger "trx;LogFileName=cloudshell-sample-tests.trx"
 ```
 
-Result from July 15, 2026: 115 passed, 0 failed, 0 skipped, 31m22s.
-Generated TRX and sample runtime data were removed after the run, and no
-CloudShell Docker containers were left running.
+Result from July 17, 2026: 122 passed, 0 failed, 0 skipped, 6m40s.
+Generated sample runtime data was removed after the run, and no CloudShell
+Docker containers were left running.
 
 ## Supported Sample Audit
 
@@ -55,6 +55,9 @@ CloudShell Docker containers were left running.
 - Name-mapping generated links now honor explicit target endpoint names: if the
   declared endpoint is missing, Resource Manager does not synthesize a link
   from the target resource's first endpoint.
+- Resource Manager readiness and routing diagnostics now use shared qualified
+  resource labels, so display names remain readable while scoped resource names
+  stay visible when they differ.
 - Resource action capabilities now report the provider, action, and resource
   when a resource advertises an action but the provider does not support
   procedure execution, improving disabled-action titles and readiness
