@@ -64,6 +64,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved the environment dashboard so deployment, replica-group, deployment
   projection, and replica-slot tables use qualified resource labels
   consistently.
+- Updated Storage resource volume consumers to sort by the same qualified
+  resource labels shown in Resource Manager.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.

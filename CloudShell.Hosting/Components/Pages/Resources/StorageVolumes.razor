@@ -134,7 +134,7 @@ else
                 consumer.Mounts.Count > 0 ||
                 consumer.Resource.DependsOn.Any(dependency =>
                     string.Equals(dependency, volume.Id, StringComparison.OrdinalIgnoreCase)))
-            .OrderBy(consumer => consumer.Resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(consumer => ResourceDisplayLabels.GetQualifiedLabel(consumer.Resource), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private static IReadOnlyList<ResourceVolumeMount> GetMountsForVolume(
