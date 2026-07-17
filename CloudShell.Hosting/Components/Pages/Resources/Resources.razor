@@ -1040,7 +1040,7 @@ StringComparer.OrdinalIgnoreCase);
             return new ResourceAttentionSignal(
                 ResourceSignalSeverity.Warning,
                 L["Potential bad state: health checks report healthy while the resource is {0}. Verify the lifecycle state, health probe target, and possible leftover process.",
-                    resource.State?.ToString() ?? L["not running"].Value].Value);
+                    FormatResourceState(resource.State)].Value);
         }
 
         return null;
@@ -1741,7 +1741,7 @@ resourceGroups) =>
             ResourceSource.Provider => L["Provider-created"].Value,
             ResourceSource.Orchestrator => L["Orchestrator-created"].Value,
             ResourceSource.RuntimeController => L["Runtime-created"].Value,
-            _ => source.ToString()
+            _ => L["Unknown"].Value
         };
 
     private string FormatManagementMode(ResourceManagementMode mode) =>
@@ -1751,7 +1751,7 @@ resourceGroups) =>
             ResourceManagementMode.ProviderManaged => L["Provider-managed"].Value,
             ResourceManagementMode.OrchestratorManaged => L["Orchestrator-managed"].Value,
             ResourceManagementMode.RuntimeManaged => L["Runtime-managed"].Value,
-            _ => mode.ToString()
+            _ => L["Unknown"].Value
         };
 
     private string FormatResourceVisibility(ResourceVisibility visibility) =>
@@ -1760,18 +1760,19 @@ resourceGroups) =>
             ResourceVisibility.Normal => L["Visible"].Value,
             ResourceVisibility.Hidden => L["Hidden"].Value,
             ResourceVisibility.Diagnostic => L["Diagnostic"].Value,
-            _ => visibility.ToString()
+            _ => L["Unknown"].Value
         };
 
     private string FormatNetworkReadiness(Resource resource)
     {
-        var readiness = GetAttributeValue(resource, ResourceAttributeNames.NetworkHostReadiness, "unknown");
+        var readiness = GetAttributeValue(resource, ResourceAttributeNames.NetworkHostReadiness, "Unknown");
         return readiness switch
         {
             "logicalOnly" => L["Logical only"].Value,
             "providerRequired" when GetMissingMappingProviderIds(resource).Length == 0 => L["Ready"].Value,
             "providerRequired" => L["Provider missing"].Value,
             "ready" => L["Ready"].Value,
+            "unknown" => L["Unknown"].Value,
             _ => readiness
         };
     }
@@ -1869,7 +1870,7 @@ resourceGroups) =>
             ResourceExposureScope.Local => L["local"].Value,
             ResourceExposureScope.Network => L["network"].Value,
             ResourceExposureScope.Public => L["public"].Value,
-            _ => exposure.ToString()
+            _ => L["Unknown"].Value
         };
 
     private static ResourceEndpointNetworkMapping? GetEndpointNetworkMapping(
@@ -2066,7 +2067,19 @@ resourceGroups) =>
         ExecutingActionKeys.Contains(GetActionKey(resource, action));
 
     private string GetLifecycleStatusLabel(Resource resource) =>
-        GetLifecycleProgressLabel(resource) ?? resource.State?.ToString() ?? ResourceState.Unknown.ToString();
+        GetLifecycleProgressLabel(resource) ?? FormatResourceState(resource.State);
+
+    private string FormatResourceState(ResourceState? state) =>
+        state switch
+        {
+            ResourceState.Running => L["Running"].Value,
+            ResourceState.Starting => L["Starting"].Value,
+            ResourceState.Stopping => L["Stopping"].Value,
+            ResourceState.Paused => L["Paused"].Value,
+            ResourceState.Degraded => L["Degraded"].Value,
+            ResourceState.Stopped => L["Stopped"].Value,
+            _ => L["Unknown"].Value
+        };
 
     private string? GetLifecycleProgressLabel(Resource resource)
     {
