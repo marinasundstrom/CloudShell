@@ -157,7 +157,7 @@ else
             var client = new EventBrokerClient(new Uri(endpoint), httpClient);
             Streams.AddRange(await client.ListStreamsAsync(Resource.Id));
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             Error = $"CloudShell could not read streams from this broker. {FormatStreamReadFailure(exception)}";
         }

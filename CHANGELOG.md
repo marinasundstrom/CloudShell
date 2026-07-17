@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Improved the Event Broker streams view so cancelled refreshes do not surface
+  as broker read failures.
 - Clarified Environment page revision and runtime-map fallbacks so missing
   deployment metadata displays as unavailable instead of not projected.
 - Clarified Resource Manager visibility settings so hidden runtime resources
