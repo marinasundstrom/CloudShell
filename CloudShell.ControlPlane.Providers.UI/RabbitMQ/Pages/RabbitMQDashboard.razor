@@ -292,7 +292,7 @@ else
                                                            Title="@FormatName(queue.Name)"
                                                            Summary="@queue.VirtualHost" />
                                 </td>
-                                <td>@FormatNullable(queue.State)</td>
+                                <td>@FormatQueueState(queue.State)</td>
                                 <td>@FormatNumber(queue.Messages)</td>
                                 <td>@FormatNumber(queue.MessagesReady)</td>
                                 <td>@FormatNumber(queue.MessagesUnacknowledged)</td>
@@ -506,6 +506,17 @@ else
 
     private static string FormatNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "-" : value!;
+
+    private static string FormatQueueState(string? state) =>
+        state switch
+        {
+            "running" => "Running",
+            "idle" => "Idle",
+            "flow" => "Flow controlled",
+            "blocked" => "Blocked",
+            { Length: > 0 } => state,
+            _ => "-"
+        };
 
     private static string FormatNumber(int? value) =>
         value.HasValue ? value.Value.ToString("N0", CultureInfo.CurrentCulture) : "-";

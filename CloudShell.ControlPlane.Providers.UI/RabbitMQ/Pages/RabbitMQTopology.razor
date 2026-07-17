@@ -98,8 +98,8 @@ else
                                                            Title="@FormatName(queue.Name)"
                                                            Summary="@queue.VirtualHost" />
                                 </td>
-                                <td>@FormatNullable(queue.Type)</td>
-                                <td>@FormatNullable(queue.State)</td>
+                                <td>@FormatQueueType(queue.Type)</td>
+                                <td>@FormatQueueState(queue.State)</td>
                                 <td>@FormatNumber(queue.Messages)</td>
                                 <td>@FormatNumber(queue.Consumers)</td>
                                 <td>@FormatBoolean(queue.Durable)</td>
@@ -195,7 +195,7 @@ else
                                                            Title="@FormatName(binding.Destination)"
                                                            Summary="@FormatDestinationSummary(binding)" />
                                 </td>
-                                <td>@FormatNullable(binding.DestinationType)</td>
+                                <td>@FormatDestinationType(binding.DestinationType)</td>
                                 <td>@FormatRoutingKey(binding.RoutingKey)</td>
                                 <td>@binding.VirtualHost</td>
                                 <td>@FormatNullable(binding.PropertiesKey)</td>
@@ -298,6 +298,36 @@ else
     private static string FormatNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "n/a" : value;
 
+    private static string FormatQueueState(string? state) =>
+        state switch
+        {
+            "running" => "Running",
+            "idle" => "Idle",
+            "flow" => "Flow controlled",
+            "blocked" => "Blocked",
+            { Length: > 0 } => state,
+            _ => "n/a"
+        };
+
+    private static string FormatQueueType(string? type) =>
+        type switch
+        {
+            "classic" => "Classic",
+            "quorum" => "Quorum",
+            "stream" => "Stream",
+            { Length: > 0 } => type,
+            _ => "n/a"
+        };
+
+    private static string FormatDestinationType(string? destinationType) =>
+        destinationType switch
+        {
+            "queue" => "Queue",
+            "exchange" => "Exchange",
+            { Length: > 0 } => destinationType,
+            _ => "n/a"
+        };
+
     private static string FormatNumber(int? value) =>
         value?.ToString(CultureInfo.InvariantCulture) ?? "n/a";
 
@@ -309,6 +339,6 @@ else
 
     private static string FormatDestinationSummary(RabbitMQBindingInfo binding) =>
         string.IsNullOrWhiteSpace(binding.RoutingKey)
-            ? binding.DestinationType
-            : $"{binding.DestinationType} via {binding.RoutingKey}";
+            ? FormatDestinationType(binding.DestinationType)
+            : $"{FormatDestinationType(binding.DestinationType)} via {binding.RoutingKey}";
 }
