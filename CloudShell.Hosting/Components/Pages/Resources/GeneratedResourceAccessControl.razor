@@ -153,7 +153,7 @@
         @if (ShouldShowSqlGrantMaterializationNotice())
         {
             <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Role="status">
-                @L["Database grants are saved in CloudShell. Reconcile access to create SQL-side users and roles. Workload credential delivery remains provider-owned future work."]
+                @L["Database grants are saved in CloudShell. Reconcile access to create SQL-side users and roles when the database provider supports reconciliation."]
             </ProcedureMessage>
         }
         @if (ShouldShowRabbitMQGrantMaterializationNotice())

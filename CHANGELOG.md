@@ -78,6 +78,9 @@ on `git blame --follow`, and then by the broad type of change.
   enumeration order.
 - Removed the Environment dashboard model-note panel so the page stays focused
   on operational environment state instead of internal future-design context.
+- Clarified the Resource Manager database access-control notice so it gives the
+  user the reconcile action to take without exposing internal future-work
+  wording.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
