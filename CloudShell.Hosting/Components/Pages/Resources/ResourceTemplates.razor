@@ -1,6 +1,7 @@
 @page "/resources/templates"
 @rendermode InteractiveServer
 @using CloudShell.ResourceModel
+@using Microsoft.Extensions.Logging
 @inject IResourceManager ResourceManager
 @inject IResourceTemplateManager Templates
 @inject IEnumerable<IResourceTypeProvider> ResourceTypeProviders
@@ -9,6 +10,7 @@
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
+@inject ILogger<ResourceTemplates> Logger
 
 <PageTitle>@L["Resource templates"]</PageTitle>
 
@@ -216,9 +218,9 @@
                 CoreShellNotificationStatus.Succeeded,
                 Id: ExportToastId));
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            StatusMessage = exception.Message;
+            StatusMessage = FormatTemplateFailure(exception, "export the selected resources");
         }
         finally
         {
@@ -263,9 +265,9 @@
                 result.Template.Name,
                 result.Template.Resources.Count].Value;
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            StatusMessage = exception.Message;
+            StatusMessage = FormatTemplateFailure(exception, "apply the resource template");
         }
         finally
         {
@@ -278,6 +280,20 @@
         ImportDocument = null;
         Diagnostics.Clear();
         StatusMessage = null;
+    }
+
+    private string FormatTemplateFailure(Exception exception, string operation)
+    {
+        Logger.LogWarning(
+            exception,
+            "Resource template operation failed: {Operation}",
+            operation);
+
+        return exception switch
+        {
+            HttpRequestException => L["CloudShell could not reach the Control Plane while trying to {0}. Check connectivity and try again.", operation].Value,
+            _ => L["CloudShell could not {0}. Check the template content, selected format, and resource state, then try again.", operation].Value
+        };
     }
 
     private ResourceTemplateSerializerOptions CreateSerializerOptions() =>
