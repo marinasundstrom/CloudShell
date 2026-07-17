@@ -350,7 +350,7 @@ publish project-backed images for the current host architecture by default.
 The previously failing ReplicatedContainerHealth and SignalR container-app
 smoke paths pass individually on the local Docker host, and the broad
 `CloudShell.Sample.Tests` suite has been re-run end to end on a healthy Docker
-host with 115 passing tests. The remaining MVP work should therefore bias
+host with 122 passing tests. The remaining MVP work should therefore bias
 toward release-quality local-development behavior rather than opening new
 platform fronts or repeatedly polishing secondary editor surfaces:
 
