@@ -54,6 +54,9 @@ on `git blame --follow`, and then by the broad type of change.
   shown from provider-specific or flattened resource model projections.
 - Improved Resource Manager application exposure actions so target summaries
   and load-balancer selection use qualified resource labels.
+- Improved Device Registry enrollment policy summaries so permission grants
+  and trusted certificate references use Resource Manager display labels when
+  related resources are available.
 - Improved container-app deployment, monitoring, revision, and scaling views
   so materialized replica links and ordering use qualified resource labels.
 - Improved the SQL Server Databases tab so projected database rows link to
