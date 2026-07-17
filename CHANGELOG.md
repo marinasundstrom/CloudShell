@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified the Resource Templates page so descriptions and diagnostics avoid
+  raw resource-definition type names.
 - Clarified provider registration empty states so resource creation guidance
   uses user-facing wording instead of resource-model terminology.
 - Clarified the Usage extension description so trend estimates are described

@@ -27,7 +27,7 @@
 
 <PageHeading Eyebrow="@L["Resource Manager"].Value"
              Title="@L["Resource templates"].Value"
-             Description="@L["Export and apply ResourceDefinition templates through Resource Manager."].Value">
+             Description="@L["Export and apply reusable resource templates through Resource Manager."].Value">
     <Actions>
         <FluentButton Appearance="Appearance.Neutral" OnClick="BackToResources">
             @L["Back to resources"]
@@ -43,7 +43,7 @@
 <section class="template-layout">
     <div class="panel template-panel">
         <ShellPanelHeader Title="@L["Export resources"].Value"
-                          Description="@L["CloudShell exports the selected resource scope as ResourceDefinition entries."].Value" />
+                          Description="@L["CloudShell exports the selected resource scope as reusable template entries."].Value" />
 
         <label for="template-format">@L["Template format"]</label>
         <FluentSelect TOption="string"
@@ -91,7 +91,7 @@
 
     <div class="panel template-panel">
         <ShellPanelHeader Title="@L["Import group"].Value"
-                          Description="@L["Paste a ResourceTemplate YAML or JSON document and apply it through Resource Manager."].Value" />
+                          Description="@L["Paste a resource template YAML or JSON document and apply it through Resource Manager."].Value" />
 
         @if (isReadOnly)
         {
@@ -104,7 +104,7 @@
         <FluentTextArea Id="import-document"
                         Class="template-json"
                         Rows="24"
-                        Placeholder="@L["Paste a ResourceTemplate {0} document", TemplateFormatName]"
+                        Placeholder="@L["Paste a resource template {0} document", TemplateFormatName]"
                         ReadOnly="@isReadOnly"
                         @bind-Value="ImportDocument" />
 
@@ -139,7 +139,7 @@
         {
             <div class="template-diagnostic @diagnostic.Severity.ToString().ToLowerInvariant()">
                 <strong>@diagnostic.Severity</strong>
-                <span>@(diagnostic.Target ?? L["ResourceTemplate"].Value)</span>
+                <span>@(diagnostic.Target ?? L["Template"].Value)</span>
                 <p>@diagnostic.Message</p>
             </div>
         }
