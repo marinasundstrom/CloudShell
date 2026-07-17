@@ -285,6 +285,9 @@
     private RenderFragment RenderRelationships() => @<text>
         @if (Resource.DependsOn.Count > 0 || DependentResources.Count > 0)
         {
+            <div class="generated-section-heading">
+                <p>@L["Relationships include startup dependencies and typed resource references that affect service discovery, configuration, identity, storage, networking, and exposure."]</p>
+            </div>
             <ResourceRelationshipGraph DependsOnTitle="@L["Depends on"].Value"
                                        DependsOn="@GetDependencyNodes()"
                                        EmptyDependsOnTitle="@L["None"].Value"
@@ -811,10 +814,13 @@
 
         var parts = new List<string>
         {
-            resource.State is null
-                ? L["Registered resource"].Value
-                : L["State: {0}", resource.State].Value
+            L[ResourceRelationshipRoles.GetRole(resource)].Value
         };
+
+        if (resource.State is not null)
+        {
+            parts.Add(L["State: {0}", resource.State].Value);
+        }
 
         if (RelatedHealthByResourceId.GetValueOrDefault(resource.Id) is { } health)
         {

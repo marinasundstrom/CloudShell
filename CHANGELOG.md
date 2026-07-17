@@ -30,6 +30,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Documented the accepted local-development MVP bridges across supported
   sample READMEs and updated the seam audit for host virtual networking and
   load-balancer routing.
+- Improved generated Resource Manager overview relationships so application
+  topology dependencies and typed references show their app role, such as
+  configuration service, secrets vault, storage provider, or exposure
+  resource.
 - Updated the MVP sample seam audit baseline after the broad
   `CloudShell.Sample.Tests` run passed with 122 tests, including the Bun
   JavaScript app sample.
