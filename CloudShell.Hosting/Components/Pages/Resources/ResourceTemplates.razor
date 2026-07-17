@@ -3,6 +3,7 @@
 @using CloudShell.ResourceModel
 @inject IResourceManager ResourceManager
 @inject IResourceTemplateManager Templates
+@inject IEnumerable<IResourceTypeProvider> ResourceTypeProviders
 @inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
@@ -203,7 +204,8 @@
                     Metadata: metadata));
             ExportDocument = ResourceTemplateSerializer.SerializeTemplate(
                 result.Template,
-                SelectedTemplateFormat);
+                SelectedTemplateFormat,
+                CreateSerializerOptions());
             ImportDocument = ExportDocument;
             Diagnostics.AddRange(result.Diagnostics);
             StatusMessage = L["Exported {0} resources.", result.Template.Resources.Count].Value;
@@ -245,7 +247,8 @@
         {
             var template = ResourceTemplateSerializer.DeserializeTemplate(
                 ImportDocument,
-                SelectedTemplateFormat);
+                SelectedTemplateFormat,
+                CreateSerializerOptions());
             var result = await Templates.ApplyResourceTemplateAsync(template);
             Diagnostics.AddRange(result.Diagnostics);
             if (!result.IsCommitted)
@@ -276,6 +279,9 @@
         Diagnostics.Clear();
         StatusMessage = null;
     }
+
+    private ResourceTemplateSerializerOptions CreateSerializerOptions() =>
+        new(ResourceTypeProviders.Select(provider => provider.TypeDefinition));
 
     private async Task LoadGroupsAsync()
     {

@@ -3060,13 +3060,20 @@ public sealed class SampleSmokeTests
 
         Assert.False(exported.HasErrors, FormatDiagnostics(exported.Diagnostics));
 
+        var serializerOptions = new CloudShell.ResourceModel.ResourceTemplateSerializerOptions(
+        [
+            new ContainerApplicationResourceTypeProvider().TypeDefinition,
+            new AspNetCoreProjectResourceTypeProvider().TypeDefinition
+        ]);
         var yaml = CloudShell.ResourceModel.ResourceTemplateSerializer.SerializeTemplate(
-            exported.Template);
+            exported.Template,
+            options: serializerOptions);
 
         Assert.Contains("dependsOn:", yaml);
         Assert.Contains("resourceId: cloudshell.container-host:default", yaml);
-        Assert.Contains("container:", yaml);
         Assert.Contains("image: cloudshell-signalr-api:20260630.1", yaml);
+        Assert.Contains("replicas: 3", yaml);
+        Assert.Contains("routing:", yaml);
         Assert.Contains("logs:", yaml);
         Assert.Contains("sources:", yaml);
         Assert.Contains("health:", yaml);
@@ -3074,13 +3081,16 @@ public sealed class SampleSmokeTests
         Assert.Contains("network:", yaml);
         Assert.Contains("resourceId: network:host", yaml);
         Assert.DoesNotContain("attributes:", yaml);
+        Assert.DoesNotContain("container:", yaml);
         Assert.DoesNotContain("container.image:", yaml);
         Assert.DoesNotContain("logs.sources:", yaml);
         Assert.DoesNotContain("health.checks:", yaml);
         Assert.DoesNotContain("value: cloudshell.container-host:default", yaml);
         Assert.DoesNotContain("addressingMode: resourceId", yaml);
 
-        var roundTripped = CloudShell.ResourceModel.ResourceTemplateSerializer.DeserializeTemplate(yaml);
+        var roundTripped = CloudShell.ResourceModel.ResourceTemplateSerializer.DeserializeTemplate(
+            yaml,
+            options: serializerOptions);
         var applyResponse = await client.PostAsJsonAsync(
             "/api/control-plane/v1/resource-templates/apply",
             new ResourceTemplateApplyRequest(roundTripped));

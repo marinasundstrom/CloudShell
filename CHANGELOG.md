@@ -68,6 +68,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
   resolve to linked, qualified Resource Manager labels when available.
+- Fixed Resource Template UI export/import to use registered resource type
+  attribute paths, preventing container app exports from reintroducing the old
+  `container:` wrapper for `image`, `replicas`, and routing fields.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.
