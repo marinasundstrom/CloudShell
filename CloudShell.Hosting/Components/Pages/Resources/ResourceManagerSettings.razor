@@ -68,16 +68,16 @@
                 <div class="checkbox-stack">
                     <FluentCheckbox @bind-Value="SelectedShowRuntimeManagedResources"
                                     Disabled="@(IsReadOnly || !CanShowRuntimeManagedResources)">
-                        @L["Show runtime-managed resources"]
+                        @L["Show system-managed runtime resources"]
                     </FluentCheckbox>
                     <small>
                         @if (!CanShowRuntimeManagedResources)
                         {
-                            @L["You need permission to inspect runtime-managed resources."]
+                            @L["You need permission to inspect system-managed runtime resources."]
                         }
                         else
                         {
-                            @L["Allows hidden runtime-managed artifacts to appear when hidden resources are shown. These resources are view-only. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowRuntimeManagedResources)]
+                            @L["Allows hidden runtime resources created by CloudShell to appear when hidden resources are shown. These resources are view-only. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowRuntimeManagedResources)]
                         }
                     </small>
                 </div>
@@ -87,7 +87,7 @@
                         @L["Show hidden resources"]
                     </FluentCheckbox>
                     <small>
-                        @L["Shows resources whose visibility is hidden. Hidden runtime-managed artifacts also require runtime-managed inspection. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowHiddenResources)]
+                        @L["Shows resources whose visibility is hidden. Hidden system-managed runtime resources also require runtime resource inspection permission. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowHiddenResources)]
                     </small>
                 </div>
             </fieldset>

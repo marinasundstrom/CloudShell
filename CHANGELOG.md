@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified Resource Manager visibility settings so hidden runtime resources
+  are described as system-managed resources instead of runtime-managed
+  artifacts.
 - Clarified deployment activity and environment graph labels so replicas and
   topology providers use running/provides wording instead of materialization
   terminology.
