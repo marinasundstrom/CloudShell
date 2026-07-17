@@ -47,6 +47,8 @@ on `git blame --follow`, and then by the broad type of change.
   status in list views.
 - Improved Resource Manager volume monitoring so provider-backed usage metrics
   warn when a volume reaches or exceeds its configured max size.
+- Improved the application Storage tab so volume links and sorting use
+  qualified resource labels when display names differ from resource names.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.

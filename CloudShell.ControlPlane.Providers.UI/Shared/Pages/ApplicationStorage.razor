@@ -128,7 +128,7 @@ else
                 .Where(resource => resource is not null)
                 .Cast<Resource>()
                 .Where(BuiltInProviderResourceUiTypes.IsVolumeResource)
-                .OrderBy(resource => ResourceDisplayLabels.GetLabel(resource), StringComparer.OrdinalIgnoreCase)
+                .OrderBy(resource => ResourceDisplayLabels.GetQualifiedLabel(resource), StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
             StorageMounts = CreateStorageMountRows(volumeMounts, VolumeDependencies);
@@ -203,7 +203,7 @@ else
         }
 
         return rows
-            .OrderBy(row => ResourceDisplayLabels.GetLabel(row.Volume, row.VolumeReference), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(row => GetVolumeLabel(row.Volume, row.VolumeReference), StringComparer.OrdinalIgnoreCase)
             .ThenBy(row => row.Mount, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -215,13 +215,18 @@ else
             builder.OpenElement(0, "a");
             builder.AddAttribute(1, "class", "resource-link");
             builder.AddAttribute(2, "href", ResourceManagerRoutes.ResourceDetails(volume.Id));
-            builder.AddContent(3, ResourceDisplayLabels.GetLabel(volume));
+            builder.AddContent(3, ResourceDisplayLabels.GetQualifiedLabel(volume));
             builder.CloseElement();
             return;
         }
 
         builder.AddContent(4, mount.VolumeReference);
     };
+
+    private static string GetVolumeLabel(Resource? volume, string fallback) =>
+        volume is null
+            ? ResourceDisplayLabels.GetName(fallback)
+            : ResourceDisplayLabels.GetQualifiedLabel(volume);
 
     private string GetMountMaterializationLabel() =>
         Application is not null &&
