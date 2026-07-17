@@ -76,6 +76,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved the Resources page dependency lists and lifecycle confirmation
   messages so they sort and describe related resources with Resource Manager
   display labels instead of raw resource names.
+- Improved generated Overview and Endpoints exposure sections so dependency
+  graph nodes, network mappings, and load balancer routes order related
+  resources by Resource Manager display labels.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.

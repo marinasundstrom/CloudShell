@@ -647,7 +647,7 @@
                     Resource.Id,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
-            .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(mapping => GetResourceLabel(mapping.Network), StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -664,7 +664,7 @@
                     Resource.Id,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
-            .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(route => GetResourceLabel(route.LoadBalancer), StringComparer.OrdinalIgnoreCase)
             .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -778,7 +778,7 @@
     private IReadOnlyList<ResourceRelationshipNode> GetDependencyNodes() =>
         Resource.DependsOn
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Order(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetRelationshipResourceLabel, StringComparer.OrdinalIgnoreCase)
             .Select(dependencyId =>
             {
                 var dependency = FindRelatedResource(dependencyId);
@@ -792,6 +792,11 @@
                     Resource: dependency);
             })
             .ToArray();
+
+    private string GetRelationshipResourceLabel(string resourceId) =>
+        FindRelatedResource(resourceId) is { } resource
+            ? GetResourceLabel(resource)
+            : GetFallbackResourceLabel(resourceId);
 
     private IReadOnlyList<ResourceRelationshipNode> GetDependentNodes() =>
         DependentResources
