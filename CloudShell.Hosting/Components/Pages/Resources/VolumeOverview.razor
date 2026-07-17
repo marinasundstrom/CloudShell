@@ -23,7 +23,7 @@ else
                 <dt>Storage resource</dt>
                 <dd>
                     <a class="resource-link" href="@BuildResourceRoute(storageResourceId)">
-                        @ResourceDisplayLabels.GetLabel(StorageResource, storageResourceId)
+                        @GetStorageResourceLabel(storageResourceId)
                     </a>
                 </dd>
                 <dt>Volume subpath</dt>
@@ -61,7 +61,7 @@ else
                     <ResourceListItem Resource="consumer.Resource">
                         <TitleContent>
                             <a class="resource-link" href="@BuildResourceRoute(consumer.Resource.Id)">
-                                @ResourceDisplayLabels.GetLabel(consumer.Resource)
+                                @ResourceDisplayLabels.GetQualifiedLabel(consumer.Resource)
                             </a>
                         </TitleContent>
                         <ChildContent>
@@ -119,7 +119,7 @@ else
                 consumer.Mounts.Count > 0 ||
                 consumer.Resource.DependsOn.Any(dependency =>
                     string.Equals(dependency, Volume.Id, StringComparison.OrdinalIgnoreCase)))
-            .OrderBy(consumer => consumer.Resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(consumer => ResourceDisplayLabels.GetQualifiedLabel(consumer.Resource), StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -183,6 +183,11 @@ else
 
         return $"{value.ToString(unitIndex == 0 ? "0" : "0.##", CultureInfo.InvariantCulture)} {units[unitIndex]}";
     }
+
+    private string GetStorageResourceLabel(string storageResourceId) =>
+        StorageResource is null
+            ? ResourceDisplayLabels.GetName(storageResourceId)
+            : ResourceDisplayLabels.GetQualifiedLabel(StorageResource);
 
     private bool TryGetStorageResourceId(out string storageResourceId)
     {

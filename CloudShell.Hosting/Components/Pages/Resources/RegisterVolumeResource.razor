@@ -30,7 +30,7 @@
             <FluentOption TOption="string" Value="">Direct filesystem path</FluentOption>
             @foreach (var storage in StorageResources)
             {
-                <FluentOption TOption="string" Value="@storage.Id">@ResourceDisplayLabels.GetLabel(storage)</FluentOption>
+                <FluentOption TOption="string" Value="@storage.Id">@ResourceDisplayLabels.GetQualifiedLabel(storage)</FluentOption>
             }
         </FluentSelect>
 
@@ -97,7 +97,7 @@
         StorageGroupsByResourceId = ResourceManagerUiAccess.CreateGroupLookup(ResourceGroups);
         StorageResources = (await ResourceManager.ListResourcesAsync())
             .Where(resource => resource.HasCapability(ResourceCapabilityIds.StorageProvider))
-            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         SelectedStorageResourceId = GetRequestedStorageResourceId() ?? string.Empty;
         ApplySelectedStorageGroup();

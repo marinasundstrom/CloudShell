@@ -40,7 +40,7 @@ else
                 <FluentOption TOption="string" Value="">Direct filesystem path</FluentOption>
                 @foreach (var storage in StorageResources)
                 {
-                    <FluentOption TOption="string" Value="@storage.Id">@ResourceDisplayLabels.GetLabel(storage)</FluentOption>
+                    <FluentOption TOption="string" Value="@storage.Id">@ResourceDisplayLabels.GetQualifiedLabel(storage)</FluentOption>
                 }
             </FluentSelect>
 
@@ -105,7 +105,7 @@ else
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
         StorageResources = (await ResourceManager.ListResourcesAsync())
             .Where(resource => resource.HasCapability(ResourceCapabilityIds.StorageProvider))
-            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         Volume = string.IsNullOrWhiteSpace(ResourceId)
             ? null
@@ -121,7 +121,7 @@ else
                 .Where(resource => !string.Equals(resource.Id, Volume.Id, StringComparison.OrdinalIgnoreCase))
                 .Where(resource => resource.DependsOn.Any(dependency =>
                     string.Equals(dependency, Volume.Id, StringComparison.OrdinalIgnoreCase)))
-                .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             Name = Volume.Name;
             SelectedGroupId = ResourceGroup?.Id ?? string.Empty;

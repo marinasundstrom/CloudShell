@@ -48,7 +48,7 @@ else
                                       Metadata="@GetVolumeMetadata(volume)">
                         <TitleContent>
                             <a class="resource-link" href="@BuildResourceRoute(volume.Volume.Id)">
-                                @ResourceDisplayLabels.GetLabel(volume.Volume)
+                                @ResourceDisplayLabels.GetQualifiedLabel(volume.Volume)
                             </a>
                         </TitleContent>
                         <ChildContent>
@@ -104,7 +104,7 @@ else
             .Select(volume => new StorageVolumeView(
                 volume,
                 GetConsumersForVolume(volume, resources, orchestrationSnapshot)))
-            .OrderBy(volume => ResourceDisplayLabels.GetLabel(volume.Volume), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(volume => ResourceDisplayLabels.GetQualifiedLabel(volume.Volume), StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -213,7 +213,7 @@ else
         var label = ResourceVolumeMountDisplay.GetMaterializationSummary(consumer.Resource, Localize);
         return label is null
             ? null
-            : $"{ResourceDisplayLabels.GetLabel(consumer.Resource)}: {label}";
+            : $"{ResourceDisplayLabels.GetQualifiedLabel(consumer.Resource)}: {label}";
     }
 
     private static string Pluralize(int count) =>
