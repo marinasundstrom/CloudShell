@@ -245,7 +245,7 @@
             : L["Triggered by {0}", resourceEvent.TriggeredBy].Value;
 
     private string FormatEventMetadata(ResourceEvent resourceEvent) =>
-        L["{0} · {1}", resourceEvent.EventType, FormatTriggeredBy(resourceEvent)].Value;
+        L["{0} · {1}", ResourceEventDisplayNames.GetGroupName(resourceEvent.EventType, L), FormatTriggeredBy(resourceEvent)].Value;
 
     private static string BuildTraceRoute(ResourceEvent resourceEvent)
     {
