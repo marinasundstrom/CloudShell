@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified DNS zone overview metadata so exposure, provider, and mapping
+  status use display labels instead of raw stored values.
 - Clarified network detail views so network kind uses display labels instead
   of raw attribute values.
 - Clarified the shared application Environment tab so environment variable
