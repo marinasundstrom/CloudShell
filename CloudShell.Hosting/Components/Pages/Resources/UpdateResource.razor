@@ -1231,7 +1231,19 @@
         ExecutingActionIds.Contains(action.Id);
 
     private string GetLifecycleStatusLabel(Resource resource) =>
-        GetLifecycleProgressLabel(resource) ?? resource.State?.ToString() ?? ResourceState.Unknown.ToString();
+        GetLifecycleProgressLabel(resource) ?? FormatResourceState(resource.State);
+
+    private string FormatResourceState(ResourceState? state) =>
+        state switch
+        {
+            ResourceState.Running => L["Running"].Value,
+            ResourceState.Starting => L["Starting"].Value,
+            ResourceState.Stopping => L["Stopping"].Value,
+            ResourceState.Paused => L["Paused"].Value,
+            ResourceState.Degraded => L["Degraded"].Value,
+            ResourceState.Stopped => L["Stopped"].Value,
+            _ => L["Unknown"].Value
+        };
 
     private string? GetLifecycleProgressLabel(Resource resource)
     {
