@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified deployment activity and environment graph labels so replicas and
+  topology providers use running/provides wording instead of materialization
+  terminology.
 - Clarified storage mount diagnostics so Resource Manager warns about inactive
   mounts without exposing materialization terminology.
 - Clarified the resource detail fallback message so missing resource

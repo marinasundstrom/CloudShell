@@ -146,7 +146,7 @@ public static class ResourceDependencyGraphProjection
                         links,
                         mapping.ProviderResourceId,
                         mapping.Target.ResourceId,
-                        "materializes",
+                        "provides",
                         ResourceDependencyGraphLinkKinds.Topology,
                         mapping.ProviderResourceId);
                 }
