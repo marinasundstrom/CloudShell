@@ -238,6 +238,8 @@
 </section>
 
 @code {
+    private const string NotReported = "Not reported";
+
     [Parameter, EditorRequired]
     public CloudShell.Abstractions.ResourceManager.Resource Resource { get; set; } = default!;
 
@@ -476,23 +478,33 @@
 
     private static string FormatOptionalTimestamp(DateTimeOffset? timestamp) =>
         timestamp is null
-            ? "-"
+            ? "Never"
             : FormatTimestamp(timestamp.Value);
 
     private static string FormatOptionalValue(string? value) =>
         string.IsNullOrWhiteSpace(value)
-            ? "-"
+            ? NotReported
             : value;
 
     private static string FormatStatus(DeviceRegistryRuntimeDevice device) =>
-        string.IsNullOrWhiteSpace(device.Status)
-            ? "active"
-            : device.Status;
+        device.Status?.Trim().ToLowerInvariant() switch
+        {
+            null or "" => "Active",
+            "active" => "Active",
+            "disabled" => "Disabled",
+            "revoked" => "Revoked",
+            _ => "Unknown"
+        };
 
     private static string FormatPresence(DeviceRegistryRuntimeDevice device) =>
-        string.IsNullOrWhiteSpace(device.Presence)
-            ? "unknown"
-            : device.Presence;
+        device.Presence?.Trim().ToLowerInvariant() switch
+        {
+            "online" => "Online",
+            "stale" => "Stale",
+            "disabled" => "Disabled",
+            "revoked" => "Revoked",
+            _ => "Unknown"
+        };
 
     private static string GetPresenceClass(DeviceRegistryRuntimeDevice device) =>
         FormatPresence(device).ToLowerInvariant() switch
@@ -504,20 +516,28 @@
 
     private static string FormatLastSeenTransport(DeviceRegistryRuntimeDevice device) =>
         string.IsNullOrWhiteSpace(device.LastSeenTransport)
-            ? "-"
+            ? NotReported
             : device.LastSeenTransport.ToUpperInvariant();
 
     private static string FormatEnrollmentProfile(DeviceRegistryRuntimeDevice device)
     {
         if (string.IsNullOrWhiteSpace(device.EnrollmentProfileName))
         {
-            return "-";
+            return "No profile";
         }
 
         return string.IsNullOrWhiteSpace(device.EnrollmentProfileKind)
             ? device.EnrollmentProfileName
-            : $"{device.EnrollmentProfileName} ({device.EnrollmentProfileKind})";
+            : $"{device.EnrollmentProfileName} ({FormatEnrollmentProfileKind(device.EnrollmentProfileKind)})";
     }
+
+    private static string FormatEnrollmentProfileKind(string kind) =>
+        kind.Trim().ToLowerInvariant() switch
+        {
+            "group" => "Group",
+            "individual" => "Individual",
+            _ => "Custom"
+        };
 
     private static bool IsRevoked(DeviceRegistryRuntimeDevice device) =>
         string.Equals(device.Status, "revoked", StringComparison.OrdinalIgnoreCase) ||
