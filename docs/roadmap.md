@@ -658,7 +658,9 @@ listed here before pulling in broader proposal work.
    resource Usage tabs. Use [Resource Monitoring and Usage](monitoring-and-usage.md)
    for the landed model. The next roadmap action is better provider coverage,
    richer replica diagnostics, summary-first usage dashboards, drill-down by
-   resource or metric, and better trend quality. Live telemetry and monitoring
+   resource or metric, and better trend quality. Also clean up the common
+   Usage page and give Usage a distinct shell/resource-view icon so it no
+   longer visually collides with Telemetry. Live telemetry and monitoring
    subscriptions for split-hosted UIs remain a later Control Plane API design
    question. Keep shared Telemetry pages for cross-resource investigation
    instead of forcing normal per-resource work through global views. Do not
