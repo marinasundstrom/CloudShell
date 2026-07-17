@@ -122,6 +122,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved application artifact create, restore, update, and validation
   failure messages so the Resource Manager UI shows recovery guidance instead
   of raw exception text.
+- Improved Resource Manager resource apply, restart, delete, and action
+  failures so the detail page shows stable recovery guidance while logging the
+  original exception for diagnostics.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies

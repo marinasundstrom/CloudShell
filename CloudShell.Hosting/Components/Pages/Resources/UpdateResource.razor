@@ -556,7 +556,7 @@
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = L["Apply failed: {0}", exception.Message].Value;
+            ProcedureMessage = FormatResourceOperationFailure(exception, "apply resource changes");
             ProcedureSignals = [];
             PendingRestart = null;
         }
@@ -617,9 +617,9 @@
 
             await ReloadResourceAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatResourceOperationFailure(exception, "restart the resource");
             ProcedureSignals = [];
         }
         finally
@@ -680,9 +680,9 @@
             ConfirmDelete = false;
             Navigation.NavigateTo("/resources");
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatResourceOperationFailure(exception, "delete the resource");
             ProcedureSignals = [];
         }
         finally
@@ -1289,9 +1289,9 @@
             await ReloadResourceAsync();
             ResourceContentVersion++;
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatResourceOperationFailure(exception, "run the resource operation");
             ProcedureSignals = [];
         }
         finally
@@ -1317,6 +1317,21 @@
         Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
             ResourceManagerShellLinks.ResourceDetails(ShellRoutes, Resource.Id, ResourcePredefinedViewIds.Logs),
             query));
+    }
+
+    private string FormatResourceOperationFailure(Exception exception, string operation)
+    {
+        Logger.LogWarning(
+            exception,
+            "Resource operation failed for {ResourceId}: {Operation}",
+            Resource?.Id ?? ResourceId ?? "unknown",
+            operation);
+
+        return exception switch
+        {
+            HttpRequestException => L["CloudShell could not reach the Control Plane while trying to {0}. Check connectivity and try again.", operation].Value,
+            _ => L["CloudShell could not {0}. Check the resource state and try again.", operation].Value
+        };
     }
 
     private string GetLogsActionLabel(int logCount) =>
