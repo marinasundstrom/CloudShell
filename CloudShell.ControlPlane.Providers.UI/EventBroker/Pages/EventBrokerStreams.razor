@@ -38,7 +38,7 @@ else
                         <th>Name</th>
                         <th>Protocol</th>
                         <th>Endpoint</th>
-                        <th>Format</th>
+                        <th>Event format</th>
                         <th>Capabilities</th>
                     </tr>
                 </thead>
@@ -47,10 +47,10 @@ else
                     {
                         <tr>
                             <td><strong>@protocol.Name</strong></td>
-                            <td>@protocol.Protocol</td>
-                            <td>@FormatOptional(protocol.Address)</td>
-                            <td>@FormatOptional(protocol.EventFormat)</td>
-                            <td>@FormatValues(protocol.Capabilities)</td>
+                            <td>@FormatProtocol(protocol.Protocol)</td>
+                            <td>@FormatEndpoint(protocol.Address)</td>
+                            <td>@FormatEventFormat(protocol.EventFormat)</td>
+                            <td>@FormatCapabilities(protocol.Capabilities)</td>
                         </tr>
                     }
                 </tbody>
@@ -94,7 +94,7 @@ else
                             <td><strong>@stream.Name</strong></td>
                             <td>@stream.EventCount</td>
                             <td>@stream.LastSequence</td>
-                            <td>@FormatOptionalTimestamp(stream.LastEventAt)</td>
+                            <td>@FormatLastEvent(stream.LastEventAt)</td>
                         </tr>
                     }
                 </tbody>
@@ -217,17 +217,49 @@ else
             .ToArray();
     }
 
-    private static string FormatValues(IReadOnlyList<string> values) =>
+    private static string FormatProtocol(string protocol) =>
+        protocol.Trim().ToLowerInvariant() switch
+        {
+            EventBrokerProtocols.Http => "HTTP",
+            EventBrokerProtocols.Mqtt => "MQTT",
+            EventBrokerProtocols.Amqp => "AMQP",
+            EventBrokerProtocols.Kafka => "Kafka",
+            EventBrokerProtocols.EventHubs => "Event Hubs",
+            EventBrokerProtocols.Nats => "NATS",
+            { Length: > 0 } => "Custom",
+            _ => "Not configured"
+        };
+
+    private static string FormatCapabilities(IReadOnlyList<string> values) =>
         values.Count == 0
-            ? "-"
-            : string.Join(", ", values);
+            ? "None"
+            : string.Join(", ", values.Select(FormatCapability).Order(StringComparer.OrdinalIgnoreCase));
 
-    private static string FormatOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "-" : value;
+    private static string FormatCapability(string capability) =>
+        capability.Trim().ToLowerInvariant() switch
+        {
+            EventBrokerProtocolCapabilities.PublishEvents => "Publish",
+            EventBrokerProtocolCapabilities.SubscribeEvents => "Subscribe",
+            EventBrokerProtocolCapabilities.RetainedEvents => "Retained events",
+            EventBrokerProtocolCapabilities.TelemetryIngestion => "Telemetry ingestion",
+            { Length: > 0 } => "Custom",
+            _ => "Not configured"
+        };
 
-    private static string FormatOptionalTimestamp(DateTimeOffset? timestamp) =>
+    private static string FormatEndpoint(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Not mapped" : value;
+
+    private static string FormatEventFormat(string? value) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            "json" => "JSON",
+            { Length: > 0 } => "Custom",
+            _ => "Not declared"
+        };
+
+    private static string FormatLastEvent(DateTimeOffset? timestamp) =>
         timestamp is null
-            ? "-"
+            ? "No events"
             : timestamp.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
 
     private static string FormatStreamReadFailure(Exception exception) =>
