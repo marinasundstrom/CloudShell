@@ -23,6 +23,10 @@ from that configuration. The service-specific SDK endpoint variables still
 exist for this first client integration, but the resource graph now shows the
 intended direction: discovery locates the service, while identity and grants
 authorize access to it.
+That coexistence is an accepted MVP bridge. Service discovery is the portable
+resource relationship, while service-specific SDK endpoint variables keep the
+first Configuration Store and Secrets Vault client integrations simple until
+all runtime clients converge on the same discovery path.
 
 The sample Web API exposes `/service-discovery/configuration` to prove the
 current service discovery path end to end. That endpoint calls the Configuration

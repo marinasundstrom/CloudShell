@@ -43,7 +43,11 @@ service-discovery mechanism. `DependsOn` remains startup ordering intent.
 
 ## Runtime Behavior
 
-The sample keeps focused runtime seams where behavior is still sample-specific:
+The sample keeps focused runtime seams where behavior is still sample-specific.
+These are accepted local-development MVP bridges: they let the topology run
+through the Resource model while the same concepts are later moved behind
+durable provider runtime packages or future execution agents. They should not
+be treated as user-authored resource state.
 
 - The provider-owned local SQL Server Docker runtime starts the SQL Server
   container for the `application.sql-server` resource and resolves the
@@ -60,6 +64,8 @@ The sample keeps focused runtime seams where behavior is still sample-specific:
   controllers with seeded sample data.
 - ASP.NET Core API and frontend resources start through the Resource model
   ASP.NET Core project runtime controller.
+- Local DNS name mapping is reconciled through the local host-name publisher.
+  Set `CLOUDSHELL_LOCAL_HOSTS_FILE` to keep the proof non-mutating.
 
 These seams are transitional. The sample should keep proving the workload path
 while durable provider runtime implementations replace sample-local code.

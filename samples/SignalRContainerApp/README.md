@@ -16,6 +16,10 @@ the built-in local Docker container app runtime once; the runtime builds the
 project-backed API image from the resource's `project.path`, starts three
 replica containers, and exposes the declared API endpoint through a local
 Traefik ingress container.
+This local Docker/Traefik execution path is an accepted local-development MVP
+bridge. The sample proves the SignalR workload, sticky-routing intent, and
+container-app runtime boundary without making replica containers user-authored
+resources or committing to the final distributed-agent implementation.
 
 The browser frontend uses the default SignalR negotiation flow through a
 same-origin frontend proxy path. That proxy forwards HTTP and WebSocket

@@ -13,6 +13,13 @@ the public load balancer frontend. The zone opts into the local host-name
 publisher. Use **Reconcile name mappings** on the DNS zone to apply or
 re-apply those exact host mappings.
 
+The Traefik adapter and local host-name publisher are accepted
+local-development MVP bridges. CloudShell owns the declared load-balancer,
+route, endpoint, DNS-zone, and name-mapping resources; the bridge translates
+that intent into local Traefik dynamic configuration and optional hosts-file
+entries until the provider runtime is fully separated behind durable
+execution boundaries.
+
 ```bash
 dotnet run --project samples/LoadBalancer/CloudShell.LoadBalancer.csproj -- --urls http://localhost:5011
 ```

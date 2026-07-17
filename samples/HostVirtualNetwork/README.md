@@ -5,6 +5,12 @@ provider to materialize an endpoint mapping on macOS, Linux, or Windows. It
 also declares manual private virtual-network addresses and DNS name mappings
 that can be written as CoreDNS configuration.
 
+The local TCP proxy and generated CoreDNS files are accepted
+local-development MVP bridges. They prove the resource model, endpoint
+mapping, and private-name authoring flow without requiring OS-native virtual
+adapters, firewall/NAT rules, or network isolation on every developer
+machine.
+
 The resource graph declares:
 
 - `cloudshell.hostNetworking.local:host-local`: the local host networking provider.

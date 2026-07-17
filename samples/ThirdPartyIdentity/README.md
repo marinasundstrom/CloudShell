@@ -5,6 +5,11 @@ a standards-based OpenID Connect provider. It uses Keycloak as local
 development infrastructure, but CloudShell still consumes normal ASP.NET Core
 claims and the existing CloudShell permission model.
 
+Keycloak setup, deterministic sample client secrets, and workload credential
+environment materialization are accepted local-development MVP bridges. The
+sample proves the CloudShell identity/resource-permission model against an
+external OIDC provider; it is not a built-in Keycloak provider contract.
+
 The sample proves:
 
 - OIDC sign-in through `Authentication:Mode = OpenIdConnect`

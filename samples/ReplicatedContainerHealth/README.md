@@ -40,6 +40,11 @@ containers, starts the sample-owned Traefik ingress container, projects hidden
 runtime replicas, and removes those containers on stop. Image and replica
 updates are applied through ResourceDefinition changes and then delegated
 through the container-app runtime operation seam.
+This local Docker/Traefik materialization is the accepted local-development
+MVP runtime bridge for replicated container apps. The control plane still owns
+the resource model, desired replica count, routing intent, operations, and
+diagnostics; the bridge owns local execution until that boundary can be
+extracted into a future agent or orchestrator runtime.
 
 The app declares cookie session affinity with the `CloudShellReplica` cookie.
 The current sample projects that setting into the orchestrator service routing

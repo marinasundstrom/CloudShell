@@ -33,6 +33,11 @@ exist in the configured registry address.
 The container app itself uses the deferred runtime bridge: image and replica
 requests update graph state, but lifecycle actions report that runtime
 materialization is deferred instead of starting a container app.
+That is the accepted MVP boundary for this sample. It proves graph apply,
+deployment API wiring, and switch-readiness for container app state changes;
+it is not the runtime materialization proof for replicas, ingress, or
+orchestrator behavior. Use the `ReplicatedContainerHealth` and
+`SignalRContainerApp` samples for local container-app runtime materialization.
 
 For local runs, use `create-registry.sh` to materialize the registry container
 in Docker before pushing images to it. The declared Docker container resource
