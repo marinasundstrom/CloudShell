@@ -589,7 +589,7 @@ else
 
     private static string FormatEntrypoint(ResourceEndpoint endpoint)
     {
-        var port = endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "unspecified";
+        var port = endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "Unspecified";
         return $"{endpoint.Protocol}:{port}";
     }
 

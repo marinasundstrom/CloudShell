@@ -1856,7 +1856,7 @@ resourceGroups) =>
     private string FormatEndpointSummary(ResourceEndpoint endpoint)
     {
         var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
-            ? L["unspecified"].Value
+            ? L["Unspecified"].Value
             : endpoint.Protocol;
         return endpoint.TargetPort is null
             ? protocol
