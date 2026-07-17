@@ -191,16 +191,16 @@ else
                                         <ResourceStateIndicator State="replica.State" Variant="pill" />
                                     }
                                 </td>
-                                <td>@(replica is null ? "not running" : GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version))</td>
+                                <td>@(replica is null ? "Not running" : GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version))</td>
                                 <td>
-                                    <strong>@(replica is null ? "not running" : GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name))</strong>
+                                    <strong>@(replica is null ? "Not running" : GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name))</strong>
                                 </td>
-                                <td>@(replica is null ? "vacant slot" : GetMaterializationLabel(replica))</td>
+                                <td>@(replica is null ? "Vacant slot" : GetMaterializationLabel(replica))</td>
                                 <td>
                                     @GetReplicaSlotStatusLabel(slotState)
                                     <div class="table-subtext">@GetReplicaSlotStateDetail(slotState)</div>
                                 </td>
-                                <td>@(replica is null ? "not assigned" : GetAttribute(replica, ResourceAttributeNames.ContainerHostId, "default host"))</td>
+                                <td>@(replica is null ? "Not assigned" : GetAttribute(replica, ResourceAttributeNames.ContainerHostId, "Default host"))</td>
                             </tr>
                         }
                     </tbody>
