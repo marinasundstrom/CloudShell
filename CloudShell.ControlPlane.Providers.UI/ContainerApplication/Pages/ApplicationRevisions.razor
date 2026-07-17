@@ -140,7 +140,7 @@ else
         (await ResourceManager.ListResourceChildrenAsync(resourceId))
             .Where(IsReplicaResource)
             .OrderBy(GetReplicaOrdinal)
-            .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private string GetCurrentRevisionStatus() =>

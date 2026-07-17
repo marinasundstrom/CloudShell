@@ -175,7 +175,7 @@ else
                                     {
                                         <strong>
                                             <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(replica.Id)">
-                                                @replica.Name
+                                                @ResourceDisplayLabels.GetQualifiedLabel(replica)
                                             </FluentAnchor>
                                         </strong>
                                         <div class="table-subtext">@FormatReplicaOrdinal(replica)</div>
@@ -275,6 +275,7 @@ else
                 : (await ResourceManager.ListResourceChildrenAsync(Resource.Id))
                     .Where(IsReplicaResource)
                     .OrderBy(GetReplicaOrdinal)
+                    .ThenBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
                     .ToArray();
             ReplicaSlotStates = Resource is null
                 ? []

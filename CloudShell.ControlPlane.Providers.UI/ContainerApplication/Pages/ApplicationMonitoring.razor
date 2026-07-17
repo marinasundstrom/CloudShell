@@ -149,7 +149,7 @@ else
                                                                Summary="@FormatReplicaOrdinal(row.Resource)">
                                             <TitleContent>
                                                 <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(row.Resource.Id)">
-                                                    @row.Resource.Name
+                                                    @ResourceDisplayLabels.GetQualifiedLabel(row.Resource)
                                                 </FluentAnchor>
                                             </TitleContent>
                                         </ResourceTableIdentity>
@@ -263,7 +263,7 @@ else
             Replicas = (await ResourceManager.ListResourceChildrenAsync(Application.Id))
                 .Where(IsReplicaResource)
                 .OrderBy(GetReplicaOrdinal)
-                .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
             var rows = new List<ReplicaMonitoringRow>();
