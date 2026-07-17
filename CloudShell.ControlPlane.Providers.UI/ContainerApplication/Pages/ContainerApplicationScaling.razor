@@ -464,7 +464,7 @@ else
         return Resource?.State switch
         {
             ResourceState.Starting or ResourceState.Stopped or ResourceState.Stopping => "0",
-            _ => "not observed"
+            _ => "Not reported"
         };
     }
 
@@ -472,7 +472,7 @@ else
     {
         if (ReplicaSlotStates.Count == 0)
         {
-            return "not observed";
+            return "Not reported";
         }
 
         var openCount = ReplicaSlotStates.Count(state =>
@@ -627,8 +627,8 @@ else
             "orchestratorMaterialized" => "Running",
             "orchestratorPending" => "Pending",
             "orchestratorFailed" => "Failed",
-            var materialization when !string.IsNullOrWhiteSpace(materialization) => materialization,
-            _ => "unknown"
+            { Length: > 0 } => "Unknown",
+            _ => "Unknown"
         };
 
     private ResourceReplicaSlotState? GetSlotState(ReplicaSlotView slot) =>
@@ -645,8 +645,8 @@ else
             ResourceReplicaSlotReconciliationStatus.Repaired => "Repaired",
             ResourceReplicaSlotReconciliationStatus.RepairFailed => "Repair failed",
             ResourceReplicaSlotReconciliationStatus.Materialized => "Reconciled",
-            null => "not observed",
-            _ => state.Status.ToString()
+            null => "Not reported",
+            _ => "Unknown"
         };
 
     private static string GetReplicaSlotStateDetail(ResourceReplicaSlotState? state)

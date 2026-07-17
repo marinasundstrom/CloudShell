@@ -319,7 +319,7 @@ else
         Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId) ??
         GetMaterializedReplicaAttribute(ResourceAttributeNames.DeploymentServiceId) ??
         GetInferredDeploymentServiceId() ??
-        "not observed";
+        "Not reported";
 
     private string GetReplicaGroup() =>
         ActiveDeployment?.ReplicaGroup?.Id ??
@@ -327,7 +327,7 @@ else
         Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentReplicaGroupId) ??
         GetMaterializedReplicaAttribute(ResourceAttributeNames.DeploymentReplicaGroupId) ??
         GetInferredReplicaGroupId() ??
-        "not observed";
+        "Not reported";
 
     private string? GetMaterializedReplicaAttribute(string attributeName) =>
         MaterializedReplicas
