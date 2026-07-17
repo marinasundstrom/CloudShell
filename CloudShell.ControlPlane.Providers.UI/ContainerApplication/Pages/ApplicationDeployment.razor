@@ -265,9 +265,9 @@ else
                 CurrentDeploymentResourceId = Resource.Id;
             }
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ImageDeploymentMessage = exception.Message;
+            ImageDeploymentMessage = FormatImageDeploymentFailure(exception);
         }
         finally
         {
@@ -603,9 +603,16 @@ else
 
         return DeploymentReadinessView.Ready(
             "Ready to deploy",
-            "CloudShell will request the new runtime state and activate it after materialization succeeds.",
+            "CloudShell will apply the requested image and activate it after the app is updated.",
             "Image deployment preflight");
     }
+
+    private static string FormatImageDeploymentFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Control Plane while requesting the deployment. Check connectivity and try again.",
+            _ => "CloudShell could not request the image deployment. Check deployment readiness, events, and logs before trying again."
+        };
 
     private async Task<string> ReadDeploymentImageAsync()
     {

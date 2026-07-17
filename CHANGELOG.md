@@ -97,6 +97,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved Device Registry device views so unavailable and mutation failure
   messages use user-facing management and recovery guidance instead of runtime
   manager or raw exception wording.
+- Improved Container Application deployment and scaling views so update
+  failures show stable recovery guidance and readiness copy avoids internal
+  runtime-materialization wording.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies

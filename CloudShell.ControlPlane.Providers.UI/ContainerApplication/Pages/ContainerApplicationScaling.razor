@@ -343,7 +343,7 @@ else
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             ReplicaUpdateSeverity = ResourceSignalSeverity.Error;
-            ReplicaUpdateMessage = $"Replica update failed: {exception.Message}";
+            ReplicaUpdateMessage = FormatReplicaUpdateFailure(exception);
         }
         finally
         {
@@ -420,7 +420,7 @@ else
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             RoutingUpdateSeverity = ResourceSignalSeverity.Error;
-            RoutingUpdateMessage = $"Routing update failed: {exception.Message}";
+            RoutingUpdateMessage = FormatRoutingUpdateFailure(exception);
         }
         finally
         {
@@ -430,6 +430,20 @@ else
 
     private string GetModeLabel() =>
         RequestedReplicaSlots > 1 ? "Replicated" : "Single instance";
+
+    private static string FormatReplicaUpdateFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Control Plane while updating replicas. Check connectivity and try again.",
+            _ => "CloudShell could not update replicas for this container app. Check readiness diagnostics and try again."
+        };
+
+    private static string FormatRoutingUpdateFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Control Plane while updating routing. Check connectivity and try again.",
+            _ => "CloudShell could not update routing for this container app. Check the routing settings and try again."
+        };
 
     private int OccupiedReplicaSlots =>
         ReplicaSlots.Count(slot => slot.Occupant is not null);
