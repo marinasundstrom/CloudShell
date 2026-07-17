@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Improved Log Explorer read and streaming failures so the UI shows stable
+  recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
   as broker read failures.
 - Clarified Environment page revision and runtime-map fallbacks so missing

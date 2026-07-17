@@ -1,3 +1,4 @@
+@using Microsoft.Extensions.Logging
 @implements IAsyncDisposable
 @inject ILogManager LogManager
 @inject IResourceManager ResourceManager
@@ -5,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
+@inject Microsoft.Extensions.Logging.ILogger<LogExplorer> Logger
 
 @{
     var logs = GetSelectableLogs();
@@ -972,7 +974,11 @@ else if (ShowHeading)
         {
             Entries = [];
             CanLoadOlderEntries = false;
-            ReadError = exception.Message;
+            ReadError = FormatLogReadFailure(exception, "load log entries");
+            Logger.LogWarning(
+                exception,
+                "Failed to load log source {LogSourceId}.",
+                log.Id);
             LoadedLogId = log.Id;
             LoadedMergedSourceFilterKey = IsCombinedLog(log) ? GetMergedSourceFilterKey() : null;
             CancelScrollToLatest();
@@ -1061,7 +1067,11 @@ else if (ShowHeading)
         }
         catch (Exception exception)
         {
-            ReadError = exception.Message;
+            ReadError = FormatLogReadFailure(exception, "load older log entries");
+            Logger.LogWarning(
+                exception,
+                "Failed to load older entries for log source {LogSourceId}.",
+                selected.Id);
         }
         finally
         {
@@ -1172,7 +1182,11 @@ else if (ShowHeading)
         {
             if (!cancellation.IsCancellationRequested)
             {
-                await InvokeAsync(() => ReadError = exception.Message);
+                Logger.LogWarning(
+                    exception,
+                    "Log streaming failed for log source {LogSourceId}.",
+                    log.Id);
+                await InvokeAsync(() => ReadError = FormatLogReadFailure(exception, "stream log entries"));
             }
         }
         finally
@@ -1437,6 +1451,15 @@ else if (ShowHeading)
         traceId.Length <= 12
             ? traceId
             : traceId[^12..];
+
+    private static string FormatLogReadFailure(Exception exception, string operation) =>
+        exception switch
+        {
+            OperationCanceledException => $"CloudShell could not {operation} because the request was cancelled.",
+            HttpRequestException => $"CloudShell could not {operation}. Check that the Control Plane is reachable and try again.",
+            UnauthorizedAccessException => $"CloudShell could not {operation}. Check your log access permissions for this resource.",
+            _ => $"CloudShell could not {operation}. Check that the log source is still available and try again."
+        };
 
     public async ValueTask DisposeAsync()
     {
