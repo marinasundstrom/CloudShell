@@ -183,7 +183,7 @@ else
             ? FormatRevisionNumber(CurrentRevision)
             : GetCurrentDeploymentRevision() is { Length: > 0 } revision
                 ? revision
-                : Resource?.Version ?? "Runtime revision";
+                : Resource?.Version ?? "Revision";
 
     private string FormatCurrentProvisionedBy() =>
         CurrentRevision is not null
