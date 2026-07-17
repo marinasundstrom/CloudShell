@@ -56,6 +56,8 @@ on `git blame --follow`, and then by the broad type of change.
   and load-balancer selection use qualified resource labels.
 - Improved container-app deployment, monitoring, revision, and scaling views
   so materialized replica links and ordering use qualified resource labels.
+- Improved the SQL Server Databases tab so projected database rows link to
+  their Resource Manager details while preserving visible resource IDs.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.

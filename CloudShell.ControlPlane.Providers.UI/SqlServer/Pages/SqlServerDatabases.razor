@@ -55,8 +55,13 @@ else
                         <td>
                             <ResourceTableIdentity IconName="database-item"
                                                    IconTitle="Database"
-                                                   Title="@database.Label"
-                                                   Summary="@database.ResourceId" />
+                                                   Summary="@database.ResourceId">
+                                <TitleContent>
+                                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(database.ResourceId)">
+                                        @database.Label
+                                    </FluentAnchor>
+                                </TitleContent>
+                            </ResourceTableIdentity>
                         </td>
                         <td>@database.Source</td>
                         <td>@FormatBoolean(database.EnsureCreated)</td>
@@ -106,12 +111,13 @@ else
 
             DatabaseRows = childDatabases
                 .Concat(visibleDatabases)
-                .Where(resource => BuiltInProviderResourceUiTypes.IsSqlDatabase(resource.EffectiveTypeId))
-                .Where(resource => IsDatabaseForServer(resource, Server.Id))
-                .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
-                .Select(group => CreateRow(group.First()))
-                .OrderBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+            .Where(resource => BuiltInProviderResourceUiTypes.IsSqlDatabase(resource.EffectiveTypeId))
+            .Where(resource => IsDatabaseForServer(resource, Server.Id))
+            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => CreateRow(group.First()))
+            .OrderBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.QualifiedLabel, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         }
         finally
         {
@@ -189,5 +195,6 @@ else
         string Verification)
     {
         public string ResourceId => Resource.Id;
+        public string QualifiedLabel => ResourceDisplayLabels.GetQualifiedLabel(Resource);
     }
 }
