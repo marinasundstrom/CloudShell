@@ -246,7 +246,7 @@
                         }
                         <EndpointLink Address="@preferredEndpoint.Address"
                                       Text="@preferredEndpoint.Text"
-                                      EmptyText="@L["n/a"].Value"
+                                      EmptyText="@L["No endpoint"].Value"
                                       EmptyClass="muted"
                                       StopClickPropagation="true" />
                         @if (!string.IsNullOrWhiteSpace(preferredEndpoint.Source))
@@ -483,7 +483,7 @@
                                 @if (GetEndpointNetworkMapping(selected, endpoint.Name) is { } mapping)
                                 {
                                     <EndpointLink Address="@mapping.Address"
-                                                  EmptyText="@L["n/a"].Value"
+                                                  EmptyText="@L["Not mapped"].Value"
                                                   EmptyClass="muted"
                                                   StopClickPropagation="true" />
                                 }
@@ -2090,7 +2090,7 @@ resourceGroups) =>
         {
             builder.OpenElement(0, "span");
             builder.AddAttribute(1, "class", "muted");
-            builder.AddContent(2, L["n/a"]);
+            builder.AddContent(2, L["No health checks"]);
             builder.CloseElement();
             return;
         }

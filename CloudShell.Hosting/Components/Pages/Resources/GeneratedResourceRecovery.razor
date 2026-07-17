@@ -256,7 +256,7 @@
 
     private string FormatTimestamp(DateTimeOffset? timestamp) =>
         timestamp is null
-            ? L["n/a"].Value
+            ? L["Not recorded"].Value
             : timestamp.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture);
 
     private string GetStateLabel(ResourceRecoveryState state) =>
