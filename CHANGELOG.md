@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified the shared application Environment tab so environment variable
+  sources use display labels instead of raw stored values.
 - Clarified generated identity views so identity binding kinds use display
   labels instead of raw enum values.
 - Clarified RabbitMQ broker and SQL database provider views so state,

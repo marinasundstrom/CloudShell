@@ -35,7 +35,7 @@ else
                     {
                         <tr>
                             <td>@row.Name</td>
-                            <td>@row.Source</td>
+                            <td>@FormatSource(row.Source)</td>
                             <td>
                                 @if (row.Reference is { CanLink: true } reference)
                                 {
@@ -232,7 +232,7 @@ else
                 FormatLiteralValue(property.Name, value.GetString()));
         }
 
-        return new(property.Name, "unknown", "unsupported value shape");
+        return new(property.Name, "unknown", "Unsupported value shape");
     }
 
     private static EnvironmentRow CreateRow(string name, EnvironmentVariableParts parts)
@@ -272,7 +272,7 @@ else
             return new(name, "literal", FormatLiteralValue(name, parts.Value));
         }
 
-        return new(name, "unknown", "unsupported value shape");
+        return new(name, "unknown", "Unsupported value shape");
     }
 
     private static bool TryReadPath(
@@ -400,6 +400,18 @@ else
             : string.IsNullOrWhiteSpace(value)
                 ? "unset"
                 : value;
+
+    private static string FormatSource(string source) =>
+        source switch
+        {
+            "configuration" => "Configuration",
+            "literal" => "Literal",
+            "secret" => "Secret",
+            "unreadable" => "Unreadable",
+            "unknown" => "Unknown",
+            { Length: > 0 } => source,
+            _ => "Unknown"
+        };
 
     private static string? TryGetString(JsonElement element, string propertyName) =>
         element.TryGetProperty(propertyName, out var value) &&
