@@ -637,7 +637,7 @@
                         <div class="dependency-list">
                             @foreach (var dependency in selected.DependsOn
                                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                                .OrderBy(dependencyId => dependencyId, StringComparer.OrdinalIgnoreCase))
+                                .OrderBy(FormatResourceName, StringComparer.OrdinalIgnoreCase))
                             {
                                 @ResourceRelationshipLink(dependency)
                             }
@@ -1641,7 +1641,8 @@ resourceGroups) =>
         ResourceInventory
             .Where(candidate => candidate.DependsOn.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
             .Where(candidate => IsActiveDependencyState(candidate.State))
-            .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<Resource> GetDependentResources(Resource resource) =>
@@ -2258,7 +2259,11 @@ resourceGroups) =>
 
     private string GetDependencyConfirmationMessage(PendingResourceAction pending)
     {
-        var names = string.Join(", ", pending.StoppedDependencies.Select(dependency => dependency.Name));
+        var names = string.Join(
+            ", ",
+            pending.StoppedDependencies
+                .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
+                .Select(GetResourceLabel));
         return L[
             "The following dependencies are not running: {0}. Start them as well?",
             names].Value;
@@ -2266,7 +2271,11 @@ resourceGroups) =>
 
     private string GetDependentWarningMessage(PendingResourceAction pending)
     {
-        var names = string.Join(", ", pending.ActiveDependents.Select(dependent => dependent.Name));
+        var names = string.Join(
+            ", ",
+            pending.ActiveDependents
+                .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
+                .Select(GetResourceLabel));
         return L[
             "The following running resources depend on this resource: {0}. Stopping it may disrupt them. Do you want to stop the resource?",
             names].Value;

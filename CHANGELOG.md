@@ -73,6 +73,9 @@ on `git blame --follow`, and then by the broad type of change.
   `container:` wrapper for `image`, `replicas`, and routing fields.
 - Improved the Health dashboard so resource rows, history cards, activity
   links, and ordering use qualified Resource Manager labels consistently.
+- Improved the Resources page dependency lists and lifecycle confirmation
+  messages so they sort and describe related resources with Resource Manager
+  display labels instead of raw resource names.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.
