@@ -63,7 +63,7 @@ else
                                 </TitleContent>
                             </ResourceTableIdentity>
                         </td>
-                        <td>@database.Source</td>
+                        <td>@FormatSource(database.Source)</td>
                         <td>@FormatBoolean(database.EnsureCreated)</td>
                         <td>@FormatState(database.Resource.State)</td>
                         <td>@database.Verification</td>
@@ -185,7 +185,28 @@ else
         };
 
     private static string FormatState(Abstractions.ResourceManager.ResourceState? state) =>
-        state?.ToString() ?? "n/a";
+        state switch
+        {
+            Abstractions.ResourceManager.ResourceState.Running => "Running",
+            Abstractions.ResourceManager.ResourceState.Starting => "Starting",
+            Abstractions.ResourceManager.ResourceState.Stopping => "Stopping",
+            Abstractions.ResourceManager.ResourceState.Paused => "Paused",
+            Abstractions.ResourceManager.ResourceState.Degraded => "Needs attention",
+            Abstractions.ResourceManager.ResourceState.Stopped => "Stopped",
+            Abstractions.ResourceManager.ResourceState.Unknown => "Unknown",
+            null => "not observed",
+            _ => state.ToString() ?? "not observed"
+        };
+
+    private static string FormatSource(string source) =>
+        source switch
+        {
+            "declared" => "Declared",
+            "provider" => "Provider",
+            "imported" => "Imported",
+            { Length: > 0 } => source,
+            _ => "not declared"
+        };
 
     private sealed record SqlDatabaseRow(
         Resource Resource,

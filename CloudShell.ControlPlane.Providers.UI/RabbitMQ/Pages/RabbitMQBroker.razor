@@ -34,7 +34,7 @@ else
             <dt>Resource ID</dt>
             <dd>@Broker.Id</dd>
             <dt>State</dt>
-            <dd>@(Broker.State?.ToString() ?? "n/a")</dd>
+            <dd>@FormatState(Broker.State)</dd>
             <dt>Version</dt>
             <dd>@GetVersion()</dd>
             <dt>AMQP endpoint</dt>
@@ -139,14 +139,14 @@ else
                     endpoint.Name,
                     endpoint.Protocol,
                     endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "n/a",
-                    endpoint.Exposure.ToString(),
+                    FormatExposure(endpoint.Exposure),
                     Broker.GetResolvedEndpointAddress(endpoint)))
                 .ToArray();
     }
 
     private string GetBrokerSummary()
     {
-        var state = Broker?.State?.ToString() ?? "n/a";
+        var state = FormatState(Broker?.State);
         return $"RabbitMQ broker service managed by CloudShell. Current state: {state}.";
     }
 
@@ -212,6 +212,30 @@ else
             "amqp" => 0,
             "management" => 1,
             _ => 10
+        };
+
+    private static string FormatState(ResourceState? state) =>
+        state switch
+        {
+            ResourceState.Running => "Running",
+            ResourceState.Starting => "Starting",
+            ResourceState.Stopping => "Stopping",
+            ResourceState.Paused => "Paused",
+            ResourceState.Degraded => "Needs attention",
+            ResourceState.Stopped => "Stopped",
+            ResourceState.Unknown => "Unknown",
+            null => "not observed",
+            _ => state.ToString() ?? "not observed"
+        };
+
+    private static string FormatExposure(ResourceExposureScope exposure) =>
+        exposure switch
+        {
+            ResourceExposureScope.Private => "Private",
+            ResourceExposureScope.Local => "Local",
+            ResourceExposureScope.Network => "Network",
+            ResourceExposureScope.Public => "Public",
+            _ => exposure.ToString()
         };
 
     private sealed record BrokerEndpointRow(
