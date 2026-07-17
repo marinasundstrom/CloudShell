@@ -43,7 +43,7 @@ else
             <dd>
                 <EndpointLink Address="@ManagementAddress"
                               Text="@FormatEndpoint("management")"
-                              EmptyText="not mapped" />
+                              EmptyText="Not mapped" />
             </dd>
         </dl>
     </section>
@@ -77,12 +77,12 @@ else
                     {
                         <tr>
                             <td>@endpoint.Name</td>
-                            <td>@endpoint.Protocol</td>
+                            <td>@FormatProtocol(endpoint.Protocol)</td>
                             <td>@endpoint.TargetPort</td>
                             <td>@endpoint.Exposure</td>
                             <td>
                                 <EndpointLink Address="@endpoint.Address"
-                                              EmptyText="not mapped" />
+                                              EmptyText="Not mapped" />
                             </td>
                         </tr>
                     }
@@ -138,7 +138,7 @@ else
                 .Select(endpoint => new BrokerEndpointRow(
                     endpoint.Name,
                     endpoint.Protocol,
-                    endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "n/a",
+                    endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "Not configured",
                     FormatExposure(endpoint.Exposure),
                     Broker.GetResolvedEndpointAddress(endpoint)))
                 .ToArray();
@@ -168,21 +168,21 @@ else
             return version;
         }
 
-        return Broker?.Version ?? "n/a";
+        return Broker?.Version ?? "Not reported";
     }
 
     private string FormatEndpoint(string endpointName)
     {
         if (Broker is null)
         {
-            return "not mapped";
+            return "Not mapped";
         }
 
         var endpoint = Broker.Endpoints.FirstOrDefault(endpoint =>
             string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase));
         if (endpoint is null)
         {
-            return "not declared";
+            return "Not declared";
         }
 
         var address = Broker.GetResolvedEndpointAddress(endpoint);
@@ -192,8 +192,8 @@ else
         }
 
         return endpoint.TargetPort is { } targetPort
-            ? $"{endpoint.Protocol}:{targetPort.ToString(CultureInfo.InvariantCulture)}"
-            : endpoint.Protocol;
+            ? $"{FormatProtocol(endpoint.Protocol)}:{targetPort.ToString(CultureInfo.InvariantCulture)}"
+            : FormatProtocol(endpoint.Protocol);
     }
 
     private string GetManagementUiStatus() =>
@@ -224,8 +224,18 @@ else
             ResourceState.Degraded => "Needs attention",
             ResourceState.Stopped => "Stopped",
             ResourceState.Unknown => "Unknown",
-            null => "not observed",
-            _ => state.ToString() ?? "not observed"
+            null => "Not reported",
+            _ => "Unknown"
+        };
+
+    private static string FormatProtocol(string protocol) =>
+        protocol.Trim().ToLowerInvariant() switch
+        {
+            "amqp" => "AMQP",
+            "http" => "HTTP",
+            "https" => "HTTPS",
+            { Length: > 0 } => "Custom",
+            _ => "Not configured"
         };
 
     private static string FormatExposure(ResourceExposureScope exposure) =>
@@ -235,7 +245,7 @@ else
             ResourceExposureScope.Local => "Local",
             ResourceExposureScope.Network => "Network",
             ResourceExposureScope.Public => "Public",
-            _ => exposure.ToString()
+            _ => "Unknown"
         };
 
     private sealed record BrokerEndpointRow(
