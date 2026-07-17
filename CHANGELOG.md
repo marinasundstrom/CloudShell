@@ -20,6 +20,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved Resource Manager readiness and routing diagnostics so referenced
   resources use the shared qualified-label format, preserving readable display
   names while keeping scoped resource names visible when they differ.
+- Improved DNS zone overview name-mapping rows so target and provider
+  resources use the same qualified-label format as generated diagnostics.
 - Updated the MVP sample seam audit baseline after the broad
   `CloudShell.Sample.Tests` run passed with 122 tests, including the Bun
   JavaScript app sample.

@@ -112,7 +112,7 @@ else
     {
         var targetResourceId = GetAttribute(mapping, ResourceAttributeNames.NameMappingTargetResourceId, string.Empty);
         var targetLabel = ResourcesById.TryGetValue(targetResourceId, out var target)
-            ? ResourceDisplayLabels.GetLabel(target)
+            ? ResourceDisplayLabels.GetQualifiedLabel(target)
             : ResourceDisplayLabels.GetName(targetResourceId);
         var endpoint = GetAttribute(mapping, ResourceAttributeNames.NameMappingTargetEndpointName, "default");
 
@@ -155,7 +155,7 @@ else
         if (!string.IsNullOrWhiteSpace(providerResourceId))
         {
             return ResourcesById.TryGetValue(providerResourceId, out var provider)
-                ? $"Provider: {ResourceDisplayLabels.GetLabel(provider)}"
+                ? $"Provider: {ResourceDisplayLabels.GetQualifiedLabel(provider)}"
                 : $"Provider: {ResourceDisplayLabels.GetName(providerResourceId)}";
         }
 
