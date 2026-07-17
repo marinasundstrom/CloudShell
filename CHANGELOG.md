@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified application endpoint actions, storage dependency rows, and
+  RabbitMQ endpoint labels so missing or fallback endpoint state uses
+  configured-state wording.
 - Clarified SQL Server database summaries and source labels so configured
   database resources do not surface declaration terminology.
 - Clarified Event Broker protocol summaries and stream connection errors so

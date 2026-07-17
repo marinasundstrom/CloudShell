@@ -58,7 +58,7 @@ else
         @if (EndpointRows.Count == 0)
         {
             <EmptyState Title="No endpoints"
-                        Message="This broker does not declare endpoint contracts." />
+                        Message="This broker has no endpoint contracts configured." />
         }
         else
         {
@@ -153,9 +153,12 @@ else
     private string GetEndpointSummary()
     {
         var count = EndpointRows.Count.ToString(CultureInfo.InvariantCulture);
-        return EndpointRows.Count == 1
-            ? "1 broker endpoint is configured."
-            : $"{count} broker endpoints are configured.";
+        return EndpointRows.Count switch
+        {
+            0 => "No broker endpoints are configured.",
+            1 => "1 broker endpoint is configured.",
+            _ => $"{count} broker endpoints are configured."
+        };
     }
 
     private string GetVersion()
@@ -182,7 +185,7 @@ else
             string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase));
         if (endpoint is null)
         {
-            return "Not declared";
+            return "Not configured";
         }
 
         var address = Broker.GetResolvedEndpointAddress(endpoint);

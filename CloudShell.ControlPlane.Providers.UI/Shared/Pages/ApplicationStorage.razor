@@ -197,7 +197,7 @@ else
                 volume.Id,
                 volume,
                 "Mount target unavailable",
-                "Declared dependency",
+                "Configured dependency",
                 materialization,
                 HasProjectedMount: false));
         }
@@ -232,7 +232,7 @@ else
         Application is not null &&
         ResourceVolumeMountDisplay.GetMaterializationSummary(Application) is { } materialization
             ? materialization
-            : "Declared";
+            : "Configured";
 
     private sealed record ApplicationStorageMountView(
         string VolumeReference,
