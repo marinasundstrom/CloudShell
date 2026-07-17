@@ -68,16 +68,16 @@
                 <div class="checkbox-stack">
                     <FluentCheckbox @bind-Value="SelectedShowRuntimeManagedResources"
                                     Disabled="@(IsReadOnly || !CanShowRuntimeManagedResources)">
-                        @L["Show system-managed runtime resources"]
+                        @L["Show system-managed resources"]
                     </FluentCheckbox>
                     <small>
                         @if (!CanShowRuntimeManagedResources)
                         {
-                            @L["You need permission to inspect system-managed runtime resources."]
+                            @L["You need permission to inspect system-managed resources."]
                         }
                         else
                         {
-                            @L["Allows hidden runtime resources created by CloudShell to appear when hidden resources are shown. These resources are view-only. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowRuntimeManagedResources)]
+                            @L["Allows hidden resources created by CloudShell to appear when hidden resources are shown. These resources are view-only. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowRuntimeManagedResources)]
                         }
                     </small>
                 </div>
