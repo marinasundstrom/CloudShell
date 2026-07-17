@@ -661,9 +661,10 @@ else
         var triggeredBy = string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy)
             ? "Triggered by system"
             : $"Triggered by {resourceEvent.TriggeredBy}";
+        var severity = ResourceSignalSeverityParser.ToLevel(resourceEvent.Severity);
         return string.Create(
             CultureInfo.CurrentCulture,
-            $"{resourceEvent.Timestamp.ToLocalTime():g} | {resourceEvent.EventType} | {triggeredBy}");
+            $"{resourceEvent.Timestamp.ToLocalTime():g} | {severity} | {triggeredBy}");
     }
 
     private static string GetDeploymentEventTitle(string eventType) =>
