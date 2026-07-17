@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified container-app deployment and monitoring summary labels so running
+  replica counts do not expose materialization terminology.
 - Clarified the Telemetry extension description so extension-provided telemetry
   uses source-oriented wording instead of artifact wording.
 - Clarified Logs and Telemetry navigation copy so extension-provided logs are

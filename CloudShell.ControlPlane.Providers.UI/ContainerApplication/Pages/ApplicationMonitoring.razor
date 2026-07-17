@@ -41,7 +41,7 @@ else
             <dd>@(IsReplicaModeEnabled(Application) ? "Replicated" : "Single instance")</dd>
             <dt>Configured replicas</dt>
             <dd>@GetConfiguredReplicas(Application)</dd>
-            <dt>Materialized replicas</dt>
+            <dt>Running replicas</dt>
             <dd>@Replicas.Count</dd>
             <dt>Observed replicas</dt>
             <dd>@ObservedReplicaCount</dd>
