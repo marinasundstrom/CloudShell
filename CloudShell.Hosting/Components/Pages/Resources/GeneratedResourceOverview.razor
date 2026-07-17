@@ -161,7 +161,7 @@
             <dd>@Resource.DisplayName</dd>
         }
         <dt>@L["Type"]</dt>
-        <dd>@Resource.EffectiveTypeId</dd>
+        <dd>@GetResourceTypeDisplayName(Resource)</dd>
         <dt>@L["Class"]</dt>
         <dd>@Resource.ResourceClass</dd>
         <dt>@L["Provider"]</dt>
@@ -1175,6 +1175,9 @@
     private ResourceTypeContribution? FindResourceType(Resource resource) =>
         this.ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
+
+    private string GetResourceTypeDisplayName(Resource resource) =>
+        FindResourceType(resource)?.DisplayName ?? resource.EffectiveTypeId;
 
     private string BuildLogRoute(LogSource log)
     {
