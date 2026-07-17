@@ -409,7 +409,7 @@
             ResourceExposureScope.Local => L["local"].Value,
             ResourceExposureScope.Network => L["network"].Value,
             ResourceExposureScope.Public => L["public"].Value,
-            _ => L["unknown"].Value
+            _ => L["Unknown"].Value
         };
 
     private static bool IsLocalHostBinding(string address)
@@ -447,13 +447,14 @@
             return L["Unknown"].Value;
         }
 
-        var readiness = GetAttributeValue(ResourceAttributeNames.NetworkHostReadiness, "unknown");
+        var readiness = GetAttributeValue(ResourceAttributeNames.NetworkHostReadiness, "Unknown");
         return readiness switch
         {
             "logicalOnly" => L["Logical only"].Value,
             "providerRequired" when GetMissingMappingProviderIds().Length == 0 => L["Ready"].Value,
             "providerRequired" => L["Provider missing"].Value,
             "ready" => L["Ready"].Value,
+            "unknown" => L["Unknown"].Value,
             _ => L["Unknown"].Value
         };
     }
