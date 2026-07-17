@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified generated Health, Recovery, and volume consumer views so absent
+  checks, recovery operations, and volume-only dependencies use configured
+  resource wording.
 - Clarified built-in provider resource type descriptions so Resource Manager
   navigation describes managed resources instead of declared resources.
 - Clarified application endpoint actions, storage dependency rows, and
