@@ -140,6 +140,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved generated Resource Manager overview views so resource action
   failures show stable recovery guidance and telemetry summaries avoid
   projection terminology.
+- Clarified the Health page empty state so it describes resources exposing
+  health checks instead of projected resources advertising checks.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
