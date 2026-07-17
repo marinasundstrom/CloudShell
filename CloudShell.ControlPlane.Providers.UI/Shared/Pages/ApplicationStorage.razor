@@ -71,7 +71,7 @@ else
         else
         {
             <EmptyState Title="No mounted storage"
-                        Message="No volume mounts or storage dependencies are declared for this resource." />
+                        Message="No volume mounts or storage dependencies are configured for this resource." />
         }
     </section>
 }
@@ -152,18 +152,18 @@ else
             }
 
             return StorageMounts.Count == 1
-                ? "1 attached volume is declared for this resource; mount target details are not available yet."
-                : $"{StorageMounts.Count} attached volumes are declared for this resource; {StorageMounts.Count - projectedCount} do not have mount target details yet.";
+                ? "1 attached volume is configured for this resource; mount target details are not available yet."
+                : $"{StorageMounts.Count} attached volumes are configured for this resource; {StorageMounts.Count - projectedCount} do not have mount target details yet.";
         }
 
         if (VolumeDependencies.Count > 0)
         {
             return VolumeDependencies.Count == 1
-                ? "1 volume dependency is declared for this resource."
-                : $"{VolumeDependencies.Count} volume dependencies are declared for this resource.";
+                ? "1 volume dependency is configured for this resource."
+                : $"{VolumeDependencies.Count} volume dependencies are configured for this resource.";
         }
 
-        return "No mounted storage is declared for this application resource.";
+        return "No mounted storage is configured for this app.";
     }
 
     private IReadOnlyList<ApplicationStorageMountView> CreateStorageMountRows(

@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified the shared application Storage tab so mounted storage summaries use
+  configured storage wording instead of resource-definition terminology.
 - Clarified RabbitMQ topology and dashboard queue metadata so broker-reported
   state and type values use display labels where CloudShell recognizes them.
 - Clarified DNS zone overview metadata so exposure, provider, and mapping
