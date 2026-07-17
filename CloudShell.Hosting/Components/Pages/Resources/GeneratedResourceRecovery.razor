@@ -270,7 +270,7 @@
             ResourceRecoveryState.Restarting => L["Restarting"].Value,
             ResourceRecoveryState.Exhausted => L["Exhausted"].Value,
             ResourceRecoveryState.Unavailable => L["Unavailable"].Value,
-            _ => state.ToString()
+            _ => L["Unknown"].Value
         };
 
     private string BuildHealthRoute() =>
