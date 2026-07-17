@@ -76,6 +76,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved the Resources page dependency lists and lifecycle confirmation
   messages so they sort and describe related resources with Resource Manager
   display labels instead of raw resource names.
+- Improved the Resources page inbound exposure sections so network mappings
+  and load-balancer routes sort related resources by the same Resource Manager
+  display labels shown in the UI.
 - Improved generated Overview and Endpoints exposure sections so dependency
   graph nodes, network mappings, and load balancer routes order related
   resources by Resource Manager display labels.

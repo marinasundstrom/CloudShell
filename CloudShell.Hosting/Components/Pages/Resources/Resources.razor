@@ -1753,7 +1753,7 @@ resourceGroups) =>
                     resource.Id,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
-            .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(mapping => GetResourceLabel(mapping.Network), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private LoadBalancerRouteView[] GetInboundLoadBalancerRoutes(Resource resource) =>
@@ -1766,7 +1766,7 @@ resourceGroups) =>
                     resource.Id,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
-            .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(route => GetResourceLabel(route.LoadBalancer), StringComparer.OrdinalIgnoreCase)
             .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
