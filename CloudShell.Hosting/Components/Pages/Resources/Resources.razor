@@ -420,7 +420,7 @@
                         <dd>@selected.DisplayName</dd>
                     }
                     <dt>@L["Type"]</dt>
-                    <dd>@selected.EffectiveTypeId</dd>
+                    <dd>@GetResourceTypeDisplayName(selected)</dd>
                     <dt>@L["Resource group"]</dt>
                     <dd>@(group?.Name ?? L["Default group"])</dd>
                     <dt>@L["Region"]</dt>

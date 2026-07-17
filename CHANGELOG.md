@@ -91,6 +91,8 @@ on `git blame --follow`, and then by the broad type of change.
   so they use requested/running replica language instead of slot internals.
 - Clarified environment-variable reference fallbacks so missing configuration
   or secrets resources are labeled as missing resources.
+- Clarified the Resource Manager Essentials type field so it uses the resource
+  type display name instead of the raw type ID.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
