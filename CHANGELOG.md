@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Hid the resource detail Endpoints section when a selected resource has no
+  endpoint entries to show.
 - Clarified the application package editor so visible labels and validation
   messages use package wording instead of artifact terminology.
 - Clarified built-in provider UI descriptions so uploaded application

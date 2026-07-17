@@ -470,26 +470,29 @@
                 </section>
             }
 
-            <section class="blade-section">
-                <h3>@L["Endpoints"]</h3>
-                <div class="endpoint-list">
-                    @foreach (var endpoint in selected.Endpoints)
-                    {
-                        <div>
-                            <strong>@endpoint.Name</strong>
-                            <span>@FormatEndpointSummary(endpoint)</span>
-                            @if (GetEndpointNetworkMapping(selected, endpoint.Name) is { } mapping)
-                            {
-                                <EndpointLink Address="@mapping.Address"
-                                              EmptyText="@L["n/a"].Value"
-                                              EmptyClass="muted"
-                                              StopClickPropagation="true" />
-                            }
-                            <small>@FormatExposure(endpoint.Exposure)</small>
-                        </div>
-                    }
-                </div>
-            </section>
+            @if (selected.Endpoints.Count > 0)
+            {
+                <section class="blade-section">
+                    <h3>@L["Endpoints"]</h3>
+                    <div class="endpoint-list">
+                        @foreach (var endpoint in selected.Endpoints)
+                        {
+                            <div>
+                                <strong>@endpoint.Name</strong>
+                                <span>@FormatEndpointSummary(endpoint)</span>
+                                @if (GetEndpointNetworkMapping(selected, endpoint.Name) is { } mapping)
+                                {
+                                    <EndpointLink Address="@mapping.Address"
+                                                  EmptyText="@L["n/a"].Value"
+                                                  EmptyClass="muted"
+                                                  StopClickPropagation="true" />
+                                }
+                                <small>@FormatExposure(endpoint.Exposure)</small>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
 
             @if (IsLoadBalancerResource(selected))
             {
