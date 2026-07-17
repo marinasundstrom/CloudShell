@@ -160,7 +160,7 @@ else
     {
         if (Resource is null)
         {
-            return "not declared";
+            return "Not declared";
         }
 
         foreach (var attributeName in ServiceDiscoveryAttributeNames)
@@ -172,7 +172,7 @@ else
             }
         }
 
-        return "not declared";
+        return "Not declared";
     }
 
     private static string FormatResourceTimestamp(DateTimeOffset timestamp) =>
@@ -180,7 +180,7 @@ else
         timestamp != DateTimeOffset.MinValue &&
         timestamp != DateTimeOffset.UnixEpoch
             ? timestamp.ToLocalTime().ToString("g")
-            : "not observed";
+            : "Not reported";
 
     private static string FormatResourceState(ResourceState? state) =>
         state switch
@@ -192,8 +192,8 @@ else
             ResourceState.Paused => "Paused",
             ResourceState.Degraded => "Needs attention",
             ResourceState.Unknown => "Unknown",
-            null => "not observed",
-            _ => state.ToString() ?? "not observed"
+            null => "Not reported",
+            _ => "Unknown"
         };
 
     private static string FormatResourceSource(ResourceSource source) =>
@@ -203,7 +203,7 @@ else
             ResourceSource.Provider => "Provider-created",
             ResourceSource.Orchestrator => "Orchestrator-created",
             ResourceSource.RuntimeController => "Runtime-created",
-            _ => source.ToString()
+            _ => "Unknown"
         };
 
     private static string FormatManagementMode(ResourceManagementMode mode) =>
@@ -213,7 +213,7 @@ else
             ResourceManagementMode.ProviderManaged => "Provider-managed",
             ResourceManagementMode.OrchestratorManaged => "Orchestrator-managed",
             ResourceManagementMode.RuntimeManaged => "Runtime-managed",
-            _ => mode.ToString()
+            _ => "Unknown"
         };
 
     private static string FormatResourceClass(ResourceClass resourceClass) =>
@@ -229,7 +229,7 @@ else
             ResourceClass.Configuration => "Configuration",
             ResourceClass.Infrastructure => "Infrastructure",
             ResourceClass.SecretsVault => "Secrets vault",
-            _ => resourceClass.ToString()
+            _ => "Unknown"
         };
 
     private static string FormatResourceVisibility(ResourceVisibility visibility) =>
@@ -238,7 +238,7 @@ else
             ResourceVisibility.Normal => "Visible",
             ResourceVisibility.Hidden => "Hidden",
             ResourceVisibility.Diagnostic => "Diagnostic",
-            _ => visibility.ToString()
+            _ => "Unknown"
         };
 
     private static string FormatResourceGraphMembership(string membership) =>
@@ -246,7 +246,7 @@ else
         {
             ResourceGraphMembershipKinds.Declared => "Declared resource",
             ResourceGraphMembershipKinds.Projected => "Generated resource",
-            _ => membership.ToString()
+            _ => "Other"
         };
 
     private static string FormatList(IEnumerable<string> values)
@@ -257,7 +257,7 @@ else
             .ToArray();
 
         return items.Length == 0
-            ? "none"
+            ? "None"
             : string.Join(", ", items);
     }
 
