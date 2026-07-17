@@ -881,10 +881,12 @@ else
         };
 
     private string GetCurrentSourceKind() =>
-        GetAttribute(SourceKindAttribute, "localPath");
+        FormatSourceKind(GetAttribute(SourceKindAttribute, "localPath"));
 
     private string GetCurrentArtifactsEnabled() =>
-        GetAttribute(ArtifactsEnabledAttribute, "false");
+        bool.TryParse(GetAttribute(ArtifactsEnabledAttribute, "false"), out var enabled) && enabled
+            ? "Yes"
+            : "No";
 
     private string GetCurrentArtifactLabel()
     {
@@ -930,10 +932,20 @@ else
             return "none";
         }
 
+        var sourceKind = FormatSourceKind(revision.SourceKind);
         return string.IsNullOrWhiteSpace(revision.SourceVersion)
-            ? revision.SourceKind
-            : $"{revision.SourceKind} / {revision.SourceVersion}";
+            ? sourceKind
+            : $"{sourceKind} / {revision.SourceVersion}";
     }
+
+    private static string FormatSourceKind(string sourceKind) =>
+        sourceKind switch
+        {
+            DeploymentArtifactSourceKinds.UploadedArtifact => "Uploaded package",
+            "localPath" => "Local path",
+            { Length: > 0 } => sourceKind,
+            _ => "Unknown"
+        };
 
     private string GetAttribute(string name, string fallback) =>
         ExistingResource?.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
