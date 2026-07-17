@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified the Resource Manager detail blade so resource source, management,
+  and visibility use display labels instead of raw enum values.
 - Clarified the application configuration provider view so resource state,
   source, management, visibility, class, and graph membership use display
   labels instead of raw enum values.

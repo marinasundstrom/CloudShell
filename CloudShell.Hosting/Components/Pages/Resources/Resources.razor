@@ -431,15 +431,15 @@
                         selected.Source != ResourceSource.User ||
                         selected.ManagementMode != ResourceManagementMode.UserManaged ||
                         !string.IsNullOrWhiteSpace(selected.OwnerResourceId))
-                    {
-                        <dt>@L["Source"]</dt>
-                        <dd>@selected.Source</dd>
-                        <dt>@L["Management"]</dt>
-                        <dd>@selected.ManagementMode</dd>
-                        <dt>@L["Visibility"]</dt>
-                        <dd>@selected.Visibility</dd>
-                        @if (!string.IsNullOrWhiteSpace(selected.OwnerResourceId))
                         {
+                            <dt>@L["Source"]</dt>
+                            <dd>@FormatResourceSource(selected.Source)</dd>
+                            <dt>@L["Management"]</dt>
+                            <dd>@FormatManagementMode(selected.ManagementMode)</dd>
+                            <dt>@L["Visibility"]</dt>
+                            <dd>@FormatResourceVisibility(selected.Visibility)</dd>
+                            @if (!string.IsNullOrWhiteSpace(selected.OwnerResourceId))
+                            {
                             <dt>@L["Owner"]</dt>
                             <dd>@FormatResourceName(selected.OwnerResourceId)</dd>
                         }
@@ -1733,6 +1733,35 @@ resourceGroups) =>
         string name,
         string fallback) =>
         resource.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
+
+    private string FormatResourceSource(ResourceSource source) =>
+        source switch
+        {
+            ResourceSource.User => L["User-created"].Value,
+            ResourceSource.Provider => L["Provider-created"].Value,
+            ResourceSource.Orchestrator => L["Orchestrator-created"].Value,
+            ResourceSource.RuntimeController => L["Runtime-created"].Value,
+            _ => source.ToString()
+        };
+
+    private string FormatManagementMode(ResourceManagementMode mode) =>
+        mode switch
+        {
+            ResourceManagementMode.UserManaged => L["User-managed"].Value,
+            ResourceManagementMode.ProviderManaged => L["Provider-managed"].Value,
+            ResourceManagementMode.OrchestratorManaged => L["Orchestrator-managed"].Value,
+            ResourceManagementMode.RuntimeManaged => L["Runtime-managed"].Value,
+            _ => mode.ToString()
+        };
+
+    private string FormatResourceVisibility(ResourceVisibility visibility) =>
+        visibility switch
+        {
+            ResourceVisibility.Normal => L["Visible"].Value,
+            ResourceVisibility.Hidden => L["Hidden"].Value,
+            ResourceVisibility.Diagnostic => L["Diagnostic"].Value,
+            _ => visibility.ToString()
+        };
 
     private string FormatNetworkReadiness(Resource resource)
     {
