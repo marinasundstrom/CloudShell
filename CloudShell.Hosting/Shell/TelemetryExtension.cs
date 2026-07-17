@@ -10,7 +10,7 @@ public sealed class TelemetryExtension : ICloudShellExtension
     public CloudShellExtensionManifest Manifest => new(
         "cloudshell.telemetry",
         "Telemetry",
-        "Shared telemetry views for resources, providers, and extension-owned artifacts.",
+        "Shared telemetry views for resources, providers, and extension-provided sources.",
         "0.1.0",
         ["telemetry.views", "logs.views", "logs.sources", "traces.views", "metrics.views"],
         ["resource-manager.resources"]);

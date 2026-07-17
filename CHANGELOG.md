@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified the Telemetry extension description so extension-provided telemetry
+  uses source-oriented wording instead of artifact wording.
 - Clarified Logs and Telemetry navigation copy so extension-provided logs are
   described as log sources instead of artifacts.
 - Clarified Environment map summary counts so routing and topology entries are
