@@ -73,6 +73,9 @@ on `git blame --follow`, and then by the broad type of change.
   consistently.
 - Improved the environment dashboard active replica-group table so rows sort
   by the same source-resource display labels shown in the table.
+- Improved the environment dashboard replica-slot reconciliation table so rows
+  sort by visible resource label, slot ordinal, and status instead of store
+  enumeration order.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies

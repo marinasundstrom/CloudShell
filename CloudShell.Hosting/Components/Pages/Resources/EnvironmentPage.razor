@@ -553,7 +553,13 @@
             .ToArray();
         DeploymentRecords = await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(MaxRecords: 100));
         EnvironmentRevisionRows = EnvironmentRevisionProjection.CreateRows(Resources, DeploymentRecords);
-        ReplicaSlotStates = await ReplicaSlots.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(MaxRecords: 100));
+        ReplicaSlotStates = (await ReplicaSlots.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(MaxRecords: 100)))
+            .OrderBy(
+                state => GetResourceDisplayLabel(GetResource(state.ResourceId), state.ResourceId),
+                StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(state => state.SlotOrdinal)
+            .ThenBy(state => state.Status)
+            .ToArray();
         ReplicaGroupRows = CreateReplicaGroupRows(DeploymentRecords, ReplicaSlotStates, Resources);
         EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
         DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
