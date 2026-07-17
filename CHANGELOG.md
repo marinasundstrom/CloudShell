@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified the resource detail fallback message so missing resource
+  selections no longer refer to projected details.
 - Improved Resource Manager readiness and routing diagnostics so referenced
   resources use the shared qualified-label format, preserving readable display
   names while keeping scoped resource names visible when they differ.
