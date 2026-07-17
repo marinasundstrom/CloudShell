@@ -68,9 +68,10 @@ else
         var endpoint = GetTargetEndpoint(resource);
         var endpointName = endpoint?.Name ?? "default";
         var endpointSummary = endpoint is null ? null : FormatEndpointSummary(endpoint);
+        var label = ResourceDisplayLabels.GetQualifiedLabel(resource);
         return string.IsNullOrWhiteSpace(endpointSummary)
-            ? $"Target: {resource.Name}/{endpointName}"
-            : $"Target: {resource.Name}/{endpointName} ({endpointSummary})";
+            ? $"Target: {label}/{endpointName}"
+            : $"Target: {label}/{endpointName} ({endpointSummary})";
     }
 
     private static string FormatEndpointSummary(ResourceEndpoint endpoint)
@@ -134,7 +135,7 @@ else
         }
 
         return result
-            .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetQualifiedLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
