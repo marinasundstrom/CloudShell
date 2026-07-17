@@ -4,6 +4,7 @@
 @using CloudShell.Abstractions.ResourceManager
 @using CloudShell.Abstractions.ControlPlane
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Logging
 @inject IResourceManager ResourceManager
 @inject ILogManager LogManager
 @inject IResourceHealthManager HealthManager
@@ -16,6 +17,7 @@
 @inject ShellCatalog ShellCatalog
 @inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
+@inject ILogger<GeneratedResourceOverview> Logger
 
     <div class="generated-resource-view">
         @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
@@ -485,7 +487,7 @@
         }
 
         return signals.Count == 0
-            ? L["No projected signals"].Value
+            ? L["No telemetry signals"].Value
             : string.Join(", ", signals);
     }
 
@@ -589,9 +591,9 @@
                 Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
             }
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatOverviewActionFailure(exception);
             ProcedureSignals = [];
         }
         finally
@@ -602,6 +604,20 @@
 
     private string GetAttributeValue(string name, string fallback) =>
         Resource.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
+
+    private string FormatOverviewActionFailure(Exception exception)
+    {
+        Logger.LogWarning(
+            exception,
+            "Generated overview resource action failed for {ResourceId}",
+            Resource.Id);
+
+        return exception switch
+        {
+            HttpRequestException => L["CloudShell could not reach the Control Plane while running the resource action. Check connectivity and try again."].Value,
+            _ => L["CloudShell could not run the resource action. Check the resource state and try again."].Value
+        };
+    }
 
     private static bool ShouldStartDependencies(ResourceAction action) =>
         action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;

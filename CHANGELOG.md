@@ -137,6 +137,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved Resource Template export and apply failures so the templates page
   shows stable recovery guidance while logging the original exception for
   diagnostics.
+- Improved generated Resource Manager overview views so resource action
+  failures show stable recovery guidance and telemetry summaries avoid
+  projection terminology.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
