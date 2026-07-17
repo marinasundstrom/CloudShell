@@ -32,8 +32,8 @@ else
     @if (ShowHeading)
     {
         <PageHeading Eyebrow="@L["Usage"].Value"
-                     Title="@L["Usage"].Value"
-                     Description="@L["Review recorded resource usage samples, aggregate statistics, and forecast trends."].Value">
+                     Title="@L["Usage workspace"].Value"
+                     Description="@L["Review retained resource usage samples, aggregate statistics, and forecast trends."].Value">
             <Actions>
                 @if (ShowAllUsageAction)
                 {
@@ -54,8 +54,8 @@ else
     <section class="@UsageDashboardCssClass">
         <div class="usage-dashboard-toolbar">
             <div class="usage-dashboard-title">
-                <h2>@(DashboardTitle ?? L["Usage statistics"].Value)</h2>
-                <p>@(DashboardDescription ?? L["Recorded samples are retained by the active Control Plane store."].Value)</p>
+                <h2>@(DashboardTitle ?? L["Usage overview"].Value)</h2>
+                <p>@(DashboardDescription ?? L["Retained resource usage samples from the active environment."].Value)</p>
             </div>
             <div class="usage-dashboard-actions">
                 @if (ShowResourceFilter)
@@ -170,17 +170,17 @@ else
                                             <CloudShellLineChart Values="@panel.ChartValues"
                                                                  AriaLabel="@L["{0} usage trend for {1}", panel.DisplayName, panel.ResourceLabel].Value" />
                                             <div class="usage-panel-stats">
-                                                <span>@L["actual latest {0}", FormatUsageValue(panel.LatestValue, panel.Unit)]</span>
-                                                <span>@L["sum {0}", FormatUsageValue(panel.Sum, panel.Unit)]</span>
-                                                <span>@L["avg {0}", FormatUsageValue(panel.Average, panel.Unit)]</span>
+                                                <span>@L["Latest {0}", FormatUsageValue(panel.LatestValue, panel.Unit)]</span>
+                                                <span>@L["Total {0}", FormatUsageValue(panel.Sum, panel.Unit)]</span>
+                                                <span>@L["Average {0}", FormatUsageValue(panel.Average, panel.Unit)]</span>
                                                 @if (panel.HasProjection)
                                                 {
-                                                    <span>@L["forecast +1h {0}", FormatUsageValue(panel.ProjectedOneHour!.Value, panel.Unit)]</span>
-                                                    <span>@L["forecast +24h {0}", FormatUsageValue(panel.ProjectedDay!.Value, panel.Unit)]</span>
+                                                    <span>@L["Forecast +1h {0}", FormatUsageValue(panel.ProjectedOneHour!.Value, panel.Unit)]</span>
+                                                    <span>@L["Forecast +24h {0}", FormatUsageValue(panel.ProjectedDay!.Value, panel.Unit)]</span>
                                                 }
                                                 else
                                                 {
-                                                    <span>@L["forecast needs 2 samples"]</span>
+                                                    <span>@L["Forecast needs 2 samples"]</span>
                                                 }
                                             </div>
                                         </section>
