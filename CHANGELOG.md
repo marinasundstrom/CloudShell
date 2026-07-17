@@ -34,6 +34,9 @@ on `git blame --follow`, and then by the broad type of change.
   topology dependencies and typed references show their app role, such as
   configuration service, secrets vault, storage provider, or exposure
   resource.
+- Improved local Docker container-app materialization diagnostics so timed
+  out, unavailable, and failed build/publish commands include the command
+  context before Resource Manager adds the runtime operation and resource.
 - Updated the MVP sample seam audit baseline after the broad
   `CloudShell.Sample.Tests` run passed with 122 tests, including the Bun
   JavaScript app sample.

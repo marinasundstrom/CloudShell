@@ -573,12 +573,40 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             fileName,
             arguments,
             cancellationToken,
+            throwOnError: false,
             timeout: definition.MaterializationCommandTimeout,
             workingDirectory: workingDirectory);
+
+        if (result.ExitCode == 0)
+        {
+            return;
+        }
+
+        var message = CreateMaterializationCommandFailureMessage(fileName, arguments, result);
         if (result.ExitCode == LocalContainerApplicationCommandResult.TimeoutExitCode)
         {
-            throw new TimeoutException(result.Error);
+            throw new TimeoutException(message);
         }
+
+        throw new InvalidOperationException(message);
+    }
+
+    private static string CreateMaterializationCommandFailureMessage(
+        string fileName,
+        IReadOnlyList<string> arguments,
+        LocalContainerApplicationCommandResult result)
+    {
+        var command = string.Join(' ', new[] { fileName }.Concat(arguments));
+        var reason = result.ExitCode switch
+        {
+            LocalContainerApplicationCommandResult.TimeoutExitCode => "timed out",
+            LocalContainerApplicationCommandResult.UnavailableExitCode => "is unavailable",
+            _ => $"failed with exit code {result.ExitCode.ToString(CultureInfo.InvariantCulture)}"
+        };
+        var detail = FirstNonEmpty(result.Error, result.Output);
+        return string.IsNullOrWhiteSpace(detail)
+            ? $"Command '{command}' {reason} while materializing the local Docker container app runtime."
+            : $"Command '{command}' {reason} while materializing the local Docker container app runtime: {detail}";
     }
 
     private async Task BuildJavaProjectAsync(

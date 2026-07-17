@@ -93,6 +93,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal("localDockerContainerApplication.runtimeFailed", diagnostic.Code);
         Assert.Contains("starting the app", diagnostic.Message);
         Assert.Contains(LocalDockerContainerApplicationRuntimeConventions.ApiResourceId, diagnostic.Message);
+        Assert.Contains("Command 'dotnet publish", diagnostic.Message);
+        Assert.Contains("timed out while materializing the local Docker container app runtime", diagnostic.Message);
         Assert.Contains("publish timed out", diagnostic.Message);
         var command = Assert.Single(commandRunner.Commands);
         Assert.Equal("dotnet", command.FileName);
