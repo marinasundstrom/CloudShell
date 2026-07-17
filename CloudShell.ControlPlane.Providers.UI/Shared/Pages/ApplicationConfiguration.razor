@@ -21,7 +21,7 @@ else
             <dt>Display name</dt>
             <dd>@Resource.EffectiveDisplayName</dd>
             <dt>Type</dt>
-            <dd>@Resource.EffectiveTypeId</dd>
+            <dd>@FormatResourceType(Resource)</dd>
             <dt>Provider</dt>
             <dd>@Resource.Provider</dd>
             <dt>State</dt>
@@ -194,6 +194,21 @@ else
             ResourceState.Unknown => "Unknown",
             null => "Not reported",
             _ => "Unknown"
+        };
+
+    private static string FormatResourceType(Resource resource) =>
+        resource.EffectiveTypeId switch
+        {
+            var type when BuiltInProviderResourceUiTypes.IsExecutableApplication(type) => "Executable application",
+            var type when BuiltInProviderResourceUiTypes.IsAspNetCoreProject(type) => "ASP.NET Core project",
+            var type when BuiltInProviderResourceUiTypes.IsJavaScriptApp(type) => "JavaScript application",
+            var type when BuiltInProviderResourceUiTypes.IsJavaApp(type) => "Java application",
+            var type when BuiltInProviderResourceUiTypes.IsGoApp(type) => "Go application",
+            var type when BuiltInProviderResourceUiTypes.IsPythonApp(type) => "Python application",
+            var type when BuiltInProviderResourceUiTypes.IsContainerApplication(type) => "Container app",
+            var type when BuiltInProviderResourceUiTypes.IsSqlServer(type) => "SQL Server",
+            var type when BuiltInProviderResourceUiTypes.IsRabbitMQ(type) => "RabbitMQ broker",
+            _ => resource.EffectiveTypeId
         };
 
     private static string FormatResourceSource(ResourceSource source) =>

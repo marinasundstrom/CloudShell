@@ -73,6 +73,8 @@ on `git blame --follow`, and then by the broad type of change.
   raw resource type IDs and slot terminology in the top summary.
 - Clarified container-app deployment event metadata so the timeline shows
   severity instead of raw event type IDs.
+- Clarified the shared application Configuration tab so known built-in
+  resource types use display labels instead of raw type IDs.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
