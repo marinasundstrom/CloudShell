@@ -103,6 +103,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Clarified Container Application deployment, revision, monitoring, and scaling
   copy so user-facing labels describe running replicas and deployment state
   instead of materialization/projection internals.
+- Simplified the shared application Configuration tab so it summarizes
+  user-facing configuration and diagnostics without exposing raw attribute
+  tables or duplicating endpoint details from the Endpoints tab.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
