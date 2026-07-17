@@ -297,7 +297,7 @@ else
             null when revision?.Status == ResourceOrchestratorDeploymentStatus.Failed => "Failed",
             null when revision?.Status == ResourceOrchestratorDeploymentStatus.Deleted => "Removed",
             null => "Unavailable",
-            _ => revision.EnvironmentRevisionStatus.Value.ToString()
+            _ => "Unknown"
         };
 
     private static string GetRevisionCssClass(ResourceDeploymentRecord revision) =>

@@ -699,7 +699,7 @@ else
             ResourceOrchestratorDeploymentStatus.Failed => "Needs attention",
             ResourceOrchestratorDeploymentStatus.Deleted => "Removed",
             ResourceOrchestratorDeploymentStatus.Pending => "Not running",
-            _ => status.ToString()
+            _ => "Unknown"
         };
 
     private static string GetDeploymentEventCssClass(ResourceEvent resourceEvent) =>

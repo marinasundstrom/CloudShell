@@ -698,7 +698,7 @@
             ResourceReplicaSlotReconciliationStatus.Repaired => L["Repaired"].Value,
             ResourceReplicaSlotReconciliationStatus.RepairFailed => L["Repair failed"].Value,
             ResourceReplicaSlotReconciliationStatus.Materialized => L["Active"].Value,
-            _ => status.ToString()
+            _ => L["Unknown"].Value
         };
 
     private string GetOptionalTimestamp(DateTimeOffset? timestamp) =>
@@ -707,7 +707,7 @@
             : timestamp.Value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
 
     private static string GetOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "not available" : value;
+        string.IsNullOrWhiteSpace(value) ? "Not available" : value;
 
     private string GetResourceTypeDisplayName(Resource resource) =>
         ShellCatalog.ResourceTypes.FirstOrDefault(type =>
