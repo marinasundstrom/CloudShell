@@ -291,7 +291,7 @@ else
         var timestamp = latest.CompletedAt ?? latest.StartedAt;
         return string.Create(
             CultureInfo.CurrentCulture,
-            $"Last deployment {FormatDeploymentStatus(latest.Status).ToLowerInvariant()} {timestamp.ToLocalTime():g} by {actor}.");
+            $"Last deployment: {FormatDeploymentStatus(latest.Status)} at {timestamp.ToLocalTime():g} by {actor}.");
     }
 
     private string GetCurrentDeploymentSummary() =>
@@ -362,7 +362,7 @@ else
 
     private string GetDeploymentCapacity() =>
         Resource is not null && IsReplicaModeEnabled(Resource)
-            ? $"{GetDeploymentMaterializedReplicas()} of {GetDeploymentRequestedReplicas()} replica slots occupied"
+            ? $"{GetDeploymentMaterializedReplicas()} of {GetDeploymentRequestedReplicas()} replicas running"
             : "Single instance";
 
     private string GetMaterializedSummary() =>

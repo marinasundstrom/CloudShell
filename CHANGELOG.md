@@ -81,6 +81,8 @@ on `git blame --follow`, and then by the broad type of change.
   values use the same display labels as replica monitoring rows.
 - Clarified shared storage mount status labels so application storage and
   volume views use display labels instead of lowercase runtime values.
+- Clarified the container-app Deployment summary so status and capacity text
+  reads as deployment state instead of replica-slot internals.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
