@@ -116,6 +116,9 @@ on `git blame --follow`, and then by the broad type of change.
   recovery guidance instead of raw cryptography exception messages.
 - Improved the shared application Environment tab so unreadable environment
   variable definitions are labeled as unreadable instead of raw resource data.
+- Clarified the Resource Manager Environment page so deployment, revision, and
+  replica-slot summaries describe observed running state instead of projection
+  and materialization internals.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies

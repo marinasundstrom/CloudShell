@@ -16,7 +16,7 @@
 
 <PageHeading Eyebrow="@L["Workspace"].Value"
              Title="@L["Current environment"].Value"
-             Description="@L["Inspect environment revisions, deployment records, and materialized resource state for the current host."].Value">
+             Description="@L["Inspect environment revisions, deployment records, and running resource state for the current host."].Value">
     <Actions>
         <span class="toolbar-meta">@L["Current host"]</span>
         <FluentButton Appearance="Appearance.Neutral"
@@ -34,7 +34,7 @@
                        IconName="resources" />
     <SummaryMetricCard Title="@L["Environment revisions"].Value"
                        Value="@EnvironmentRevisionRows.Count"
-                       Summary="@L["Projected environment revisions"].Value"
+                       Summary="@L["Observed environment revisions"].Value"
                        IconName="dependencies" />
     <SummaryMetricCard Title="@L["Deployment records"].Value"
                        Value="@DeploymentRecords.Count"
@@ -62,7 +62,7 @@
         @if (EnvironmentMap.Nodes.Count == 0)
         {
             <EmptyState Title="@L["No environment state"].Value"
-                        Message="@L["Resources, orchestrator services, and routing relationships will appear here when the Resource Manager has environment state to project."].Value"
+                        Message="@L["Resources, orchestrator services, and routing relationships will appear here when Resource Manager has environment state to show."].Value"
                         Compact="true" />
         }
         else
@@ -138,7 +138,7 @@
 
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Environment revisions"].Value"
-                          Description="@L["Projected revisions for deployment-produced environment state, plus the current declared resource graph baseline."].Value">
+                          Description="@L["Revisions for deployment-produced environment state, plus the current declared resource graph baseline."].Value">
             <Actions>
                 <span class="toolbar-meta">@GetLoadedAtLabel()</span>
             </Actions>
@@ -147,7 +147,7 @@
         @if (EnvironmentRevisionRows.Count == 0)
         {
             <EmptyState Title="@L["No environment resources"].Value"
-                        Message="@L["Environment revisions will appear here when resources are declared or materialized through Resource Manager deployment."].Value"
+                        Message="@L["Environment revisions will appear here when resources are declared or updated through Resource Manager deployment."].Value"
                         Compact="true" />
         }
         else
@@ -271,7 +271,7 @@
         @if (ReplicaGroupRows.Count == 0)
         {
             <EmptyState Title="@L["No active replica groups"].Value"
-                        Message="@L["Active replica groups will appear here after Resource Manager materializes a deployment with requested replica slots."].Value"
+                        Message="@L["Active replica groups will appear here after Resource Manager starts a deployment with requested replica slots."].Value"
                         Compact="true" />
         }
         else
@@ -314,7 +314,7 @@
                             <td>@row.RequestedSlots.ToString(CultureInfo.InvariantCulture)</td>
                             <td>
                                 @row.OccupiedSlots.ToString(CultureInfo.InvariantCulture)
-                                <div class="table-subtext">@L["{0} materialized", row.MaterializedReplicas]</div>
+                                <div class="table-subtext">@L["{0} running", row.MaterializedReplicas]</div>
                             </td>
                             <td>
                                 @GetReplicaGroupReconciliationSummary(row)
@@ -329,13 +329,13 @@
     </ShellPanel>
 
     <ShellPanel Wide="true" Class="environment-panel-full">
-        <ShellPanelHeader Title="@L["Materialized deployment state"].Value"
-                          Description="@L["Resource Manager deployment metadata currently projected by materialized resources."].Value" />
+        <ShellPanelHeader Title="@L["Current deployment state"].Value"
+                          Description="@L["Deployment metadata currently reported by resources."].Value" />
 
         @if (DeploymentRows.Count == 0)
         {
-            <EmptyState Title="@L["No deployment metadata projected"].Value"
-                        Message="@L["Deployments will appear here when resources materialize runtime state through Resource Manager orchestration."].Value"
+            <EmptyState Title="@L["No deployment state"].Value"
+                        Message="@L["Deployments will appear here when resources report runtime state through Resource Manager orchestration."].Value"
                         Compact="true" />
         }
         else
@@ -392,7 +392,7 @@
         @if (ReplicaSlotStates.Count == 0)
         {
             <EmptyState Title="@L["No replica slot state"].Value"
-                        Message="@L["Replica slot state will appear here after Resource Manager materializes a deployment with requested replica slots."].Value"
+                        Message="@L["Replica slot state will appear here after Resource Manager starts a deployment with requested replica slots."].Value"
                         Compact="true" />
         }
         else
@@ -633,7 +633,7 @@
 
     private static string GetDeploymentReplicaSummary(ResourceDeploymentRecord record) =>
         record.ReplicaGroup is null
-            ? "not projected"
+            ? "not available"
             : string.Create(
                 CultureInfo.InvariantCulture,
                 $"{record.ReplicaGroup.MaterializedReplicas} of {record.ReplicaGroup.RequestedReplicas}");
@@ -697,7 +697,7 @@
             ResourceReplicaSlotReconciliationStatus.Repairing => L["Repairing"].Value,
             ResourceReplicaSlotReconciliationStatus.Repaired => L["Repaired"].Value,
             ResourceReplicaSlotReconciliationStatus.RepairFailed => L["Repair failed"].Value,
-            ResourceReplicaSlotReconciliationStatus.Materialized => L["Materialized"].Value,
+            ResourceReplicaSlotReconciliationStatus.Materialized => L["Active"].Value,
             _ => status.ToString()
         };
 
@@ -707,7 +707,7 @@
             : timestamp.Value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
 
     private static string GetOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "not projected" : value;
+        string.IsNullOrWhiteSpace(value) ? "not available" : value;
 
     private string GetResourceTypeDisplayName(Resource resource) =>
         ShellCatalog.ResourceTypes.FirstOrDefault(type =>
@@ -772,8 +772,8 @@
         {
             var requestedReplicas = GetAttribute(resource, ResourceAttributeNames.DeploymentRequestedReplicas);
             var materializedReplicas = GetAttribute(resource, ResourceAttributeNames.DeploymentMaterializedReplicas);
-            var replicaSummary = requestedReplicas == "not projected" && materializedReplicas == "not projected"
-                ? "not projected"
+            var replicaSummary = requestedReplicas == "not available" && materializedReplicas == "not available"
+                ? "not available"
                 : $"{materializedReplicas} of {requestedReplicas}";
 
             return new EnvironmentDeploymentRow(
@@ -788,7 +788,7 @@
         }
 
         private static string GetAttribute(Resource resource, string name) =>
-            resource.ResourceAttributes.GetValueOrDefault(name) ?? "not projected";
+            resource.ResourceAttributes.GetValueOrDefault(name) ?? "not available";
     }
 
     private static IReadOnlyList<EnvironmentReplicaGroupRow> CreateReplicaGroupRows(
@@ -863,7 +863,7 @@
             IReadOnlyList<ResourceReplicaSlotState> slotStates)
         {
             var replicaGroup = deployment.ReplicaGroup ??
-                throw new InvalidOperationException("Replica group rows require a materialized replica group.");
+                throw new InvalidOperationException("Replica group rows require an active replica group.");
             var relevantSlotStates = slotStates
                 .Where(state =>
                     state.SlotOrdinal >= 1 &&
