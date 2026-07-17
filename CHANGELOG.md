@@ -67,6 +67,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved the environment dashboard so deployment, replica-group, deployment
   projection, and replica-slot tables use qualified resource labels
   consistently.
+- Improved the environment dashboard active replica-group table so rows sort
+  by the same source-resource display labels shown in the table.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies

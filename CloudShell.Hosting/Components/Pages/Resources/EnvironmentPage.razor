@@ -554,7 +554,7 @@
         DeploymentRecords = await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(MaxRecords: 100));
         EnvironmentRevisionRows = EnvironmentRevisionProjection.CreateRows(Resources, DeploymentRecords);
         ReplicaSlotStates = await ReplicaSlots.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(MaxRecords: 100));
-        ReplicaGroupRows = CreateReplicaGroupRows(DeploymentRecords, ReplicaSlotStates);
+        ReplicaGroupRows = CreateReplicaGroupRows(DeploymentRecords, ReplicaSlotStates, Resources);
         EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
         DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
             .Where(IsEnvironmentActivityEvent)
@@ -794,7 +794,8 @@
 
     private static IReadOnlyList<EnvironmentReplicaGroupRow> CreateReplicaGroupRows(
         IReadOnlyList<ResourceDeploymentRecord> deployments,
-        IReadOnlyList<ResourceReplicaSlotState> slotStates)
+        IReadOnlyList<ResourceReplicaSlotState> slotStates,
+        IReadOnlyList<Resource> resources)
     {
         var slotStatesByGroup = slotStates
             .Where(state => !string.IsNullOrWhiteSpace(state.ReplicaGroupId))
@@ -802,6 +803,13 @@
                 state => CreateReplicaGroupStateKey(state.ResourceId, state.ReplicaGroupId!),
                 StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+        var resourceLabelsById = resources.ToDictionary(
+            resource => resource.Id,
+            ResourceDisplayLabels.GetQualifiedLabel,
+            StringComparer.OrdinalIgnoreCase);
+
+        string getResourceLabel(EnvironmentReplicaGroupRow row) =>
+            resourceLabelsById.GetValueOrDefault(row.SourceResourceId) ?? row.SourceResourceId;
 
         return deployments
             .Where(record =>
@@ -824,7 +832,8 @@
                     out var groupSlotStates);
                 return EnvironmentReplicaGroupRow.Create(record, groupSlotStates ?? []);
             })
-            .OrderBy(row => row.SourceResourceId, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(getResourceLabel, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(row => row.SourceResourceId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(row => row.ServiceId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(row => row.ReplicaGroupId, StringComparer.OrdinalIgnoreCase)
             .ToArray();
