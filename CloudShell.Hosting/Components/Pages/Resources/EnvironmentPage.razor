@@ -70,10 +70,10 @@
             <div class="environment-map-summary" aria-label="@L["Environment map summary"].Value">
                 <span><strong>@EnvironmentMap.ResourceCount</strong> @L["resources"]</span>
                 <span><strong>@EnvironmentMap.ServiceCount</strong> @L["orchestrator service(s)"]</span>
-                <span><strong>@EnvironmentMap.RoutingCount</strong> @L["routing artifact(s)"]</span>
+                <span><strong>@EnvironmentMap.RoutingCount</strong> @L["routing relationship(s)"]</span>
                 @if (IncludeNetworkTopologyOverlay)
                 {
-                    <span><strong>@EnvironmentMap.NetworkTopologyCount</strong> @L["topology artifact(s)"]</span>
+                    <span><strong>@EnvironmentMap.NetworkTopologyCount</strong> @L["topology relationship(s)"]</span>
                 }
                 <span class="environment-map-layer-label">@L["Layers"]</span>
                 <FluentCheckbox Class="environment-map-layer-toggle"

@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified Environment map summary counts so routing and topology entries are
+  described as relationships instead of artifacts.
 - Clarified container-app scaling status labels so running replicas and
   reconciled slots do not expose materialization terminology.
 - Clarified Resource Manager usage views so trend estimates are described as
