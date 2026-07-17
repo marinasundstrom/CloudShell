@@ -159,7 +159,7 @@
         @if (ShouldShowRabbitMQGrantMaterializationNotice())
         {
             <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Role="status">
-                @L["RabbitMQ grants are saved in CloudShell. Reconcile access to create broker-native users and virtual-host permissions. Broker administrator credentials remain provider-owned and hidden."]
+                @L["RabbitMQ grants are saved in CloudShell. Reconcile access to create broker-native users and virtual-host permissions. Broker administrator credentials stay hidden."]
             </ProcedureMessage>
         }
         <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>
