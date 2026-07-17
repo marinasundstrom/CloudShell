@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified Event Broker protocol summaries and stream connection errors so
+  endpoint availability uses configured-state wording instead of declaration
+  terminology.
 - Clarified shared application Configuration and Environment tab summaries so
   environment variables, service discovery, and startup dependencies use
   configured-state wording instead of declaration terminology.

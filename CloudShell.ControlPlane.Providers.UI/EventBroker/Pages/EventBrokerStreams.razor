@@ -28,7 +28,7 @@ else
         @if (ProtocolRows.Count == 0)
         {
             <EmptyState Title="No protocols"
-                        Message="This broker does not declare protocol endpoints." />
+                        Message="This broker has no protocol endpoints configured." />
         }
         else
         {
@@ -134,7 +134,7 @@ else
         var endpoint = GetHttpEndpoint();
         if (string.IsNullOrWhiteSpace(endpoint))
         {
-            Error = "This broker does not declare an HTTP event endpoint.";
+            Error = "This broker has no HTTP event endpoint configured.";
             return;
         }
 
@@ -164,9 +164,12 @@ else
     }
 
     private string GetProtocolSummary() =>
-        ProtocolRows.Count == 1
-            ? "1 protocol endpoint is declared for this broker."
-            : $"{ProtocolRows.Count} protocol endpoints are declared for this broker.";
+        ProtocolRows.Count switch
+        {
+            0 => "No protocol endpoints are configured for this broker.",
+            1 => "1 protocol endpoint is configured for this broker.",
+            _ => $"{ProtocolRows.Count} protocol endpoints are configured for this broker."
+        };
 
     private string GetStreamSummary() =>
         Streams.Count == 1
@@ -254,7 +257,7 @@ else
         {
             "json" => "JSON",
             { Length: > 0 } => "Custom",
-            _ => "Not declared"
+            _ => "Not configured"
         };
 
     private static string FormatLastEvent(DateTimeOffset? timestamp) =>
