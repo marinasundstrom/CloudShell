@@ -58,7 +58,7 @@ else
         @if (EndpointRows.Count == 0)
         {
             <EmptyState Title="No endpoints"
-                        Message="This broker does not project endpoint contracts." />
+                        Message="This broker does not declare endpoint contracts." />
         }
         else
         {
@@ -95,7 +95,7 @@ else
         <div class="blade-section-header">
             <div>
                 <h3>CloudShell management</h3>
-                <p>CloudShell owns lifecycle, endpoint projection, storage attachment, and access reconciliation.</p>
+                <p>CloudShell manages lifecycle, endpoints, storage attachment, and access reconciliation.</p>
             </div>
         </div>
         <div class="generated-list">
@@ -147,15 +147,15 @@ else
     private string GetBrokerSummary()
     {
         var state = Broker?.State?.ToString() ?? "n/a";
-        return $"RabbitMQ broker service projected by CloudShell. Current state: {state}.";
+        return $"RabbitMQ broker service managed by CloudShell. Current state: {state}.";
     }
 
     private string GetEndpointSummary()
     {
         var count = EndpointRows.Count.ToString(CultureInfo.InvariantCulture);
         return EndpointRows.Count == 1
-            ? "1 broker endpoint is projected."
-            : $"{count} broker endpoints are projected.";
+            ? "1 broker endpoint is configured."
+            : $"{count} broker endpoints are configured.";
     }
 
     private string GetVersion()
@@ -198,13 +198,13 @@ else
 
     private string GetManagementUiStatus() =>
         string.IsNullOrWhiteSpace(ManagementAddress)
-            ? "No mapped management endpoint is currently projected."
+            ? "No management endpoint is currently mapped."
             : "RabbitMQ management UI is available from the management endpoint.";
 
     private string GetReconcileAccessStatus() =>
         Broker?.HasAction(RabbitMQResourceTypeProvider.Operations.ReconcileAccess.ToString()) == true
             ? "Reconcile access is available as a resource operation."
-            : "Reconcile access is not advertised by this broker projection.";
+            : "Reconcile access is not available for this broker.";
 
     private static int GetEndpointOrder(ResourceEndpoint endpoint) =>
         endpoint.Name.ToLowerInvariant() switch

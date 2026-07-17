@@ -106,6 +106,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Simplified the shared application Configuration tab so it summarizes
   user-facing configuration and diagnostics without exposing raw attribute
   tables or duplicating endpoint details from the Endpoints tab.
+- Clarified the RabbitMQ broker page so endpoint, management, and reconcile
+  access copy describes configured broker behavior instead of projection
+  internals.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
