@@ -952,8 +952,10 @@ listed here before pulling in broader proposal work.
   Manager warns when an explicit local storage root is unavailable.
   Provider-backed volume usage previews now appear in application storage rows,
   storage-owned volume lists, and volume overview pages when monitoring or
-  recorded usage samples are available. Richer provider-specific Resource
-  Manager diagnostics remain next.
+  recorded usage samples are available, and generated monitoring views warn
+  when provider-backed usage reaches or exceeds a configured max size. Richer
+  provider-specific Resource Manager diagnostics remain a follow-up only when
+  supported samples expose a concrete storage failure.
 - Identity remains a product differentiator. The built-in ASP.NET Core
   provider is the reference implementation for simple local development:
   resource identity clients, scoped resource-permission tokens, provisioning

@@ -45,6 +45,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved DNS/name-mapping Resource Manager metadata so local host-name
   publisher runtime details show the hosts-file target and resolver-refresh
   status in list views.
+- Improved Resource Manager volume monitoring so provider-backed usage metrics
+  warn when a volume reaches or exceeds its configured max size.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.

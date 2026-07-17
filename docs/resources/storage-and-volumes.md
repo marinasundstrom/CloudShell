@@ -245,6 +245,8 @@ Current Resource Manager behavior includes:
 - provider-backed volume usage previews on application storage rows,
   storage-owned volume lists, and volume overview pages when monitoring or
   recorded usage samples are available
+- generated monitoring views warn when provider-backed usage reaches or
+  exceeds a volume's configured max size
 - delete guards for volume resources still referenced by another resource
 - blocked storage mapping changes while the target resource is running
 

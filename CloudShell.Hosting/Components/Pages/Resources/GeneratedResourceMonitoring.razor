@@ -131,6 +131,13 @@
                                       WithinMaxSizeLabel="@L["Within max size"].Value"
                                       ExceededMaxSizeLabel="@L["Max size reached"].Value"
                                       AriaLabel="@L["Volume max-size utilization: {0} used of {1}.", FormatBytes(quotaVisualization.UsedBytes), FormatBytes(quotaVisualization.MaxSizeBytes)].Value" />
+
+                @if (quotaVisualization.IsAtOrAboveMaxSize)
+                {
+                    <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Compact="true">
+                        @L["This volume has reached or exceeded its configured max size. Free space, increase the max size, or check the storage provider before restarting workloads that write to this volume."]
+                    </ProcedureMessage>
+                }
             }
 
             <SummaryMetricGrid AriaLabel="@L["Resource metrics"].Value">
@@ -203,5 +210,8 @@
 
     private sealed record VolumeQuotaVisualization(
         double UsedBytes,
-        double MaxSizeBytes);
+        double MaxSizeBytes)
+    {
+        public bool IsAtOrAboveMaxSize => MaxSizeBytes > 0 && UsedBytes >= MaxSizeBytes;
+    }
 }
