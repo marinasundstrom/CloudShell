@@ -32,7 +32,7 @@ else
             @if (StorageMounts.Any(mount => !mount.HasProjectedMount))
             {
                 <ProcedureMessage Compact="true">
-                    One or more attached volumes do not expose mount target details yet. Materialization status is shown from the application resource when available.
+                    One or more attached volumes do not expose mount target details yet. Runtime status is shown from the application resource when available.
                 </ProcedureMessage>
             }
             <ResourceTable AriaLabel="Application volume mounts">
@@ -147,13 +147,13 @@ else
             if (projectedCount == StorageMounts.Count)
             {
                 return StorageMounts.Count == 1
-                    ? "1 volume mount is projected from the runtime workload descriptor."
-                    : $"{StorageMounts.Count} volume mounts are projected from the runtime workload descriptor.";
+                    ? "1 volume mount is configured for this application."
+                    : $"{StorageMounts.Count} volume mounts are configured for this application.";
             }
 
             return StorageMounts.Count == 1
                 ? "1 attached volume is declared for this resource; mount target details are not available yet."
-                : $"{StorageMounts.Count} attached volumes are declared for this resource; {StorageMounts.Count - projectedCount} do not expose mount target details yet.";
+                : $"{StorageMounts.Count} attached volumes are declared for this resource; {StorageMounts.Count - projectedCount} do not have mount target details yet.";
         }
 
         if (VolumeDependencies.Count > 0)

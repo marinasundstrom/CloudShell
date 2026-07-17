@@ -27,8 +27,8 @@ public static class ResourceVolumeMountDisplay
     public static string GetMaterializationStatusLabel(string? status, Func<string, string> localize) =>
         status switch
         {
-            ResourceVolumeMountMaterializationStatus.Materialized => localize("materialized"),
-            "partial" => localize("partially materialized"),
+            ResourceVolumeMountMaterializationStatus.Materialized => localize("active"),
+            "partial" => localize("partially active"),
             ResourceVolumeMountMaterializationStatus.NotActive => localize("not active"),
             "unknown" => localize("unknown"),
             "notApplicable" => localize("not applicable"),

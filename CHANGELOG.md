@@ -109,6 +109,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Clarified the RabbitMQ broker page so endpoint, management, and reconcile
   access copy describes configured broker behavior instead of projection
   internals.
+- Clarified application storage mount summaries and shared mount status labels
+  so users see configured and active storage state instead of runtime
+  materialization wording.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
