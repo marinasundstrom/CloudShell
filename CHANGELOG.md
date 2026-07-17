@@ -119,6 +119,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Clarified the Resource Manager Environment page so deployment, revision, and
   replica-slot summaries describe observed running state instead of projection
   and materialization internals.
+- Improved application artifact create, restore, update, and validation
+  failure messages so the Resource Manager UI shows recovery guidance instead
+  of raw exception text.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies

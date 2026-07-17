@@ -429,7 +429,9 @@ else
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ErrorMessage = exception.Message;
+            ErrorMessage = FormatArtifactFailure(
+                exception,
+                "Application resource creation failed. Check the artifact package and resource name, then try again.");
         }
         finally
         {
@@ -494,8 +496,10 @@ else
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ErrorMessage = $"Application artifact revision restore failed: {exception.Message}";
-            ValidationSignals = [ResourceProcedureSignal.Error(exception.Message)];
+            ErrorMessage = FormatArtifactFailure(
+                exception,
+                "Application artifact revision restore failed. Check that the revision still exists and try again.");
+            ValidationSignals = [ResourceProcedureSignal.Error(ErrorMessage)];
         }
         finally
         {
@@ -561,9 +565,12 @@ else
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            var message = FormatArtifactFailure(
+                exception,
+                "Application artifact update failed. Check the artifact package and resource configuration, then try again.");
             return new ResourceProcedureResult(
-                $"Application artifact update failed: {exception.Message}",
-                signals: [ResourceProcedureSignal.Error(exception.Message)]);
+                message,
+                signals: [ResourceProcedureSignal.Error(message)]);
         }
         finally
         {
@@ -682,13 +689,23 @@ else
                 toastId,
                 new CoreShellToastUpdate(
                     "Application artifact failed",
-                    exception.Message,
+                    FormatArtifactFailure(
+                        exception,
+                        "Application artifact upload or validation failed. Check the package and try again."),
                     CoreShellNotificationSeverity.Error,
                     CoreShellNotificationStatus.Failed),
                 cancellationToken);
             throw;
         }
     }
+
+    private static string FormatArtifactFailure(Exception exception, string fallback) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Control Plane while managing the application artifact. Check connectivity and try again.",
+            InvalidOperationException => fallback,
+            _ => fallback
+        };
 
     private ResourceTemplate CreateTemplate(
         string resourceId,
