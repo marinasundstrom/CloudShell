@@ -81,6 +81,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Clarified the Resource Manager database access-control notice so it gives the
   user the reconcile action to take without exposing internal future-work
   wording.
+- Clarified the RabbitMQ broker management panel so credential guidance is
+  security-focused and points users to CloudShell grants and access
+  reconciliation.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
