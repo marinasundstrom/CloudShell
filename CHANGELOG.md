@@ -49,6 +49,9 @@ on `git blame --follow`, and then by the broad type of change.
   warn when a volume reaches or exceeds its configured max size.
 - Improved the application Storage tab so volume links and sorting use
   qualified resource labels when display names differ from resource names.
+- Improved the shared application Environment tab so JavaScript, Java, Go,
+  Python, ASP.NET Core, and container-app environment-variable attributes are
+  shown from provider-specific or flattened resource model projections.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.

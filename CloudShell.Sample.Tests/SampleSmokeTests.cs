@@ -433,6 +433,20 @@ public sealed class SampleSmokeTests
         {
             Assert.Contains(expectedResourceId, resourceIds);
         }
+
+        var javaScriptApp = snapshot.Resources.FirstOrDefault(resource =>
+            string.Equals(
+                resource.TypeId.ToString(),
+                JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
+                StringComparison.OrdinalIgnoreCase));
+        if (javaScriptApp is not null)
+        {
+            var variables = javaScriptApp.ResourceAttributeValues
+                .GetObject<Dictionary<string, JavaScriptAppEnvironmentVariableValue>>(
+                    JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables);
+            Assert.NotNull(variables);
+            Assert.NotEmpty(variables);
+        }
     }
 
     [Fact]

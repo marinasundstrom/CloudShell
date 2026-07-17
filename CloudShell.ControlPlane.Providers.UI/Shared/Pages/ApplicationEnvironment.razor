@@ -51,6 +51,14 @@ else
 
     private Resource? Resource { get; set; }
     private IReadOnlyList<EnvironmentRow> EnvironmentRows { get; set; } = [];
+    private static readonly string[] EnvironmentAttributeRoots =
+    [
+        AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+        JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+        JavaAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+        GoAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+        PythonAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString()
+    ];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -69,9 +77,25 @@ else
 
     private static IReadOnlyList<EnvironmentRow> GetEnvironmentRows(Resource resource)
     {
-        if (!resource.ResourceAttributes.TryGetValue(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
-                out var serialized) ||
+        var rows = new List<EnvironmentRow>();
+        foreach (var root in EnvironmentAttributeRoots)
+        {
+            rows.AddRange(ReadObjectEnvironmentRows(resource, root));
+            rows.AddRange(ReadFlattenedEnvironmentRows(resource, root));
+        }
+
+        return rows
+            .GroupBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<EnvironmentRow> ReadObjectEnvironmentRows(
+        Resource resource,
+        string attributeRoot)
+    {
+        if (!resource.ResourceAttributes.TryGetValue(attributeRoot, out var serialized) ||
             string.IsNullOrWhiteSpace(serialized))
         {
             return [];
@@ -88,7 +112,6 @@ else
             return document.RootElement
                 .EnumerateObject()
                 .Select(CreateRow)
-                .OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }
         catch (JsonException)
@@ -96,11 +119,62 @@ else
             return
             [
                 new(
-                    AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+                    attributeRoot,
                     "raw",
                     "unreadable value")
             ];
         }
+    }
+
+    private static IReadOnlyList<EnvironmentRow> ReadFlattenedEnvironmentRows(
+        Resource resource,
+        string attributeRoot)
+    {
+        var prefix = attributeRoot + ".";
+        var variables = new Dictionary<string, EnvironmentVariableParts>(StringComparer.OrdinalIgnoreCase);
+        foreach (var attribute in resource.ResourceAttributes)
+        {
+            if (!attribute.Key.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var path = attribute.Key[prefix.Length..];
+            if (TryReadPath(path, ".value", out var variableName, out _) &&
+                attribute.Value is { Length: > 0 } literalValue)
+            {
+                variables[variableName] = GetParts(variables, variableName) with
+                {
+                    Value = literalValue
+                };
+                continue;
+            }
+
+            if (TryReadPath(path, ".configurationSettingRef.", out variableName, out var configurationProperty) &&
+                attribute.Value is { Length: > 0 } configurationValue)
+            {
+                var parts = GetParts(variables, variableName);
+                variables[variableName] = parts with
+                {
+                    ConfigurationSettingRef = parts.ConfigurationSettingRef.Set(configurationProperty, configurationValue)
+                };
+                continue;
+            }
+
+            if (TryReadPath(path, ".secretRef.", out variableName, out var secretProperty) &&
+                attribute.Value is { Length: > 0 } secretValue)
+            {
+                var parts = GetParts(variables, variableName);
+                variables[variableName] = parts with
+                {
+                    SecretRef = parts.SecretRef.Set(secretProperty, secretValue)
+                };
+            }
+        }
+
+        return variables
+            .Select(variable => CreateRow(variable.Key, variable.Value))
+            .ToArray();
     }
 
     private static EnvironmentRow CreateRow(JsonProperty property)
@@ -143,6 +217,68 @@ else
         return new(property.Name, "unknown", "unsupported value shape");
     }
 
+    private static EnvironmentRow CreateRow(string name, EnvironmentVariableParts parts)
+    {
+        if (parts.ConfigurationSettingRef.HasValue)
+        {
+            return new(
+                name,
+                "configuration",
+                FormatReference(
+                    parts.ConfigurationSettingRef.StoreResourceId,
+                    parts.ConfigurationSettingRef.Name));
+        }
+
+        if (parts.SecretRef.HasValue)
+        {
+            return new(
+                name,
+                "secret",
+                FormatReference(
+                    parts.SecretRef.VaultResourceId,
+                    parts.SecretRef.Name));
+        }
+
+        if (parts.Value is not null)
+        {
+            return new(name, "literal", FormatLiteralValue(name, parts.Value));
+        }
+
+        return new(name, "unknown", "unsupported value shape");
+    }
+
+    private static bool TryReadPath(
+        string path,
+        string suffix,
+        out string variableName,
+        out string propertyName)
+    {
+        if (path.EndsWith(suffix, StringComparison.Ordinal))
+        {
+            variableName = path[..^suffix.Length];
+            propertyName = string.Empty;
+            return !string.IsNullOrWhiteSpace(variableName);
+        }
+
+        var index = path.IndexOf(suffix, StringComparison.Ordinal);
+        if (index <= 0)
+        {
+            variableName = string.Empty;
+            propertyName = string.Empty;
+            return false;
+        }
+
+        variableName = path[..index];
+        propertyName = path[(index + suffix.Length)..];
+        return !string.IsNullOrWhiteSpace(variableName) &&
+            !string.IsNullOrWhiteSpace(propertyName);
+    }
+
+    private static EnvironmentVariableParts GetParts(
+        Dictionary<string, EnvironmentVariableParts> variables,
+        string name) =>
+        variables.GetValueOrDefault(name) ?? new EnvironmentVariableParts();
+
     private static string FormatReference(
         JsonElement element,
         string resourceIdProperty,
@@ -151,6 +287,17 @@ else
         var resourceId = TryGetString(element, resourceIdProperty);
         var name = TryGetString(element, nameProperty);
 
+        if (!string.IsNullOrWhiteSpace(resourceId) &&
+            !string.IsNullOrWhiteSpace(name))
+        {
+            return $"{resourceId}/{name}";
+        }
+
+        return resourceId ?? name ?? "unresolved reference";
+    }
+
+    private static string FormatReference(string? resourceId, string? name)
+    {
         if (!string.IsNullOrWhiteSpace(resourceId) &&
             !string.IsNullOrWhiteSpace(name))
         {
@@ -181,4 +328,49 @@ else
         name.Contains("api-key", StringComparison.OrdinalIgnoreCase);
 
     private sealed record EnvironmentRow(string Name, string Source, string Value);
+
+    private sealed record EnvironmentVariableParts(
+        string? Value = null,
+        EnvironmentConfigurationReference ConfigurationSettingRef = default,
+        EnvironmentSecretReference SecretRef = default);
+
+    private readonly record struct EnvironmentConfigurationReference(
+        string? StoreResourceId,
+        string? Name,
+        string? Version)
+    {
+        public bool HasValue =>
+            !string.IsNullOrWhiteSpace(StoreResourceId) ||
+            !string.IsNullOrWhiteSpace(Name) ||
+            !string.IsNullOrWhiteSpace(Version);
+
+        public EnvironmentConfigurationReference Set(string propertyName, string value) =>
+            propertyName switch
+            {
+                "storeResourceId" => this with { StoreResourceId = value },
+                "name" => this with { Name = value },
+                "version" => this with { Version = value },
+                _ => this
+            };
+    }
+
+    private readonly record struct EnvironmentSecretReference(
+        string? VaultResourceId,
+        string? Name,
+        string? Version)
+    {
+        public bool HasValue =>
+            !string.IsNullOrWhiteSpace(VaultResourceId) ||
+            !string.IsNullOrWhiteSpace(Name) ||
+            !string.IsNullOrWhiteSpace(Version);
+
+        public EnvironmentSecretReference Set(string propertyName, string value) =>
+            propertyName switch
+            {
+                "vaultResourceId" => this with { VaultResourceId = value },
+                "name" => this with { Name = value },
+                "version" => this with { Version = value },
+                _ => this
+            };
+    }
 }
