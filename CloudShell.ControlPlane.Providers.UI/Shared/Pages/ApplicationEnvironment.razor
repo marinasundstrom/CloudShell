@@ -232,7 +232,7 @@ else
                 FormatLiteralValue(property.Name, value.GetString()));
         }
 
-        return new(property.Name, "unknown", "Unsupported definition");
+        return new(property.Name, "unsupported", "Unsupported definition");
     }
 
     private static EnvironmentRow CreateRow(string name, EnvironmentVariableParts parts)
@@ -272,7 +272,7 @@ else
             return new(name, "literal", FormatLiteralValue(name, parts.Value));
         }
 
-        return new(name, "unknown", "Unsupported definition");
+        return new(name, "unsupported", "Unsupported definition");
     }
 
     private static bool TryReadPath(
@@ -407,6 +407,7 @@ else
             "configuration" => "Configuration",
             "literal" => "Literal",
             "secret" => "Secret",
+            "unsupported" => "Unsupported",
             "unreadable" => "Unreadable",
             "unknown" => "Unknown",
             { Length: > 0 } => "Custom",
