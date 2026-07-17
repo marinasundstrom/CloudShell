@@ -44,9 +44,9 @@
                        Value="@ReplicaGroupCount"
                        Summary="@L["Active deployment replica groups"].Value"
                        IconName="container" />
-    <SummaryMetricCard Title="@L["Replica slot issues"].Value"
+    <SummaryMetricCard Title="@L["Replica position issues"].Value"
                        Value="@OpenReplicaSlotStateCount"
-                       Summary="@L["Open slot reconciliation states"].Value"
+                       Summary="@L["Open replica reconciliation states"].Value"
                        IconName="health" />
 </SummaryMetricGrid>
 
@@ -266,12 +266,12 @@
 
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Active replica groups"].Value"
-                          Description="@L["Replica group snapshots produced by active deployment records, correlated with current slot reconciliation state."].Value" />
+                          Description="@L["Replica group snapshots produced by active deployment records, correlated with current replica reconciliation state."].Value" />
 
         @if (ReplicaGroupRows.Count == 0)
         {
             <EmptyState Title="@L["No active replica groups"].Value"
-                        Message="@L["Active replica groups will appear here after Resource Manager starts a deployment with requested replica slots."].Value"
+                        Message="@L["Active replica groups will appear here after Resource Manager starts a deployment with requested replicas."].Value"
                         Compact="true" />
         }
         else
@@ -284,9 +284,9 @@
                         <th>@L["Service"]</th>
                         <th>@L["Replica group"]</th>
                         <th>@L["Runtime revision"]</th>
-                        <th>@L["Requested slots"]</th>
-                        <th>@L["Occupied slots"]</th>
-                        <th>@L["Slot reconciliation"]</th>
+                        <th>@L["Requested replicas"]</th>
+                        <th>@L["Running replicas"]</th>
+                        <th>@L["Reconciliation"]</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -386,13 +386,13 @@
     </ShellPanel>
 
     <ShellPanel Wide="true" Class="environment-panel-full">
-        <ShellPanelHeader Title="@L["Replica slot reconciliation"].Value"
-                          Description="@L["Current Resource Manager replica slot state and repair outcomes for active replica groups."].Value" />
+        <ShellPanelHeader Title="@L["Replica reconciliation"].Value"
+                          Description="@L["Current Resource Manager replica state and repair outcomes for active replica groups."].Value" />
 
         @if (ReplicaSlotStates.Count == 0)
         {
-            <EmptyState Title="@L["No replica slot state"].Value"
-                        Message="@L["Replica slot state will appear here after Resource Manager starts a deployment with requested replica slots."].Value"
+            <EmptyState Title="@L["No replica reconciliation state"].Value"
+                        Message="@L["Replica reconciliation state will appear here after Resource Manager starts a deployment with requested replicas."].Value"
                         Compact="true" />
         }
         else
@@ -402,7 +402,7 @@
                 <thead>
                     <tr>
                         <th>@L["Resource"]</th>
-                        <th>@L["Slot"]</th>
+                        <th>@L["Replica"]</th>
                         <th>@L["Status"]</th>
                         <th>@L["Attempts"]</th>
                         <th>@L["Observed"]</th>

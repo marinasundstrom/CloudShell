@@ -87,6 +87,8 @@ on `git blame --follow`, and then by the broad type of change.
   replica positions and reconciliation wording instead of slot internals.
 - Clarified the container-app Revisions page so inferred revision fallbacks
   describe running replicas and revision IDs without resource-model wording.
+- Clarified the Environment dashboard replica group and reconciliation labels
+  so they use requested/running replica language instead of slot internals.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
