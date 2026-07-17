@@ -97,6 +97,8 @@ on `git blame --follow`, and then by the broad type of change.
   permissions are described without runtime-resource terminology.
 - Clarified resource Activity event metadata so event rows show user-facing
   event groups instead of raw event type IDs.
+- Clarified application package editor empty revision labels so missing
+  package selections use display labels.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface

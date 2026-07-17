@@ -892,7 +892,7 @@ else
     {
         var reference = GetCurrentArtifactReference();
         return reference is null
-            ? "none"
+            ? "None"
             : $"{reference.ArtifactId} / {reference.RevisionId}";
     }
 
@@ -920,7 +920,7 @@ else
     {
         var revision = GetSelectedRevision();
         return revision is null
-            ? "none"
+            ? "None"
             : $"{revision.RevisionId} ({revision.SizeBytes} bytes)";
     }
 
@@ -929,7 +929,7 @@ else
         var revision = GetSelectedRevision();
         if (revision is null)
         {
-            return "none";
+            return "None";
         }
 
         var sourceKind = FormatSourceKind(revision.SourceKind);
