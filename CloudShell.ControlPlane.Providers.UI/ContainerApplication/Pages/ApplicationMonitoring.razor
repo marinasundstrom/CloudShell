@@ -94,23 +94,23 @@ else
             {
                 <SummaryMetricGrid AriaLabel="Container app replica metrics">
                     <SummaryMetricCard Title="CPU usage"
-                                       Value="@FormatOptionalSumMetric(CpuUsageMetricName, PercentUnit, "not collected")"
+                                       Value="@FormatOptionalSumMetric(CpuUsageMetricName, PercentUnit, NotCollected)"
                                        Summary="Sum of observed replica CPU usage."
                                        Compact="true" />
                     <SummaryMetricCard Title="Memory usage"
-                                       Value="@FormatOptionalSumMetric(MemoryUsageMetricNames, BytesUnit, "not collected")"
+                                       Value="@FormatOptionalSumMetric(MemoryUsageMetricNames, BytesUnit, NotCollected)"
                                        Summary="Sum of observed replica memory usage."
                                        Compact="true" />
                     <SummaryMetricCard Title="Network received"
-                                       Value="@FormatOptionalSumMetric(NetworkReceivedMetricName, BytesUnit, "not collected")"
+                                       Value="@FormatOptionalSumMetric(NetworkReceivedMetricName, BytesUnit, NotCollected)"
                                        Summary="Total observed replica network bytes received."
                                        Compact="true" />
                     <SummaryMetricCard Title="Network sent"
-                                       Value="@FormatOptionalSumMetric(NetworkSentMetricName, BytesUnit, "not collected")"
+                                       Value="@FormatOptionalSumMetric(NetworkSentMetricName, BytesUnit, NotCollected)"
                                        Summary="Total observed replica network bytes sent."
                                        Compact="true" />
                     <SummaryMetricCard Title="Process count"
-                                       Value="@FormatOptionalSumMetric(ProcessCountMetricName, CountUnit, "not collected")"
+                                       Value="@FormatOptionalSumMetric(ProcessCountMetricName, CountUnit, NotCollected)"
                                        Summary="Sum of observed replica process counts."
                                        Compact="true" />
                 </SummaryMetricGrid>
@@ -158,16 +158,16 @@ else
                                         <ResourceStateIndicator State="row.Resource.State" Variant="pill" />
                                     </td>
                                     <td>
-                                        <strong>@(row.Snapshot?.Status ?? "Unavailable")</strong>
+                                        <strong>@FormatMonitoringStatus(row.Snapshot)</strong>
                                         <span>@GetMonitoringMessage(row)</span>
                                     </td>
-                                    <td>@FormatMetric(row, CpuUsageMetricName, "not collected")</td>
-                                    <td>@FormatMetric(row, MemoryUsageMetricNames, "not collected")</td>
+                                    <td>@FormatMetric(row, CpuUsageMetricName, NotCollected)</td>
+                                    <td>@FormatMetric(row, MemoryUsageMetricNames, NotCollected)</td>
                                     <td>
-                                        <strong>@FormatMetric(row, NetworkReceivedMetricName, "not collected")</strong>
-                                        <span>sent @FormatMetric(row, NetworkSentMetricName, "not collected")</span>
+                                        <strong>@FormatMetric(row, NetworkReceivedMetricName, NotCollected)</strong>
+                                        <span>Sent @FormatMetric(row, NetworkSentMetricName, NotCollected)</span>
                                     </td>
-                                    <td>@FormatMetric(row, ProcessCountMetricName, "not collected")</td>
+                                    <td>@FormatMetric(row, ProcessCountMetricName, NotCollected)</td>
                                 </tr>
                             }
                         </tbody>
@@ -192,6 +192,7 @@ else
     private const string PercentUnit = "%";
     private const string BytesUnit = "bytes";
     private const string CountUnit = "count";
+    private const string NotCollected = "Not collected";
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -384,6 +385,16 @@ else
 
         return row.Snapshot.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture);
     }
+
+    private static string FormatMonitoringStatus(ResourceMonitoringSnapshot? snapshot) =>
+        snapshot?.Status switch
+        {
+            null => "Unavailable",
+            var status when string.Equals(status, "Available", StringComparison.OrdinalIgnoreCase) => "Available",
+            var status when string.Equals(status, "Unavailable", StringComparison.OrdinalIgnoreCase) => "Unavailable",
+            { Length: > 0 } => "Unknown",
+            _ => "Unknown"
+        };
 
     private static bool IsAvailable(ResourceMonitoringSnapshot? snapshot) =>
         string.Equals(snapshot?.Status, "Available", StringComparison.OrdinalIgnoreCase) &&

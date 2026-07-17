@@ -67,6 +67,8 @@ on `git blame --follow`, and then by the broad type of change.
   visually collide with Telemetry.
 - Clarified the common Usage page heading and trend-stat labels so it reads as
   a Resource Manager workspace instead of a raw statistics table.
+- Clarified container-app Monitoring fallback labels so missing replica metrics
+  and snapshot status read as user-facing state.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
