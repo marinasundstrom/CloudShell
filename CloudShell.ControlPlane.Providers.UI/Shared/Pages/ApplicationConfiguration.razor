@@ -25,11 +25,11 @@ else
             <dt>Provider</dt>
             <dd>@Resource.Provider</dd>
             <dt>State</dt>
-            <dd>@(Resource.State?.ToString() ?? "n/a")</dd>
+            <dd>@FormatResourceState(Resource.State)</dd>
             <dt>Source</dt>
-            <dd>@Resource.Source</dd>
+            <dd>@FormatResourceSource(Resource.Source)</dd>
             <dt>Management mode</dt>
-            <dd>@Resource.ManagementMode</dd>
+            <dd>@FormatManagementMode(Resource.ManagementMode)</dd>
             <dt>Service discovery</dt>
             <dd>@GetServiceDiscoveryName()</dd>
             <dt>Environment variables</dt>
@@ -52,11 +52,11 @@ else
             <dt>Resource ID</dt>
             <dd>@Resource.Id</dd>
             <dt>Class</dt>
-            <dd>@Resource.ResourceClass</dd>
+            <dd>@FormatResourceClass(Resource.ResourceClass)</dd>
             <dt>Visibility</dt>
-            <dd>@Resource.Visibility</dd>
+            <dd>@FormatResourceVisibility(Resource.Visibility)</dd>
             <dt>Resource membership</dt>
-            <dd>@Resource.ResourceGraphMembership</dd>
+            <dd>@FormatResourceGraphMembership(Resource.ResourceGraphMembership)</dd>
             <dt>Resource version</dt>
             <dd>@Resource.Version</dd>
         </dl>
@@ -181,6 +181,73 @@ else
         timestamp != DateTimeOffset.UnixEpoch
             ? timestamp.ToLocalTime().ToString("g")
             : "not observed";
+
+    private static string FormatResourceState(ResourceState? state) =>
+        state switch
+        {
+            ResourceState.Running => "Running",
+            ResourceState.Stopped => "Stopped",
+            ResourceState.Starting => "Starting",
+            ResourceState.Stopping => "Stopping",
+            ResourceState.Paused => "Paused",
+            ResourceState.Degraded => "Needs attention",
+            ResourceState.Unknown => "Unknown",
+            null => "not observed",
+            _ => state.ToString() ?? "not observed"
+        };
+
+    private static string FormatResourceSource(ResourceSource source) =>
+        source switch
+        {
+            ResourceSource.User => "User-created",
+            ResourceSource.Provider => "Provider-created",
+            ResourceSource.Orchestrator => "Orchestrator-created",
+            ResourceSource.RuntimeController => "Runtime-created",
+            _ => source.ToString()
+        };
+
+    private static string FormatManagementMode(ResourceManagementMode mode) =>
+        mode switch
+        {
+            ResourceManagementMode.UserManaged => "User-managed",
+            ResourceManagementMode.ProviderManaged => "Provider-managed",
+            ResourceManagementMode.OrchestratorManaged => "Orchestrator-managed",
+            ResourceManagementMode.RuntimeManaged => "Runtime-managed",
+            _ => mode.ToString()
+        };
+
+    private static string FormatResourceClass(ResourceClass resourceClass) =>
+        resourceClass switch
+        {
+            ResourceClass.Generic => "Generic",
+            ResourceClass.Executable => "Executable",
+            ResourceClass.Project => "Project",
+            ResourceClass.Container => "Container",
+            ResourceClass.Service => "Service",
+            ResourceClass.Network => "Network",
+            ResourceClass.Storage => "Storage",
+            ResourceClass.Configuration => "Configuration",
+            ResourceClass.Infrastructure => "Infrastructure",
+            ResourceClass.SecretsVault => "Secrets vault",
+            _ => resourceClass.ToString()
+        };
+
+    private static string FormatResourceVisibility(ResourceVisibility visibility) =>
+        visibility switch
+        {
+            ResourceVisibility.Normal => "Visible",
+            ResourceVisibility.Hidden => "Hidden",
+            ResourceVisibility.Diagnostic => "Diagnostic",
+            _ => visibility.ToString()
+        };
+
+    private static string FormatResourceGraphMembership(string membership) =>
+        membership switch
+        {
+            ResourceGraphMembershipKinds.Declared => "Declared resource",
+            ResourceGraphMembershipKinds.Projected => "Generated resource",
+            _ => membership.ToString()
+        };
 
     private static string FormatList(IEnumerable<string> values)
     {
