@@ -1458,9 +1458,9 @@ resourceGroups) =>
             SelectedResource = null;
             await LoadResourceModelAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatResourceInventoryOperationFailure(exception, "delete the resource");
             ProcedureSignals = [];
         }
     }
@@ -1588,15 +1588,29 @@ resourceGroups) =>
             ProcedureSignals = result.Signals;
             await RefreshResourcesAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatResourceInventoryOperationFailure(exception, "run the resource operation");
             ProcedureSignals = [];
         }
         finally
         {
             ExecutingActionKeys.Remove(GetActionKey(resource, action));
         }
+    }
+
+    private string FormatResourceInventoryOperationFailure(Exception exception, string operation)
+    {
+        Logger.LogWarning(
+            exception,
+            "Resource inventory operation failed: {Operation}",
+            operation);
+
+        return exception switch
+        {
+            HttpRequestException => L["CloudShell could not reach the Control Plane while trying to {0}. Check connectivity and try again.", operation].Value,
+            _ => L["CloudShell could not {0}. Check the resource state and try again.", operation].Value
+        };
     }
 
     private IReadOnlyList<Resource> GetStoppedDependencies(Resource resource)

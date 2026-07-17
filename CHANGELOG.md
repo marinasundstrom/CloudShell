@@ -128,6 +128,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved generated Resource Manager identity views so identity update,
   provisioning, and provisioning-status failures show stable recovery guidance
   while logging the original exception for diagnostics.
+- Improved Resources list delete and action failure messages so inventory
+  operations show stable recovery guidance while logging the original
+  exception for diagnostics.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
