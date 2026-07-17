@@ -33,7 +33,7 @@ else
     {
         <PageHeading Eyebrow="@L["Usage"].Value"
                      Title="@L["Usage"].Value"
-                     Description="@L["Review recorded resource usage samples, aggregate statistics, and projected trends."].Value">
+                     Description="@L["Review recorded resource usage samples, aggregate statistics, and forecast trends."].Value">
             <Actions>
                 @if (ShowAllUsageAction)
                 {
@@ -175,12 +175,12 @@ else
                                                 <span>@L["avg {0}", FormatUsageValue(panel.Average, panel.Unit)]</span>
                                                 @if (panel.HasProjection)
                                                 {
-                                                    <span>@L["projected +1h {0}", FormatUsageValue(panel.ProjectedOneHour!.Value, panel.Unit)]</span>
-                                                    <span>@L["projected +24h {0}", FormatUsageValue(panel.ProjectedDay!.Value, panel.Unit)]</span>
+                                                    <span>@L["forecast +1h {0}", FormatUsageValue(panel.ProjectedOneHour!.Value, panel.Unit)]</span>
+                                                    <span>@L["forecast +24h {0}", FormatUsageValue(panel.ProjectedDay!.Value, panel.Unit)]</span>
                                                 }
                                                 else
                                                 {
-                                                    <span>@L["projection needs 2 samples"]</span>
+                                                    <span>@L["forecast needs 2 samples"]</span>
                                                 }
                                             </div>
                                         </section>
