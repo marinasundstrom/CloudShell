@@ -4,7 +4,7 @@
 @if (SettingManager is null)
 {
     <EmptyState Title="Setting management unavailable"
-                Message="This UI host does not have access to the Configuration Store runtime manager." />
+                Message="This UI host cannot manage settings for this Configuration Store." />
 }
 else if (Resource is null)
 {
@@ -108,8 +108,8 @@ else
     {
         var count = Settings.Count(setting => !string.IsNullOrWhiteSpace(setting.Name));
         return count == 1
-            ? "1 runtime setting is configured for this store."
-            : $"{count} runtime settings are configured for this store.";
+            ? "1 setting is configured for this store."
+            : $"{count} settings are configured for this store.";
     }
 
     private void AddSetting()
@@ -133,7 +133,7 @@ else
     {
         if (SettingManager is null || Resource is null)
         {
-            return ResourceProcedureResult.Completed("Configuration Store setting management is unavailable.");
+            return ResourceProcedureResult.Completed("Configuration Store settings cannot be managed from this UI host.");
         }
 
         var settings = BuildSettings();

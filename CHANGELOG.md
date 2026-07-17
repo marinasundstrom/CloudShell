@@ -91,6 +91,9 @@ on `git blame --follow`, and then by the broad type of change.
   internals.
 - Improved the Event Broker streams tab so stream read failures show stable,
   actionable guidance instead of raw runtime exception text.
+- Clarified Configuration Store and Secrets Vault management tabs so user-facing
+  empty states, summaries, and unavailable messages describe settings, secrets,
+  and certificates without runtime-manager terminology.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
