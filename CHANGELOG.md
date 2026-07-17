@@ -131,6 +131,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved Resources list delete and action failure messages so inventory
   operations show stable recovery guidance while logging the original
   exception for diagnostics.
+- Improved generated Resource Manager access-control views so grant and revoke
+  failures show stable recovery guidance while logging the original exception
+  for diagnostics.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
