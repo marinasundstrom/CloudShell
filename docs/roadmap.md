@@ -933,10 +933,9 @@ listed here before pulling in broader proposal work.
   path and access mode when workload descriptors are available. Docker-backed
   container hosts now advertise `storage.mount.filesystem`, and application
   Start/Restart availability checks the selected host for that capability when
-  managed `FileSystem` volumes are attached; next it needs Resource Manager
-  visibility into whether a mapping was actually materialized. The local Docker
-  runner now records runtime-observed mount materialization facts after a
-  successful container start, application overview pages show source/target
+  managed `FileSystem` volumes are attached. The local Docker runner now
+  records runtime-observed mount materialization facts after a successful
+  container start, application overview pages show source/target
   materialization status per mount, and volume overview pages show aggregate
   materialization status for consumers through projected resource attributes.
   Docker Compose now reports the same observations through the shared
@@ -950,7 +949,9 @@ listed here before pulling in broader proposal work.
   project provider-backed filesystem root availability through
   `storage.runtimeStatus` and `storage.runtimeStatusReason`, and Resource
   Manager warns when an explicit local storage root is unavailable.
-  Provider-backed storage usage metrics and richer provider-specific Resource
+  Provider-backed volume usage previews now appear in application storage rows,
+  storage-owned volume lists, and volume overview pages when monitoring or
+  recorded usage samples are available. Richer provider-specific Resource
   Manager diagnostics remain next.
 - Identity remains a product differentiator. The built-in ASP.NET Core
   provider is the reference implementation for simple local development:
@@ -989,14 +990,17 @@ listed here before pulling in broader proposal work.
   sample. ProjectReference remains the focused ASP.NET Core project dependency,
   service discovery, log, and trace baseline; ApplicationTopology is where SQL
   Server with mounted storage, configuration, secrets, identity, structured
-  logs, traces, container apps, and networking should converge as those
-  primitives stabilize. The first ApplicationTopology SQL/storage slice is in
-  place: Local Storage, a storage-owned SQL data volume, and a provider-owned
-  local SQL Server Docker runtime are declared, with the backend API resolving
-  SQL Server through CloudShell service discovery and exposing a `/database`
-  check that the frontend calls through the API. A later SQL/database identity slice
-  should let application resources use CloudShell resource identity for
-  database authentication in an Azure-like flow.
+  logs, traces, container apps, and networking converge as the primitives
+  stabilize. The current ApplicationTopology path is an accepted local
+  development MVP bridge: Local Storage, a storage-owned SQL data volume,
+  provider-owned local SQL Server Docker runtime, configuration/secrets,
+  identity grants, service discovery, local name mapping, logs, traces, and
+  graceful cleanup are visible from the app/resource context with targeted
+  diagnostics. Further ApplicationTopology work should be targeted at
+  provider-specific diagnostics or sample failures rather than reopening the
+  broad app topology proof. A later SQL/database identity slice should let
+  application resources use CloudShell resource identity for database
+  authentication in an Azure-like flow.
 - Treat the Settings and Secrets sample as the current proof of the developer
   service-integration flow: a resource can model settings and secrets first,
   then opt into identity and resource-scoped grants when access enforcement is

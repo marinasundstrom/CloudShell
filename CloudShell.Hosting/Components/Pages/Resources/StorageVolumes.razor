@@ -52,6 +52,7 @@ else
                             </a>
                         </TitleContent>
                         <ChildContent>
+                            <VolumeUsagePreview ResourceId="@volume.Volume.Id" />
                             <ResourcePermissionBoundary Resource="volume.Volume"
                                                         ResourceGroupsByResourceId="ResourceGroupsByResourceId"
                                                         Permission="@CloudShellPermissions.Resources.Manage"

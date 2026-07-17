@@ -37,6 +37,8 @@ else
             <dd>@GetAttribute(ResourceAttributeNames.VolumePersistent, "true")</dd>
             <dt>Max size</dt>
             <dd>@FormatMaxSize()</dd>
+            <dt>Usage</dt>
+            <dd><VolumeUsagePreview ResourceId="@Volume.Id" Compact="false" /></dd>
             <dt>Max size enforcement</dt>
             <dd>@GetAttribute(ResourceAttributeNames.VolumeMaxSizeEnforcement, "advisory")</dd>
             <dt>Delete status</dt>

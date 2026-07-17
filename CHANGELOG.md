@@ -40,6 +40,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved Resource Manager storage, volume, configuration-store, and
   secrets-vault selectors and summaries so referenced resources use qualified
   labels when display names differ from resource names.
+- Added provider-backed volume usage previews to storage-owned volume lists
+  and volume overview pages, matching the existing application storage view.
+- Updated the MVP roadmap and sample seam audit so Application Topology is
+  tracked as an accepted local-development MVP bridge instead of an active
+  fix-now blocker after the app-context diagnostics and explanations landed.
 - Updated the MVP sample seam audit baseline after the broad
   `CloudShell.Sample.Tests` run passed with 122 tests, including the Bun
   JavaScript app sample.

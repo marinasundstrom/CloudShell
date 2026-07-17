@@ -242,6 +242,9 @@ Current Resource Manager behavior includes:
 - storage resource pages that list owned volumes and consumer counts
 - volume overview pages that show reverse consumers, target paths, read/write
   mode, and materialization summaries when available
+- provider-backed volume usage previews on application storage rows,
+  storage-owned volume lists, and volume overview pages when monitoring or
+  recorded usage samples are available
 - delete guards for volume resources still referenced by another resource
 - blocked storage mapping changes while the target resource is running
 

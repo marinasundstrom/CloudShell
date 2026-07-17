@@ -29,7 +29,7 @@ Docker containers were left running.
 
 | Sample | Proven path | Exposed seam | Classification | Next action |
 | --- | --- | --- | --- | --- |
-| Application Topology | Graph-backed SQL Server, SQL database, storage volume, Configuration Store, Secrets Vault, identity grants, ASP.NET Core API/frontend, service discovery, local DNS mapping, logs/traces, SQL cleanup, and graceful host shutdown. | The sample still names focused runtime seams for SQL credentials, Configuration Store, Secrets Vault, ASP.NET Core project runtime, and DNS/name mapping. These are provider-owned or Control Plane runtime concerns, but the user-facing path should read as one app topology. | Fix now | Tie off DNS/name mapping, local exposure, identity/config/secrets explanations, and readable diagnostics from the app resource context before broadening scope. |
+| Application Topology | Graph-backed SQL Server, SQL database, storage volume, Configuration Store, Secrets Vault, identity grants, ASP.NET Core API/frontend, service discovery, local DNS mapping, logs/traces, SQL cleanup, and graceful host shutdown. | The sample intentionally uses local-development bridges for SQL credentials, Configuration Store, Secrets Vault, ASP.NET Core project runtime, and DNS/name mapping while Resource Manager presents them as one app topology. | Accepted MVP bridge | Keep the app-centric explanations, diagnostics, and smoke coverage stable. Add only targeted provider diagnostics when the supported sample exposes confusion or failure. |
 | ReplicatedContainerHealth | Container app declaration, project-backed image publish, three replicas, Traefik ingress, session-affinity routing metadata, image rollout, replica updates, runtime telemetry, and cleanup. | The local Docker/Traefik bridge is reusable development plumbing, not the final orchestrator. Runtime replicas still have limited state detail and hidden-resource telemetry views need runtime-specific detail handling. | Accepted MVP bridge | Keep the local bridge documented, but make start, update, replica change, route rebinding, readiness, and cleanup diagnostics feel like one provider path. Defer rich rollout history and durable orchestrator UI. |
 | ContainerAppDeployment | Graph-backed local registry resource, container app state updates, image tag and replica apply paths, optional Docker registry materialization, registry cleanup on graceful shutdown. | The container app runtime is intentionally deferred in this sample: lifecycle reports a warning instead of starting app replicas, and image push/deploy scripts remain sample helpers. | Accepted MVP bridge | Keep as a switch-readiness and graph-apply sample. Do not make it the runtime proof; use ReplicatedContainerHealth and SignalR container app paths for actual local materialization. |
 | HostVirtualNetwork | Local host networking resource, virtual network, endpoint mapping reconciliation, CoreDNS zone-file publishing, private names, public ingress to the API health endpoint. | The MVP provider intentionally creates a local TCP proxy and generated DNS files, not OS-native adapters, firewall/NAT rules, or isolation. UI create/update flow, live mapping count projection, and richer runtime diagnostics remain provider follow-up work. | Accepted MVP bridge | Keep the local proxy/CoreDNS bridge documented and diagnostic failures explicit. Defer OS-native networking providers. |
@@ -179,10 +179,14 @@ Docker containers were left running.
 
 ## Active Tie-Off Order
 
-1. Tie off Application Topology explanations and diagnostics first.
-2. Make container-app runtime operations read as one provider-backed local path.
-3. Close routing, name, endpoint, and readiness rough edges for the
-   local/default path.
+1. Keep Application Topology green as the broad local-development proof, and
+   take only targeted follow-up slices when diagnostics or app-context
+   explanations become unclear in that sample.
+2. Continue making container-app runtime operations read as one
+   provider-backed local path where supported samples expose rough edges.
+3. Close routing, name, endpoint, readiness, and storage-observation rough
+   edges for the local/default path only when they affect supported sample
+   confidence.
 4. Smooth Resource Manager labels, action capability reasons, generated
    details, and app-scoped observability around the supported samples.
 5. Keep accepted MVP bridges documented in sample READMEs and proposal status
