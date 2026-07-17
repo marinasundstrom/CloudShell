@@ -59,6 +59,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved Device Registry enrollment policy summaries so permission grants
   and trusted certificate references use Resource Manager display labels when
   related resources are available.
+- Improved Device Registry device details so enrolled identity resources link
+  to their Resource Manager resource and use qualified display labels.
 - Improved container-app deployment, monitoring, revision, and scaling views
   so materialized replica links and ordering use qualified resource labels.
 - Improved the SQL Server Databases tab so projected database rows link to

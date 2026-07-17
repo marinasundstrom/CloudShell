@@ -1,4 +1,5 @@
 @using System.Text.Json
+@inject IResourceManager ResourceManager
 
 <section class="blade-section">
     <div class="blade-section-header">
@@ -56,7 +57,19 @@
             </tr>
             <tr>
                 <th scope="row">Identity resource</th>
-                <td>@Device.IdentityResourceId</td>
+                <td>
+                    @if (IdentityResource is null)
+                    {
+                        @FormatOptionalValue(Device.IdentityResourceId)
+                    }
+                    else
+                    {
+                        <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(Device.IdentityResourceId)">
+                            @ResourceDisplayLabels.GetQualifiedLabel(IdentityResource)
+                        </FluentAnchor>
+                        <div class="table-subtext">@Device.IdentityResourceId</div>
+                    }
+                </td>
             </tr>
             <tr>
                 <th scope="row">Identity name</th>
@@ -249,12 +262,18 @@
     private string DesiredStateJson { get; set; } = "{}";
     private string? TwinEditorDeviceId { get; set; }
     private string? TwinOperationMessage { get; set; }
+    private CloudShell.Abstractions.ResourceManager.Resource? IdentityResource { get; set; }
     private bool CanRevokeDevice => !IsRevoked(Device);
     private bool CanDisableDevice => !IsRevoked(Device) && !IsDisabled(Device);
     private bool CanEnableDevice => IsDisabled(Device) && !IsRevoked(Device);
 
-    protected override void OnParametersSet() =>
+    protected override async Task OnParametersSetAsync()
+    {
         SyncTwinEditor();
+        IdentityResource = string.IsNullOrWhiteSpace(Device.IdentityResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(Device.IdentityResourceId);
+    }
 
     private async Task RevokeDevice()
     {
