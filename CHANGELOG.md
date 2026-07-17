@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified the Usage extension description so trend estimates are described
+  as forecasts instead of projections.
 - Clarified container-app deployment and monitoring summary labels so running
   replica counts do not expose materialization terminology.
 - Clarified the Telemetry extension description so extension-provided telemetry

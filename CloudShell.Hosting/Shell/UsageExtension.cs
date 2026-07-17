@@ -9,7 +9,7 @@ public sealed class UsageExtension : ICloudShellExtension
     public CloudShellExtensionManifest Manifest => new(
         "cloudshell.usage",
         "Usage",
-        "Resource usage recording, statistics, and trend projections.",
+        "Resource usage recording, statistics, and trend forecasts.",
         "0.1.0",
         ["usage.views", "usage.samples", "usage.statistics"],
         ["resource-manager.resources"]);
