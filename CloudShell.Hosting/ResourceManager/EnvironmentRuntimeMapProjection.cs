@@ -1397,7 +1397,8 @@ public static class EnvironmentRuntimeMapProjection
 
     private static bool IsProjected(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&
-        !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase);
+        !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(value, "not available", StringComparison.OrdinalIgnoreCase);
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
@@ -1406,7 +1407,7 @@ public static class EnvironmentRuntimeMapProjection
         resource.ResourceAttributes.GetValueOrDefault(name);
 
     private static string GetOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "not projected" : value;
+        string.IsNullOrWhiteSpace(value) ? "not available" : value;
 
     private static bool TryGetDatabaseServerResourceId(Resource resource, out string serverResourceId)
     {

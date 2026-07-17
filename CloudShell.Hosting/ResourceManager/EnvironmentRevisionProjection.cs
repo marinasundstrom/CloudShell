@@ -6,6 +6,7 @@ namespace CloudShell.Hosting.ResourceManager;
 public static class EnvironmentRevisionProjection
 {
     public const string BaselineRevisionId = "baseline-current";
+    private const string MissingValue = "not available";
 
     public static IReadOnlyList<EnvironmentRevisionProjectionRow> CreateRows(
         IReadOnlyList<Resource> resources,
@@ -68,7 +69,7 @@ public static class EnvironmentRevisionProjection
             rows.Select(row => row.DeploymentId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             rows.Select(row => row.ServiceId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             rows.Select(row => row.ReplicaGroupId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-            rows.Select(row => row.Status).FirstOrDefault(IsProjected) ?? "not projected",
+            rows.Select(row => row.Status).FirstOrDefault(IsProjected) ?? MissingValue,
             "Deployment-produced environment revision");
     }
 
@@ -95,7 +96,8 @@ public static class EnvironmentRevisionProjection
 
     private static bool IsProjected(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&
-        !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase);
+        !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(value, MissingValue, StringComparison.OrdinalIgnoreCase);
 
     private sealed record EnvironmentDeploymentProjectionRow(
         Resource Resource,
@@ -115,7 +117,7 @@ public static class EnvironmentRevisionProjection
                 GetAttribute(resource, ResourceAttributeNames.DeploymentReplicaGroupId));
 
         private static string GetAttribute(Resource resource, string name) =>
-            resource.ResourceAttributes.GetValueOrDefault(name) ?? "not projected";
+            resource.ResourceAttributes.GetValueOrDefault(name) ?? MissingValue;
     }
 }
 
