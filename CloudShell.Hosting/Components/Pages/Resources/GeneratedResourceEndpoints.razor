@@ -272,7 +272,7 @@
 
     private RenderFragment RenderNetworking() => @<dl class="detail-list">
         <dt>@L["Kind"]</dt>
-        <dd>@GetAttributeValue(ResourceAttributeNames.NetworkKind, Resource!.Kind)</dd>
+        <dd>@FormatNetworkKind(GetAttributeValue(ResourceAttributeNames.NetworkKind, Resource!.Kind))</dd>
         <dt>@L["Host readiness"]</dt>
         <dd>@FormatNetworkReadiness()</dd>
         @if (Resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.NetworkProvisionedMappingCount))
@@ -457,6 +457,16 @@
             _ => readiness
         };
     }
+
+    private string FormatNetworkKind(string kind) =>
+        kind switch
+        {
+            _ when string.Equals(kind, nameof(NetworkResourceKind.Logical), StringComparison.OrdinalIgnoreCase) => L["Logical"].Value,
+            _ when string.Equals(kind, nameof(NetworkResourceKind.Virtual), StringComparison.OrdinalIgnoreCase) => L["Virtual"].Value,
+            _ when string.Equals(kind, nameof(NetworkResourceKind.Host), StringComparison.OrdinalIgnoreCase) => L["Host"].Value,
+            { Length: > 0 } => kind,
+            _ => L["Unknown"].Value
+        };
 
     private string[] GetMappingProviderIds() =>
         Resource?.ResourceAttributes.TryGetValue(ResourceAttributeNames.NetworkMappingProviders, out var providers) == true
