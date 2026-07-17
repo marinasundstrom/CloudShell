@@ -232,7 +232,7 @@ else
         Application is not null &&
         ResourceVolumeMountDisplay.GetMaterializationSummary(Application) is { } materialization
             ? materialization
-            : "declared";
+            : "Declared";
 
     private sealed record ApplicationStorageMountView(
         string VolumeReference,

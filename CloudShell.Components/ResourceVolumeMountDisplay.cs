@@ -27,13 +27,13 @@ public static class ResourceVolumeMountDisplay
     public static string GetMaterializationStatusLabel(string? status, Func<string, string> localize) =>
         status switch
         {
-            ResourceVolumeMountMaterializationStatus.Materialized => localize("active"),
-            "partial" => localize("partially active"),
-            ResourceVolumeMountMaterializationStatus.NotActive => localize("not active"),
-            "unknown" => localize("unknown"),
-            "notApplicable" => localize("not applicable"),
+            ResourceVolumeMountMaterializationStatus.Materialized => localize("Active"),
+            "partial" => localize("Partially active"),
+            ResourceVolumeMountMaterializationStatus.NotActive => localize("Not active"),
+            "unknown" => localize("Unknown"),
+            "notApplicable" => localize("Not applicable"),
             { Length: > 0 } value => value,
-            _ => localize("unknown")
+            _ => localize("Unknown")
         };
 
     public static string? GetMaterializationSummary(Resource resource)
