@@ -35,7 +35,7 @@ else
         <dl class="detail-list">
             <dt>Mode</dt>
             <dd>@GetModeLabel()</dd>
-            <dt>Requested replica slots</dt>
+            <dt>Requested replicas</dt>
             <dd>@RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
             <dt>Replica slots</dt>
             <dd>@ReplicaSlots.Count.ToString(CultureInfo.InvariantCulture)</dd>
@@ -48,7 +48,7 @@ else
             <dt>Session affinity</dt>
             <dd>@GetSessionAffinityLabel(Resource)</dd>
             <dt>Resource type</dt>
-            <dd>@Resource.EffectiveTypeId</dd>
+            <dd>Container app</dd>
         </dl>
 
         <label for="graph-container-app-replicas">Replicas</label>
