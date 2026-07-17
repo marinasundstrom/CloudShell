@@ -232,7 +232,7 @@ else
                 FormatLiteralValue(property.Name, value.GetString()));
         }
 
-        return new(property.Name, "unknown", "Unsupported value shape");
+        return new(property.Name, "unknown", "Unsupported definition");
     }
 
     private static EnvironmentRow CreateRow(string name, EnvironmentVariableParts parts)
@@ -272,7 +272,7 @@ else
             return new(name, "literal", FormatLiteralValue(name, parts.Value));
         }
 
-        return new(name, "unknown", "Unsupported value shape");
+        return new(name, "unknown", "Unsupported definition");
     }
 
     private static bool TryReadPath(
@@ -375,7 +375,7 @@ else
     {
         if (string.IsNullOrWhiteSpace(reference.ResourceId))
         {
-            return reference.Name ?? "unresolved reference";
+            return reference.Name ?? "Unresolved reference";
         }
 
         var resourceLabel = reference.Resource is null
@@ -390,15 +390,15 @@ else
         }
 
         return includeMissingStatus && reference.Resource is null
-            ? $"{value} (unavailable)"
+            ? $"{value} (Unavailable)"
             : value;
     }
 
     private static string FormatLiteralValue(string name, string? value) =>
         IsSensitiveName(name)
-            ? "redacted"
+            ? "Redacted"
             : string.IsNullOrWhiteSpace(value)
-                ? "unset"
+                ? "Unset"
                 : value;
 
     private static string FormatSource(string source) =>
@@ -409,7 +409,7 @@ else
             "secret" => "Secret",
             "unreadable" => "Unreadable",
             "unknown" => "Unknown",
-            { Length: > 0 } => source,
+            { Length: > 0 } => "Custom",
             _ => "Unknown"
         };
 
