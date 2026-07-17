@@ -136,25 +136,29 @@ else
             : $"{profiles.Count} enrollment profiles are configured for this registry.";
 
     private static string FormatProfileKind(string? kind) =>
-        string.IsNullOrWhiteSpace(kind)
-            ? DeviceEnrollmentProfileKinds.Group
-            : kind;
+        kind?.Trim().ToLowerInvariant() switch
+        {
+            null or "" => "Group",
+            DeviceEnrollmentProfileKinds.Group => "Group",
+            DeviceEnrollmentProfileKinds.Individual => "Individual",
+            _ => "Custom"
+        };
 
     private static string FormatPolicySubjects(DeviceEnrollmentPolicy policy)
     {
         var subjects = policy.Subjects
             .Where(subject => !string.IsNullOrWhiteSpace(subject))
-            .Select(subject => $"subject:{subject.Trim()}");
+            .Select(subject => $"Subject {subject.Trim()}");
         var prefixes = policy.SubjectPrefixes
             .Where(prefix => !string.IsNullOrWhiteSpace(prefix))
-            .Select(prefix => $"prefix:{prefix.Trim()}");
+            .Select(prefix => $"Prefix {prefix.Trim()}");
 
         return FormatValues(subjects.Concat(prefixes));
     }
 
     private static string FormatRequiredClaims(IReadOnlyList<DeviceEnrollmentRequiredClaim> claims) =>
         claims.Count == 0
-            ? "-"
+            ? "None"
             : string.Join(
                 ", ",
                 claims
@@ -163,7 +167,7 @@ else
 
     private string FormatGrants(IReadOnlyList<DeviceEnrollmentPermissionGrant> grants) =>
         grants.Count == 0
-            ? "-"
+            ? "None"
             : string.Join(
                 ", ",
                 grants
@@ -174,7 +178,7 @@ else
 
     private string FormatTrustedCertificates(IReadOnlyList<ResourceCertificateReference> certificates) =>
         certificates.Count == 0
-            ? "-"
+            ? "None"
             : string.Join(
                 ", ",
                 certificates
@@ -205,7 +209,7 @@ else
             .ToArray();
 
         return normalized.Length == 0
-            ? "-"
+            ? "None"
             : string.Join(", ", normalized);
     }
 
