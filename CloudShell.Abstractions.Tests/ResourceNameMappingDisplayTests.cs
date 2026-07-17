@@ -27,9 +27,35 @@ public sealed class ResourceNameMappingDisplayTests
         Assert.Equal("http://api.local:5080/", address);
     }
 
+    [Fact]
+    public void GetLocalHostNamePublishingMetadata_FormatsProviderRuntimeState()
+    {
+        var mapping = CreateNameMapping(
+            "api.local",
+            "http",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NameMappingLocalHostNamesHostsFilePath] = "/tmp/cloudshell-hosts",
+                [ResourceAttributeNames.NameMappingLocalHostNamesHostsFileTarget] = "Custom",
+                [ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshStatus] = "Skipped"
+            });
+
+        var metadata = ResourceNameMappingDisplay.GetLocalHostNamePublishingMetadata(
+            mapping,
+            static value => value);
+
+        Assert.Equal(
+            [
+                "Hosts file: custom (/tmp/cloudshell-hosts)",
+                "Resolver: not refreshed"
+            ],
+            metadata);
+    }
+
     private static Resource CreateNameMapping(
         string hostName,
-        string? targetEndpointName)
+        string? targetEndpointName,
+        IReadOnlyDictionary<string, string>? additionalAttributes = null)
     {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -39,6 +65,14 @@ public sealed class ResourceNameMappingDisplayTests
         if (!string.IsNullOrWhiteSpace(targetEndpointName))
         {
             attributes[ResourceAttributeNames.NameMappingTargetEndpointName] = targetEndpointName;
+        }
+
+        if (additionalAttributes is not null)
+        {
+            foreach (var (name, value) in additionalAttributes)
+            {
+                attributes[name] = value;
+            }
         }
 
         return new Resource(

@@ -136,6 +136,8 @@ else
             parts.Add($"Status: {GetAttribute(mapping, ResourceAttributeNames.NameMappingStatus, "unknown")}");
         }
 
+        parts.AddRange(ResourceNameMappingDisplay.GetLocalHostNamePublishingMetadata(mapping, Localize));
+
         return string.Join(" - ", parts);
     }
 

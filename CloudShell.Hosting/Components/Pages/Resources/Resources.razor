@@ -1936,6 +1936,8 @@ resourceGroups) =>
             parts.Insert(0, L["Zone: {0}", GetResourceLabel(zone)].Value);
         }
 
+        parts.AddRange(ResourceNameMappingDisplay.GetLocalHostNamePublishingMetadata(mapping, Localize));
+
         return string.Join(" | ", parts);
     }
 

@@ -45,6 +45,40 @@ public static class ResourceNameMappingDisplay
             var value => value
         };
 
+    public static IReadOnlyList<string> GetLocalHostNamePublishingMetadata(
+        Resource resource,
+        Func<string, string> localize)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(localize);
+
+        var metadata = new List<string>();
+        if (resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingLocalHostNamesHostsFilePath,
+                out var hostsFilePath) &&
+            !string.IsNullOrWhiteSpace(hostsFilePath))
+        {
+            var target = GetAttribute(
+                resource,
+                ResourceAttributeNames.NameMappingLocalHostNamesHostsFileTarget,
+                "System");
+            var targetLabel = string.Equals(target, "Custom", StringComparison.OrdinalIgnoreCase)
+                ? localize("custom")
+                : localize("system");
+            metadata.Add($"{localize("Hosts file")}: {targetLabel} ({hostsFilePath})");
+        }
+
+        if (resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshStatus,
+                out var refreshStatus) &&
+            !string.IsNullOrWhiteSpace(refreshStatus))
+        {
+            metadata.Add($"{localize("Resolver")}: {GetResolverRefreshLabel(refreshStatus, localize)}");
+        }
+
+        return metadata;
+    }
+
     public static string GetSummary(Resource resource, string targetName) =>
         $"{GetHostName(resource)} -> {targetName}/{GetTargetEndpointName(resource)}";
 
@@ -109,6 +143,15 @@ public static class ResourceNameMappingDisplay
         !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
+
+    private static string GetResolverRefreshLabel(string status, Func<string, string> localize) =>
+        status switch
+        {
+            "Succeeded" => localize("refreshed"),
+            "Failed" => localize("refresh failed"),
+            "Skipped" => localize("not refreshed"),
+            var value => value
+        };
 
     private static bool IsHttpUri(Uri uri) =>
         uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||

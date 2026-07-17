@@ -911,8 +911,9 @@ listed here before pulling in broader proposal work.
   tab, and application endpoint shortcuts now prefer the existing load balancer
   in the same group when there is exactly one candidate. Provider-selected
   name mappings now show a pending-publish diagnostic before the first
-  reconcile observation. Next it needs richer provider-specific DNS runtime
-  diagnostics when the MVP management flow needs them.
+  reconcile observation. Local host-name publisher runtime details, including
+  hosts-file target and resolver-refresh status, now appear in DNS/name-mapping
+  list metadata.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when
