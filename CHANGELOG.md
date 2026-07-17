@@ -105,6 +105,8 @@ on `git blame --follow`, and then by the broad type of change.
   display labels instead of lowercase sentinel text.
 - Clarified Resource Manager inventory-visibility settings so
   system-managed resources are not described as runtime resources.
+- Clarified the resource Activity event-type filter placeholder so it avoids
+  raw/exact event-type wording.
 - Improved Log Explorer read and streaming failures so the UI shows stable
   recovery guidance while logging original exceptions for diagnostics.
 - Improved the Event Broker streams view so cancelled refreshes do not surface
