@@ -147,11 +147,11 @@ else
                                                            Title="@FormatName(exchange.Name)"
                                                            Summary="@exchange.VirtualHost" />
                                 </td>
-                                <td>@exchange.Type</td>
+                                <td>@FormatExchangeType(exchange.Type)</td>
                                 <td>@FormatBoolean(exchange.Durable)</td>
                                 <td>@FormatBoolean(exchange.AutoDelete)</td>
                                 <td>@FormatBoolean(exchange.Internal)</td>
-                                <td>@exchange.VirtualHost</td>
+                                <td>@FormatVirtualHost(exchange.VirtualHost)</td>
                             </tr>
                         }
                     </tbody>
@@ -197,7 +197,7 @@ else
                                 </td>
                                 <td>@FormatDestinationType(binding.DestinationType)</td>
                                 <td>@FormatRoutingKey(binding.RoutingKey)</td>
-                                <td>@binding.VirtualHost</td>
+                                <td>@FormatVirtualHost(binding.VirtualHost)</td>
                                 <td>@FormatNullable(binding.PropertiesKey)</td>
                             </tr>
                         }
@@ -296,46 +296,57 @@ else
         string.IsNullOrEmpty(routingKey) ? "(empty)" : routingKey;
 
     private static string FormatNullable(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "n/a" : value;
+        string.IsNullOrWhiteSpace(value) ? "None" : value;
 
     private static string FormatQueueState(string? state) =>
-        state switch
+        state?.Trim().ToLowerInvariant() switch
         {
             "running" => "Running",
             "idle" => "Idle",
             "flow" => "Flow controlled",
             "blocked" => "Blocked",
-            { Length: > 0 } => state,
-            _ => "n/a"
+            { Length: > 0 } => "Custom",
+            _ => "Not reported"
         };
 
     private static string FormatQueueType(string? type) =>
-        type switch
+        type?.Trim().ToLowerInvariant() switch
         {
             "classic" => "Classic",
             "quorum" => "Quorum",
             "stream" => "Stream",
-            { Length: > 0 } => type,
-            _ => "n/a"
+            { Length: > 0 } => "Custom",
+            _ => "Not reported"
+        };
+
+    private static string FormatExchangeType(string? type) =>
+        type?.Trim().ToLowerInvariant() switch
+        {
+            "direct" => "Direct",
+            "fanout" => "Fanout",
+            "headers" => "Headers",
+            "topic" => "Topic",
+            { Length: > 0 } => "Custom",
+            _ => "Not reported"
         };
 
     private static string FormatDestinationType(string? destinationType) =>
-        destinationType switch
+        destinationType?.Trim().ToLowerInvariant() switch
         {
             "queue" => "Queue",
             "exchange" => "Exchange",
-            { Length: > 0 } => destinationType,
-            _ => "n/a"
+            { Length: > 0 } => "Custom",
+            _ => "Not reported"
         };
 
     private static string FormatNumber(int? value) =>
-        value?.ToString(CultureInfo.InvariantCulture) ?? "n/a";
+        value?.ToString(CultureInfo.InvariantCulture) ?? "Not reported";
 
     private static string FormatBoolean(bool value) =>
         value ? "Yes" : "No";
 
     private static string FormatTimestamp(DateTimeOffset? value) =>
-        value?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? "n/a";
+        value?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? "Not reported";
 
     private static string FormatDestinationSummary(RabbitMQBindingInfo binding) =>
         string.IsNullOrWhiteSpace(binding.RoutingKey)
