@@ -112,6 +112,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Clarified application storage mount summaries and shared mount status labels
   so users see configured and active storage state instead of runtime
   materialization wording.
+- Improved Secrets Vault certificate generation errors so the UI shows stable
+  recovery guidance instead of raw cryptography exception messages.
 - Updated Storage resource volume consumers to sort by the same qualified
   resource labels shown in Resource Manager.
 - Improved the shared application Configuration tab so startup dependencies
