@@ -58,6 +58,9 @@ on `git blame --follow`, and then by the broad type of change.
   so materialized replica links and ordering use qualified resource labels.
 - Improved the SQL Server Databases tab so projected database rows link to
   their Resource Manager details while preserving visible resource IDs.
+- Improved the shared application Environment tab so configuration and secret
+  references use readable Resource Manager labels and link to their referenced
+  resources when available.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.
