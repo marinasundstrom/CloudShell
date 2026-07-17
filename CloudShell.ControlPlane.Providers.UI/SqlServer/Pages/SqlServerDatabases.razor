@@ -43,7 +43,7 @@ else
                 <tr>
                     <th>Database</th>
                     <th>Source</th>
-                    <th>Ensure created</th>
+                    <th>Auto-create</th>
                     <th>State</th>
                     <th>Verification</th>
                 </tr>
@@ -64,7 +64,7 @@ else
                             </ResourceTableIdentity>
                         </td>
                         <td>@FormatSource(database.Source)</td>
-                        <td>@FormatBoolean(database.EnsureCreated)</td>
+                        <td>@FormatEnsureCreated(database.EnsureCreated)</td>
                         <td>@FormatState(database.Resource.State)</td>
                         <td>@database.Verification</td>
                     </tr>
@@ -176,12 +176,12 @@ else
             ? parsed
             : null;
 
-    private static string FormatBoolean(bool? value) =>
+    private static string FormatEnsureCreated(bool? value) =>
         value switch
         {
             true => "Yes",
             false => "No",
-            _ => "not declared"
+            _ => "Not configured"
         };
 
     private static string FormatState(Abstractions.ResourceManager.ResourceState? state) =>
@@ -194,18 +194,18 @@ else
             Abstractions.ResourceManager.ResourceState.Degraded => "Needs attention",
             Abstractions.ResourceManager.ResourceState.Stopped => "Stopped",
             Abstractions.ResourceManager.ResourceState.Unknown => "Unknown",
-            null => "not observed",
-            _ => state.ToString() ?? "not observed"
+            null => "Not reported",
+            _ => "Unknown"
         };
 
     private static string FormatSource(string source) =>
-        source switch
+        source.Trim().ToLowerInvariant() switch
         {
             "declared" => "Declared",
             "provider" => "Provider",
             "imported" => "Imported",
-            { Length: > 0 } => source,
-            _ => "not declared"
+            { Length: > 0 } => "Other",
+            _ => "Not configured"
         };
 
     private sealed record SqlDatabaseRow(
