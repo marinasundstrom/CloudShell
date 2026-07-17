@@ -25,6 +25,12 @@ else
         {
             <ProcedureMessage Message="@ErrorMessage" />
         }
+        @if (RemovedExistingSettings.Count > 0)
+        {
+            <ProcedureMessage Compact="true" Severity="ResourceSignalSeverity.Warning" Role="status">
+                @GetRemovedSettingSummary()
+            </ProcedureMessage>
+        }
 
         <ResourceEditorSection Class="configuration-store-setting-editor">
             <Actions>
@@ -66,6 +72,7 @@ else
     private CloudShell.Abstractions.ResourceManager.Resource? Resource { get; set; }
     private IConfigurationStoreRuntimeSettingManager? SettingManager { get; set; }
     private List<SettingInput> Settings { get; } = [];
+    private List<string> RemovedExistingSettings { get; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private string? ErrorMessage { get; set; }
 
@@ -78,6 +85,7 @@ else
             : await ResourceManager.GetResourceAsync(ResourceId);
 
         Settings.Clear();
+        RemovedExistingSettings.Clear();
         if (SettingManager is not null && Resource is not null)
         {
             var settings = await SettingManager.ListSettingsAsync(Resource.Id);
@@ -121,6 +129,7 @@ else
     private void RemoveSetting(SettingInput setting)
     {
         Settings.Remove(setting);
+        TrackRemovedSetting(setting);
         if (Settings.Count == 0)
         {
             Settings.Add(new());
@@ -147,7 +156,30 @@ else
             settings,
             cancellationToken);
         ErrorMessage = null;
+        RemovedExistingSettings.Clear();
         return ResourceProcedureResult.Completed("Configuration Store settings updated.");
+    }
+
+    private void TrackRemovedSetting(SettingInput setting)
+    {
+        if (!setting.IsExisting || string.IsNullOrWhiteSpace(setting.Name))
+        {
+            return;
+        }
+
+        var label = setting.Name.Trim();
+        if (!RemovedExistingSettings.Contains(label, StringComparer.OrdinalIgnoreCase))
+        {
+            RemovedExistingSettings.Add(label);
+        }
+    }
+
+    private string GetRemovedSettingSummary()
+    {
+        var names = string.Join(", ", RemovedExistingSettings.Order(StringComparer.OrdinalIgnoreCase));
+        return RemovedExistingSettings.Count == 1
+            ? $"Setting {names} will be deleted when you apply changes."
+            : $"Settings {names} will be deleted when you apply changes.";
     }
 
     private IReadOnlyList<ConfigurationStoreRuntimeSetting>? BuildSettings()
@@ -187,11 +219,14 @@ else
 
         public string? Value { get; set; }
 
+        public bool IsExisting { get; set; }
+
         public static SettingInput FromSetting(ConfigurationStoreRuntimeSetting setting) =>
             new()
             {
                 Name = setting.Name,
-                Value = setting.Value
+                Value = setting.Value,
+                IsExisting = true
             };
     }
 }
