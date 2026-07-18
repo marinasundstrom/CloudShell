@@ -302,6 +302,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests));
 
         var graph = new ResourceGraphModel(new InMemoryResourceStateProvider([resource.State]));
+        _ = graph.GetSnapshot();
         var provider = new LocalDockerContainerApplicationRuntimeResourceProvider(
             graph,
             resolver,
@@ -329,6 +330,40 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 expectedServiceId,
                 expectedReplicaGroupId,
                 expectedRevisionId));
+    }
+
+    [Fact]
+    public async Task RuntimeProvider_UsesCachedGraphSnapshotWhenGraphRefreshIsBusy()
+    {
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092,
+            includeHealthChecks: true);
+        var stateProvider = new BlockingResourceStateProvider(resource.State);
+        var graph = new ResourceGraphModel(stateProvider);
+        _ = graph.GetSnapshot();
+        stateProvider.BlockNextSnapshot();
+        var refreshTask = graph.RefreshAsync(ResourceGraphRefreshContext.Full).AsTask();
+
+        await stateProvider.WaitUntilBlockedAsync();
+        var provider = new LocalDockerContainerApplicationRuntimeResourceProvider(
+            graph,
+            CreateResourceResolver(),
+            new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running),
+            CreateConfiguration());
+
+        try
+        {
+            var replicas = await Task.Run(provider.GetResources)
+                .WaitAsync(TimeSpan.FromSeconds(1));
+
+            Assert.Equal(2, replicas.Count);
+        }
+        finally
+        {
+            stateProvider.ReleaseBlockedSnapshot();
+            await refreshTask;
+        }
     }
 
     [Fact]
@@ -1786,6 +1821,53 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         int? ReplicaOrdinal,
         ResourceActionKind? ActionKind,
         int RoutingBindingCount);
+
+    private sealed class BlockingResourceStateProvider(CloudShell.ResourceModel.ResourceState resource) : IResourceStateProvider
+    {
+        private TaskCompletionSource? blocked;
+        private TaskCompletionSource? release;
+        private int blockNextSnapshot;
+
+        public void BlockNextSnapshot()
+        {
+            blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            blockNextSnapshot = 1;
+        }
+
+        public async Task WaitUntilBlockedAsync()
+        {
+            if (blocked is null)
+            {
+                throw new InvalidOperationException("The blocking snapshot was not configured.");
+            }
+
+            await blocked.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        }
+
+        public void ReleaseBlockedSnapshot() => release?.TrySetResult();
+
+        public async ValueTask<ResourceGraphSnapshot> GetSnapshotAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Exchange(ref blockNextSnapshot, 0) == 1)
+            {
+                blocked?.TrySetResult();
+                if (release is not null)
+                {
+                    await release.Task.WaitAsync(cancellationToken);
+                }
+            }
+
+            return new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [resource]);
+        }
+
+        public ValueTask<ResourceGraphCommitResult> CommitAsync(
+            ResourceGraphChangeSet changes,
+            ResourceGraphCommitContext context,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
 
     private sealed class RecordingResourceManagerStore(
         params CloudShell.Abstractions.ResourceManager.Resource[] resources) : IResourceManagerStore

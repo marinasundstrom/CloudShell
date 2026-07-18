@@ -32,6 +32,8 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
         }
     }
 
+    public ResourceGraphSnapshot? GetCachedSnapshot() => Volatile.Read(ref _snapshot);
+
     public async ValueTask<ResourceGraphSnapshot> ReloadAsync(
         CancellationToken cancellationToken = default) =>
         await RefreshAsync(ResourceGraphRefreshContext.Full, cancellationToken);

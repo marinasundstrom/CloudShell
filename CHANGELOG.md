@@ -15,6 +15,12 @@ on `git blame --follow`, and then by the broad type of change.
 
 ### 2026-07-18
 
+#### Fixed
+
+- Fixed ReplicatedContainerHealth Resource Manager reads after starting a
+  replicated container app so hidden runtime-replica projection no longer
+  blocks on an in-flight resource graph refresh.
+
 #### Changed
 
 - Included exported resource type metadata with resource template exports so
