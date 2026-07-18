@@ -307,6 +307,13 @@ round-tripping. They do not receive provider implementations; validation,
 apply, projection, and runtime behavior remain installed in the Control Plane
 through provider packages.
 
+For generated launcher builders, the same schema facets should become the
+generator input. A provider may keep the source schema as YAML, generate or
+load the runtime `ResourceClassDefinition` and `ResourceTypeDefinition`
+records, and expose those through the catalog. Builder generators should then
+emit fluent APIs that write canonical attribute IDs while presenting stable
+authored names from schema `Path` metadata.
+
 ## Commands And Delete
 
 Templates are not the only way to operate resources.

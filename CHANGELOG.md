@@ -85,6 +85,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Extended resource template export results with class definitions and
   capability attribute schemas so remote clients can rebuild schema-aware
   serializer options without loading provider implementations.
+- Added a stable Resource Definition schema projection for generated launcher
+  builder APIs and made template attribute serialization order deterministic by
+  authored document path.
 
 ### 2026-07-17
 

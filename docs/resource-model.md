@@ -770,6 +770,37 @@ disambiguation form when authored paths or aliases collide. If two definitions
 claim the same authored path, that path is ambiguous, but authors can still use
 the canonical `ResourceAttributeId` to select the intended attribute.
 
+The same composed schema is also the input contract for generated launcher and
+language-SDK builder APIs. Code generators should consume the
+`ResourceDefinitionSchemaCatalog` resource schema view rather than reflecting
+provider-specific builder classes. That view exposes a deterministic list of
+attributes with canonical IDs, authored document paths, aliases, value shapes,
+and source metadata that tells whether the attribute came from the class, type,
+or a capability. Generated APIs should keep using canonical IDs internally and
+only expose authored names as user-facing method/property names.
+
+`ResourceClassDefinition` and `ResourceTypeDefinition` are schemas. They are
+not merely runtime registration objects. Over time, provider packages may store
+those schemas as checked-in YAML artifacts and generate C#, TypeScript, or
+other launcher builder APIs from them. That path would make schema review,
+documentation, editor support, and API generation more predictable. The YAML
+artifact should be treated as provider-owned source for a specific schema
+version; it should not become a detached contract that can drift from the
+provider implementation that validates, projects, applies, and runs the
+resource.
+
+The current in-memory definition records remain the runtime representation.
+That keeps today's provider packages simple while leaving a clean transition
+path: load or generate `ResourceClassDefinition`, `ResourceTypeDefinition`,
+and capability attribute schemas from YAML, put them into
+`ResourceDefinitionSchemaCatalog`, and let serializers and generator pipelines
+consume the same catalog API.
+
+Template serialization should be deterministic. Attribute output is ordered by
+the resolved authored document path and then by canonical attribute ID, so
+launcher-generated templates remain stable even when a fluent builder sets
+attributes in a different order.
+
 The desired compatibility model is:
 
 - `Id` is stable and unique within the schema boundary that owns the

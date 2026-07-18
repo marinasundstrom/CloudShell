@@ -808,6 +808,84 @@ resources:
     }
 
     [Fact]
+    public void ResourceDefinitionSchemaCatalog_ProjectsStableResourceSchemaForGeneratedBuilders()
+    {
+        var classDefinition = new ResourceClassDefinition(
+            ResourceClassId.Create("sample.class"),
+            Capabilities: [new(ResourceCapabilityId.Create("sample.capability"))],
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                [ResourceAttributeId.Create("sample.class.setting")] = new(Path: "settings.class")
+            });
+        var typeDefinition = new ResourceTypeDefinition(
+            ResourceTypeId.Create("sample.type"),
+            classDefinition.ClassId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                [ResourceAttributeId.Create("sample.type.name")] = new(Path: "name")
+            });
+        var capabilitySchema = new ResourceCapabilityAttributeSchema(
+            ResourceCapabilityId.Create("sample.capability"),
+            new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                [ResourceAttributeId.Create("sample.capability.environment")] = new(
+                    Path: "environment",
+                    ValueType: ResourceAttributeValueType.ComplexType)
+            });
+        var catalog = new ResourceDefinitionSchemaCatalog(
+            [typeDefinition],
+            [capabilitySchema],
+            [classDefinition]);
+
+        var schema = catalog.GetResourceSchema(ResourceTypeId.Create("sample.type"));
+
+        Assert.NotNull(schema);
+        Assert.Equal(typeDefinition.TypeId, schema.TypeId);
+        Assert.Equal(classDefinition.ClassId, schema.ClassId);
+        Assert.Equal(
+            ["environment", "name", "settings.class"],
+            schema.Attributes.Select(attribute => attribute.DocumentPath).ToArray());
+        Assert.Equal(
+            ResourceDefinitionValueSource.CapabilityDefinition,
+            schema.Attributes[0].Source);
+        Assert.Equal("sample.capability", schema.Attributes[0].SourceId);
+        Assert.Equal(
+            ResourceDefinitionValueSource.TypeDefinition,
+            schema.Attributes[1].Source);
+        Assert.Equal(
+            ResourceDefinitionValueSource.ClassDefinition,
+            schema.Attributes[2].Source);
+    }
+
+    [Fact]
+    public void SerializeDefinition_OrdersAttributesByAuthoredDocumentPath()
+    {
+        var definition = new ResourceDefinition(
+            "api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode] = "Cookie",
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = 3,
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "api:latest"
+            });
+        var options = new ResourceTemplateSerializerOptions(
+            [new ContainerApplicationResourceTypeProvider().TypeDefinition]);
+
+        var yaml = ResourceTemplateSerializer.SerializeDefinition(
+            definition,
+            ResourceTemplateFormat.Yaml,
+            options);
+
+        Assert.True(
+            yaml.IndexOf("image:", StringComparison.Ordinal) <
+            yaml.IndexOf("replicas:", StringComparison.Ordinal));
+        Assert.True(
+            yaml.IndexOf("replicas:", StringComparison.Ordinal) <
+            yaml.IndexOf("routing:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void DeserializeTemplate_RejectsAmbiguousSchemaAttributePath()
     {
         const string yaml = """

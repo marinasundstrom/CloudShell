@@ -151,6 +151,16 @@ same resource model provider package. Template import/export can consume those
 schema facets through a `ResourceDefinitionSchemaCatalog`, while validation and
 execution continue through the provider interfaces.
 
+Provider packages may later move their class/type definitions and capability
+attribute schemas into checked-in YAML artifacts. That is a good fit for
+generated launcher builders and language SDKs because it gives generation a
+stable source that is easy to diff and review. The provider package still owns
+the artifact version and must ship matching implementation code. Hosts should
+register the compiled/runtime representation of those schemas into the
+`ResourceDefinitionSchemaCatalog`; generators can consume either the YAML
+source or the catalog projection as long as both represent the same provider
+version.
+
 Provider packages should expose a host registration method such as
 `AddContainerApplicationResourceType(...)` or `UseContainerApplicationResourceProvider(...)`
 so hosts install the full provider slice consistently.

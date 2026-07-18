@@ -436,7 +436,12 @@ public static class ResourceTemplateSerializer
 
         if (context.IsAttributeMap)
         {
-            foreach (var property in value.EnumerateObject())
+            foreach (var property in value
+                .EnumerateObject()
+                .OrderBy(
+                    property => ResolveDocumentAttributePath(attributeDefinitions, property.Name),
+                    StringComparer.OrdinalIgnoreCase)
+                .ThenBy(property => property.Name, StringComparer.OrdinalIgnoreCase))
             {
                 AddDottedProperty(
                     normalized,
