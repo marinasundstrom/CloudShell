@@ -405,30 +405,6 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<SharedPages.ApplicationEnvironment>(
-                AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourcePredefinedViewIds.Environment,
-                "Environment",
-                25,
-                groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<SharedPages.ApplicationEnvironment>(
-                JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourcePredefinedViewIds.Environment,
-                "Environment",
-                25,
-                groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<SharedPages.ApplicationEnvironment>(
-                JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourcePredefinedViewIds.Environment,
-                "Environment",
-                25,
-                groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<SharedPages.ApplicationEnvironment>(
-                GoAppResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourcePredefinedViewIds.Environment,
-                "Environment",
-                25,
-                groupTitle: ResourceTabGroupTitles.Management)
             .AddResourceTab<SharedPages.ApplicationStorage>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
@@ -492,12 +468,6 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "Configuration",
                 50,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<SharedPages.ApplicationEnvironment>(
-                ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourcePredefinedViewIds.Environment,
-                "Environment",
-                55,
-                groupTitle: ResourceTabGroupTitles.Management)
             .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
