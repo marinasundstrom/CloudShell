@@ -71,7 +71,7 @@ and custom metrics as usage samples. Resource Manager exposes:
 - resource-scoped Usage tabs
 - aggregate statistics
 - short-horizon trend projections
-- filters and tables for recent metric samples
+- drill-down tables for detailed statistics and recent metric samples
 
 Usage samples are retained in memory by default. Hosts can opt into
 database-backed sample persistence with per-resource retention settings; see
@@ -81,6 +81,13 @@ database-backed sample persistence with per-resource retention settings; see
 Usage records must not contain secrets. Metric metadata can include non-secret
 facts such as provider name, metric display name, unit, scope, and resource ID
 so dashboards can summarize usage without depending on one provider shape.
+
+Usage views should be summary-first. The default overview should explain usage
+through aggregate cards and trend charts, while detailed metric inventories and
+recent sample tables remain available as secondary drill-down content. Future
+provider and shell extension work should allow hosts to contribute customized
+usage summaries, charts, and metric groupings for their users without replacing
+the underlying usage sample/statistics APIs.
 
 ## API
 

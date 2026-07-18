@@ -53,6 +53,9 @@ on `git blame --follow`, and then by the broad type of change.
   fixed mask instead of a placeholder derived from stored value length.
 - Moved RabbitMQ Broker pages away from showing raw resource identifiers in the
   primary broker details.
+- Cleaned up Usage pages so overview content is summary/chart-first, detailed
+  metric/sample tables are secondary drill-down content, and sample metadata
+  details use readable labels.
 
 #### Changed
 

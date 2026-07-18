@@ -4461,8 +4461,35 @@ h3 {
     background: var(--cloudshell-surface);
 }
 
+.usage-detail-section {
+    margin-top: .9rem;
+    border-top: 1px solid var(--cloudshell-divider);
+    padding-top: .65rem;
+}
+
+.usage-detail-section summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    cursor: pointer;
+    color: var(--cloudshell-text);
+    font-size: .85rem;
+    font-weight: 600;
+}
+
+.usage-detail-section summary small {
+    color: var(--cloudshell-muted);
+    font-size: .74rem;
+    font-weight: 500;
+}
+
+.usage-detail-section[open] .usage-table-shell {
+    margin-top: .65rem;
+}
+
 .usage-sample-table {
-    margin-top: .75rem;
+    margin-top: 0;
 }
 
 .usage-table {

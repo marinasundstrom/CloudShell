@@ -191,93 +191,112 @@ else
                     </div>
                 }
 
-                <div class="usage-table-shell">
-                    <table class="usage-table" aria-label="@L["Usage statistics"]">
-                        <thead>
-                            <tr>
-                                <th scope="col">@L["Resource"]</th>
-                                <th scope="col">@L["Usage metric"]</th>
-                                <th scope="col">@L["Latest"]</th>
-                                <th scope="col">@L["Sum"]</th>
-                                <th scope="col">@L["Average"]</th>
-                                <th scope="col">@L["Samples"]</th>
-                                <th scope="col">@L["Window"]</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var statistic in Statistics)
-                            {
-                                <tr>
-                                    <td>@GetResourceLabel(statistic.ResourceId)</td>
-                                    <td>
-                                        <span class="usage-metric-name">@GetUsageDisplayName(statistic.Name)</span>
-                                        @if (!string.Equals(GetUsageDisplayName(statistic.Name), statistic.Name, StringComparison.Ordinal))
-                                        {
-                                            <span class="usage-metric-id">@statistic.Name</span>
-                                        }
-                                    </td>
-                                    <td>@FormatUsageValue(statistic.LatestValue, statistic.Unit)</td>
-                                    <td>@FormatUsageValue(statistic.Sum, statistic.Unit)</td>
-                                    <td>@FormatUsageValue(statistic.Average, statistic.Unit)</td>
-                                    <td>@statistic.Count</td>
-                                    <td>@FormatWindow(statistic.FirstTimestamp, statistic.LastTimestamp)</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                @if (Statistics.Count > 0)
+                {
+                    <details class="usage-detail-section">
+                        <summary>
+                            <span>@L["Detailed usage statistics"]</span>
+                            <small>@L["{0} metric(s)", Statistics.Count]</small>
+                        </summary>
+                        <div class="usage-table-shell">
+                            <table class="usage-table" aria-label="@L["Usage statistics"]">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">@L["Resource"]</th>
+                                        <th scope="col">@L["Usage metric"]</th>
+                                        <th scope="col">@L["Latest"]</th>
+                                        <th scope="col">@L["Sum"]</th>
+                                        <th scope="col">@L["Average"]</th>
+                                        <th scope="col">@L["Samples"]</th>
+                                        <th scope="col">@L["Window"]</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var statistic in Statistics)
+                                    {
+                                        <tr>
+                                            <td>@GetResourceLabel(statistic.ResourceId)</td>
+                                            <td>
+                                                <span class="usage-metric-name">@GetUsageDisplayName(statistic.Name)</span>
+                                                @if (!string.Equals(GetUsageDisplayName(statistic.Name), statistic.Name, StringComparison.Ordinal))
+                                                {
+                                                    <span class="usage-metric-id">@statistic.Name</span>
+                                                }
+                                            </td>
+                                            <td>@FormatUsageValue(statistic.LatestValue, statistic.Unit)</td>
+                                            <td>@FormatUsageValue(statistic.Sum, statistic.Unit)</td>
+                                            <td>@FormatUsageValue(statistic.Average, statistic.Unit)</td>
+                                            <td>@statistic.Count</td>
+                                            <td>@FormatWindow(statistic.FirstTimestamp, statistic.LastTimestamp)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                }
 
                 @if (RecentSamples.Count > 0)
                 {
-                    <div class="usage-table-shell usage-sample-table">
-                        <table class="usage-table usage-samples-table" aria-label="@L["Recent usage samples"]">
-                            <thead>
-                                <tr>
-                                    <th class="usage-table-time" scope="col">@L["Time"]</th>
-                                    <th scope="col">@L["Resource"]</th>
-                                    <th scope="col">@L["Usage metric"]</th>
-                                    <th class="usage-table-value" scope="col">@L["Value"]</th>
-                                    <th scope="col">@L["Details"]</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var sample in RecentSamples)
-                                {
+                    <details class="usage-detail-section">
+                        <summary>
+                            <span>@L["Recent usage samples"]</span>
+                            <small>@L["{0} sample(s)", RecentSamples.Count]</small>
+                        </summary>
+                        <div class="usage-table-shell usage-sample-table">
+                            <table class="usage-table usage-samples-table" aria-label="@L["Recent usage samples"]">
+                                <thead>
                                     <tr>
-                                        <td class="usage-table-time">
-                                            <time>@sample.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)</time>
-                                        </td>
-                                        <td>@GetResourceLabel(sample.ResourceId)</td>
-                                        <td>
-                                            <span class="usage-metric-name">@GetUsageDisplayName(sample.Name)</span>
-                                            @if (!string.Equals(GetUsageDisplayName(sample.Name), sample.Name, StringComparison.Ordinal))
-                                            {
-                                                <span class="usage-metric-id">@sample.Name</span>
-                                            }
-                                        </td>
-                                        <td class="usage-table-value">@FormatUsageValue(sample.Value, sample.Unit)</td>
-                                        <td>
-                                            @if (sample.UsageAttributes.Count == 0)
-                                            {
-                                                <span class="usage-table-empty">@L["No details"]</span>
-                                            }
-                                            else
-                                            {
-                                                <div class="usage-attributes">
-                                                    @foreach (var usageAttribute in sample.UsageAttributes)
-                                                    {
-                                                        <span class="usage-attribute">
-                                                            <strong>@usageAttribute.Key</strong>=@usageAttribute.Value
-                                                        </span>
-                                                    }
-                                                </div>
-                                            }
-                                        </td>
+                                        <th class="usage-table-time" scope="col">@L["Time"]</th>
+                                        <th scope="col">@L["Resource"]</th>
+                                        <th scope="col">@L["Usage metric"]</th>
+                                        <th class="usage-table-value" scope="col">@L["Value"]</th>
+                                        <th scope="col">@L["Details"]</th>
                                     </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    @foreach (var sample in RecentSamples)
+                                    {
+                                        <tr>
+                                            <td class="usage-table-time">
+                                                <time>@sample.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)</time>
+                                            </td>
+                                            <td>@GetResourceLabel(sample.ResourceId)</td>
+                                            <td>
+                                                <span class="usage-metric-name">@GetUsageDisplayName(sample.Name)</span>
+                                                @if (!string.Equals(GetUsageDisplayName(sample.Name), sample.Name, StringComparison.Ordinal))
+                                                {
+                                                    <span class="usage-metric-id">@sample.Name</span>
+                                                }
+                                            </td>
+                                            <td class="usage-table-value">@FormatUsageValue(sample.Value, sample.Unit)</td>
+                                            <td>
+                                                @{
+                                                    var visibleAttributes =
+                                                        UsageSampleAttributeDisplay.CreateVisibleAttributes(sample.UsageAttributes);
+                                                }
+                                                @if (visibleAttributes.Count == 0)
+                                                {
+                                                    <span class="usage-table-empty">@L["No details"]</span>
+                                                }
+                                                else
+                                                {
+                                                    <div class="usage-attributes">
+                                                        @foreach (var usageAttribute in visibleAttributes)
+                                                        {
+                                                            <span class="usage-attribute">
+                                                                <strong>@usageAttribute.Label</strong>: @usageAttribute.Value
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
                 }
             }
     </section>
