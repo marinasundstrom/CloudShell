@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Updated sample smoke assertions to follow current Resource Manager labels
+  for package upload, resource diagnostics, replica entries, and provider
+  resource registration.
 - Clarified the common Usage page recent-samples table so sample metadata is
   presented as details instead of raw attributes.
 - Clarified the Environment summary metric for replica reconciliation so open
