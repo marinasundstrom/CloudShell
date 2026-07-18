@@ -207,7 +207,7 @@
             ExportDocument = ResourceTemplateSerializer.SerializeTemplate(
                 result.Template,
                 SelectedTemplateFormat,
-                CreateSerializerOptions());
+                CreateSerializerOptions(result.ResourceTypes));
             ImportDocument = ExportDocument;
             Diagnostics.AddRange(result.Diagnostics);
             StatusMessage = L["Exported {0} resources.", result.Template.Resources.Count].Value;
@@ -296,8 +296,12 @@
         };
     }
 
-    private ResourceTemplateSerializerOptions CreateSerializerOptions() =>
-        new(ResourceTypeProviders.Select(provider => provider.TypeDefinition));
+    private ResourceTemplateSerializerOptions CreateSerializerOptions(
+        IEnumerable<ResourceTypeDefinition>? exportResourceTypes = null) =>
+        new((exportResourceTypes ?? [])
+            .Concat(ResourceTypeProviders.Select(provider => provider.TypeDefinition))
+            .GroupBy(resourceType => resourceType.TypeId)
+            .Select(group => group.First()));
 
     private async Task LoadGroupsAsync()
     {

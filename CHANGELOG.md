@@ -13,6 +13,14 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-18
+
+#### Changed
+
+- Included exported resource type metadata with resource template exports so
+  API and split-hosting clients can serialize templates with authored
+  attribute paths instead of fallback attribute groups.
+
 ### 2026-07-17
 
 #### Changed

@@ -24,9 +24,22 @@ using System.Net;
 using System.Net.Http.Json;
 using ResourceDefinitionApplyMode = CloudShell.ResourceModel.ResourceDefinitionApplyMode;
 using ResourceDefinitionDiagnostic = CloudShell.ResourceModel.ResourceDefinitionDiagnostic;
+using ResourceAttributeDefinition = CloudShell.ResourceModel.ResourceAttributeDefinition;
+using ResourceAttributeId = CloudShell.ResourceModel.ResourceAttributeId;
+using ResourceAttributeValue = CloudShell.ResourceModel.ResourceAttributeValue;
+using ResourceAttributeValueMap = CloudShell.ResourceModel.ResourceAttributeValueMap;
+using ResourceAttributeValueType = CloudShell.ResourceModel.ResourceAttributeValueType;
+using ResourceClassDefinition = CloudShell.ResourceModel.ResourceClassDefinition;
+using ResourceClassId = CloudShell.ResourceModel.ResourceClassId;
+using ResourceDefinition = CloudShell.ResourceModel.ResourceDefinition;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 using ResourceDefinitionValidationResult = CloudShell.ResourceModel.ResourceDefinitionValidationResult;
+using ResourceProviderContext = CloudShell.ResourceModel.ResourceProviderContext;
+using ResourceModelResource = CloudShell.ResourceModel.Resource;
 using ResourceTypeId = CloudShell.ResourceModel.ResourceTypeId;
+using ResourceTypeDefinition = CloudShell.ResourceModel.ResourceTypeDefinition;
+using ResourceTemplateSerializer = CloudShell.ResourceModel.ResourceTemplateSerializer;
+using IResourceTypeProvider = CloudShell.ResourceModel.IResourceTypeProvider;
 
 namespace CloudShell.ControlPlane.Client.Tests;
 
@@ -1408,6 +1421,41 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ExportsResourceTypesForTemplateSerialization()
+    {
+        await using var app = await CreateAppAsync(includeTemplateResource: true);
+        var controlPlane = CreateClient(app);
+
+        var exported = await controlPlane.ExportResourceTemplateAsync(
+            new ResourceTemplateExportRequest(
+                "Contract widget export",
+                [ContractTemplateResourceTypeProvider.ResourceId]));
+        var serializerOptions = exported.CreateSerializerOptions();
+        var yaml = ResourceTemplateSerializer.SerializeTemplate(
+            exported.Template,
+            options: serializerOptions);
+        var roundTripped = ResourceTemplateSerializer.DeserializeTemplate(
+            yaml,
+            options: serializerOptions);
+        var resource = Assert.Single(roundTripped.Resources);
+
+        Assert.Equal("Contract widget export", exported.Template.Name);
+        Assert.Empty(exported.Diagnostics);
+        Assert.Equal(
+            ContractTemplateResourceTypeProvider.ResourceTypeId,
+            Assert.Single(exported.ResourceTypes ?? []).TypeId);
+        Assert.Contains("image: example/widget:1", yaml);
+        Assert.DoesNotContain("attributes:", yaml);
+        Assert.DoesNotContain("container:", yaml);
+        Assert.DoesNotContain(
+            ContractTemplateResourceTypeProvider.Attributes.Image.ToString(),
+            yaml);
+        Assert.Equal(
+            "example/widget:1",
+            resource.ResourceAttributes[ContractTemplateResourceTypeProvider.Attributes.Image]);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_UploadsDeploymentArtifactToConfiguredHostStore()
     {
         await using var app = await CreateAppAsync();
@@ -1679,6 +1727,7 @@ public sealed class RemoteControlPlaneContractTests
         bool includeResolutionFailureResource = false,
         bool includeRuntimeResource = false,
         bool includeProviderLogSource = false,
+        bool includeTemplateResource = false,
         ICloudShellAuthorizationService? authorization = null)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -1748,6 +1797,11 @@ public sealed class RemoteControlPlaneContractTests
         {
             builder.Services.AddSingleton<ILogProvider, ContractProviderLogProvider>();
         }
+        if (includeTemplateResource)
+        {
+            builder.Services.AddSingleton(ContractTemplateResourceTypeProvider.ClassDefinition);
+            builder.Services.AddSingleton<IResourceTypeProvider, ContractTemplateResourceTypeProvider>();
+        }
 
         controlPlane.AddIdentityProvider(
             "identity:contract",
@@ -1794,6 +1848,21 @@ public sealed class RemoteControlPlaneContractTests
                     .ExposeTcp(5432)
                     .MapHost("app.local", app, endpoint: "http")
                     .MapTcp(5432, postgres, endpoint: "postgres");
+            }
+            if (includeTemplateResource)
+            {
+                resources.AddResourceTypeDefinition(ContractTemplateResourceTypeProvider.Definition);
+                resources.Add(new ResourceDefinition(
+                    "widget",
+                    ContractTemplateResourceTypeProvider.ResourceTypeId,
+                    ResourceId: ContractTemplateResourceTypeProvider.ResourceId,
+                    ProviderId: ContractTemplateResourceTypeProvider.ProviderId,
+                    Attributes: new ResourceAttributeValueMap(
+                        new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                        {
+                            [ContractTemplateResourceTypeProvider.Attributes.Image] =
+                                "example/widget:1"
+                        })));
             }
         });
 
@@ -2320,6 +2389,45 @@ public sealed class RemoteControlPlaneContractTests
                 OwnerResourceId: "network:contract",
                 CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner)
         ];
+    }
+
+    private sealed class ContractTemplateResourceTypeProvider : IResourceTypeProvider
+    {
+        public static readonly ResourceClassId ClassId = "contract";
+        public static readonly ResourceTypeId ResourceTypeId = "contract.widget";
+        public const string ProviderId = "contract.widgets";
+        public const string ResourceId = "contract.widget:widget";
+
+        public static class Attributes
+        {
+            public static readonly ResourceAttributeId Image = "container.image";
+        }
+
+        public static ResourceClassDefinition ClassDefinition { get; } = new(ClassId);
+
+        public static ResourceTypeDefinition Definition { get; } = new(
+            ResourceTypeId,
+            ClassId,
+            DefaultProviderId: ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                [Attributes.Image] = new(
+                    Path: "image",
+                    ValueType: ResourceAttributeValueType.String)
+            });
+
+        public ResourceTypeId TypeId => ResourceTypeId;
+
+        public ResourceTypeDefinition TypeDefinition => Definition;
+
+        public bool CanValidate(ResourceModelResource resource) =>
+            resource.Type.TypeId == ResourceTypeId;
+
+        public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
+            ResourceModelResource resource,
+            ResourceProviderContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
     }
 
     private sealed class ContractResolutionFailureProvider : IResourceProvider, IResourceProcedureProvider
