@@ -34,6 +34,29 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
 
     public ResourceGraphSnapshot? GetCachedSnapshot() => Volatile.Read(ref _snapshot);
 
+    public ResourceGraphSnapshot? GetSnapshotIfAvailable()
+    {
+        var snapshot = Volatile.Read(ref _snapshot);
+        if (snapshot is not null)
+        {
+            return snapshot;
+        }
+
+        if (!_sync.Wait(0))
+        {
+            return null;
+        }
+
+        try
+        {
+            return GetSnapshotCore();
+        }
+        finally
+        {
+            _sync.Release();
+        }
+    }
+
     public async ValueTask<ResourceGraphSnapshot> ReloadAsync(
         CancellationToken cancellationToken = default) =>
         await RefreshAsync(ResourceGraphRefreshContext.Full, cancellationToken);

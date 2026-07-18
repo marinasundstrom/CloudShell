@@ -66,6 +66,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 replica: 2,
                 expectedProbePort: 5193),
             command => AssertDockerIngressRun(command, endpointPort: 5092));
+        Assert.True(bridge.TryGetObservedStatus(resource, out var observedStatus));
+        Assert.Equal(ContainerApplicationRuntimeStatus.Running, observedStatus);
     }
 
     [Fact]
@@ -303,10 +305,11 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
 
         var graph = new ResourceGraphModel(new InMemoryResourceStateProvider([resource.State]));
         _ = graph.GetSnapshot();
+        var runtime = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
         var provider = new LocalDockerContainerApplicationRuntimeResourceProvider(
             graph,
             resolver,
-            new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running),
+            runtime,
             CreateConfiguration());
 
         var replicas = provider.GetResources();
@@ -330,6 +333,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 expectedServiceId,
                 expectedReplicaGroupId,
                 expectedRevisionId));
+        Assert.Equal(0, runtime.StatusProbeCount);
     }
 
     [Fact]
@@ -346,10 +350,11 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var refreshTask = graph.RefreshAsync(ResourceGraphRefreshContext.Full).AsTask();
 
         await stateProvider.WaitUntilBlockedAsync();
+        var runtime = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
         var provider = new LocalDockerContainerApplicationRuntimeResourceProvider(
             graph,
             CreateResourceResolver(),
-            new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running),
+            runtime,
             CreateConfiguration());
 
         try
@@ -358,6 +363,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 .WaitAsync(TimeSpan.FromSeconds(1));
 
             Assert.Equal(2, replicas.Count);
+            Assert.Equal(0, runtime.StatusProbeCount);
         }
         finally
         {
@@ -385,6 +391,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             command => AssertDockerRemove(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-2"));
+        Assert.True(bridge.TryGetObservedStatus(resource, out var observedStatus));
+        Assert.Equal(ContainerApplicationRuntimeStatus.Stopped, observedStatus);
     }
 
     [Fact]
@@ -1723,6 +1731,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     {
         public List<LifecycleCommand> LifecycleCommands { get; } = [];
         public List<OrchestratorCommand> OrchestratorCommands { get; } = [];
+        public int StatusProbeCount { get; private set; }
 
         public bool CanHandle(GraphResource resource) =>
             string.Equals(
@@ -1744,7 +1753,25 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             return false;
         }
 
-        public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) => status;
+        public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource)
+        {
+            StatusProbeCount++;
+            return status;
+        }
+
+        public bool TryGetObservedStatus(
+            GraphResource resource,
+            out ContainerApplicationRuntimeStatus observedStatus)
+        {
+            if (!CanHandle(resource))
+            {
+                observedStatus = ContainerApplicationRuntimeStatus.Unknown;
+                return false;
+            }
+
+            observedStatus = status;
+            return true;
+        }
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
             GraphResource resource,

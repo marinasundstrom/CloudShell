@@ -23,7 +23,7 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
 
     public IReadOnlyList<ResourceManagerResource> GetResources()
     {
-        var snapshot = graph.GetCachedSnapshot();
+        var snapshot = graph.GetSnapshotIfAvailable();
         if (snapshot is null)
         {
             return [];
@@ -43,7 +43,8 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
             return [];
         }
 
-        if (runtime.GetStatus(resource) != ContainerApplicationRuntimeStatus.Running)
+        if (!runtime.TryGetObservedStatus(resource, out var status) ||
+            status != ContainerApplicationRuntimeStatus.Running)
         {
             return [];
         }

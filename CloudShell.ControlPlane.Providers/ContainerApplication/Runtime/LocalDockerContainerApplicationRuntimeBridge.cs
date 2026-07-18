@@ -100,6 +100,28 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         return status;
     }
 
+    public bool TryGetObservedStatus(
+        GraphResource resource,
+        out ContainerApplicationRuntimeStatus status)
+    {
+        status = ContainerApplicationRuntimeStatus.Unknown;
+        if (!TryResolveDefinition(resource, out _))
+        {
+            return false;
+        }
+
+        lock (_statusGate)
+        {
+            if (_cachedStatus is null)
+            {
+                return false;
+            }
+
+            status = _cachedStatus.Value;
+            return true;
+        }
+    }
+
     private RuntimeStatusProbeResult ResolveStatus(
         GraphResource resource,
         LocalDockerContainerApplicationRuntimeDefinition definition)
@@ -176,16 +198,16 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             {
                 case ResourceActionIds.Start:
                     await StartAsync(definition, resource, cancellationToken);
-                    ClearStatusCache();
+                    ObserveStatus(ContainerApplicationRuntimeStatus.Running);
                     break;
                 case ResourceActionIds.Stop:
                     await RemoveAsync(definition, resource, cancellationToken);
-                    ClearStatusCache();
+                    ObserveStatus(ContainerApplicationRuntimeStatus.Stopped);
                     break;
                 case ResourceActionIds.Restart:
                     await RemoveAsync(definition, resource, cancellationToken);
                     await StartAsync(definition, resource, cancellationToken, cleanExistingReplicas: false);
-                    ClearStatusCache();
+                    ObserveStatus(ContainerApplicationRuntimeStatus.Running);
                     break;
                 default:
                     throw new NotSupportedException(
@@ -249,7 +271,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
                 await RemoveReplicaAsync(definition, replica.Ordinal, cancellationToken);
             }
 
-            ClearStatusCache();
+            ObserveStatus(ContainerApplicationRuntimeStatus.Running);
             return [];
         }
         catch (Exception exception)
@@ -258,12 +280,16 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
     }
 
-    private void ClearStatusCache()
+    private void ObserveStatus(ContainerApplicationRuntimeStatus status)
     {
         lock (_statusGate)
         {
-            _cachedStatus = null;
-            _cachedStatusTimestamp = default;
+            _cachedStatus = status;
+            _cachedStatusTimestamp = DateTimeOffset.UtcNow;
+            if (status != ContainerApplicationRuntimeStatus.Unknown)
+            {
+                _lastStableStatus = status;
+            }
         }
     }
 
@@ -312,7 +338,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
                 await RemoveReplicaAsync(definition, replica.Ordinal, cancellationToken);
             }
 
-            ClearStatusCache();
+            ObserveStatus(ContainerApplicationRuntimeStatus.Running);
             return [];
         }
         catch (Exception exception)
@@ -358,7 +384,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
                 createWhenMissing: ResolveReplicas(resource) > 1,
                 replicaGroup: replicaGroup,
                 routingBindings: routingBindings);
-            ClearStatusCache();
+            ObserveStatus(ContainerApplicationRuntimeStatus.Running);
             return [];
         }
         catch (Exception exception)
@@ -378,7 +404,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         try
         {
             await RemoveIngressAsync(definition, cancellationToken);
-            ClearStatusCache();
+            ObserveStatus(ContainerApplicationRuntimeStatus.Running);
             return [];
         }
         catch (Exception exception)
@@ -421,7 +447,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
                         $"The local Docker container application runtime does not map graph action '{action.Id}' to an orchestrator service instance operation.");
             }
 
-            ClearStatusCache();
+            ObserveStatus(ContainerApplicationRuntimeStatus.Running);
             return [];
         }
         catch (Exception exception)

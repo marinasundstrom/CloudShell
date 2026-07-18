@@ -13,6 +13,10 @@ public interface ILocalDockerContainerApplicationRuntimeBridge
 
     ContainerApplicationRuntimeStatus GetStatus(GraphResource resource);
 
+    bool TryGetObservedStatus(
+        GraphResource resource,
+        out ContainerApplicationRuntimeStatus status);
+
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         GraphResource resource,
         ResourceOperationId operationId,

@@ -688,6 +688,41 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphResourceProvider_UsesAvailableSnapshotWhenGraphRefreshIsBusy()
+    {
+        var stateProvider = new BlockingResourceStateProvider(CreateExecutableState());
+        var services = new ServiceCollection();
+        services.AddSingleton<IResourceStateProvider>(stateProvider);
+        services.AddSingleton<ResourceGraphModel>();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = serviceProvider.GetRequiredService<ResourceGraphModel>();
+        _ = graph.GetSnapshot();
+        stateProvider.BlockNextSnapshot();
+        var refreshTask = graph.RefreshAsync(ResourceGraphRefreshContext.Full).AsTask();
+
+        await stateProvider.WaitUntilBlockedAsync();
+
+        try
+        {
+            var provider = serviceProvider
+                .GetServices<IResourceProvider>()
+                .Single();
+            var projected = await Task.Run(provider.GetResources)
+                .WaitAsync(TimeSpan.FromSeconds(1));
+
+            Assert.Equal("application.executable:api", Assert.Single(projected).Id);
+        }
+        finally
+        {
+            stateProvider.ReleaseBlockedSnapshot();
+            await refreshTask;
+        }
+    }
+
+    [Fact]
     public void ResourceModelGraphResourceProvider_UsesRegisteredEndpointProjectionProvider()
     {
         var services = new ServiceCollection();
@@ -8332,6 +8367,53 @@ resources:
                 results,
                 result.Message);
         }
+    }
+
+    private sealed class BlockingResourceStateProvider(ResourceState resource) : IResourceStateProvider
+    {
+        private TaskCompletionSource? blocked;
+        private TaskCompletionSource? release;
+        private int blockNextSnapshot;
+
+        public void BlockNextSnapshot()
+        {
+            blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            blockNextSnapshot = 1;
+        }
+
+        public async Task WaitUntilBlockedAsync()
+        {
+            if (blocked is null)
+            {
+                throw new InvalidOperationException("The blocking snapshot was not configured.");
+            }
+
+            await blocked.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        }
+
+        public void ReleaseBlockedSnapshot() => release?.TrySetResult();
+
+        public async ValueTask<ResourceGraphSnapshot> GetSnapshotAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Exchange(ref blockNextSnapshot, 0) == 1)
+            {
+                blocked?.TrySetResult();
+                if (release is not null)
+                {
+                    await release.Task.WaitAsync(cancellationToken);
+                }
+            }
+
+            return new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [resource]);
+        }
+
+        public ValueTask<ResourceGraphCommitResult> CommitAsync(
+            ResourceGraphChangeSet changes,
+            ResourceGraphCommitContext context,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class TestCloudShellBuilder(IServiceCollection services) : ICloudShellBuilder

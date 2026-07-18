@@ -20,6 +20,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed ReplicatedContainerHealth Resource Manager reads after starting a
   replicated container app so hidden runtime-replica projection no longer
   blocks on an in-flight resource graph refresh.
+- Fixed ReplicatedContainerHealth Resource Manager detail routes so graph-backed
+  resource providers use available snapshots during graph refresh and local
+  Docker runtime replica projection uses cached observed status instead of
+  probing Docker during ordinary UI resource enumeration.
 
 #### Changed
 

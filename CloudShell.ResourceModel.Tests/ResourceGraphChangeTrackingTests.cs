@@ -27,6 +27,56 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task GetSnapshotIfAvailable_ReturnsCachedSnapshotWhenGraphRefreshIsBusy()
+    {
+        var stateProvider = new BlockingResourceStateProvider(CreateState("api", "./api"));
+        var model = new ResourceGraphModel(stateProvider);
+        _ = model.GetSnapshot();
+        stateProvider.BlockNextSnapshot();
+        var refreshTask = model.RefreshAsync(ResourceGraphRefreshContext.Full).AsTask();
+
+        await stateProvider.WaitUntilBlockedAsync();
+
+        try
+        {
+            var snapshot = await Task.Run(model.GetSnapshotIfAvailable)
+                .WaitAsync(TimeSpan.FromSeconds(1));
+
+            Assert.NotNull(snapshot);
+            Assert.Equal("application.executable:api", Assert.Single(snapshot.Resources).EffectiveResourceId);
+        }
+        finally
+        {
+            stateProvider.ReleaseBlockedSnapshot();
+            await refreshTask;
+        }
+    }
+
+    [Fact]
+    public async Task GetSnapshotIfAvailable_ReturnsNullWhenGraphRefreshIsBusyBeforeInitialSnapshot()
+    {
+        var stateProvider = new BlockingResourceStateProvider(CreateState("api", "./api"));
+        var model = new ResourceGraphModel(stateProvider);
+        stateProvider.BlockNextSnapshot();
+        var refreshTask = model.RefreshAsync(ResourceGraphRefreshContext.Full).AsTask();
+
+        await stateProvider.WaitUntilBlockedAsync();
+
+        try
+        {
+            var snapshot = await Task.Run(model.GetSnapshotIfAvailable)
+                .WaitAsync(TimeSpan.FromSeconds(1));
+
+            Assert.Null(snapshot);
+        }
+        finally
+        {
+            stateProvider.ReleaseBlockedSnapshot();
+            await refreshTask;
+        }
+    }
+
+    [Fact]
     public async Task CommitAsync_PersistsAcceptedChangesWithSingleGraphVersion()
     {
         var createdAt = new DateTimeOffset(2026, 6, 23, 12, 0, 0, TimeSpan.Zero);
@@ -840,6 +890,53 @@ public sealed class ResourceGraphChangeTrackingTests
                 TimeSpan.FromSeconds(30),
                 cancellationToken);
             return new ResourceGraphSnapshot(ResourceGraphVersion.Initial, []);
+        }
+
+        public ValueTask<ResourceGraphCommitResult> CommitAsync(
+            ResourceGraphChangeSet changes,
+            ResourceGraphCommitContext context,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class BlockingResourceStateProvider(ResourceState resource) : IResourceStateProvider
+    {
+        private TaskCompletionSource? blocked;
+        private TaskCompletionSource? release;
+        private int blockNextSnapshot;
+
+        public void BlockNextSnapshot()
+        {
+            blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            blockNextSnapshot = 1;
+        }
+
+        public async Task WaitUntilBlockedAsync()
+        {
+            if (blocked is null)
+            {
+                throw new InvalidOperationException("The blocking snapshot was not configured.");
+            }
+
+            await blocked.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        }
+
+        public void ReleaseBlockedSnapshot() => release?.TrySetResult();
+
+        public async ValueTask<ResourceGraphSnapshot> GetSnapshotAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Exchange(ref blockNextSnapshot, 0) == 1)
+            {
+                blocked?.TrySetResult();
+                if (release is not null)
+                {
+                    await release.Task.WaitAsync(cancellationToken);
+                }
+            }
+
+            return new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [resource]);
         }
 
         public ValueTask<ResourceGraphCommitResult> CommitAsync(

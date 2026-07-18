@@ -182,9 +182,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         return services.AddResourceModelGraphResourceProvider(
             id,
             displayName,
-            serviceProvider => serviceProvider
-                .GetRequiredService<ResourceGraphModel>()
-                .GetSnapshot(),
+            ResolveAvailableResourceGraphSnapshot,
             resolutionContext,
             projectionOptions);
     }
@@ -226,9 +224,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         return services.AddResourceModelGraphProcedureProvider(
             id,
             displayName,
-            serviceProvider => serviceProvider
-                .GetRequiredService<ResourceGraphModel>()
-                .GetSnapshot(),
+            ResolveAvailableResourceGraphSnapshot,
             resolutionContext,
             projectionOptions);
     }
@@ -287,6 +283,10 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
             serviceProvider.GetServices<IResourceGraphDependencyProvider>(),
             resolutionContext,
             ComposeProjectionOptions(serviceProvider, projectionOptions));
+
+    private static ResourceGraphSnapshot ResolveAvailableResourceGraphSnapshot(IServiceProvider serviceProvider) =>
+        serviceProvider.GetRequiredService<ResourceGraphModel>().GetSnapshotIfAvailable()
+        ?? new ResourceGraphSnapshot(ResourceGraphVersion.Initial, []);
 
     private static ResourceModelResourceManagerProjectionOptions ComposeProjectionOptions(
         IServiceProvider serviceProvider,
