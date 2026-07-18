@@ -1198,6 +1198,11 @@ public sealed class SampleSmokeTests
             $"{graphSecretsEndpoint}/healthz",
             bearerToken: null,
             StartupTimeout);
+        var graphSecretsTabHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("secrets.vault:application-topology-secrets")}/details?tab={Uri.EscapeDataString("general:secrets")}");
+        Assert.Contains("ApplicationTopology--ExternalApiKey", graphSecretsTabHtml);
+        Assert.Contains("********", graphSecretsTabHtml);
+        Assert.DoesNotContain("local-development-application-topology-api-key", graphSecretsTabHtml);
 
         await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
         await host.WaitForAbsoluteHttpOkAsync(
