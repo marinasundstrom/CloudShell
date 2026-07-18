@@ -1123,6 +1123,13 @@ public sealed class SampleSmokeTests
         Assert.Contains("CLOUDSHELL_TRACE_INGEST_ENDPOINT", graphApiEnvironmentHtml);
         Assert.DoesNotContain("CLOUDSHELL_IDENTITY_CLIENT_SECRET", graphApiEnvironmentHtml);
 
+        var graphApiIdentityHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.dotnet-app:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
+        Assert.Contains("Provisioning status", graphApiIdentityHtml);
+        Assert.Contains("Built-in resource identity client is registered.", graphApiIdentityHtml);
+        Assert.Contains("API (application-topology-api)", graphApiIdentityHtml);
+        Assert.DoesNotContain("API (application-topology-api) / application-topology-api", graphApiIdentityHtml);
+
         var graphEnvironmentHtml = await host.GetStringAsync("/environment");
         Assert.Contains("Current environment", graphEnvironmentHtml);
         Assert.Contains("Environment map", graphEnvironmentHtml);

@@ -322,15 +322,31 @@
 
     private string FormatIdentityReference(ResourceIdentityReference identity)
     {
-        var label = FindRelatedResource(identity.ResourceId) is { } resource
+        var resource = FindRelatedResource(identity.ResourceId);
+        var label = resource is not null
             ? ResourceDisplayLabels.GetQualifiedLabel(resource)
             : identity.ResourceId;
-        if (string.IsNullOrWhiteSpace(identity.Name))
+        if (ShouldSuppressIdentityName(identity, resource))
         {
             return label;
         }
 
         return $"{label} / {identity.Name}";
+    }
+
+    private static bool ShouldSuppressIdentityName(
+        ResourceIdentityReference identity,
+        Resource? resource)
+    {
+        if (string.IsNullOrWhiteSpace(identity.Name))
+        {
+            return true;
+        }
+
+        var resourceName = resource is null
+            ? ResourceDisplayLabels.GetName(identity.ResourceId)
+            : ResourceDisplayLabels.GetName(resource);
+        return string.Equals(identity.Name, resourceName, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<IReadOnlyList<ResourcePermissionGrant>> LoadOutboundPermissionGrantsAsync()

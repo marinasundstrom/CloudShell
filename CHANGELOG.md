@@ -43,6 +43,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved shared application Configuration pages so startup dependency links
   stay with the main configuration summary while identifiers and provider
   behavior move into a troubleshooting area.
+- Improved generated Resource Manager Identity pages so default resource
+  identity references do not repeat the resource name in provisioning rows.
 
 #### Changed
 
