@@ -24,6 +24,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource providers use available snapshots during graph refresh and local
   Docker runtime replica projection uses cached observed status instead of
   probing Docker during ordinary UI resource enumeration.
+- Fixed inline Resource Manager log tabs so resource-scoped log sources render
+  a default stream selection immediately instead of showing an empty
+  "No log selected" state while the first log read is still loading.
 
 #### Changed
 

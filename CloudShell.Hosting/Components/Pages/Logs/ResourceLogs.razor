@@ -3,6 +3,7 @@
              TraceId="@TraceId"
              View="@View"
              SourceIds="@SourceIds"
+             LogSources="@LogSources"
              Inline="true"
              ShowHeading="false"
              ShowSourceSummary="false"
@@ -24,4 +25,7 @@
 
     [Parameter]
     public string? SourceIds { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<LogSource>? LogSources { get; set; }
 }

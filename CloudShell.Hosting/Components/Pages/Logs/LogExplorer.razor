@@ -330,6 +330,9 @@ else if (ShowHeading)
     public string? SourceIds { get; set; }
 
     [Parameter]
+    public IReadOnlyList<LogSource>? LogSources { get; set; }
+
+    [Parameter]
     public bool Inline { get; set; }
 
     [Parameter]
@@ -387,6 +390,10 @@ else if (ShowHeading)
     {
         DisplaySelection = await DisplaySettings.GetAsync();
         await LoadVisibleLogsAsync();
+        if (Inline && !IsDisposed)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
 
         if (ResolveLogView() == LogSourcesView)
         {
@@ -645,23 +652,11 @@ else if (ShowHeading)
             var query = string.IsNullOrWhiteSpace(ResourceId)
                 ? null
                 : new LogQuery(ResourceId: ResourceId);
-            var inlineLogSources = await LogManager.ListLogSourcesAsync(query);
+            var inlineLogSources = LogSources ?? await LogManager.ListLogSourcesAsync(query);
             VisibleLogSources = inlineLogSources;
             LogResourceFilters = [];
-            var inlineResourceIds = inlineLogSources
-                .SelectMany(log => new[] { log.ResourceId, log.ProducerResourceId })
-                .Append(ResourceId)
-                .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            var inlineResources = inlineResourceIds.Length == 0
-                ? []
-                : await ResourceManager.ListResourcesAsync();
-            LogResourcesById = ResourceCollectionProjection.ToDictionaryById(inlineResources);
-            SelectedResource = !string.IsNullOrWhiteSpace(ResourceId) &&
-                LogResourcesById.TryGetValue(ResourceId, out var inlineSelectedResource)
-                    ? inlineSelectedResource
-                    : null;
+            LogResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+            SelectedResource = null;
             return;
         }
 
