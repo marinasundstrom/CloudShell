@@ -51,20 +51,24 @@ else
             <dd>Container app</dd>
         </dl>
 
-        <label for="graph-container-app-replicas">Replicas</label>
-        <FluentNumberField TValue="int"
-                           Id="graph-container-app-replicas"
-                           Min="1"
-                           Disabled="@IsReadOnly"
-                           @bind-Value="Replicas" />
-        <GeneratedRowActions>
-            <FluentButton Appearance="Appearance.Accent"
-                          IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())"
-                          Disabled="@(!CanUpdateReplicaCount)"
-                          OnClick="UpdateReplicasAsync">
-                @(IsUpdatingReplicas ? "Updating replicas" : "Update replicas")
-            </FluentButton>
-        </GeneratedRowActions>
+        <div class="container-app-scale-form">
+            <div class="container-app-field">
+                <label for="graph-container-app-replicas">Replicas</label>
+                <FluentNumberField TValue="int"
+                                   Id="graph-container-app-replicas"
+                                   Min="1"
+                                   Disabled="@IsReadOnly"
+                                   @bind-Value="Replicas" />
+            </div>
+            <GeneratedRowActions>
+                <FluentButton Appearance="Appearance.Accent"
+                              IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())"
+                              Disabled="@(!CanUpdateReplicaCount)"
+                              OnClick="UpdateReplicasAsync">
+                    @(IsUpdatingReplicas ? "Updating replicas" : "Update replicas")
+                </FluentButton>
+            </GeneratedRowActions>
+        </div>
 
         @if (!string.IsNullOrWhiteSpace(ReplicaUpdateMessage))
         {
@@ -83,41 +87,51 @@ else
             </div>
         </div>
 
-        <label for="container-app-session-affinity">Session affinity</label>
-        <FluentSelect TOption="string"
-                      Id="container-app-session-affinity"
-                      Disabled="@IsReadOnly"
-                      @bind-Value="SessionAffinityMode"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="None">None</FluentOption>
-            <FluentOption TOption="string" Value="Cookie">Cookie</FluentOption>
-            <FluentOption TOption="string" Value="ClientIp">Client IP</FluentOption>
-        </FluentSelect>
+        <div class="container-app-routing-form">
+            <div class="container-app-field">
+                <label for="container-app-session-affinity">Session affinity</label>
+                <FluentSelect TOption="string"
+                              Id="container-app-session-affinity"
+                              Disabled="@IsReadOnly"
+                              @bind-Value="SessionAffinityMode"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="None">None</FluentOption>
+                    <FluentOption TOption="string" Value="Cookie">Cookie</FluentOption>
+                    <FluentOption TOption="string" Value="ClientIp">Client IP</FluentOption>
+                </FluentSelect>
+            </div>
 
-        @if (IsCookieSessionAffinity)
-        {
-            <label for="container-app-session-affinity-cookie">Cookie name</label>
-            <FluentTextField Id="container-app-session-affinity-cookie"
-                             Disabled="@IsReadOnly"
-                             @bind-Value="SessionAffinityCookieName"
-                             Placeholder="CloudShellReplica" />
+            @if (IsCookieSessionAffinity)
+            {
+                <div class="container-app-field">
+                    <label for="container-app-session-affinity-cookie">Cookie name</label>
+                    <FluentTextField Id="container-app-session-affinity-cookie"
+                                     Disabled="@IsReadOnly"
+                                     @bind-Value="SessionAffinityCookieName"
+                                     Placeholder="CloudShellReplica" />
+                </div>
 
-            <label for="container-app-session-affinity-duration">Duration seconds</label>
-            <FluentNumberField TValue="int"
-                               Id="container-app-session-affinity-duration"
-                               Min="1"
-                               Disabled="@IsReadOnly"
-                               @bind-Value="SessionAffinityDurationSeconds" />
-        }
+                <div class="container-app-field compact-field">
+                    <label for="container-app-session-affinity-duration">Duration seconds</label>
+                    <FluentNumberField TValue="int"
+                                       Id="container-app-session-affinity-duration"
+                                       Min="1"
+                                       Disabled="@IsReadOnly"
+                                       @bind-Value="SessionAffinityDurationSeconds" />
+                </div>
+            }
+        </div>
 
-        <GeneratedRowActions>
-            <FluentButton Appearance="Appearance.Accent"
-                          IconStart="@(new Icons.Regular.Size20.Save())"
-                          Disabled="@(!CanUpdateRouting)"
-                          OnClick="UpdateRoutingAsync">
-                @(IsUpdatingRouting ? "Updating routing" : "Update routing")
-            </FluentButton>
-        </GeneratedRowActions>
+        <div class="container-app-form-actions">
+            <GeneratedRowActions>
+                <FluentButton Appearance="Appearance.Accent"
+                              IconStart="@(new Icons.Regular.Size20.Save())"
+                              Disabled="@(!CanUpdateRouting)"
+                              OnClick="UpdateRoutingAsync">
+                    @(IsUpdatingRouting ? "Updating routing" : "Update routing")
+                </FluentButton>
+            </GeneratedRowActions>
+        </div>
 
         @if (!string.IsNullOrWhiteSpace(RoutingUpdateMessage))
         {

@@ -30,6 +30,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed generated Resource Manager Overview log rows so resources with multiple
   log sources use the parent page's scoped log list and open the Logs tab
   default instead of forcing the first catalog source.
+- Improved the container-app Scale and replicas page so replica and routing
+  controls use stable responsive form layout and avoid cramped session-affinity
+  fields.
 
 #### Changed
 
