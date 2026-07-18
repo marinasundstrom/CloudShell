@@ -715,25 +715,36 @@ public sealed class InProcessControlPlane(
             }
         }
 
-        var result = await orchestration.ExecuteActionAsync(
-            resource,
-            action,
-            command.StartDependencies,
-            CreateAuthorizationService(command.ActingIdentity),
-            cancellationToken,
-            triggeredBy,
-            cause: command.Cause,
-            notifyResourceChange: NotifyResourcesChanged,
-            dependencyStartFailureBehavior:
-                command.DependencyStartFailureBehavior ?? orchestration.DependencyStartFailureBehavior);
+        var replicaRepairSuppression = action.Kind == ResourceActionKind.Stop
+            ? await replicaGroupReconciliation.SuppressReplicaSlotRepairAsync(resource.Id, cancellationToken)
+            : null;
 
-        if (action.Kind == ResourceActionKind.Stop)
+        try
         {
-            resourceRecovery.ClearRuntimeState(resource.Id);
-            replicaGroupReconciliation.ClearReplicaSlotStates(resource.Id);
-        }
+            var result = await orchestration.ExecuteActionAsync(
+                resource,
+                action,
+                command.StartDependencies,
+                CreateAuthorizationService(command.ActingIdentity),
+                cancellationToken,
+                triggeredBy,
+                cause: command.Cause,
+                notifyResourceChange: NotifyResourcesChanged,
+                dependencyStartFailureBehavior:
+                    command.DependencyStartFailureBehavior ?? orchestration.DependencyStartFailureBehavior);
 
-        return result;
+            if (action.Kind == ResourceActionKind.Stop)
+            {
+                resourceRecovery.ClearRuntimeState(resource.Id);
+                replicaGroupReconciliation.ClearReplicaSlotStates(resource.Id);
+            }
+
+            return result;
+        }
+        finally
+        {
+            replicaRepairSuppression?.Dispose();
+        }
     }
 
     private void RecordDeniedResourceAction(

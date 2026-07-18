@@ -1033,10 +1033,16 @@ public sealed class InProcessControlPlaneResourceStateTests
             RuntimeRevisionId: "revision-1",
             LastCompletedAt: DateTimeOffset.UtcNow,
             TriggeredBy: "tests"));
+        host.ReplicaGroupReconciliationStore.Enqueue(new ResourceReplicaSlotReconciliationRequest(
+            "application:api",
+            2,
+            "Replica slot 2 is pending repair.",
+            DateTimeOffset.UtcNow,
+            "tests"));
 
         var beforeStop = await host.ControlPlane.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(
             ResourceId: "application:api"));
-        Assert.Single(beforeStop);
+        Assert.Equal(2, beforeStop.Count);
 
         await host.ControlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(
             "application:api",
@@ -1044,6 +1050,56 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.Empty(await host.ControlPlane.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(
             ResourceId: "application:api")));
+        Assert.Empty(host.ReplicaGroupReconciliationStore.DequeuePending(10));
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_StopSuppressesReplicaSlotRepairDuringProviderShutdown()
+    {
+        var parent = CreateResource("application:api", ResourceState.Running);
+        var service = new ResourceOrchestratorService(
+            parent.Id,
+            "cloudshell-application-api",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "api",
+                Image: "example/api:latest",
+                Replicas: 2,
+                ReplicasEnabled: true));
+        var provider = new TestOrchestratorServiceProvider(service);
+        ControlPlaneTestHost host = null!;
+        provider.OnExecuteInstanceAsync = async (context, action, cancellationToken) =>
+        {
+            if (action.Kind is not ResourceActionKind.Stop ||
+                context.Instance.ReplicaOrdinal != 1)
+            {
+                return;
+            }
+
+            host.ReplicaGroupReconciliation.ObserveUnhealthyReplicaSlot(
+                parent,
+                2,
+                "Replica disappeared while stop was tearing down the app.",
+                "tests");
+            await host.ReplicaGroupReconciliation.ProcessPendingAsync(cancellationToken: cancellationToken);
+        };
+        host = CreateControlPlaneHost([parent], provider);
+
+        await host.ControlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(
+            parent.Id,
+            ResourceActionIds.Stop));
+
+        Assert.Contains(
+            "stop:cloudshell-application-api-replica-1",
+            provider.ExecutedInstanceActions);
+        Assert.Contains(
+            "stop:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        Assert.DoesNotContain(
+            "start:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        Assert.Empty(await host.ControlPlane.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(
+            ResourceId: parent.Id)));
     }
 
     [Fact]
@@ -4979,7 +5035,10 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     private sealed class TestOrchestratorServiceProvider(
-        ResourceOrchestratorService service) : IResourceProvider, IResourceOrchestratorServiceProcedureProvider
+        ResourceOrchestratorService service) :
+        IResourceProvider,
+        IResourceProcedureProvider,
+        IResourceOrchestratorServiceProcedureProvider
     {
         public string Id => "test";
 
@@ -4989,7 +5048,20 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public List<string> ExecutedInstanceActions { get; } = [];
 
+        public Func<ResourceOrchestratorServiceInstanceContext, ResourceAction, CancellationToken, Task>? OnExecuteInstanceAsync { get; set; }
+
         public IReadOnlyList<Resource> GetResources() => [];
+
+        public Task<ResourceProcedureResult> DeleteAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ResourceProcedureResult.Completed($"Deleted {context.Resource.Id}."));
+
+        public Task<ResourceProcedureResult> ExecuteActionAsync(
+            ResourceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
 
         public bool CanExecuteOrchestratorService(
             Resource resource,
@@ -5010,13 +5082,16 @@ public sealed class InProcessControlPlaneResourceStateTests
             return Task.CompletedTask;
         }
 
-        public Task ExecuteOrchestratorServiceInstanceAsync(
+        public async Task ExecuteOrchestratorServiceInstanceAsync(
             ResourceOrchestratorServiceInstanceContext context,
             ResourceAction action,
             CancellationToken cancellationToken = default)
         {
             ExecutedInstanceActions.Add($"{action.Id}:{context.Instance.Name}");
-            return Task.CompletedTask;
+            if (OnExecuteInstanceAsync is not null)
+            {
+                await OnExecuteInstanceAsync(context, action, cancellationToken);
+            }
         }
     }
 

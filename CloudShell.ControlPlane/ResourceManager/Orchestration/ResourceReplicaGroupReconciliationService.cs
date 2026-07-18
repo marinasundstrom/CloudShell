@@ -2,6 +2,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Deployment;
+using System.Collections.Concurrent;
 using System.Globalization;
 
 namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
@@ -17,6 +18,10 @@ public sealed class ResourceReplicaGroupReconciliationService(
     private const string ReplicaManagementTriggeredBy = "replica-management";
     private readonly IReadOnlyList<IResourceReplicaSlotMaterializationProvider> materializationProviders =
         (materializationProviders ?? []).ToArray();
+    private readonly ConcurrentDictionary<string, int> repairSuppressionCounts =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> repairGates =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public Task<IReadOnlyList<ResourceReplicaSlotState>> ListReplicaSlotStatesAsync(
         ResourceReplicaSlotStateQuery? query = null,
@@ -46,10 +51,23 @@ public sealed class ResourceReplicaGroupReconciliationService(
             return;
         }
 
-        foreach (var state in reconciliationStore.ListRuntimeStates(resourceId))
+        reconciliationStore.ClearResource(resourceId);
+    }
+
+    public async ValueTask<IDisposable> SuppressReplicaSlotRepairAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
         {
-            reconciliationStore.DeleteRuntimeState(state.ResourceId, state.SlotOrdinal);
+            return NoopDisposable.Instance;
         }
+
+        var key = resourceId.Trim();
+        var gate = repairGates.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        repairSuppressionCounts.AddOrUpdate(key, 1, (_, count) => count + 1);
+        return new RepairSuppression(this, key, gate);
     }
 
     public void ObserveUnhealthyReplicaSlot(
@@ -93,6 +111,14 @@ public sealed class ResourceReplicaGroupReconciliationService(
             }
 
             if (!IsReplicaRepairEligible(resource))
+            {
+                reconciliationStore.DeleteRuntimeState(request.ResourceId, request.SlotOrdinal);
+                continue;
+            }
+
+            using var repairGate = TryEnterReplicaSlotRepair(resource.Id);
+            if (repairGate is null ||
+                !IsReplicaRepairEligible(resource))
             {
                 reconciliationStore.DeleteRuntimeState(request.ResourceId, request.SlotOrdinal);
                 continue;
@@ -277,8 +303,84 @@ public sealed class ResourceReplicaGroupReconciliationService(
     private static string Pluralize(int count) =>
         count == 1 ? string.Empty : "s";
 
-    private static bool IsReplicaRepairEligible(Resource resource) =>
+    private bool IsReplicaRepairEligible(Resource resource) =>
+        !IsReplicaRepairSuppressed(resource.Id) &&
         resource.State is ResourceState.Running or ResourceState.Degraded;
+
+    private bool IsReplicaRepairSuppressed(string resourceId) =>
+        !string.IsNullOrWhiteSpace(resourceId) &&
+        repairSuppressionCounts.TryGetValue(resourceId, out var count) &&
+        count > 0;
+
+    private IDisposable? TryEnterReplicaSlotRepair(string resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return null;
+        }
+
+        var gate = repairGates.GetOrAdd(resourceId.Trim(), _ => new SemaphoreSlim(1, 1));
+        return gate.Wait(0)
+            ? new RepairGate(gate)
+            : null;
+    }
+
+    private void ReleaseReplicaSlotRepairSuppression(string resourceId)
+    {
+        while (repairSuppressionCounts.TryGetValue(resourceId, out var count))
+        {
+            if (count <= 1)
+            {
+                if (repairSuppressionCounts.TryUpdate(resourceId, 0, count))
+                {
+                    return;
+                }
+            }
+            else if (repairSuppressionCounts.TryUpdate(resourceId, count - 1, count))
+            {
+                return;
+            }
+        }
+    }
+
+    private sealed class RepairSuppression(
+        ResourceReplicaGroupReconciliationService owner,
+        string resourceId,
+        SemaphoreSlim gate) : IDisposable
+    {
+        private int disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref disposed, 1) == 0)
+            {
+                owner.ReleaseReplicaSlotRepairSuppression(resourceId);
+                gate.Release();
+            }
+        }
+    }
+
+    private sealed class RepairGate(SemaphoreSlim gate) : IDisposable
+    {
+        private int disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref disposed, 1) == 0)
+            {
+                gate.Release();
+            }
+        }
+    }
+
+    private sealed class NoopDisposable : IDisposable
+    {
+        public static NoopDisposable Instance { get; } = new();
+
+        public void Dispose()
+        {
+        }
+    }
 
     private static ResourceReplicaSlotState ToReplicaSlotState(
         ResourceReplicaSlotRuntimeState state) =>

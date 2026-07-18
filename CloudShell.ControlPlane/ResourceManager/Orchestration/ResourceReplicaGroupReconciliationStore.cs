@@ -15,6 +15,8 @@ public interface IResourceReplicaGroupReconciliationStore
     void SetRuntimeState(ResourceReplicaSlotRuntimeState state);
 
     void DeleteRuntimeState(string resourceId, int slotOrdinal);
+
+    void ClearResource(string resourceId);
 }
 
 public sealed record ResourceReplicaSlotReconciliationRequest(
@@ -154,6 +156,27 @@ public sealed class InMemoryResourceReplicaGroupReconciliationStore : IResourceR
         }
 
         runtimeStates.TryRemove(CreateKey(resourceId, slotOrdinal), out _);
+    }
+
+    public void ClearResource(string resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return;
+        }
+
+        foreach (var state in ListRuntimeStates(resourceId))
+        {
+            var key = CreateKey(state.ResourceId, state.SlotOrdinal);
+            runtimeStates.TryRemove(key, out _);
+            pending.TryRemove(key, out _);
+        }
+
+        foreach (var request in pending.Values.Where(request =>
+            string.Equals(request.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            pending.TryRemove(CreateKey(request.ResourceId, request.SlotOrdinal), out _);
+        }
     }
 
     private static string CreateKey(string resourceId, int slotOrdinal) =>
