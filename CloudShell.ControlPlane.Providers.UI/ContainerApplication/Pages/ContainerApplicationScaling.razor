@@ -37,9 +37,9 @@ else
             <dd>@GetModeLabel()</dd>
             <dt>Requested replicas</dt>
             <dd>@RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
-            <dt>Replica positions</dt>
+            <dt>Replica entries</dt>
             <dd>@ReplicaSlots.Count.ToString(CultureInfo.InvariantCulture)</dd>
-            <dt>Running positions</dt>
+            <dt>Assigned replicas</dt>
             <dd>@OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
             <dt>Running replicas</dt>
             <dd>@GetMaterializedSlotsLabel()</dd>
@@ -132,10 +132,10 @@ else
     @if (Resource is not null && RequestedReplicaSlots > 1)
     {
         <section class="blade-section">
-            <h3>Replica positions</h3>
+            <h3>Replica entries</h3>
             @if (ReplicaSlots.Count == 0)
             {
-                <EmptyState Title="No active replica positions"
+                <EmptyState Title="No replica entries"
                             Message="No requested replicas are active for this app yet." />
             }
             else
@@ -161,7 +161,7 @@ else
                             <tr>
                                 <td>
                                     <ResourceTableIdentity IconName="replica"
-                                                           IconTitle="Replica position"
+                                                           IconTitle="Replica"
                                                            Title="@slot.Label"
                                                            Summary="@GetSlotSummary(slot)" />
                                 </td>
