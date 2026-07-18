@@ -39,47 +39,10 @@ else
             <dt>Last updated</dt>
             <dd>@FormatResourceTimestamp(Resource.LastUpdated)</dd>
         </dl>
-    </section>
 
-    <section class="blade-section">
-        <div class="blade-section-header">
-            <div>
-                <h3>Resource diagnostics</h3>
-                <p>Stable identifiers and graph metadata for troubleshooting.</p>
-            </div>
-        </div>
-        <dl class="detail-list">
-            <dt>Resource ID</dt>
-            <dd>@Resource.Id</dd>
-            <dt>Class</dt>
-            <dd>@FormatResourceClass(Resource.ResourceClass)</dd>
-            <dt>Visibility</dt>
-            <dd>@FormatResourceVisibility(Resource.Visibility)</dd>
-            <dt>Resource membership</dt>
-            <dd>@FormatResourceGraphMembership(Resource.ResourceGraphMembership)</dd>
-            <dt>Resource version</dt>
-            <dd>@Resource.Version</dd>
-        </dl>
-    </section>
-
-    <section class="blade-section">
-        <div class="blade-section-header">
-            <div>
-                <h3>Capabilities and operations</h3>
-                <p>@GetCapabilityOperationSummary()</p>
-            </div>
-        </div>
-        <div class="generated-list">
-            <div>
-                <strong>Capabilities</strong>
-                <span>@FormatList(Resource.ResourceCapabilities.Select(capability => FormatCapabilityLabel(capability.Id)))</span>
-            </div>
-            <div>
-                <strong>Operations</strong>
-                <span>@FormatList(Resource.ResourceActions.Select(FormatActionLabel))</span>
-            </div>
-            @if (Resource.DependsOn.Count > 0)
-            {
+        @if (Resource.DependsOn.Count > 0)
+        {
+            <div class="generated-list configuration-dependency-list">
                 <div>
                     <strong>Startup dependencies</strong>
                     @foreach (var dependency in DependencyRows)
@@ -96,7 +59,49 @@ else
                         }
                     }
                 </div>
-            }
+            </div>
+        }
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Troubleshooting</h3>
+                <p>Stable identifiers and provider behavior for diagnosing this resource.</p>
+            </div>
+        </div>
+
+        <div class="resource-troubleshooting-list">
+            <details class="resource-troubleshooting-details">
+                <summary>Resource identifiers</summary>
+                <dl class="detail-list">
+                    <dt>Resource ID</dt>
+                    <dd>@Resource.Id</dd>
+                    <dt>Class</dt>
+                    <dd>@FormatResourceClass(Resource.ResourceClass)</dd>
+                    <dt>Visibility</dt>
+                    <dd>@FormatResourceVisibility(Resource.Visibility)</dd>
+                    <dt>Resource membership</dt>
+                    <dd>@FormatResourceGraphMembership(Resource.ResourceGraphMembership)</dd>
+                    <dt>Resource version</dt>
+                    <dd>@Resource.Version</dd>
+                </dl>
+            </details>
+
+            <details class="resource-troubleshooting-details">
+                <summary>Capabilities and operations</summary>
+                <p>@GetCapabilityOperationSummary()</p>
+                <div class="generated-list">
+                    <div>
+                        <strong>Capabilities</strong>
+                        <span>@FormatList(Resource.ResourceCapabilities.Select(capability => FormatCapabilityLabel(capability.Id)))</span>
+                    </div>
+                    <div>
+                        <strong>Operations</strong>
+                        <span>@FormatList(Resource.ResourceActions.Select(FormatActionLabel))</span>
+                    </div>
+                </div>
+            </details>
         </div>
     </section>
 }

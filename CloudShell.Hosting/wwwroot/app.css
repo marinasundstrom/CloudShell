@@ -762,6 +762,34 @@ h3 {
     line-height: 1.35;
 }
 
+.configuration-dependency-list,
+.resource-troubleshooting-list {
+    margin-top: .75rem;
+}
+
+.resource-troubleshooting-list {
+    display: grid;
+    gap: .5rem;
+}
+
+.resource-troubleshooting-details {
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.resource-troubleshooting-details summary {
+    cursor: pointer;
+    padding: .55rem .65rem;
+    font-weight: 600;
+}
+
+.resource-troubleshooting-details>p,
+.resource-troubleshooting-details>.detail-list,
+.resource-troubleshooting-details>.generated-list {
+    margin: 0 .65rem .65rem;
+}
+
 .container-app-scale-form,
 .container-app-routing-form {
     display: grid;

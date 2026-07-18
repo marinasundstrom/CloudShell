@@ -40,6 +40,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource operations render user-facing labels instead of internal IDs.
 - Improved generated Resource Manager Overview and shared Configuration pages
   so resource classes and health-check capabilities use display labels.
+- Improved shared application Configuration pages so startup dependency links
+  stay with the main configuration summary while identifiers and provider
+  behavior move into a troubleshooting area.
 
 #### Changed
 

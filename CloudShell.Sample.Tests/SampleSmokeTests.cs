@@ -1108,9 +1108,12 @@ public sealed class SampleSmokeTests
 
         var graphApiConfigurationHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.dotnet-app:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
-        Assert.Contains("Resource diagnostics", graphApiConfigurationHtml);
+        Assert.Contains("Troubleshooting", graphApiConfigurationHtml);
+        Assert.Contains("Resource identifiers", graphApiConfigurationHtml);
         Assert.Contains("Service discovery", graphApiConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphApiConfigurationHtml);
+        Assert.Contains("Settings (application-topology-settings)", graphApiConfigurationHtml);
+        Assert.Contains("SQL Database (application-topology-db)", graphApiConfigurationHtml);
         Assert.Contains("Health checks", graphApiConfigurationHtml);
         Assert.DoesNotContain("health.checks", graphApiConfigurationHtml);
 
@@ -1138,7 +1141,8 @@ public sealed class SampleSmokeTests
 
         var graphSqlConfigurationHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
-        Assert.Contains("Resource diagnostics", graphSqlConfigurationHtml);
+        Assert.Contains("Troubleshooting", graphSqlConfigurationHtml);
+        Assert.Contains("Resource identifiers", graphSqlConfigurationHtml);
         Assert.Contains("Resource version", graphSqlConfigurationHtml);
         Assert.Contains("Startup dependencies", graphSqlConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphSqlConfigurationHtml);
