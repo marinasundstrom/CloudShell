@@ -744,11 +744,14 @@ authoring/projection paths separately from the canonical ID:
 ```
 
 The Resource model serializer uses `Path` metadata when the caller supplies
-the relevant resource type definitions. Serialization renders attributes using
-the authored path, and deserialization resolves those paths back to canonical
-IDs. The path, not the ID, is what determines whether the document uses a
-nested object. For example, `javascript-app:runtime` renders as `runtime`,
-while `javascript-app:project.path` renders as `project.path`.
+the relevant schema catalog. A `ResourceDefinitionSchemaCatalog` is composed
+from resource class definitions, resource type definitions, and
+capability-contributed attribute definitions registered by provider packages.
+Serialization renders attributes using the authored path, and deserialization
+resolves those paths back to canonical IDs. The path, not the ID, is what
+determines whether the document uses a nested object. For example,
+`javascript-app:runtime` renders as `runtime`, while
+`javascript-app:project.path` renders as `project.path`.
 
 The Resource model includes a schema-local `ResourceAttributePathResolver` that
 can resolve canonical IDs, authored paths, and aliases to canonical

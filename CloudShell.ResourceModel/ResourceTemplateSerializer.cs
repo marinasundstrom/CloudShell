@@ -527,34 +527,8 @@ public static class ResourceTemplateSerializer
 
     private static IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? ResolveAttributeDefinitions(
         ResourceTemplateSerializerOptions? options,
-        ResourceTypeId? resourceTypeId)
-    {
-        if (options is null ||
-            resourceTypeId is null ||
-            !options.ResourceTypes.TryGetValue(resourceTypeId.Value, out var resourceType))
-        {
-            return null;
-        }
-
-        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>(
-            resourceType.Attributes ?? new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>());
-        foreach (var capability in resourceType.Capabilities ?? [])
-        {
-            if (!options.ResourceCapabilityAttributeProviders.TryGetValue(
-                    capability.Id,
-                    out var attributeProvider))
-            {
-                continue;
-            }
-
-            foreach (var attribute in attributeProvider.AttributeDefinitions)
-            {
-                attributes.TryAdd(attribute.Key, attribute.Value);
-            }
-        }
-
-        return attributes;
-    }
+        ResourceTypeId? resourceTypeId) =>
+        options?.SchemaCatalog.ResolveAttributeDefinitions(resourceTypeId);
 
     private static string ResolveAttributePath(
         ResourceAttributePathResolver resolver,
@@ -571,6 +545,13 @@ public static class ResourceTemplateSerializer
         {
             attributes[attributeId.ToString()] = value;
             return;
+        }
+
+        if (resolver.TryGetConflict(path, out var conflict))
+        {
+            throw new JsonException(
+                $"Resource attribute path '{path}' is ambiguous between attribute IDs " +
+                $"{string.Join(", ", conflict.AttributeIds.Select(id => $"'{id}'"))}.");
         }
 
         if (value is Dictionary<string, object?> objectValue)
@@ -771,24 +752,24 @@ public static class ResourceTemplateSerializer
 
 public sealed class ResourceTemplateSerializerOptions
 {
+    public ResourceTemplateSerializerOptions(ResourceDefinitionSchemaCatalog? schemaCatalog)
+    {
+        SchemaCatalog = schemaCatalog ?? ResourceDefinitionSchemaCatalog.Empty;
+    }
+
     public ResourceTemplateSerializerOptions(
         IEnumerable<ResourceTypeDefinition>? resourceTypes = null,
         IEnumerable<IResourceCapabilityAttributeProvider>? capabilityAttributeProviders = null)
+        : this(new ResourceDefinitionSchemaCatalog(resourceTypes, capabilityAttributeProviders))
     {
-        ResourceTypes = resourceTypes?
-            .ToDictionary(
-                resourceType => resourceType.TypeId,
-                resourceType => resourceType)
-            ?? new Dictionary<ResourceTypeId, ResourceTypeDefinition>();
-        ResourceCapabilityAttributeProviders = capabilityAttributeProviders?
-            .ToDictionary(
-                provider => provider.CapabilityId,
-                provider => provider)
-            ?? new Dictionary<ResourceCapabilityId, IResourceCapabilityAttributeProvider>();
     }
 
-    public IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> ResourceTypes { get; }
+    public ResourceDefinitionSchemaCatalog SchemaCatalog { get; }
+
+    public IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> ResourceTypes =>
+        SchemaCatalog.ResourceTypes;
 
     public IReadOnlyDictionary<ResourceCapabilityId, IResourceCapabilityAttributeProvider>
-        ResourceCapabilityAttributeProviders { get; }
+        ResourceCapabilityAttributeProviders =>
+            SchemaCatalog.ResourceCapabilityAttributeProviders;
 }

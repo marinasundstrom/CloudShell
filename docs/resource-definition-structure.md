@@ -83,6 +83,10 @@ definitions, resource type definitions, capability declarations, and operation
 declarations may each declare the provider/artifact version they were authored
 for. A resource definition may pin the type definition version it expects; if
 it does not, resolution can assume the latest compatible provider version.
+The provider package that registers a schema artifact should also provide the
+matching validation, projection, apply, and runtime behavior for that schema
+version. CloudShell should not treat a copied schema document as an independent
+implementation contract divorced from the provider that owns it.
 
 The domain model should keep the logical artifact ID separate from the
 requested version. Serialized authoring formats can still choose a compact
@@ -311,7 +315,11 @@ Schema-aware import/export paths should use the Resource model's
 `ResourceAttributePathResolver` to resolve authored paths and aliases to
 canonical IDs and to reject or report ambiguous paths before applying
 attributes.
-The resolver is schema-local and can be built from the resource class,
+Serializer callers should pass a `ResourceDefinitionSchemaCatalog` assembled
+from the same provider registrations that own those schemas. The catalog is the
+import/export view over `ResourceClassDefinition`, `ResourceTypeDefinition`,
+and capability-contributed attribute definitions for one versioned provider
+set. The resolver is schema-local and can be built from the resource class,
 resource type, and selected capability attribute definitions for one resource.
 That means two resource types, or two capabilities used in different resource
 schemas, can expose the same authored path while resolving it to different

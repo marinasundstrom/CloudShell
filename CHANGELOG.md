@@ -78,6 +78,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Included exported resource type metadata with resource template exports so
   API and split-hosting clients can serialize templates with authored
   attribute paths instead of fallback attribute groups.
+- Introduced a Resource Definition schema catalog for template serialization
+  so resource class definitions, resource type definitions, and capability
+  attribute schemas are resolved together, and ambiguous authored attribute
+  paths now fail during import instead of being guessed.
 
 ### 2026-07-17
 

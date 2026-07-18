@@ -165,6 +165,29 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceGraphBuilder_CreateSchemaCatalogIncludesCapabilityAttributes()
+    {
+        var graph = new ResourceGraphBuilder()
+            .DefineResources(resources =>
+            {
+                resources
+                    .AddContainerApplication("api")
+                    .WithProjectPath("src/api.csproj")
+                    .WithEnvironmentVariable("Sample__Mode", "Development");
+            });
+        var options = new ResourceTemplateSerializerOptions(graph.CreateSchemaCatalog());
+
+        var yaml = ResourceTemplateSerializer.SerializeTemplate(
+            graph.BuildTemplate("app"),
+            ResourceTemplateFormat.Yaml,
+            options);
+
+        Assert.Contains("environmentVariables:", yaml);
+        Assert.DoesNotContain("attributes:", yaml);
+        Assert.DoesNotContain("environment:", yaml);
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_BuildsConfigurationStoreSettingsAsAttributes()
     {
         var graph = new ResourceGraphBuilder()

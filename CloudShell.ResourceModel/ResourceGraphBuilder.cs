@@ -291,6 +291,7 @@ public class ResourceGraphBuilder(
     IResourceIdConvention? resourceIdConvention = null)
 {
     private readonly List<IResourceDefinitionBuilder> _resources = [];
+    private readonly Dictionary<ResourceClassId, ResourceClassDefinition> _resourceClassDefinitions = [];
     private readonly Dictionary<ResourceTypeId, ResourceTypeDefinition> _resourceTypeDefinitions = [];
     private readonly Dictionary<ResourceCapabilityId, IResourceCapabilityAttributeProvider>
         _resourceCapabilityAttributeProviders = [];
@@ -301,6 +302,9 @@ public class ResourceGraphBuilder(
         resourceIdConvention ?? DefaultResourceIdConvention.Instance;
 
     public IReadOnlyList<IResourceDefinitionBuilder> ResourceBuilders => _resources;
+
+    public IReadOnlyDictionary<ResourceClassId, ResourceClassDefinition> ResourceClassDefinitions =>
+        _resourceClassDefinitions;
 
     public IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> ResourceTypeDefinitions =>
         _resourceTypeDefinitions;
@@ -353,6 +357,14 @@ public class ResourceGraphBuilder(
         return this;
     }
 
+    public ResourceGraphBuilder AddResourceClassDefinition(ResourceClassDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        _resourceClassDefinitions[definition.ClassId] = definition;
+        return this;
+    }
+
     public ResourceGraphBuilder AddResourceCapabilityAttributeProvider(
         IResourceCapabilityAttributeProvider provider)
     {
@@ -361,6 +373,12 @@ public class ResourceGraphBuilder(
         _resourceCapabilityAttributeProviders[provider.CapabilityId] = provider;
         return this;
     }
+
+    public ResourceDefinitionSchemaCatalog CreateSchemaCatalog() =>
+        new(
+            ResourceTypeDefinitions.Values,
+            ResourceCapabilityAttributeProviders.Values,
+            ResourceClassDefinitions.Values);
 
     public ResourceGraphBuilder Add(ResourceDefinition definition)
     {

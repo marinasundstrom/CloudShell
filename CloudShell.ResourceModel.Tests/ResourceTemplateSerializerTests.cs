@@ -763,6 +763,89 @@ resources:
     }
 
     [Fact]
+    public void SerializeTemplate_UsesSchemaCatalogCapabilityAttributePaths()
+    {
+        var template = new ResourceTemplate(
+            "container-app",
+            [
+                new(
+                    "api",
+                    ContainerApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        [EnvironmentVariablesCapabilityProvider.AttributeId] =
+                            ResourceAttributeValue.Object(new Dictionary<string, ResourceAttributeValue>
+                            {
+                                ["ASPNETCORE_ENVIRONMENT"] = ResourceAttributeValue.Object(
+                                    new Dictionary<string, ResourceAttributeValue>
+                                    {
+                                        ["value"] = "Development"
+                                    })
+                            })
+                    })
+            ]);
+        var catalog = new ResourceDefinitionSchemaCatalog(
+            [new ContainerApplicationResourceTypeProvider().TypeDefinition],
+            [new EnvironmentVariablesCapabilityProvider()],
+            [ContainerApplicationResourceTypeProvider.ClassDefinition]);
+        var options = new ResourceTemplateSerializerOptions(catalog);
+
+        var yaml = ResourceTemplateSerializer.SerializeTemplate(
+            template,
+            ResourceTemplateFormat.Yaml,
+            options);
+        var roundTripped = ResourceTemplateSerializer.DeserializeTemplate(
+            yaml,
+            ResourceTemplateFormat.Yaml,
+            options);
+        var resource = Assert.Single(roundTripped.Resources);
+
+        Assert.Contains("environmentVariables:", yaml);
+        Assert.DoesNotContain("attributes:", yaml);
+        Assert.DoesNotContain("environment:", yaml);
+        Assert.True(resource.ResourceAttributeValues.ContainsKey(
+            EnvironmentVariablesCapabilityProvider.AttributeId));
+    }
+
+    [Fact]
+    public void DeserializeTemplate_RejectsAmbiguousSchemaAttributePath()
+    {
+        const string yaml = """
+resources:
+  - type: sample.type
+    name: sample
+    settings: value
+""";
+        var classDefinition = new ResourceClassDefinition(
+            ResourceClassId.Create("sample.class"),
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                [ResourceAttributeId.Create("sample.class.settings")] = new(Path: "settings")
+            });
+        var typeDefinition = new ResourceTypeDefinition(
+            ResourceTypeId.Create("sample.type"),
+            classDefinition.ClassId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                [ResourceAttributeId.Create("sample.type.settings")] = new(Path: "settings")
+            });
+        var options = new ResourceTemplateSerializerOptions(
+            new ResourceDefinitionSchemaCatalog(
+                [typeDefinition],
+                resourceClassDefinitions: [classDefinition]));
+
+        var exception = Assert.Throws<JsonException>(() =>
+            ResourceTemplateSerializer.DeserializeTemplate(
+                yaml,
+                ResourceTemplateFormat.Yaml,
+                options));
+
+        Assert.Contains("settings", exception.Message);
+        Assert.Contains("sample.class.settings", exception.Message);
+        Assert.Contains("sample.type.settings", exception.Message);
+    }
+
+    [Fact]
     public void SerializeDefinition_OmitsEmptyStateSections()
     {
         var definition = new ResourceState(

@@ -143,6 +143,14 @@ A resource type package should register the pieces it owns through DI:
 - runtime adapter interfaces and default/no-op implementations where useful
 - logs, monitoring, health, and operation providers when supported
 
+The schema pieces and implementation pieces should be registered and versioned
+as one provider-owned contract. `ResourceClassDefinition`,
+`ResourceTypeDefinition`, capability attribute definitions, validators,
+projectors, apply providers, and runtime adapters are different facets of the
+same resource model provider package. Template import/export can consume those
+schema facets through a `ResourceDefinitionSchemaCatalog`, while validation and
+execution continue through the provider interfaces.
+
 Provider packages should expose a host registration method such as
 `AddContainerApplicationResourceType(...)` or `UseContainerApplicationResourceProvider(...)`
 so hosts install the full provider slice consistently.
