@@ -1151,7 +1151,7 @@
                 EventCallback.Factory.Create<MouseEventArgs>(this, () => ExecuteAction(action)));
             builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
             {
-                AddActionIcon(buttonBuilder, action.EffectivePresentation.Icon);
+                AddActionIconButtonContent(buttonBuilder, action, GetActionLabel(action));
             }));
             builder.CloseComponent();
         }
@@ -1218,6 +1218,9 @@
 
         return action.DisplayName;
     }
+
+    private string GetActionLabel(ResourceAction action) =>
+        IsExecutingAction(action) ? L["Working"].Value : action.DisplayName;
 
     private bool CanApplyResourceChanges() =>
         !IsReadOnly && OperationCapabilities.CanManage;
@@ -1356,6 +1359,18 @@
 
     private DependencyStartFailureBehavior GetDependencyStartFailureBehavior() =>
         OrchestrationSettings.GetDependencyStartFailureSettings().Behavior;
+
+    private static void AddActionIconButtonContent(
+        RenderTreeBuilder builder,
+        ResourceAction action,
+        string label)
+    {
+        AddActionIcon(builder, action.EffectivePresentation.Icon);
+        builder.OpenElement(10, "span");
+        builder.AddAttribute(11, "class", "visually-hidden");
+        builder.AddContent(12, label);
+        builder.CloseElement();
+    }
 
     private static void AddActionIcon(
         RenderTreeBuilder builder,

@@ -33,6 +33,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved the container-app Scale and replicas page so replica and routing
   controls use stable responsive form layout and avoid cramped session-affinity
   fields.
+- Improved Resource Manager header action buttons so icon-only lifecycle
+  commands include hidden descriptive text for assistive technology while
+  preserving the compact visual layout.
 
 #### Changed
 
