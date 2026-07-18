@@ -26,6 +26,7 @@ else
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Purpose</th>
                         <th>Source</th>
                         <th>Value</th>
                     </tr>
@@ -35,6 +36,7 @@ else
                     {
                         <tr>
                             <td>@row.Name</td>
+                            <td>@FormatPurpose(row)</td>
                             <td>@FormatSource(row.Source)</td>
                             <td>
                                 @if (row.Reference is { CanLink: true } reference)
@@ -417,11 +419,52 @@ else
             _ => "Unknown"
         };
 
+    private static string FormatPurpose(EnvironmentRow row)
+    {
+        if (row.Source == "configuration")
+        {
+            return "Configuration reference";
+        }
+
+        if (row.Source == "secret")
+        {
+            return "Secret reference";
+        }
+
+        if (IsTelemetryName(row.Name))
+        {
+            return "Telemetry";
+        }
+
+        if (IsServiceConnectionName(row.Name))
+        {
+            return "Service connection";
+        }
+
+        if (IsSensitiveName(row.Name))
+        {
+            return "Credential";
+        }
+
+        return "Application setting";
+    }
+
     private static string? TryGetString(JsonElement element, string propertyName) =>
         element.TryGetProperty(propertyName, out var value) &&
         value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
+
+    private static bool IsTelemetryName(string name) =>
+        name.StartsWith("CLOUDSHELL_TRACE_", StringComparison.OrdinalIgnoreCase) ||
+        name.StartsWith("CLOUDSHELL_METRIC_", StringComparison.OrdinalIgnoreCase) ||
+        name.StartsWith("OTEL_", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsServiceConnectionName(string name) =>
+        name.Contains("__SqlServer__", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("__RabbitMQ__", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("__Configuration__", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("__Secrets__", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSensitiveName(string name) =>
         name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||

@@ -45,6 +45,8 @@ on `git blame --follow`, and then by the broad type of change.
   behavior move into a troubleshooting area.
 - Improved generated Resource Manager Identity pages so default resource
   identity references do not repeat the resource name in provisioning rows.
+- Improved shared application Environment pages so environment variables show
+  their runtime purpose, such as service connection or telemetry.
 
 #### Changed
 
