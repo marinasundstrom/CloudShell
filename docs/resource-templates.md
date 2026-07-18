@@ -299,6 +299,14 @@ deserializer logic for each resource type just to export or import a resource.
 The resource definition shape is the serialization boundary; provider logic is
 validation, normalization, and runtime planning.
 
+Export responses should include the schema facets needed to serialize the
+returned `ResourceTemplate`: resource class definitions, resource type
+definitions, and capability attribute schemas. Remote clients use those schema
+facets to rebuild `ResourceTemplateSerializerOptions` for import/export
+round-tripping. They do not receive provider implementations; validation,
+apply, projection, and runtime behavior remain installed in the Control Plane
+through provider packages.
+
 ## Commands And Delete
 
 Templates are not the only way to operate resources.

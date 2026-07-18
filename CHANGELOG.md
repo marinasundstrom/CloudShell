@@ -82,6 +82,9 @@ on `git blame --follow`, and then by the broad type of change.
   so resource class definitions, resource type definitions, and capability
   attribute schemas are resolved together, and ambiguous authored attribute
   paths now fail during import instead of being guessed.
+- Extended resource template export results with class definitions and
+  capability attribute schemas so remote clients can rebuild schema-aware
+  serializer options without loading provider implementations.
 
 ### 2026-07-17
 

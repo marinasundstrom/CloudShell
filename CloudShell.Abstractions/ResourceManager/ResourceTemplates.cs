@@ -14,17 +14,22 @@ public sealed record ResourceTemplateExportRequest(
 public sealed record ResourceTemplateExportResult(
     ResourceTemplate Template,
     IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics,
-    IReadOnlyList<ResourceTypeDefinition>? ResourceTypes = null)
+    IReadOnlyList<ResourceTypeDefinition>? ResourceTypes = null,
+    IReadOnlyList<ResourceCapabilityAttributeSchema>? ResourceCapabilityAttributeSchemas = null,
+    IReadOnlyList<ResourceClassDefinition>? ResourceClassDefinitions = null)
 {
     public bool HasErrors => Diagnostics.Any(diagnostic =>
         diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
 
     public ResourceTemplateSerializerOptions CreateSerializerOptions(
         IEnumerable<ResourceTypeDefinition>? additionalResourceTypes = null) =>
-        new((ResourceTypes ?? [])
-            .Concat(additionalResourceTypes ?? [])
-            .GroupBy(resourceType => resourceType.TypeId)
-            .Select(group => group.First()));
+        new(new ResourceDefinitionSchemaCatalog(
+            (ResourceTypes ?? [])
+                .Concat(additionalResourceTypes ?? [])
+                .GroupBy(resourceType => resourceType.TypeId)
+                .Select(group => group.First()),
+            ResourceCapabilityAttributeSchemas,
+            ResourceClassDefinitions));
 }
 
 public sealed record ResourceTemplateApplyResult(

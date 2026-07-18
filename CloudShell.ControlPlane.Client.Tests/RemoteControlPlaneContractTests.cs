@@ -1444,6 +1444,9 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(
             ContractTemplateResourceTypeProvider.ResourceTypeId,
             Assert.Single(exported.ResourceTypes ?? []).TypeId);
+        Assert.Equal(
+            ContractTemplateResourceTypeProvider.ClassId,
+            Assert.Single(exported.ResourceClassDefinitions ?? []).ClassId);
         Assert.Contains("image: example/widget:1", yaml);
         Assert.DoesNotContain("attributes:", yaml);
         Assert.DoesNotContain("container:", yaml);

@@ -140,6 +140,20 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                 serviceProvider.GetServices<IResourceAttributeValueShapeProvider>(),
                 serviceProvider.GetServices<IResourceCapabilityAttributeProvider>());
         });
+        services.TryAddScoped<ResourceDefinitionSchemaCatalog>(serviceProvider =>
+        {
+            var typeProviders = serviceProvider
+                .GetServices<IResourceTypeProvider>()
+                .ToArray();
+
+            return new ResourceDefinitionSchemaCatalog(
+                typeProviders.Select(provider => provider.TypeDefinition),
+                serviceProvider.GetServices<IResourceCapabilityAttributeProvider>(),
+                serviceProvider
+                    .GetServices<ResourceClassDefinition>()
+                    .GroupBy(classDefinition => classDefinition.ClassId)
+                    .Select(group => group.Last()));
+        });
 
         return services;
     }

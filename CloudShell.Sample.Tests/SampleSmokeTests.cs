@@ -3099,12 +3099,14 @@ public sealed class SampleSmokeTests
         var exported = await ReadJsonAsync<ResourceTemplateExportResult>(exportResponse);
 
         Assert.False(exported.HasErrors, FormatDiagnostics(exported.Diagnostics));
+        Assert.Contains(exported.ResourceClassDefinitions ?? [], resourceClass =>
+            resourceClass.ClassId == ContainerApplicationResourceTypeProvider.ClassId);
+        Assert.Contains(exported.ResourceTypes ?? [], resourceType =>
+            resourceType.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId);
+        Assert.Contains(exported.ResourceCapabilityAttributeSchemas ?? [], capabilitySchema =>
+            capabilitySchema.CapabilityId == EnvironmentVariablesCapabilityProvider.CapabilityIdValue);
 
-        var serializerOptions = new CloudShell.ResourceModel.ResourceTemplateSerializerOptions(
-        [
-            new ContainerApplicationResourceTypeProvider().TypeDefinition,
-            new AspNetCoreProjectResourceTypeProvider().TypeDefinition
-        ]);
+        var serializerOptions = exported.CreateSerializerOptions();
         var yaml = CloudShell.ResourceModel.ResourceTemplateSerializer.SerializeTemplate(
             exported.Template,
             options: serializerOptions);

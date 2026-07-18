@@ -20,6 +20,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
 using ResourceAttributeValue = CloudShell.ResourceModel.ResourceAttributeValue;
+using ResourceCapabilityAttributeSchema = CloudShell.ResourceModel.ResourceCapabilityAttributeSchema;
 using ResourceDefinition = CloudShell.ResourceModel.ResourceDefinition;
 using ResourceDefinitionDiagnosticCodes = CloudShell.ResourceModel.ResourceDefinitionDiagnosticCodes;
 using ResourceDefinitionDiagnostic = CloudShell.ResourceModel.ResourceDefinitionDiagnostic;
@@ -27,6 +28,8 @@ using ResourceDefinitionDiagnosticSeverity = CloudShell.ResourceModel.ResourceDe
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 using ResourceDefinitionValidationResult = CloudShell.ResourceModel.ResourceDefinitionValidationResult;
 using ResourceGraphCommitContext = CloudShell.ResourceModel.ResourceGraphCommitContext;
+using ResourceClassDefinition = CloudShell.ResourceModel.ResourceClassDefinition;
+using ResourceDefinitionSchemaCatalog = CloudShell.ResourceModel.ResourceDefinitionSchemaCatalog;
 using ResourceTypeDefinition = CloudShell.ResourceModel.ResourceTypeDefinition;
 using IResourceTypeProvider = CloudShell.ResourceModel.IResourceTypeProvider;
 
@@ -68,7 +71,8 @@ public sealed class InProcessControlPlane(
     IResourceEventSink? resourceEventSink = null,
     ICloudShellNotificationStore? notifications = null,
     IEnumerable<ICloudShellNotificationActionHandler>? notificationActionHandlers = null,
-    IEnumerable<IResourceTypeProvider>? resourceTypeProviders = null) : IControlPlane
+    IEnumerable<IResourceTypeProvider>? resourceTypeProviders = null,
+    ResourceDefinitionSchemaCatalog? resourceDefinitionSchemaCatalog = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
@@ -112,6 +116,8 @@ public sealed class InProcessControlPlane(
         (notificationActionHandlers ?? []).ToArray();
     private readonly IReadOnlyList<IResourceTypeProvider> resourceTypeProviders =
         (resourceTypeProviders ?? []).ToArray();
+    private readonly ResourceDefinitionSchemaCatalog resourceDefinitionSchemaCatalog =
+        resourceDefinitionSchemaCatalog ?? ResourceDefinitionSchemaCatalog.Empty;
     private readonly IResourceEventSink? resourceEventWriter = resourceEventSink ?? resourceEvents;
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
@@ -1223,7 +1229,9 @@ public sealed class InProcessControlPlane(
         return new ResourceTemplateExportResult(
             result.Template,
             result.Diagnostics,
-            ResolveExportResourceTypes(result.Template));
+            ResolveExportResourceTypes(result.Template),
+            ResolveExportCapabilityAttributeSchemas(result.Template),
+            ResolveExportResourceClasses(result.Template));
     }
 
     private IReadOnlyList<ResourceTypeDefinition> ResolveExportResourceTypes(
@@ -1243,6 +1251,52 @@ public sealed class InProcessControlPlane(
             .GroupBy(resourceType => resourceType.TypeId)
             .Select(group => group.First())
             .OrderBy(resourceType => resourceType.TypeId.ToString(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private IReadOnlyList<ResourceClassDefinition> ResolveExportResourceClasses(
+        ResourceDefinitionTemplate template)
+    {
+        var exportedClassIds = ResolveExportResourceTypes(template)
+            .Select(resourceType => resourceType.ClassId)
+            .ToHashSet();
+        if (exportedClassIds.Count == 0 ||
+            resourceDefinitionSchemaCatalog.ResourceClassDefinitions.Count == 0)
+        {
+            return [];
+        }
+
+        return resourceDefinitionSchemaCatalog.ResourceClassDefinitions.Values
+            .Where(resourceClass => exportedClassIds.Contains(resourceClass.ClassId))
+            .OrderBy(resourceClass => resourceClass.ClassId.ToString(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private IReadOnlyList<ResourceCapabilityAttributeSchema> ResolveExportCapabilityAttributeSchemas(
+        ResourceDefinitionTemplate template)
+    {
+        var resourceTypes = ResolveExportResourceTypes(template);
+        var resourceClasses = resourceTypes
+            .Select(resourceType => resourceType.ClassId)
+            .Where(resourceDefinitionSchemaCatalog.ResourceClassDefinitions.ContainsKey)
+            .Select(classId => resourceDefinitionSchemaCatalog.ResourceClassDefinitions[classId])
+            .ToArray();
+        var exportedCapabilityIds = resourceTypes
+            .SelectMany(resourceType => resourceType.Capabilities ?? [])
+            .Concat(resourceClasses.SelectMany(resourceClass => resourceClass.Capabilities ?? []))
+            .Select(capability => capability.Id)
+            .Concat(template.Resources.SelectMany(resource => resource.CapabilityPayloads.Keys))
+            .ToHashSet();
+        if (exportedCapabilityIds.Count == 0 ||
+            resourceDefinitionSchemaCatalog.ResourceCapabilityAttributeProviders.Count == 0)
+        {
+            return [];
+        }
+
+        return resourceDefinitionSchemaCatalog.ResourceCapabilityAttributeProviders.Values
+            .Where(provider => exportedCapabilityIds.Contains(provider.CapabilityId))
+            .Select(ResourceCapabilityAttributeSchema.FromProvider)
+            .OrderBy(schema => schema.CapabilityId.ToString(), StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
