@@ -36,6 +36,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Improved Resource Manager header action buttons so icon-only lifecycle
   commands include hidden descriptive text for assistive technology while
   preserving the compact visual layout.
+- Improved shared application Configuration pages so known capabilities and
+  resource operations render user-facing labels instead of internal IDs.
 
 #### Changed
 

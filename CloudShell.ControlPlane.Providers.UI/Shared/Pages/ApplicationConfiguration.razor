@@ -72,11 +72,11 @@ else
         <div class="generated-list">
             <div>
                 <strong>Capabilities</strong>
-                <span>@FormatList(Resource.ResourceCapabilities.Select(capability => capability.Id))</span>
+                <span>@FormatList(Resource.ResourceCapabilities.Select(capability => FormatCapabilityLabel(capability.Id)))</span>
             </div>
             <div>
                 <strong>Operations</strong>
-                <span>@FormatList(Resource.ResourceActions.Select(action => action.Id))</span>
+                <span>@FormatList(Resource.ResourceActions.Select(FormatActionLabel))</span>
             </div>
             @if (Resource.DependsOn.Count > 0)
             {
@@ -268,6 +268,54 @@ else
             ResourceGraphMembershipKinds.Declared => "Declared resource",
             ResourceGraphMembershipKinds.Projected => "Generated resource",
             _ => "Other"
+        };
+
+    private static string FormatCapabilityLabel(string capabilityId) =>
+        capabilityId switch
+        {
+            ResourceCapabilityIds.Liveness => "Liveness checks",
+            ResourceCapabilityIds.Recovery => "Recovery policy",
+            ResourceCapabilityIds.EndpointSource => "Endpoint source",
+            ResourceCapabilityIds.ContainerHost => "Container host",
+            ResourceCapabilityIds.EnvironmentVariables => "Environment variables",
+            ResourceCapabilityIds.LogSources => "Log sources",
+            ResourceCapabilityIds.Monitoring => "Monitoring",
+            ResourceCapabilityIds.NetworkingProvider => "Networking provider",
+            ResourceCapabilityIds.NetworkingEndpointProvider => "Endpoint provider",
+            ResourceCapabilityIds.NetworkingEndpointMapper => "Endpoint mapping",
+            ResourceCapabilityIds.NetworkingHostNetwork => "Host network",
+            ResourceCapabilityIds.NetworkingVirtualNetwork => "Virtual network",
+            ResourceCapabilityIds.NetworkingIngress => "Ingress",
+            ResourceCapabilityIds.NetworkingGateway => "Gateway",
+            ResourceCapabilityIds.NetworkingLoadBalancer => "Load balancer",
+            ResourceCapabilityIds.NetworkingBackendPool => "Backend pool",
+            ResourceCapabilityIds.NetworkingCluster => "Network cluster",
+            ResourceCapabilityIds.NetworkingClusterNode => "Network node",
+            ResourceCapabilityIds.NetworkingHealthProbe => "Health probe",
+            ResourceCapabilityIds.NetworkingTrafficSplit => "Traffic split",
+            ResourceCapabilityIds.NetworkingServiceDiscovery => "Service discovery",
+            ResourceCapabilityIds.NetworkingDnsZone => "DNS zone",
+            ResourceCapabilityIds.NetworkingNameMapping => "Name mapping",
+            ResourceCapabilityIds.NetworkingNamePublisher => "Name publisher",
+            ResourceCapabilityIds.NetworkingNameResolver => "Name resolver",
+            ResourceCapabilityIds.NetworkingPolicy => "Network policy",
+            ResourceCapabilityIds.NetworkingEgress => "Egress",
+            ResourceCapabilityIds.NetworkingTls => "TLS",
+            ResourceCapabilityIds.StorageVolume => "Storage volume",
+            ResourceCapabilityIds.StorageProvider => "Storage provider",
+            ResourceCapabilityIds.StorageVolumeConsumer => "Storage volume consumer",
+            ResourceCapabilityIds.StorageMountProvider => "Storage mount provider",
+            _ => capabilityId
+        };
+
+    private static string FormatActionLabel(ResourceAction action) =>
+        action.Id switch
+        {
+            "application.sql-server.reconcile-access" => "Reconcile access",
+            "application.rabbitmq.reconcile-access" => "Reconcile access",
+            "applyLoadBalancerConfiguration" => "Apply configuration",
+            _ when !string.IsNullOrWhiteSpace(action.DisplayName) => action.DisplayName,
+            _ => action.Id
         };
 
     private static string FormatList(IEnumerable<string> values)

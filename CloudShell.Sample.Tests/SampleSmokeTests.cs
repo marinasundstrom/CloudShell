@@ -1140,6 +1140,10 @@ public sealed class SampleSmokeTests
         Assert.Contains("Resource version", graphSqlConfigurationHtml);
         Assert.Contains("Startup dependencies", graphSqlConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphSqlConfigurationHtml);
+        Assert.Contains("Storage volume consumer", graphSqlConfigurationHtml);
+        Assert.Contains("Reconcile access", graphSqlConfigurationHtml);
+        Assert.DoesNotContain("storage.volumeConsumer", graphSqlConfigurationHtml);
+        Assert.DoesNotContain("application.sql-server.reconcile-access", graphSqlConfigurationHtml);
         Assert.Contains("SQL Data", graphSqlConfigurationHtml);
 
         var graphSqlDatabasesHtml = await host.GetStringAsync(
