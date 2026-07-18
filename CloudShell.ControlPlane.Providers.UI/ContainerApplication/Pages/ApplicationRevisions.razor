@@ -10,7 +10,7 @@
 else if (Revisions.Count == 0 && MaterializedReplicas.Count == 0)
 {
     <EmptyState Title="No revisions recorded"
-                Message="Revisions will appear after the app is deployed or materialized." />
+                Message="Revisions will appear after the app is deployed or started." />
 }
 else
 {
@@ -18,7 +18,7 @@ else
         <div class="blade-section-header">
             <div>
                 <h3>Current revision</h3>
-                <p>The active materialized state produced by the latest successful deployment.</p>
+                <p>The active app state produced by the latest successful deployment.</p>
             </div>
             <span class="@GetCurrentRevisionStatusCssClass()">
                 @GetCurrentRevisionStatus()
@@ -64,7 +64,7 @@ else
         <div class="blade-section-header">
             <div>
                 <h3>Revision history</h3>
-                <p>Current and previous materialized app states.</p>
+                <p>Current and previous app states.</p>
             </div>
         </div>
         <div class="generated-list">
@@ -166,7 +166,7 @@ else
             ? FormatRevisionCreated(CurrentRevision)
             : string.Create(
                 CultureInfo.CurrentCulture,
-                $"Materialized {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} replica resource{Pluralize(MaterializedReplicas.Count)} from live runtime state.");
+                $"Observed {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} running replica{Pluralize(MaterializedReplicas.Count)}.");
 
     private int GetCurrentRequestedReplicas() =>
         CurrentRevision is not null
@@ -176,24 +176,24 @@ else
     private string FormatCurrentChangeKind() =>
         CurrentRevision is not null
             ? FormatChangeKind(CurrentRevision)
-            : "Runtime materialization";
+            : "Running state";
 
     private string FormatCurrentRevisionNumber() =>
         CurrentRevision is not null
             ? FormatRevisionNumber(CurrentRevision)
             : GetCurrentDeploymentRevision() is { Length: > 0 } revision
                 ? revision
-                : Resource?.Version ?? "Runtime revision";
+                : Resource?.Version ?? "Revision";
 
     private string FormatCurrentProvisionedBy() =>
         CurrentRevision is not null
             ? FormatProvisionedBy(CurrentRevision)
-            : "runtime projection";
+            : "Running state";
 
     private string FormatInferredRevisionHeadline() =>
         string.Create(
             CultureInfo.CurrentCulture,
-            $"Active revision inferred from {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} materialized replica resource{Pluralize(MaterializedReplicas.Count)}.");
+            $"Active revision inferred from {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} running replica{Pluralize(MaterializedReplicas.Count)}.");
 
     private string FormatInferredRevisionMetadata()
     {
@@ -232,7 +232,7 @@ else
         {
             $"Requested replicas: {GetRequestedReplicas(revision).ToString(CultureInfo.InvariantCulture)}",
             $"Change: {FormatChangeKind(revision)}",
-            $"Runtime revision: {revision.RuntimeRevisionId}"
+            $"Revision id: {revision.RuntimeRevisionId}"
         };
         if (revision.EnvironmentRevisionNumber is > 0)
         {
@@ -297,7 +297,7 @@ else
             null when revision?.Status == ResourceOrchestratorDeploymentStatus.Failed => "Failed",
             null when revision?.Status == ResourceOrchestratorDeploymentStatus.Deleted => "Removed",
             null => "Unavailable",
-            _ => revision.EnvironmentRevisionStatus.Value.ToString()
+            _ => "Unknown"
         };
 
     private static string GetRevisionCssClass(ResourceDeploymentRecord revision) =>

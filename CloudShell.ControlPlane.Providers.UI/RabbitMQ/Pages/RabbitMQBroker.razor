@@ -34,7 +34,7 @@ else
             <dt>Resource ID</dt>
             <dd>@Broker.Id</dd>
             <dt>State</dt>
-            <dd>@(Broker.State?.ToString() ?? "n/a")</dd>
+            <dd>@FormatState(Broker.State)</dd>
             <dt>Version</dt>
             <dd>@GetVersion()</dd>
             <dt>AMQP endpoint</dt>
@@ -43,7 +43,7 @@ else
             <dd>
                 <EndpointLink Address="@ManagementAddress"
                               Text="@FormatEndpoint("management")"
-                              EmptyText="not mapped" />
+                              EmptyText="Not mapped" />
             </dd>
         </dl>
     </section>
@@ -58,7 +58,7 @@ else
         @if (EndpointRows.Count == 0)
         {
             <EmptyState Title="No endpoints"
-                        Message="This broker does not project endpoint contracts." />
+                        Message="This broker has no endpoint contracts configured." />
         }
         else
         {
@@ -77,12 +77,12 @@ else
                     {
                         <tr>
                             <td>@endpoint.Name</td>
-                            <td>@endpoint.Protocol</td>
+                            <td>@FormatProtocol(endpoint.Protocol)</td>
                             <td>@endpoint.TargetPort</td>
                             <td>@endpoint.Exposure</td>
                             <td>
                                 <EndpointLink Address="@endpoint.Address"
-                                              EmptyText="not mapped" />
+                                              EmptyText="Not mapped" />
                             </td>
                         </tr>
                     }
@@ -95,7 +95,7 @@ else
         <div class="blade-section-header">
             <div>
                 <h3>CloudShell management</h3>
-                <p>CloudShell owns lifecycle, endpoint projection, storage attachment, and access reconciliation.</p>
+                <p>CloudShell manages lifecycle, endpoints, storage attachment, and access reconciliation.</p>
             </div>
         </div>
         <div class="generated-list">
@@ -108,8 +108,8 @@ else
                 <span>@GetReconcileAccessStatus()</span>
             </div>
             <div>
-                <strong>Credential projection</strong>
-                <span>Provider-owned credentials are not projected through the resource model.</span>
+                <strong>Credentials</strong>
+                <span>Broker administrator credentials are hidden. Use CloudShell grants and reconcile access to create broker-native users and virtual-host permissions.</span>
             </div>
         </div>
     </section>
@@ -138,24 +138,27 @@ else
                 .Select(endpoint => new BrokerEndpointRow(
                     endpoint.Name,
                     endpoint.Protocol,
-                    endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "n/a",
-                    endpoint.Exposure.ToString(),
+                    endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "Not configured",
+                    FormatExposure(endpoint.Exposure),
                     Broker.GetResolvedEndpointAddress(endpoint)))
                 .ToArray();
     }
 
     private string GetBrokerSummary()
     {
-        var state = Broker?.State?.ToString() ?? "n/a";
-        return $"RabbitMQ broker service projected by CloudShell. Current state: {state}.";
+        var state = FormatState(Broker?.State);
+        return $"RabbitMQ broker service managed by CloudShell. Current state: {state}.";
     }
 
     private string GetEndpointSummary()
     {
         var count = EndpointRows.Count.ToString(CultureInfo.InvariantCulture);
-        return EndpointRows.Count == 1
-            ? "1 broker endpoint is projected."
-            : $"{count} broker endpoints are projected.";
+        return EndpointRows.Count switch
+        {
+            0 => "No broker endpoints are configured.",
+            1 => "1 broker endpoint is configured.",
+            _ => $"{count} broker endpoints are configured."
+        };
     }
 
     private string GetVersion()
@@ -168,21 +171,21 @@ else
             return version;
         }
 
-        return Broker?.Version ?? "n/a";
+        return Broker?.Version ?? "Not reported";
     }
 
     private string FormatEndpoint(string endpointName)
     {
         if (Broker is null)
         {
-            return "not mapped";
+            return "Not mapped";
         }
 
         var endpoint = Broker.Endpoints.FirstOrDefault(endpoint =>
             string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase));
         if (endpoint is null)
         {
-            return "not declared";
+            return "Not configured";
         }
 
         var address = Broker.GetResolvedEndpointAddress(endpoint);
@@ -192,19 +195,19 @@ else
         }
 
         return endpoint.TargetPort is { } targetPort
-            ? $"{endpoint.Protocol}:{targetPort.ToString(CultureInfo.InvariantCulture)}"
-            : endpoint.Protocol;
+            ? $"{FormatProtocol(endpoint.Protocol)}:{targetPort.ToString(CultureInfo.InvariantCulture)}"
+            : FormatProtocol(endpoint.Protocol);
     }
 
     private string GetManagementUiStatus() =>
         string.IsNullOrWhiteSpace(ManagementAddress)
-            ? "No mapped management endpoint is currently projected."
+            ? "No management endpoint is currently mapped."
             : "RabbitMQ management UI is available from the management endpoint.";
 
     private string GetReconcileAccessStatus() =>
         Broker?.HasAction(RabbitMQResourceTypeProvider.Operations.ReconcileAccess.ToString()) == true
             ? "Reconcile access is available as a resource operation."
-            : "Reconcile access is not advertised by this broker projection.";
+            : "Reconcile access is not available for this broker.";
 
     private static int GetEndpointOrder(ResourceEndpoint endpoint) =>
         endpoint.Name.ToLowerInvariant() switch
@@ -212,6 +215,40 @@ else
             "amqp" => 0,
             "management" => 1,
             _ => 10
+        };
+
+    private static string FormatState(ResourceState? state) =>
+        state switch
+        {
+            ResourceState.Running => "Running",
+            ResourceState.Starting => "Starting",
+            ResourceState.Stopping => "Stopping",
+            ResourceState.Paused => "Paused",
+            ResourceState.Degraded => "Needs attention",
+            ResourceState.Stopped => "Stopped",
+            ResourceState.Unknown => "Unknown",
+            null => "Not reported",
+            _ => "Unknown"
+        };
+
+    private static string FormatProtocol(string protocol) =>
+        protocol.Trim().ToLowerInvariant() switch
+        {
+            "amqp" => "AMQP",
+            "http" => "HTTP",
+            "https" => "HTTPS",
+            { Length: > 0 } => "Custom",
+            _ => "Not configured"
+        };
+
+    private static string FormatExposure(ResourceExposureScope exposure) =>
+        exposure switch
+        {
+            ResourceExposureScope.Private => "Private",
+            ResourceExposureScope.Local => "Local",
+            ResourceExposureScope.Network => "Network",
+            ResourceExposureScope.Public => "Public",
+            _ => "Unknown"
         };
 
     private sealed record BrokerEndpointRow(

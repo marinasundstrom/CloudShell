@@ -1,4 +1,5 @@
 @using System.Text.Json
+@inject IResourceManager ResourceManager
 
 <section class="blade-section">
     <div class="blade-section-header">
@@ -56,7 +57,19 @@
             </tr>
             <tr>
                 <th scope="row">Identity resource</th>
-                <td>@Device.IdentityResourceId</td>
+                <td>
+                    @if (IdentityResource is null)
+                    {
+                        @FormatOptionalValue(Device.IdentityResourceId)
+                    }
+                    else
+                    {
+                        <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(Device.IdentityResourceId)">
+                            @ResourceDisplayLabels.GetQualifiedLabel(IdentityResource)
+                        </FluentAnchor>
+                        <div class="table-subtext">@Device.IdentityResourceId</div>
+                    }
+                </td>
             </tr>
             <tr>
                 <th scope="row">Identity name</th>
@@ -225,6 +238,8 @@
 </section>
 
 @code {
+    private const string NotReported = "Not reported";
+
     [Parameter, EditorRequired]
     public CloudShell.Abstractions.ResourceManager.Resource Resource { get; set; } = default!;
 
@@ -249,12 +264,18 @@
     private string DesiredStateJson { get; set; } = "{}";
     private string? TwinEditorDeviceId { get; set; }
     private string? TwinOperationMessage { get; set; }
+    private CloudShell.Abstractions.ResourceManager.Resource? IdentityResource { get; set; }
     private bool CanRevokeDevice => !IsRevoked(Device);
     private bool CanDisableDevice => !IsRevoked(Device) && !IsDisabled(Device);
     private bool CanEnableDevice => IsDisabled(Device) && !IsRevoked(Device);
 
-    protected override void OnParametersSet() =>
+    protected override async Task OnParametersSetAsync()
+    {
         SyncTwinEditor();
+        IdentityResource = string.IsNullOrWhiteSpace(Device.IdentityResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(Device.IdentityResourceId);
+    }
 
     private async Task RevokeDevice()
     {
@@ -350,7 +371,7 @@
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
         {
-            TwinOperationMessage = exception.Message;
+            TwinOperationMessage = FormatTwinUpdateFailure(exception);
         }
         finally
         {
@@ -368,7 +389,7 @@
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
         {
-            DeviceOperationMessage = exception.Message;
+            DeviceOperationMessage = FormatDeviceOperationFailure(exception);
         }
         finally
         {
@@ -427,6 +448,22 @@
         return state;
     }
 
+    private static string FormatTwinUpdateFailure(Exception exception) =>
+        exception switch
+        {
+            JsonException => "Desired state must be a valid JSON object.",
+            HttpRequestException => "CloudShell could not reach the Device Registry service. Check the registry endpoint and try again.",
+            _ => "CloudShell could not update desired state for this device. Check the Device Registry service and try again."
+        };
+
+    private static string FormatDeviceOperationFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Device Registry service. Check the registry endpoint and try again.",
+            JsonException => "CloudShell could not read the Device Registry response. Refresh the device inventory and try again.",
+            _ => "CloudShell could not update this device. Check the Device Registry service and try again."
+        };
+
     private static string FormatTwinStateJson(
         IReadOnlyDictionary<string, JsonElement> state) =>
         JsonSerializer.Serialize(
@@ -441,23 +478,33 @@
 
     private static string FormatOptionalTimestamp(DateTimeOffset? timestamp) =>
         timestamp is null
-            ? "-"
+            ? "Never"
             : FormatTimestamp(timestamp.Value);
 
     private static string FormatOptionalValue(string? value) =>
         string.IsNullOrWhiteSpace(value)
-            ? "-"
+            ? NotReported
             : value;
 
     private static string FormatStatus(DeviceRegistryRuntimeDevice device) =>
-        string.IsNullOrWhiteSpace(device.Status)
-            ? "active"
-            : device.Status;
+        device.Status?.Trim().ToLowerInvariant() switch
+        {
+            null or "" => "Active",
+            "active" => "Active",
+            "disabled" => "Disabled",
+            "revoked" => "Revoked",
+            _ => "Unknown"
+        };
 
     private static string FormatPresence(DeviceRegistryRuntimeDevice device) =>
-        string.IsNullOrWhiteSpace(device.Presence)
-            ? "unknown"
-            : device.Presence;
+        device.Presence?.Trim().ToLowerInvariant() switch
+        {
+            "online" => "Online",
+            "stale" => "Stale",
+            "disabled" => "Disabled",
+            "revoked" => "Revoked",
+            _ => "Unknown"
+        };
 
     private static string GetPresenceClass(DeviceRegistryRuntimeDevice device) =>
         FormatPresence(device).ToLowerInvariant() switch
@@ -469,20 +516,28 @@
 
     private static string FormatLastSeenTransport(DeviceRegistryRuntimeDevice device) =>
         string.IsNullOrWhiteSpace(device.LastSeenTransport)
-            ? "-"
+            ? NotReported
             : device.LastSeenTransport.ToUpperInvariant();
 
     private static string FormatEnrollmentProfile(DeviceRegistryRuntimeDevice device)
     {
         if (string.IsNullOrWhiteSpace(device.EnrollmentProfileName))
         {
-            return "-";
+            return "No profile";
         }
 
         return string.IsNullOrWhiteSpace(device.EnrollmentProfileKind)
             ? device.EnrollmentProfileName
-            : $"{device.EnrollmentProfileName} ({device.EnrollmentProfileKind})";
+            : $"{device.EnrollmentProfileName} ({FormatEnrollmentProfileKind(device.EnrollmentProfileKind)})";
     }
+
+    private static string FormatEnrollmentProfileKind(string kind) =>
+        kind.Trim().ToLowerInvariant() switch
+        {
+            "group" => "Group",
+            "individual" => "Individual",
+            _ => "Custom"
+        };
 
     private static bool IsRevoked(DeviceRegistryRuntimeDevice device) =>
         string.Equals(device.Status, "revoked", StringComparison.OrdinalIgnoreCase) ||

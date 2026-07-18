@@ -17,7 +17,7 @@ else
             <dt>Provider</dt>
             <dd>@GetAttribute(ResourceAttributeNames.VolumeProvider, StorageProviderNames.LocalStorage)</dd>
             <dt>Storage medium</dt>
-            <dd>@GetAttribute(ResourceAttributeNames.VolumeStorageMedium, "provider managed")</dd>
+            <dd>@GetAttribute(ResourceAttributeNames.VolumeStorageMedium, "Provider managed")</dd>
             @if (TryGetStorageResourceId(out var storageResourceId))
             {
                 <dt>Storage resource</dt>
@@ -27,10 +27,10 @@ else
                     </a>
                 </dd>
                 <dt>Volume subpath</dt>
-                <dd>@GetAttribute(ResourceAttributeNames.VolumeSubPath, "provider default")</dd>
+                <dd>@GetAttribute(ResourceAttributeNames.VolumeSubPath, "Provider default")</dd>
             }
             <dt>Volume path</dt>
-            <dd>@GetAttribute(ResourceAttributeNames.VolumeLocation, "provider managed")</dd>
+            <dd>@GetAttribute(ResourceAttributeNames.VolumeLocation, "Provider managed")</dd>
             <dt>Access mode</dt>
             <dd>@ResourceVolumeDisplay.GetAccessModeLabel(GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString()), Localize)</dd>
             <dt>Persistent</dt>
@@ -42,7 +42,7 @@ else
             <dt>Max size enforcement</dt>
             <dd>@GetAttribute(ResourceAttributeNames.VolumeMaxSizeEnforcement, "advisory")</dd>
             <dt>Delete status</dt>
-            <dd>@(Consumers.Count == 0 ? "not in use" : "blocked while in use")</dd>
+            <dd>@(Consumers.Count == 0 ? "Not in use" : "Blocked while in use")</dd>
         </dl>
     </section>
 
@@ -69,8 +69,8 @@ else
                         <ChildContent>
                             @if (consumer.Mounts.Count == 0)
                             {
-                                <span>@consumer.Resource.Kind</span>
-                                <small>@consumer.Resource.EffectiveTypeId</small>
+                                <span>Configured dependency</span>
+                                <small>@GetConsumerTypeLabel(consumer.Resource)</small>
                             }
                             else
                             {
@@ -143,8 +143,7 @@ else
     {
         var parts = new List<string>
         {
-            consumer.Kind,
-            consumer.EffectiveTypeId
+            GetConsumerTypeLabel(consumer)
         };
 
         if (ResourceVolumeMountDisplay.GetMaterializationSummary(consumer, Localize) is { } materialization)
@@ -167,11 +166,23 @@ else
             !long.TryParse(value, out var maxSizeBytes) ||
             maxSizeBytes <= 0)
         {
-            return "unbounded";
+            return "Unbounded";
         }
 
         return $"{FormatBytes(maxSizeBytes)} ({maxSizeBytes.ToString(CultureInfo.InvariantCulture)} bytes)";
     }
+
+    private static string GetConsumerTypeLabel(Resource consumer) =>
+        consumer.ResourceClass switch
+        {
+            ResourceClass.Container => "Container",
+            ResourceClass.Project => "Project",
+            ResourceClass.Executable => "Executable",
+            ResourceClass.Service => "Service",
+            ResourceClass.Configuration => "Configuration",
+            ResourceClass.Storage => "Storage",
+            _ => consumer.Kind
+        };
 
     private static string FormatBytes(double value)
     {

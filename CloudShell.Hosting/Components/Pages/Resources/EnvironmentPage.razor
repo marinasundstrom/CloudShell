@@ -16,7 +16,7 @@
 
 <PageHeading Eyebrow="@L["Workspace"].Value"
              Title="@L["Current environment"].Value"
-             Description="@L["Inspect environment revisions, deployment records, and materialized resource state for the current host."].Value">
+             Description="@L["Inspect environment revisions, deployment records, and running resource state for the current host."].Value">
     <Actions>
         <span class="toolbar-meta">@L["Current host"]</span>
         <FluentButton Appearance="Appearance.Neutral"
@@ -34,7 +34,7 @@
                        IconName="resources" />
     <SummaryMetricCard Title="@L["Environment revisions"].Value"
                        Value="@EnvironmentRevisionRows.Count"
-                       Summary="@L["Projected environment revisions"].Value"
+                       Summary="@L["Observed environment revisions"].Value"
                        IconName="dependencies" />
     <SummaryMetricCard Title="@L["Deployment records"].Value"
                        Value="@DeploymentRecords.Count"
@@ -44,9 +44,9 @@
                        Value="@ReplicaGroupCount"
                        Summary="@L["Active deployment replica groups"].Value"
                        IconName="container" />
-    <SummaryMetricCard Title="@L["Replica slot issues"].Value"
+    <SummaryMetricCard Title="@L["Replica issues"].Value"
                        Value="@OpenReplicaSlotStateCount"
-                       Summary="@L["Open slot reconciliation states"].Value"
+                       Summary="@L["Open replica reconciliation states"].Value"
                        IconName="health" />
 </SummaryMetricGrid>
 
@@ -62,7 +62,7 @@
         @if (EnvironmentMap.Nodes.Count == 0)
         {
             <EmptyState Title="@L["No environment state"].Value"
-                        Message="@L["Resources, orchestrator services, and routing relationships will appear here when the Resource Manager has environment state to project."].Value"
+                        Message="@L["Resources, orchestrator services, and routing relationships will appear here when Resource Manager has environment state to show."].Value"
                         Compact="true" />
         }
         else
@@ -70,10 +70,10 @@
             <div class="environment-map-summary" aria-label="@L["Environment map summary"].Value">
                 <span><strong>@EnvironmentMap.ResourceCount</strong> @L["resources"]</span>
                 <span><strong>@EnvironmentMap.ServiceCount</strong> @L["orchestrator service(s)"]</span>
-                <span><strong>@EnvironmentMap.RoutingCount</strong> @L["routing artifact(s)"]</span>
+                <span><strong>@EnvironmentMap.RoutingCount</strong> @L["routing relationship(s)"]</span>
                 @if (IncludeNetworkTopologyOverlay)
                 {
-                    <span><strong>@EnvironmentMap.NetworkTopologyCount</strong> @L["topology artifact(s)"]</span>
+                    <span><strong>@EnvironmentMap.NetworkTopologyCount</strong> @L["topology relationship(s)"]</span>
                 }
                 <span class="environment-map-layer-label">@L["Layers"]</span>
                 <FluentCheckbox Class="environment-map-layer-toggle"
@@ -138,7 +138,7 @@
 
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Environment revisions"].Value"
-                          Description="@L["Projected revisions for deployment-produced environment state, plus the current declared resource graph baseline."].Value">
+                          Description="@L["Revisions for deployment-produced environment state, plus the current declared resource graph baseline."].Value">
             <Actions>
                 <span class="toolbar-meta">@GetLoadedAtLabel()</span>
             </Actions>
@@ -147,7 +147,7 @@
         @if (EnvironmentRevisionRows.Count == 0)
         {
             <EmptyState Title="@L["No environment resources"].Value"
-                        Message="@L["Environment revisions will appear here when resources are declared or materialized through Resource Manager deployment."].Value"
+                        Message="@L["Environment revisions will appear here when resources are declared or updated through Resource Manager deployment."].Value"
                         Compact="true" />
         }
         else
@@ -212,7 +212,7 @@
                     <tr>
                         <th>@L["Deployment"]</th>
                         <th>@L["Source resource"]</th>
-                        <th>@L["Runtime revision"]</th>
+                        <th>@L["App revision"]</th>
                         <th>@L["Replica group"]</th>
                         <th>@L["Replicas"]</th>
                         <th>@L["Status"]</th>
@@ -237,7 +237,7 @@
                                                        Summary="@record.ServiceId">
                                     <TitleContent>
                                         <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, record.SourceResourceId)">
-                                            @(sourceResource?.EffectiveDisplayName ?? record.SourceResourceId)
+                                            @GetResourceDisplayLabel(sourceResource, record.SourceResourceId)
                                         </FluentAnchor>
                                     </TitleContent>
                                 </ResourceTableIdentity>
@@ -266,12 +266,12 @@
 
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Active replica groups"].Value"
-                          Description="@L["Replica group snapshots produced by active deployment records, correlated with current slot reconciliation state."].Value" />
+                          Description="@L["Replica group snapshots produced by active deployment records, correlated with current replica reconciliation state."].Value" />
 
         @if (ReplicaGroupRows.Count == 0)
         {
             <EmptyState Title="@L["No active replica groups"].Value"
-                        Message="@L["Active replica groups will appear here after Resource Manager materializes a deployment with requested replica slots."].Value"
+                        Message="@L["Active replica groups will appear here after Resource Manager starts a deployment with requested replicas."].Value"
                         Compact="true" />
         }
         else
@@ -283,10 +283,10 @@
                         <th>@L["Source resource"]</th>
                         <th>@L["Service"]</th>
                         <th>@L["Replica group"]</th>
-                        <th>@L["Runtime revision"]</th>
-                        <th>@L["Requested slots"]</th>
-                        <th>@L["Occupied slots"]</th>
-                        <th>@L["Slot reconciliation"]</th>
+                        <th>@L["App revision"]</th>
+                        <th>@L["Requested replicas"]</th>
+                        <th>@L["Running replicas"]</th>
+                        <th>@L["Reconciliation"]</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -300,7 +300,7 @@
                                                        Summary="@row.DeploymentId">
                                     <TitleContent>
                                         <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, row.SourceResourceId)">
-                                            @(sourceResource?.EffectiveDisplayName ?? row.SourceResourceId)
+                                            @GetResourceDisplayLabel(sourceResource, row.SourceResourceId)
                                         </FluentAnchor>
                                     </TitleContent>
                                 </ResourceTableIdentity>
@@ -314,7 +314,7 @@
                             <td>@row.RequestedSlots.ToString(CultureInfo.InvariantCulture)</td>
                             <td>
                                 @row.OccupiedSlots.ToString(CultureInfo.InvariantCulture)
-                                <div class="table-subtext">@L["{0} materialized", row.MaterializedReplicas]</div>
+                                <div class="table-subtext">@L["{0} running", row.MaterializedReplicas]</div>
                             </td>
                             <td>
                                 @GetReplicaGroupReconciliationSummary(row)
@@ -329,13 +329,13 @@
     </ShellPanel>
 
     <ShellPanel Wide="true" Class="environment-panel-full">
-        <ShellPanelHeader Title="@L["Materialized deployment state"].Value"
-                          Description="@L["Resource Manager deployment metadata currently projected by materialized resources."].Value" />
+        <ShellPanelHeader Title="@L["Current deployment state"].Value"
+                          Description="@L["Deployment metadata currently reported by resources."].Value" />
 
         @if (DeploymentRows.Count == 0)
         {
-            <EmptyState Title="@L["No deployment metadata projected"].Value"
-                        Message="@L["Deployments will appear here when resources materialize runtime state through Resource Manager orchestration."].Value"
+            <EmptyState Title="@L["No deployment state"].Value"
+                        Message="@L["Deployments will appear here when resources report runtime state through Resource Manager orchestration."].Value"
                         Compact="true" />
         }
         else
@@ -346,7 +346,7 @@
                     <tr>
                         <th>@L["Resource"]</th>
                         <th>@L["Deployment"]</th>
-                        <th>@L["Runtime revision"]</th>
+                        <th>@L["App revision"]</th>
                         <th>@L["Environment revision"]</th>
                         <th>@L["Service"]</th>
                         <th>@L["Replica group"]</th>
@@ -363,7 +363,7 @@
                                                        Summary="@row.Resource.Id">
                                     <TitleContent>
                                         <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, row.Resource.Id)">
-                                            @row.Resource.EffectiveDisplayName
+                                            @ResourceDisplayLabels.GetQualifiedLabel(row.Resource)
                                         </FluentAnchor>
                                     </TitleContent>
                                 </ResourceTableIdentity>
@@ -386,13 +386,13 @@
     </ShellPanel>
 
     <ShellPanel Wide="true" Class="environment-panel-full">
-        <ShellPanelHeader Title="@L["Replica slot reconciliation"].Value"
-                          Description="@L["Current Resource Manager replica slot state and repair outcomes for active replica groups."].Value" />
+        <ShellPanelHeader Title="@L["Replica reconciliation"].Value"
+                          Description="@L["Current Resource Manager replica state and repair outcomes for active replica groups."].Value" />
 
         @if (ReplicaSlotStates.Count == 0)
         {
-            <EmptyState Title="@L["No replica slot state"].Value"
-                        Message="@L["Replica slot state will appear here after Resource Manager materializes a deployment with requested replica slots."].Value"
+            <EmptyState Title="@L["No replica reconciliation state"].Value"
+                        Message="@L["Replica reconciliation state will appear here after Resource Manager starts a deployment with requested replicas."].Value"
                         Compact="true" />
         }
         else
@@ -402,7 +402,7 @@
                 <thead>
                     <tr>
                         <th>@L["Resource"]</th>
-                        <th>@L["Slot"]</th>
+                        <th>@L["Replica"]</th>
                         <th>@L["Status"]</th>
                         <th>@L["Attempts"]</th>
                         <th>@L["Observed"]</th>
@@ -421,7 +421,7 @@
                                                        Summary="@state.ResourceId">
                                     <TitleContent>
                                         <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, state.ResourceId)">
-                                            @(resource?.EffectiveDisplayName ?? state.ResourceId)
+                                            @GetResourceDisplayLabel(resource, state.ResourceId)
                                         </FluentAnchor>
                                     </TitleContent>
                                 </ResourceTableIdentity>
@@ -470,13 +470,6 @@
         }
     </ShellPanel>
 
-    <ShellPanel>
-        <ShellPanelHeader Title="@L["Model note"].Value"
-                          Description="@L["Current scope"].Value" />
-        <p class="panel-body-text">
-            @L["CloudShell currently treats the local host as one active deployment environment. A future Control Plane Environment concept may contain resources within a host or runtime boundary; this page is currently a diagnostic view over the active host and its projected environment revisions."]
-        </p>
-    </ShellPanel>
 </section>
 
 @code {
@@ -548,13 +541,19 @@
         DeploymentRows = Resources
             .Where(resource => resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.DeploymentId))
             .Select(EnvironmentDeploymentRow.Create)
-            .OrderBy(row => row.Resource.Name, StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(row => ResourceDisplayLabels.GetQualifiedLabel(row.Resource), StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.Resource.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         DeploymentRecords = await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(MaxRecords: 100));
         EnvironmentRevisionRows = EnvironmentRevisionProjection.CreateRows(Resources, DeploymentRecords);
-        ReplicaSlotStates = await ReplicaSlots.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(MaxRecords: 100));
-        ReplicaGroupRows = CreateReplicaGroupRows(DeploymentRecords, ReplicaSlotStates);
+        ReplicaSlotStates = (await ReplicaSlots.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(MaxRecords: 100)))
+            .OrderBy(
+                state => GetResourceDisplayLabel(GetResource(state.ResourceId), state.ResourceId),
+                StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(state => state.SlotOrdinal)
+            .ThenBy(state => state.Status)
+            .ToArray();
+        ReplicaGroupRows = CreateReplicaGroupRows(DeploymentRecords, ReplicaSlotStates, Resources);
         EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
         DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
             .Where(IsEnvironmentActivityEvent)
@@ -610,6 +609,11 @@
         Resources.FirstOrDefault(resource =>
             string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
 
+    private static string GetResourceDisplayLabel(Resource? resource, string resourceId) =>
+        resource is null
+            ? resourceId
+            : ResourceDisplayLabels.GetQualifiedLabel(resource);
+
     private static string GetResourceIconName(Resource? resource, string fallback) =>
         resource is null
             ? fallback
@@ -629,7 +633,7 @@
 
     private static string GetDeploymentReplicaSummary(ResourceDeploymentRecord record) =>
         record.ReplicaGroup is null
-            ? "not projected"
+            ? GetOptional(null)
             : string.Create(
                 CultureInfo.InvariantCulture,
                 $"{record.ReplicaGroup.MaterializedReplicas} of {record.ReplicaGroup.RequestedReplicas}");
@@ -645,7 +649,20 @@
             : row.EnvironmentRevisionId;
 
     private string GetEnvironmentRevisionStatus(ResourceDeploymentRecord record) =>
-        record.EnvironmentRevisionStatus?.ToString() ?? GetOptional(record.EnvironmentRevisionId);
+        record.EnvironmentRevisionStatus switch
+        {
+            ResourceOrchestratorRevisionStatus.Active => L["Active"].Value,
+            ResourceOrchestratorRevisionStatus.Superseded => L["Previous"].Value,
+            ResourceOrchestratorRevisionStatus.Failed => L["Failed"].Value,
+            ResourceOrchestratorRevisionStatus.Deleted => L["Removed"].Value,
+            ResourceOrchestratorRevisionStatus.Pending => L["Pending"].Value,
+            null when record.Status == ResourceOrchestratorDeploymentStatus.Active => L["Active"].Value,
+            null when record.Status == ResourceOrchestratorDeploymentStatus.Applying => L["Pending"].Value,
+            null when record.Status == ResourceOrchestratorDeploymentStatus.Failed => L["Failed"].Value,
+            null when record.Status == ResourceOrchestratorDeploymentStatus.Deleted => L["Removed"].Value,
+            null => GetOptional(record.EnvironmentRevisionId),
+            _ => L["Unknown"].Value
+        };
 
     private string GetCompletionLabel(ResourceDeploymentRecord record)
     {
@@ -693,8 +710,8 @@
             ResourceReplicaSlotReconciliationStatus.Repairing => L["Repairing"].Value,
             ResourceReplicaSlotReconciliationStatus.Repaired => L["Repaired"].Value,
             ResourceReplicaSlotReconciliationStatus.RepairFailed => L["Repair failed"].Value,
-            ResourceReplicaSlotReconciliationStatus.Materialized => L["Materialized"].Value,
-            _ => status.ToString()
+            ResourceReplicaSlotReconciliationStatus.Materialized => L["Active"].Value,
+            _ => L["Unknown"].Value
         };
 
     private string GetOptionalTimestamp(DateTimeOffset? timestamp) =>
@@ -703,7 +720,7 @@
             : timestamp.Value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
 
     private static string GetOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "not projected" : value;
+        string.IsNullOrWhiteSpace(value) ? "Not available" : value;
 
     private string GetResourceTypeDisplayName(Resource resource) =>
         ShellCatalog.ResourceTypes.FirstOrDefault(type =>
@@ -764,12 +781,14 @@
         string ReplicaGroupId,
         string ReplicaSummary)
     {
+        private const string NotAvailable = "Not available";
+
         public static EnvironmentDeploymentRow Create(Resource resource)
         {
             var requestedReplicas = GetAttribute(resource, ResourceAttributeNames.DeploymentRequestedReplicas);
             var materializedReplicas = GetAttribute(resource, ResourceAttributeNames.DeploymentMaterializedReplicas);
-            var replicaSummary = requestedReplicas == "not projected" && materializedReplicas == "not projected"
-                ? "not projected"
+            var replicaSummary = requestedReplicas == NotAvailable && materializedReplicas == NotAvailable
+                ? NotAvailable
                 : $"{materializedReplicas} of {requestedReplicas}";
 
             return new EnvironmentDeploymentRow(
@@ -784,12 +803,13 @@
         }
 
         private static string GetAttribute(Resource resource, string name) =>
-            resource.ResourceAttributes.GetValueOrDefault(name) ?? "not projected";
+            resource.ResourceAttributes.GetValueOrDefault(name) ?? NotAvailable;
     }
 
     private static IReadOnlyList<EnvironmentReplicaGroupRow> CreateReplicaGroupRows(
         IReadOnlyList<ResourceDeploymentRecord> deployments,
-        IReadOnlyList<ResourceReplicaSlotState> slotStates)
+        IReadOnlyList<ResourceReplicaSlotState> slotStates,
+        IReadOnlyList<Resource> resources)
     {
         var slotStatesByGroup = slotStates
             .Where(state => !string.IsNullOrWhiteSpace(state.ReplicaGroupId))
@@ -797,6 +817,13 @@
                 state => CreateReplicaGroupStateKey(state.ResourceId, state.ReplicaGroupId!),
                 StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+        var resourceLabelsById = resources.ToDictionary(
+            resource => resource.Id,
+            ResourceDisplayLabels.GetQualifiedLabel,
+            StringComparer.OrdinalIgnoreCase);
+
+        string getResourceLabel(EnvironmentReplicaGroupRow row) =>
+            resourceLabelsById.GetValueOrDefault(row.SourceResourceId) ?? row.SourceResourceId;
 
         return deployments
             .Where(record =>
@@ -819,7 +846,8 @@
                     out var groupSlotStates);
                 return EnvironmentReplicaGroupRow.Create(record, groupSlotStates ?? []);
             })
-            .OrderBy(row => row.SourceResourceId, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(getResourceLabel, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(row => row.SourceResourceId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(row => row.ServiceId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(row => row.ReplicaGroupId, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -850,7 +878,7 @@
             IReadOnlyList<ResourceReplicaSlotState> slotStates)
         {
             var replicaGroup = deployment.ReplicaGroup ??
-                throw new InvalidOperationException("Replica group rows require a materialized replica group.");
+                throw new InvalidOperationException("Replica group rows require an active replica group.");
             var relevantSlotStates = slotStates
                 .Where(state =>
                     state.SlotOrdinal >= 1 &&

@@ -15,7 +15,7 @@ else
             <dt>Zone name</dt>
             <dd>@GetZoneAttribute(ResourceAttributeNames.DnsZoneName, DnsZone.Name)</dd>
             <dt>Provider</dt>
-            <dd>@GetZoneAttribute(ResourceAttributeNames.DnsProvider, "logical")</dd>
+            <dd>@FormatDnsProvider(GetZoneAttribute(ResourceAttributeNames.DnsProvider, "logical"))</dd>
             <dt>Name mappings</dt>
             <dd>@NameMappings.Count</dd>
             <dt>Conflicts</dt>
@@ -123,9 +123,9 @@ else
     {
         var parts = new List<string>
         {
-            $"Exposure: {GetAttribute(mapping, ResourceAttributeNames.NameMappingExposure, ResourceExposureScope.Public.ToString())}",
+            $"Exposure: {ResourceNameMappingDisplay.GetExposureLabel(mapping)}",
             GetProviderLabel(mapping),
-            $"Materialization: {ResourceNameMappingDisplay.GetMaterializationLabel(mapping, Localize)}"
+            $"Routing status: {ResourceNameMappingDisplay.GetMaterializationLabel(mapping, Localize)}"
         };
 
         if (!string.Equals(
@@ -133,7 +133,7 @@ else
                 "Ready",
                 StringComparison.OrdinalIgnoreCase))
         {
-            parts.Add($"Status: {GetAttribute(mapping, ResourceAttributeNames.NameMappingStatus, "unknown")}");
+            parts.Add($"Status: {FormatMappingStatus(GetAttribute(mapping, ResourceAttributeNames.NameMappingStatus, "unknown"))}");
         }
 
         parts.AddRange(ResourceNameMappingDisplay.GetLocalHostNamePublishingMetadata(mapping, Localize));
@@ -161,8 +161,27 @@ else
                 : $"Provider: {ResourceDisplayLabels.GetName(providerResourceId)}";
         }
 
-        return $"Provider: {GetAttribute(mapping, ResourceAttributeNames.DnsProvider, "logical")}";
+        return $"Provider: {FormatDnsProvider(GetAttribute(mapping, ResourceAttributeNames.DnsProvider, "logical"))}";
     }
+
+    private static string FormatDnsProvider(string provider) =>
+        provider switch
+        {
+            "logical" => "Logical",
+            { Length: > 0 } => provider,
+            _ => "Logical"
+        };
+
+    private static string FormatMappingStatus(string status) =>
+        status switch
+        {
+            "Ready" => "Ready",
+            "Conflict" => "Conflict",
+            "Pending" => "Pending",
+            "Unknown" or "unknown" => "Unknown",
+            { Length: > 0 } => status,
+            _ => "Unknown"
+        };
 
     private string GetZoneAttribute(string name, string fallback) =>
         DnsZone?.ResourceAttributes.TryGetValue(name, out var value) == true &&

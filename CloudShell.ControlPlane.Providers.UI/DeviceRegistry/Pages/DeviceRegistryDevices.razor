@@ -4,7 +4,7 @@
 @if (DeviceManager is null)
 {
     <EmptyState Title="Device inventory unavailable"
-                Message="This UI host does not have access to the Device Registry runtime manager." />
+                Message="This UI host cannot manage devices for this Device Registry." />
 }
 else if (Resource is null)
 {
@@ -98,6 +98,8 @@ else
 }
 
 @code {
+    private const string NotReported = "Not reported";
+
     [Parameter]
     public string? ResourceId { get; set; }
 
@@ -173,7 +175,7 @@ else
     private static string GetOperatingSystem(DeviceRegistryRuntimeDevice device)
     {
         var operatingSystem = GetProperty(device, "operatingSystem");
-        return operatingSystem == "-"
+        return operatingSystem == NotReported
             ? GetProperty(device, "osDescription")
             : operatingSystem;
     }
@@ -182,12 +184,12 @@ else
     {
         var osArchitecture = GetProperty(device, "osArchitecture");
         var processArchitecture = GetProperty(device, "processArchitecture");
-        if (osArchitecture == "-")
+        if (osArchitecture == NotReported)
         {
             return processArchitecture;
         }
 
-        return processArchitecture == "-"
+        return processArchitecture == NotReported
             ? osArchitecture
             : $"{osArchitecture} / {processArchitecture}";
     }
@@ -198,30 +200,40 @@ else
         device.Properties.TryGetValue(name, out var value) &&
         !string.IsNullOrWhiteSpace(value)
             ? value
-            : "-";
+            : NotReported;
 
     private static string FormatTimestamp(DateTimeOffset timestamp) =>
         timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 
     private static string FormatOptionalTimestamp(DateTimeOffset? timestamp) =>
         timestamp is null
-            ? "-"
+            ? "Never"
             : FormatTimestamp(timestamp.Value);
 
     private static string FormatOptionalValue(string? value) =>
         string.IsNullOrWhiteSpace(value)
-            ? "-"
+            ? NotReported
             : value;
 
     private static string FormatStatus(DeviceRegistryRuntimeDevice device) =>
-        string.IsNullOrWhiteSpace(device.Status)
-            ? "active"
-            : device.Status;
+        device.Status?.Trim().ToLowerInvariant() switch
+        {
+            null or "" => "Active",
+            "active" => "Active",
+            "disabled" => "Disabled",
+            "revoked" => "Revoked",
+            _ => "Unknown"
+        };
 
     private static string FormatPresence(DeviceRegistryRuntimeDevice device) =>
-        string.IsNullOrWhiteSpace(device.Presence)
-            ? "unknown"
-            : device.Presence;
+        device.Presence?.Trim().ToLowerInvariant() switch
+        {
+            "online" => "Online",
+            "stale" => "Stale",
+            "disabled" => "Disabled",
+            "revoked" => "Revoked",
+            _ => "Unknown"
+        };
 
     private static string GetPresenceClass(DeviceRegistryRuntimeDevice device) =>
         FormatPresence(device).ToLowerInvariant() switch
@@ -233,18 +245,26 @@ else
 
     private static string FormatLastSeenTransport(DeviceRegistryRuntimeDevice device) =>
         string.IsNullOrWhiteSpace(device.LastSeenTransport)
-            ? "-"
+            ? NotReported
             : device.LastSeenTransport.ToUpperInvariant();
 
     private static string FormatEnrollmentProfile(DeviceRegistryRuntimeDevice device)
     {
         if (string.IsNullOrWhiteSpace(device.EnrollmentProfileName))
         {
-            return "-";
+            return "No profile";
         }
 
         return string.IsNullOrWhiteSpace(device.EnrollmentProfileKind)
             ? device.EnrollmentProfileName
-            : $"{device.EnrollmentProfileName} ({device.EnrollmentProfileKind})";
+            : $"{device.EnrollmentProfileName} ({FormatEnrollmentProfileKind(device.EnrollmentProfileKind)})";
     }
+
+    private static string FormatEnrollmentProfileKind(string kind) =>
+        kind.Trim().ToLowerInvariant() switch
+        {
+            "group" => "Group",
+            "individual" => "Individual",
+            _ => "Custom"
+        };
 }

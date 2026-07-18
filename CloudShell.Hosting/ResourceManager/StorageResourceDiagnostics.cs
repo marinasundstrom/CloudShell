@@ -43,8 +43,8 @@ public static class StorageResourceDiagnostics
         [
             new ResourceDiagnosticView(
                 "Warning",
-                "Storage volume mounts not fully materialized",
-                $"{consumerText} of volumes owned by this Storage resource {verb} storage mounts that are not fully materialized: {string.Join("; ", consumerSummaries)}.")
+                "Storage volume mounts not fully active",
+                $"{consumerText} of volumes owned by this Storage resource {verb} storage mounts that are not fully active: {string.Join("; ", consumerSummaries)}.")
         ];
     }
 
@@ -78,7 +78,7 @@ public static class StorageResourceDiagnostics
                 consumer,
                 ResourceAttributeNames.VolumeMountCount,
                 out var mountCount)
-                ? $" ({materializedCount.ToString(CultureInfo.InvariantCulture)}/{mountCount.ToString(CultureInfo.InvariantCulture)} materialized)"
+                ? $" ({materializedCount.ToString(CultureInfo.InvariantCulture)}/{mountCount.ToString(CultureInfo.InvariantCulture)} active)"
                 : string.Empty;
 
         return $"{consumer.Name}: {label}{countText}";
@@ -88,7 +88,7 @@ public static class StorageResourceDiagnostics
         status.Trim() switch
         {
             var value when string.Equals(value, "partial", StringComparison.OrdinalIgnoreCase) =>
-                "partially materialized",
+                "partially active",
             var value when string.Equals(value, "notActive", StringComparison.OrdinalIgnoreCase) =>
                 "not active",
             var value when string.Equals(value, "unknown", StringComparison.OrdinalIgnoreCase) =>

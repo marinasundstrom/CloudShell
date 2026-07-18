@@ -4,6 +4,7 @@
 @using CloudShell.Abstractions.ResourceManager
 @using CloudShell.Abstractions.ControlPlane
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Logging
 @inject IResourceManager ResourceManager
 @inject ILogManager LogManager
 @inject IResourceHealthManager HealthManager
@@ -16,6 +17,7 @@
 @inject ShellCatalog ShellCatalog
 @inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
+@inject ILogger<GeneratedResourceOverview> Logger
 
     <div class="generated-resource-view">
         @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
@@ -159,7 +161,7 @@
             <dd>@Resource.DisplayName</dd>
         }
         <dt>@L["Type"]</dt>
-        <dd>@Resource.EffectiveTypeId</dd>
+        <dd>@GetResourceTypeDisplayName(Resource)</dd>
         <dt>@L["Class"]</dt>
         <dd>@Resource.ResourceClass</dd>
         <dt>@L["Provider"]</dt>
@@ -199,7 +201,7 @@
             <dt>@L["Resolved target endpoint"]</dt>
             <dd>
                 <EndpointLink Address="@resolvedEndpoint" />
-                <small class="muted">@L["Projected from the target resource endpoint"]</small>
+                <small class="muted">@L["Resolved from the target resource endpoint"]</small>
             </dd>
         }
         @if (!string.IsNullOrWhiteSpace(Resource.ParentResourceId))
@@ -211,7 +213,7 @@
         <dd>@ResourceNameMappingDisplay.GetExposureLabel(Resource)</dd>
         <dt>@L["Provider"]</dt>
         <dd>@FormatNameMappingProvider(Resource)</dd>
-        <dt>@L["Materialization"]</dt>
+        <dt>@L["Routing status"]</dt>
         <dd>@ResourceNameMappingDisplay.GetMaterializationLabel(Resource, Localize)</dd>
     </dl>;
 
@@ -224,7 +226,7 @@
         @if (Resource.Endpoints.Count > 0)
         {
             <dt>@L["Primary endpoint"]</dt>
-            <dd><EndpointLink Address="@Resource.PrimaryEndpoint" EmptyText="@L["none"].Value" /></dd>
+            <dd><EndpointLink Address="@Resource.PrimaryEndpoint" EmptyText="@L["None"].Value" /></dd>
             <dt>@L["Endpoints"]</dt>
             <dd>
                 <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Endpoints)">
@@ -246,7 +248,7 @@
                             <strong>@mapping.Name</strong>
                             <EndpointLink Address="@mapping.Address"
                                           Text="@mapping.Text"
-                                          EmptyText="@L["none"].Value" />
+                                          EmptyText="@L["None"].Value" />
                             <small>@mapping.Metadata</small>
                         </div>
                     }
@@ -371,9 +373,17 @@
     {
         var name = FormatIdentityName(identity);
         return string.IsNullOrWhiteSpace(identity.Subject)
-            ? L["{0} ({1})", name, identity.Kind].Value
+            ? L["{0} ({1})", name, FormatIdentityKind(identity.Kind)].Value
             : L["{0} ({1})", name, identity.Subject].Value;
     }
+
+    private string FormatIdentityKind(ResourceIdentityBindingKind kind) =>
+        kind switch
+        {
+            ResourceIdentityBindingKind.Provider => L["Provider-backed"].Value,
+            ResourceIdentityBindingKind.Required => L["Required by resource"].Value,
+            _ => L["Unknown"].Value
+        };
 
     private bool TryFormatDeclarationPersistence(
         Resource resource,
@@ -427,7 +437,7 @@
             ResourceExposureScope.Local => L["local"].Value,
             ResourceExposureScope.Network => L["network"].Value,
             ResourceExposureScope.Public => L["public"].Value,
-            _ => exposure.ToString()
+            _ => L["Unknown"].Value
         };
 
     private IReadOnlyList<EndpointMappingDisplay> GetOverviewEndpointMappings()
@@ -485,7 +495,7 @@
         }
 
         return signals.Count == 0
-            ? L["No projected signals"].Value
+            ? L["No telemetry signals"].Value
             : string.Join(", ", signals);
     }
 
@@ -589,9 +599,9 @@
                 Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
             }
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatOverviewActionFailure(exception);
             ProcedureSignals = [];
         }
         finally
@@ -603,6 +613,20 @@
     private string GetAttributeValue(string name, string fallback) =>
         Resource.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
 
+    private string FormatOverviewActionFailure(Exception exception)
+    {
+        Logger.LogWarning(
+            exception,
+            "Generated overview resource action failed for {ResourceId}",
+            Resource.Id);
+
+        return exception switch
+        {
+            HttpRequestException => L["CloudShell could not reach the Control Plane while running the resource action. Check connectivity and try again."].Value,
+            _ => L["CloudShell could not run the resource action. Check the resource state and try again."].Value
+        };
+    }
+
     private static bool ShouldStartDependencies(ResourceAction action) =>
         action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
 
@@ -611,13 +635,14 @@
 
     private string FormatNetworkReadiness()
     {
-        var readiness = GetAttributeValue(ResourceAttributeNames.NetworkHostReadiness, "unknown");
+        var readiness = GetAttributeValue(ResourceAttributeNames.NetworkHostReadiness, "Unknown");
         return readiness switch
         {
             "logicalOnly" => L["Logical only"].Value,
             "providerRequired" when GetMissingMappingProviderIds().Length == 0 => L["Ready"].Value,
             "providerRequired" => L["Provider missing"].Value,
             "ready" => L["Ready"].Value,
+            "unknown" => L["Unknown"].Value,
             _ => readiness
         };
     }
@@ -647,7 +672,7 @@
                     Resource.Id,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
-            .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(mapping => GetResourceLabel(mapping.Network), StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -664,7 +689,7 @@
                     Resource.Id,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
-            .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(route => GetResourceLabel(route.LoadBalancer), StringComparer.OrdinalIgnoreCase)
             .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -709,7 +734,7 @@
     private string FormatEndpointSummary(ResourceEndpoint endpoint)
     {
         var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
-            ? L["unspecified"].Value
+            ? L["Unspecified"].Value
             : endpoint.Protocol;
         return endpoint.TargetPort is null
             ? protocol
@@ -778,7 +803,7 @@
     private IReadOnlyList<ResourceRelationshipNode> GetDependencyNodes() =>
         Resource.DependsOn
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Order(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetRelationshipResourceLabel, StringComparer.OrdinalIgnoreCase)
             .Select(dependencyId =>
             {
                 var dependency = FindRelatedResource(dependencyId);
@@ -792,6 +817,11 @@
                     Resource: dependency);
             })
             .ToArray();
+
+    private string GetRelationshipResourceLabel(string resourceId) =>
+        FindRelatedResource(resourceId) is { } resource
+            ? GetResourceLabel(resource)
+            : GetFallbackResourceLabel(resourceId);
 
     private IReadOnlyList<ResourceRelationshipNode> GetDependentNodes() =>
         DependentResources
@@ -1048,7 +1078,7 @@
         return @<span class="inline-resource-reference">
             @if (string.IsNullOrWhiteSpace(targetResourceId))
             {
-                <span class="muted">@L["none"]</span>
+                <span class="muted">@L["None"]</span>
             }
             else
             {
@@ -1064,7 +1094,7 @@
         {
             L["Exposure: {0}", ResourceNameMappingDisplay.GetExposureLabel(view.Mapping)].Value,
             FormatNameMappingProvider(view.Mapping),
-            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping, Localize)].Value
+            L["Routing status: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping, Localize)].Value
         };
 
         var zone = string.IsNullOrWhiteSpace(view.Mapping.ParentResourceId)
@@ -1145,6 +1175,9 @@
     private ResourceTypeContribution? FindResourceType(Resource resource) =>
         this.ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
+
+    private string GetResourceTypeDisplayName(Resource resource) =>
+        FindResourceType(resource)?.DisplayName ?? resource.EffectiveTypeId;
 
     private string BuildLogRoute(LogSource log)
     {

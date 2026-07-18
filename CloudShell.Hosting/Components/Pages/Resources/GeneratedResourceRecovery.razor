@@ -133,7 +133,7 @@
         {
             <ResourceCallout Severity="ResourceSignalSeverity.Warning"
                              Title="@L["Recovery unavailable"].Value">
-                <p>@L["This resource does not declare recovery policy and does not project the recovery capability."]</p>
+                <p>@L["This resource has no recovery policy configured and does not expose recovery operations."]</p>
             </ResourceCallout>
         }
         else if (Status is null)
@@ -256,7 +256,7 @@
 
     private string FormatTimestamp(DateTimeOffset? timestamp) =>
         timestamp is null
-            ? L["n/a"].Value
+            ? L["Not recorded"].Value
             : timestamp.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture);
 
     private string GetStateLabel(ResourceRecoveryState state) =>
@@ -270,7 +270,7 @@
             ResourceRecoveryState.Restarting => L["Restarting"].Value,
             ResourceRecoveryState.Exhausted => L["Exhausted"].Value,
             ResourceRecoveryState.Unavailable => L["Unavailable"].Value,
-            _ => state.ToString()
+            _ => L["Unknown"].Value
         };
 
     private string BuildHealthRoute() =>

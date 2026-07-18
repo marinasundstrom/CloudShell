@@ -1,3 +1,4 @@
+@using System.Text.Json
 @inject IResourceManager ResourceManager
 
 @if (Resource is null)
@@ -10,35 +11,31 @@ else
     <section class="blade-section">
         <div class="blade-section-header">
             <div>
-                <h3>Resource model</h3>
-                <p>Configuration projected from resource declarations.</p>
+                <h3>Configuration</h3>
+                <p>Resource configuration and management details available to CloudShell.</p>
             </div>
         </div>
         <dl class="detail-list">
-            <dt>Resource ID</dt>
-            <dd>@Resource.Id</dd>
             <dt>Name</dt>
             <dd>@Resource.Name</dd>
             <dt>Display name</dt>
             <dd>@Resource.EffectiveDisplayName</dd>
             <dt>Type</dt>
-            <dd>@Resource.EffectiveTypeId</dd>
-            <dt>Class</dt>
-            <dd>@Resource.ResourceClass</dd>
+            <dd>@FormatResourceType(Resource)</dd>
             <dt>Provider</dt>
             <dd>@Resource.Provider</dd>
             <dt>State</dt>
-            <dd>@(Resource.State?.ToString() ?? "n/a")</dd>
+            <dd>@FormatResourceState(Resource.State)</dd>
             <dt>Source</dt>
-            <dd>@Resource.Source</dd>
+            <dd>@FormatResourceSource(Resource.Source)</dd>
             <dt>Management mode</dt>
-            <dd>@Resource.ManagementMode</dd>
-            <dt>Visibility</dt>
-            <dd>@Resource.Visibility</dd>
-            <dt>Resource membership</dt>
-            <dd>@Resource.ResourceGraphMembership</dd>
-            <dt>Resource version</dt>
-            <dd>@Resource.Version</dd>
+            <dd>@FormatManagementMode(Resource.ManagementMode)</dd>
+            <dt>Service discovery</dt>
+            <dd>@GetServiceDiscoveryName()</dd>
+            <dt>Environment variables</dt>
+            <dd>@GetEnvironmentSummary()</dd>
+            <dt>Startup dependencies</dt>
+            <dd>@GetDependencySummary()</dd>
             <dt>Last updated</dt>
             <dd>@FormatResourceTimestamp(Resource.LastUpdated)</dd>
         </dl>
@@ -47,75 +44,22 @@ else
     <section class="blade-section">
         <div class="blade-section-header">
             <div>
-                <h3>Attributes</h3>
-                <p>@GetAttributeSummary()</p>
+                <h3>Resource diagnostics</h3>
+                <p>Stable identifiers and graph metadata for troubleshooting.</p>
             </div>
         </div>
-        @if (AttributeRows.Count == 0)
-        {
-            <EmptyState Title="No attributes"
-                        Message="This resource projection does not expose attributes." />
-        }
-        else
-        {
-            <ResourceTable AriaLabel="Resource attributes">
-                <thead>
-                    <tr>
-                        <th>Attribute</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in AttributeRows)
-                    {
-                        <tr>
-                            <td>@row.Name</td>
-                            <td>@row.Value</td>
-                        </tr>
-                    }
-                </tbody>
-            </ResourceTable>
-        }
-    </section>
-
-    <section class="blade-section">
-        <div class="blade-section-header">
-            <div>
-                <h3>Endpoints</h3>
-                <p>@GetEndpointSummary()</p>
-            </div>
-        </div>
-        @if (Resource.Endpoints.Count == 0)
-        {
-            <EmptyState Title="No endpoints"
-                        Message="This resource does not declare endpoints." />
-        }
-        else
-        {
-            <ResourceTable AriaLabel="Resource endpoints">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Protocol</th>
-                        <th>Target port</th>
-                        <th>Exposure</th>
-                        <th>Resolved address</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var endpoint in Resource.Endpoints.OrderBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase))
-                    {
-                        <tr>
-                            <td>@endpoint.Name</td>
-                            <td>@endpoint.Protocol</td>
-                            <td>@(endpoint.TargetPort?.ToString() ?? "n/a")</td>
-                            <td>@endpoint.Exposure</td>
-                            <td>@(Resource.GetResolvedEndpointAddress(endpoint) ?? "not mapped")</td>
-                        </tr>
-                    }
-                </tbody>
-            </ResourceTable>
-        }
+        <dl class="detail-list">
+            <dt>Resource ID</dt>
+            <dd>@Resource.Id</dd>
+            <dt>Class</dt>
+            <dd>@FormatResourceClass(Resource.ResourceClass)</dd>
+            <dt>Visibility</dt>
+            <dd>@FormatResourceVisibility(Resource.Visibility)</dd>
+            <dt>Resource membership</dt>
+            <dd>@FormatResourceGraphMembership(Resource.ResourceGraphMembership)</dd>
+            <dt>Resource version</dt>
+            <dd>@Resource.Version</dd>
+        </dl>
     </section>
 
     <section class="blade-section">
@@ -138,7 +82,19 @@ else
             {
                 <div>
                     <strong>Startup dependencies</strong>
-                    <span>@FormatList(Resource.DependsOn)</span>
+                    @foreach (var dependency in DependencyRows)
+                    {
+                        @if (dependency.Resource is null)
+                        {
+                            <span>@dependency.Label</span>
+                        }
+                        else
+                        {
+                            <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(dependency.ResourceId)">
+                                @dependency.Label
+                            </FluentAnchor>
+                        }
+                    }
                 </div>
             }
         </div>
@@ -150,54 +106,169 @@ else
     public string? ResourceId { get; set; }
 
     private Resource? Resource { get; set; }
-    private IReadOnlyList<AttributeRow> AttributeRows { get; set; } = [];
+    private IReadOnlyList<ResourceDependencyRow> DependencyRows { get; set; } = [];
+    private static readonly string[] EnvironmentAttributeRoots =
+    [
+        AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+        JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+        JavaAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+        GoAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+        PythonAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString()
+    ];
+
+    private static readonly string[] ServiceDiscoveryAttributeNames =
+    [
+        AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName.ToString(),
+        JavaScriptAppResourceTypeProvider.Attributes.ServiceDiscoveryName.ToString(),
+        JavaAppResourceTypeProvider.Attributes.ServiceDiscoveryName.ToString(),
+        GoAppResourceTypeProvider.Attributes.ServiceDiscoveryName.ToString(),
+        PythonAppResourceTypeProvider.Attributes.ServiceDiscoveryName.ToString()
+    ];
 
     protected override async Task OnParametersSetAsync()
     {
         Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
-        AttributeRows = Resource is null
+        DependencyRows = Resource is null
             ? []
-            : Resource.ResourceAttributes
-                .OrderBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(attribute => new AttributeRow(attribute.Key, FormatAttributeValue(attribute.Key, attribute.Value)))
-                .ToArray();
+            : await CreateDependencyRowsAsync(Resource);
     }
 
-    private string GetAttributeSummary() =>
-        AttributeRows.Count == 1
-            ? "1 attribute is projected for this resource."
-            : $"{AttributeRows.Count} attributes are projected for this resource.";
+    private string GetEnvironmentSummary()
+    {
+        if (Resource is null)
+        {
+            return "No environment variables are configured.";
+        }
 
-    private string GetEndpointSummary() =>
-        Resource?.Endpoints.Count == 1
-            ? "1 endpoint is declared for this resource."
-            : $"{Resource?.Endpoints.Count ?? 0} endpoints are declared for this resource.";
+        var count = CountEnvironmentVariables(Resource);
+        return count switch
+        {
+            0 => "No environment variables are configured for this resource.",
+            1 => "1 environment variable is configured for this resource.",
+            _ => $"{count} environment variables are configured for this resource."
+        };
+    }
+
+    private string GetDependencySummary() =>
+        DependencyRows.Count switch
+        {
+            0 => "No startup dependencies are configured for this resource.",
+            1 => "1 startup dependency is configured for this resource.",
+            _ => $"{DependencyRows.Count} startup dependencies are configured for this resource."
+        };
 
     private string GetCapabilityOperationSummary() =>
-        $"{Resource?.ResourceCapabilities.Count ?? 0} capabilities and {Resource?.ResourceActions.Count ?? 0} operations are projected.";
+        $"{Resource?.ResourceCapabilities.Count ?? 0} capabilities and {Resource?.ResourceActions.Count ?? 0} operations are available.";
+
+    private string GetServiceDiscoveryName()
+    {
+        if (Resource is null)
+        {
+            return "Not configured";
+        }
+
+        foreach (var attributeName in ServiceDiscoveryAttributeNames)
+        {
+            if (Resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+                !string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return "Not configured";
+    }
 
     private static string FormatResourceTimestamp(DateTimeOffset timestamp) =>
         timestamp != default &&
         timestamp != DateTimeOffset.MinValue &&
         timestamp != DateTimeOffset.UnixEpoch
             ? timestamp.ToLocalTime().ToString("g")
-            : "not observed";
+            : "Not reported";
 
-    private static string FormatAttributeValue(string name, string value) =>
-        IsSensitiveAttribute(name)
-            ? "redacted"
-            : string.IsNullOrWhiteSpace(value)
-                ? "unset"
-                : value;
+    private static string FormatResourceState(ResourceState? state) =>
+        state switch
+        {
+            ResourceState.Running => "Running",
+            ResourceState.Stopped => "Stopped",
+            ResourceState.Starting => "Starting",
+            ResourceState.Stopping => "Stopping",
+            ResourceState.Paused => "Paused",
+            ResourceState.Degraded => "Needs attention",
+            ResourceState.Unknown => "Unknown",
+            null => "Not reported",
+            _ => "Unknown"
+        };
 
-    private static bool IsSensitiveAttribute(string name) =>
-        name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
-        name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
-        name.Contains("token", StringComparison.OrdinalIgnoreCase) ||
-        name.Contains("apikey", StringComparison.OrdinalIgnoreCase) ||
-        name.Contains("api-key", StringComparison.OrdinalIgnoreCase);
+    private static string FormatResourceType(Resource resource) =>
+        resource.EffectiveTypeId switch
+        {
+            var type when BuiltInProviderResourceUiTypes.IsExecutableApplication(type) => "Executable application",
+            var type when BuiltInProviderResourceUiTypes.IsAspNetCoreProject(type) => "ASP.NET Core project",
+            var type when BuiltInProviderResourceUiTypes.IsJavaScriptApp(type) => "JavaScript application",
+            var type when BuiltInProviderResourceUiTypes.IsJavaApp(type) => "Java application",
+            var type when BuiltInProviderResourceUiTypes.IsGoApp(type) => "Go application",
+            var type when BuiltInProviderResourceUiTypes.IsPythonApp(type) => "Python application",
+            var type when BuiltInProviderResourceUiTypes.IsContainerApplication(type) => "Container app",
+            var type when BuiltInProviderResourceUiTypes.IsSqlServer(type) => "SQL Server",
+            var type when BuiltInProviderResourceUiTypes.IsRabbitMQ(type) => "RabbitMQ broker",
+            _ => resource.EffectiveTypeId
+        };
+
+    private static string FormatResourceSource(ResourceSource source) =>
+        source switch
+        {
+            ResourceSource.User => "User-created",
+            ResourceSource.Provider => "Provider-created",
+            ResourceSource.Orchestrator => "Orchestrator-created",
+            ResourceSource.RuntimeController => "Runtime-created",
+            _ => "Unknown"
+        };
+
+    private static string FormatManagementMode(ResourceManagementMode mode) =>
+        mode switch
+        {
+            ResourceManagementMode.UserManaged => "User-managed",
+            ResourceManagementMode.ProviderManaged => "Provider-managed",
+            ResourceManagementMode.OrchestratorManaged => "Orchestrator-managed",
+            ResourceManagementMode.RuntimeManaged => "Runtime-managed",
+            _ => "Unknown"
+        };
+
+    private static string FormatResourceClass(ResourceClass resourceClass) =>
+        resourceClass switch
+        {
+            ResourceClass.Generic => "Generic",
+            ResourceClass.Executable => "Executable",
+            ResourceClass.Project => "Project",
+            ResourceClass.Container => "Container",
+            ResourceClass.Service => "Service",
+            ResourceClass.Network => "Network",
+            ResourceClass.Storage => "Storage",
+            ResourceClass.Configuration => "Configuration",
+            ResourceClass.Infrastructure => "Infrastructure",
+            ResourceClass.SecretsVault => "Secrets vault",
+            _ => "Unknown"
+        };
+
+    private static string FormatResourceVisibility(ResourceVisibility visibility) =>
+        visibility switch
+        {
+            ResourceVisibility.Normal => "Visible",
+            ResourceVisibility.Hidden => "Hidden",
+            ResourceVisibility.Diagnostic => "Diagnostic",
+            _ => "Unknown"
+        };
+
+    private static string FormatResourceGraphMembership(string membership) =>
+        membership switch
+        {
+            ResourceGraphMembershipKinds.Declared => "Declared resource",
+            ResourceGraphMembershipKinds.Projected => "Generated resource",
+            _ => "Other"
+        };
 
     private static string FormatList(IEnumerable<string> values)
     {
@@ -207,9 +278,104 @@ else
             .ToArray();
 
         return items.Length == 0
-            ? "none"
+            ? "None"
             : string.Join(", ", items);
     }
 
-    private sealed record AttributeRow(string Name, string Value);
+    private static int CountEnvironmentVariables(Resource resource)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var root in EnvironmentAttributeRoots)
+        {
+            AddObjectEnvironmentVariableNames(resource, root, names);
+            AddFlattenedEnvironmentVariableNames(resource, root, names);
+        }
+
+        return names.Count;
+    }
+
+    private static void AddObjectEnvironmentVariableNames(
+        Resource resource,
+        string attributeRoot,
+        HashSet<string> names)
+    {
+        if (!resource.ResourceAttributes.TryGetValue(attributeRoot, out var serialized) ||
+            string.IsNullOrWhiteSpace(serialized))
+        {
+            return;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(serialized);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                names.Add(property.Name);
+            }
+        }
+        catch (JsonException)
+        {
+            names.Add(attributeRoot);
+        }
+    }
+
+    private static void AddFlattenedEnvironmentVariableNames(
+        Resource resource,
+        string attributeRoot,
+        HashSet<string> names)
+    {
+        var prefix = attributeRoot + ".";
+        foreach (var attribute in resource.ResourceAttributes)
+        {
+            if (!attribute.Key.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var path = attribute.Key[prefix.Length..];
+            foreach (var suffix in new[] { ".value", ".configurationSettingRef.", ".secretRef." })
+            {
+                var index = path.IndexOf(suffix, StringComparison.Ordinal);
+                if (index > 0)
+                {
+                    names.Add(path[..index]);
+                    break;
+                }
+            }
+        }
+    }
+
+    private async Task<IReadOnlyList<ResourceDependencyRow>> CreateDependencyRowsAsync(Resource resource)
+    {
+        var dependencyIds = resource.DependsOn
+            .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (dependencyIds.Length == 0)
+        {
+            return [];
+        }
+
+        var resourcesById = (await ResourceManager.ListResourcesAsync())
+            .ToDictionary(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase);
+        return dependencyIds
+            .Select(dependencyId =>
+            {
+                resourcesById.TryGetValue(dependencyId, out var dependency);
+                var label = dependency is null
+                    ? $"{ResourceDisplayLabels.GetName(dependencyId)} (unavailable)"
+                    : ResourceDisplayLabels.GetQualifiedLabel(dependency);
+                return new ResourceDependencyRow(dependencyId, label, dependency);
+            })
+            .OrderBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private sealed record ResourceDependencyRow(string ResourceId, string Label, Resource? Resource);
 }

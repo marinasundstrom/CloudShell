@@ -1108,8 +1108,8 @@ public sealed class SampleSmokeTests
 
         var graphApiConfigurationHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.dotnet-app:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
-        Assert.Contains("Resource model", graphApiConfigurationHtml);
-        Assert.Contains("project.path", graphApiConfigurationHtml);
+        Assert.Contains("Resource diagnostics", graphApiConfigurationHtml);
+        Assert.Contains("Service discovery", graphApiConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphApiConfigurationHtml);
 
         var graphApiEnvironmentHtml = await host.GetStringAsync(
@@ -1118,6 +1118,17 @@ public sealed class SampleSmokeTests
         Assert.Contains("CLOUDSHELL_TRACE_INGEST_ENDPOINT", graphApiEnvironmentHtml);
         Assert.DoesNotContain("CLOUDSHELL_IDENTITY_CLIENT_SECRET", graphApiEnvironmentHtml);
 
+        var graphEnvironmentHtml = await host.GetStringAsync("/environment");
+        Assert.Contains("Current environment", graphEnvironmentHtml);
+        Assert.Contains("Environment map", graphEnvironmentHtml);
+        Assert.Contains("Deployment records", graphEnvironmentHtml);
+        Assert.Contains("API", graphEnvironmentHtml);
+
+        var graphHealthHtml = await host.GetStringAsync("/health");
+        Assert.Contains("Health checks", graphHealthHtml);
+        Assert.Contains("Resources", graphHealthHtml);
+        Assert.Contains("API", graphHealthHtml);
+
         var graphSqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
         Assert.Contains("SQL Server", graphSqlDetailsHtml);
@@ -1125,10 +1136,11 @@ public sealed class SampleSmokeTests
 
         var graphSqlConfigurationHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
-        Assert.Contains("Resource model", graphSqlConfigurationHtml);
-        Assert.Contains("version", graphSqlConfigurationHtml);
-        Assert.Contains("Endpoints", graphSqlConfigurationHtml);
+        Assert.Contains("Resource diagnostics", graphSqlConfigurationHtml);
+        Assert.Contains("Resource version", graphSqlConfigurationHtml);
+        Assert.Contains("Startup dependencies", graphSqlConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphSqlConfigurationHtml);
+        Assert.Contains("SQL Data", graphSqlConfigurationHtml);
 
         var graphSqlDatabasesHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString("application:databases")}");
@@ -1140,12 +1152,12 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Storage.Value)}");
         Assert.Contains("Storage", graphSqlStorageHtml);
         Assert.Contains("SQL Data", graphSqlStorageHtml);
-        Assert.Contains("mount target unavailable", graphSqlStorageHtml);
+        Assert.Contains("Mount target unavailable", graphSqlStorageHtml);
 
         var graphApplicationAddHtml = await host.GetStringAsync(
             "/resources/add?type=application.dotnet-app");
         Assert.Contains(".NET App", graphApplicationAddHtml);
-        Assert.Contains("Create an application resource from an uploaded .NET artifact.", graphApplicationAddHtml);
+        Assert.Contains("Create an application resource from an uploaded .NET application package.", graphApplicationAddHtml);
         Assert.DoesNotContain("Resource type not found", graphApplicationAddHtml);
 
         await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
@@ -2240,12 +2252,14 @@ public sealed class SampleSmokeTests
 
         var identityAddHtml = await host.GetStringAsync(
             "/resources/add?type=cloudshell.identity-provisioning");
-        Assert.Contains("Resource model resources", identityAddHtml);
+        Assert.Contains("Identity Provisioning", identityAddHtml);
+        Assert.Contains("managed through Resource Manager", identityAddHtml);
         Assert.DoesNotContain("Resource type not found", identityAddHtml);
 
         var configurationStoreAddHtml = await host.GetStringAsync(
             "/resources/add?type=configuration.store");
-        Assert.Contains("Resource model resources", configurationStoreAddHtml);
+        Assert.Contains("Configuration Store", configurationStoreAddHtml);
+        Assert.Contains("managed through Resource Manager", configurationStoreAddHtml);
         Assert.DoesNotContain("Resource type not found", configurationStoreAddHtml);
     }
 
@@ -2454,8 +2468,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Time range", activityHtml);
         Assert.Contains("Lifecycle actions", activityHtml);
         Assert.Contains("Lifecycle events", activityHtml);
-        Assert.Contains("action.lifecycle.stop", activityHtml);
-        Assert.Contains("event.lifecycle.stopped", activityHtml);
+        Assert.Contains("Info", activityHtml);
         Assert.Contains("Stop completed", activityHtml);
     }
 
@@ -2737,14 +2750,15 @@ public sealed class SampleSmokeTests
         var deploymentHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString(containerAppResourceId)}/details?tab={Uri.EscapeDataString("application:deployment")}");
         Assert.Contains("Replicated", deploymentHtml);
-        Assert.Contains("3 replica slots", deploymentHtml);
+        Assert.Contains("Requested replicas", deploymentHtml);
+        Assert.Contains(">3</dd>", deploymentHtml);
 
         var scalingHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString(containerAppResourceId)}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
-        Assert.Contains("Replica slots", scalingHtml);
-        Assert.Contains("Slot 1", scalingHtml);
-        Assert.Contains("Slot 2", scalingHtml);
-        Assert.Contains("Slot 3", scalingHtml);
+        Assert.Contains("Replica entries", scalingHtml);
+        Assert.Contains("Replica 1", scalingHtml);
+        Assert.Contains("Replica 2", scalingHtml);
+        Assert.Contains("Replica 3", scalingHtml);
     }
 
     [Fact]
@@ -3053,13 +3067,20 @@ public sealed class SampleSmokeTests
 
         Assert.False(exported.HasErrors, FormatDiagnostics(exported.Diagnostics));
 
+        var serializerOptions = new CloudShell.ResourceModel.ResourceTemplateSerializerOptions(
+        [
+            new ContainerApplicationResourceTypeProvider().TypeDefinition,
+            new AspNetCoreProjectResourceTypeProvider().TypeDefinition
+        ]);
         var yaml = CloudShell.ResourceModel.ResourceTemplateSerializer.SerializeTemplate(
-            exported.Template);
+            exported.Template,
+            options: serializerOptions);
 
         Assert.Contains("dependsOn:", yaml);
         Assert.Contains("resourceId: cloudshell.container-host:default", yaml);
-        Assert.Contains("container:", yaml);
         Assert.Contains("image: cloudshell-signalr-api:20260630.1", yaml);
+        Assert.Contains("replicas: 3", yaml);
+        Assert.Contains("routing:", yaml);
         Assert.Contains("logs:", yaml);
         Assert.Contains("sources:", yaml);
         Assert.Contains("health:", yaml);
@@ -3067,13 +3088,16 @@ public sealed class SampleSmokeTests
         Assert.Contains("network:", yaml);
         Assert.Contains("resourceId: network:host", yaml);
         Assert.DoesNotContain("attributes:", yaml);
+        Assert.DoesNotContain("container:", yaml);
         Assert.DoesNotContain("container.image:", yaml);
         Assert.DoesNotContain("logs.sources:", yaml);
         Assert.DoesNotContain("health.checks:", yaml);
         Assert.DoesNotContain("value: cloudshell.container-host:default", yaml);
         Assert.DoesNotContain("addressingMode: resourceId", yaml);
 
-        var roundTripped = CloudShell.ResourceModel.ResourceTemplateSerializer.DeserializeTemplate(yaml);
+        var roundTripped = CloudShell.ResourceModel.ResourceTemplateSerializer.DeserializeTemplate(
+            yaml,
+            options: serializerOptions);
         var applyResponse = await client.PostAsJsonAsync(
             "/api/control-plane/v1/resource-templates/apply",
             new ResourceTemplateApplyRequest(roundTripped));
@@ -3426,14 +3450,14 @@ public sealed class SampleSmokeTests
         var graphScalingHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.container-app:api")}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
         Assert.Contains("Scale and replicas", graphScalingHtml);
-        Assert.Contains("Requested replica slots", graphScalingHtml);
-        Assert.Contains("Replica slots", graphScalingHtml);
+        Assert.Contains("Requested replicas", graphScalingHtml);
+        Assert.Contains("Replica entries", graphScalingHtml);
         Assert.Contains("Update replicas", graphScalingHtml);
         Assert.Contains("Session affinity", graphScalingHtml);
         Assert.Contains("Cookie", graphScalingHtml);
-        Assert.Contains("Slot 1", graphScalingHtml);
-        Assert.Contains("Slot 2", graphScalingHtml);
-        Assert.Contains("Slot 3", graphScalingHtml);
+        Assert.Contains("Replica 1", graphScalingHtml);
+        Assert.Contains("Replica 2", graphScalingHtml);
+        Assert.Contains("Replica 3", graphScalingHtml);
         Assert.Contains(">3</dd>", graphScalingHtml);
 
         var graphDeploymentHtml = await host.GetStringAsync(
@@ -3441,7 +3465,8 @@ public sealed class SampleSmokeTests
         Assert.Contains("Deploy image", graphDeploymentHtml);
         Assert.Contains("Current image", graphDeploymentHtml);
         Assert.Contains("Replicated", graphDeploymentHtml);
-        Assert.Contains("3 replica slots", graphDeploymentHtml);
+        Assert.Contains("Requested replicas", graphDeploymentHtml);
+        Assert.Contains(">3</dd>", graphDeploymentHtml);
 
         var graphRevisionsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.container-app:api")}/details?tab={Uri.EscapeDataString("application:revisions")}");
@@ -5147,7 +5172,7 @@ public sealed class SampleSmokeTests
         {
             lastHtml = await host.GetStringAsync(
                 $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={tab}");
-            if (lastHtml.Contains("Occupied slots", StringComparison.OrdinalIgnoreCase) &&
+            if (lastHtml.Contains("Assigned replicas", StringComparison.OrdinalIgnoreCase) &&
                 lastHtml.Contains($">{expectedReplicas.ToString(CultureInfo.InvariantCulture)}</dd>", StringComparison.OrdinalIgnoreCase) &&
                 Enumerable.Range(1, expectedReplicas).All(replica =>
                     lastHtml.Contains($"api replica {replica.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase) &&
@@ -5162,7 +5187,7 @@ public sealed class SampleSmokeTests
         }
 
         throw new TimeoutException(
-            $"Graph scale panel did not show {expectedReplicas.ToString(CultureInfo.InvariantCulture)} occupied replica slot(s) for '{resourceId}' within {timeout}." +
+            $"Graph scale panel did not show {expectedReplicas.ToString(CultureInfo.InvariantCulture)} assigned replica(s) for '{resourceId}' within {timeout}." +
             $"{Environment.NewLine}{lastHtml}");
     }
 

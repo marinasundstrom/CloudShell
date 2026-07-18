@@ -93,7 +93,7 @@ app-development loop before broader platform expansion.
 | 6 | ResourceDefinition apply/export convergence | The old provider path has mostly been retired; remaining compatibility should be explicit. | Remove or document remaining obsolete template/runtime bridges where graph-backed providers can round-trip definitions. |
 | 7 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool, but launchers, deployment artifact loading, and assistant drafting should not distract from MVP stabilization. | Keep CLI, launcher/profile, TypeScript/JavaScript, Java, SDK, deployment artifacts, and future intent-first authoring aligned with the same ResourceDefinition and Control Plane boundary; defer packaging polish and generated-draft workflows that do not improve supported local runs. |
 | 8 | Cross-platform support guardrail | The baseline CI and platform abstraction are now in place; they must keep future MVP work portable. | Maintain the cross-platform CI matrix, support-tier docs, command planning, host capability checks, and diagnostics as guardrails around CLI, launcher, app-runtime, container-host, and host-networking changes. |
-| 9 | Agent/reconciliation preparation | Agents are the future execution boundary, but the MVP should not become a distributed-systems project. | When host-local execution changes, shape it as typed provider work with desired/observed state, leases, diagnostics, and idempotency in mind; defer remote agents, placement, regions, and clustering. |
+| 9 | Agent/reconciliation preparation | Agents are the future execution boundary, but the MVP should not become a distributed-systems project. | When host-local execution changes, shape it as typed provider work with desired/observed state, leases, diagnostics, and idempotency in mind; keep provider-backed services such as Configuration Store and Secrets Vault modeled as resource instances whose backing process/container is an implementation detail; defer remote agents, placement, regions, and clustering. |
 | 10 | CoreShell, UI composition, and shell structure | Useful only when it reduces current Resource Manager, Settings, notification, or shell drift. | Use the CoreShell Fluent UI sample as the reference shell and extract only proven common shell building blocks; pause persistence, marketplace, and user-personalized shell-platform work. |
 
 ## Authoritative Milestones
@@ -658,8 +658,10 @@ listed here before pulling in broader proposal work.
    resource Usage tabs. Use [Resource Monitoring and Usage](monitoring-and-usage.md)
    for the landed model. The next roadmap action is better provider coverage,
    richer replica diagnostics, summary-first usage dashboards, drill-down by
-   resource or metric, and better trend quality. Live telemetry and monitoring
-   subscriptions for split-hosted UIs remain a later Control Plane API design
+   resource or metric, and better trend quality. Also clean up the common
+   Usage page so it no longer feels like a raw statistics surface. Live
+   telemetry and monitoring subscriptions for split-hosted UIs remain a later
+   Control Plane API design
    question. Keep shared Telemetry pages for cross-resource investigation
    instead of forcing normal per-resource work through global views. Do not
    start broad new shell areas before the supported samples are stable. The

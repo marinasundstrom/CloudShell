@@ -13,10 +13,159 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-18
+
+#### Changed
+
+- Included exported resource type metadata with resource template exports so
+  API and split-hosting clients can serialize templates with authored
+  attribute paths instead of fallback attribute groups.
+
 ### 2026-07-17
 
 #### Changed
 
+- Updated sample smoke assertions to follow current Resource Manager labels
+  for package upload, resource diagnostics, replica entries, and provider
+  resource registration.
+- Clarified the common Usage page recent-samples table so sample metadata is
+  presented as details instead of raw attributes.
+- Clarified the Environment summary metric for replica reconciliation so open
+  issues are presented as replica issues instead of replica-position issues.
+- Clarified container-app Scale and replicas labels so the replica summary and
+  table use replica-entry wording instead of position terminology.
+- Clarified generated Health, Recovery, and volume consumer views so absent
+  checks, recovery operations, and volume-only dependencies use configured
+  resource wording.
+- Clarified built-in provider resource type descriptions so Resource Manager
+  navigation describes managed resources instead of declared resources.
+- Clarified application endpoint actions, storage dependency rows, and
+  RabbitMQ endpoint labels so missing or fallback endpoint state uses
+  configured-state wording.
+- Clarified SQL Server database summaries and source labels so configured
+  database resources do not surface declaration terminology.
+- Clarified Event Broker protocol summaries and stream connection errors so
+  endpoint availability uses configured-state wording instead of declaration
+  terminology.
+- Clarified shared application Configuration and Environment tab summaries so
+  environment variables, service discovery, and startup dependencies use
+  configured-state wording instead of declaration terminology.
+- Clarified the shared application Storage tab so mounted storage summaries use
+  configured storage wording instead of resource-definition terminology.
+- Clarified RabbitMQ topology and dashboard queue metadata so broker-reported
+  state and type values use display labels where CloudShell recognizes them.
+- Clarified DNS zone overview metadata so exposure, provider, and mapping
+  status use display labels instead of raw stored values.
+- Clarified network detail views so network kind uses display labels instead
+  of raw attribute values.
+- Clarified the shared application Environment tab so environment variable
+  sources use display labels instead of raw stored values.
+- Clarified generated identity views so identity binding kinds use display
+  labels instead of raw enum values.
+- Clarified RabbitMQ broker and SQL database provider views so state,
+  exposure, and database source values use display labels instead of raw
+  stored values.
+- Clarified the Resource Manager detail blade so resource source, management,
+  and visibility use display labels instead of raw enum values.
+- Clarified the application configuration provider view so resource state,
+  source, management, visibility, class, and graph membership use display
+  labels instead of raw enum values.
+- Clarified the application package editor summary so source kind and package
+  update status use display labels instead of raw stored values.
+- Clarified DNS and name-mapping views so routing status no longer appears as
+  materialization status in Resource Manager.
+- Hid the resource detail Endpoints section when a selected resource has no
+  endpoint entries to show.
+- Clarified the application package editor so visible labels and validation
+  messages use package wording instead of artifact terminology.
+- Clarified built-in provider UI descriptions so uploaded application
+  packages are not described as artifacts.
+- Clarified the Resource Templates page so descriptions and diagnostics avoid
+  raw resource-definition type names.
+- Clarified provider registration empty states so resource creation guidance
+  uses user-facing wording instead of resource-model terminology.
+- Clarified the Usage extension description so trend estimates are described
+  as forecasts instead of projections.
+- Clarified container-app deployment and monitoring summary labels so running
+  replica counts do not expose materialization terminology.
+- Clarified the Telemetry extension description so extension-provided telemetry
+  uses source-oriented wording instead of artifact wording.
+- Clarified Logs and Telemetry navigation copy so extension-provided logs are
+  described as log sources instead of artifacts.
+- Clarified Environment map summary counts so routing and topology entries are
+  described as relationships instead of artifacts.
+- Clarified container-app scaling status labels so running replicas and
+  reconciled slots do not expose materialization terminology.
+- Clarified Resource Manager usage views so trend estimates are described as
+  forecasts instead of projections.
+- Gave Usage shell and resource-view entries a distinct icon so they no longer
+  visually collide with Telemetry.
+- Clarified the common Usage page heading and trend-stat labels so it reads as
+  a Resource Manager workspace instead of a raw statistics table.
+- Clarified container-app Monitoring fallback labels so missing replica metrics
+  and snapshot status read as user-facing state.
+- Clarified container-app Scale and replicas summary labels so the page avoids
+  raw resource type IDs and slot terminology in the top summary.
+- Clarified container-app deployment event metadata so the timeline shows
+  severity instead of raw event type IDs.
+- Clarified the shared application Configuration tab so known built-in
+  resource types use display labels instead of raw type IDs.
+- Clarified storage volume overview and volume-list labels so consumer rows
+  and volume metadata avoid raw resource type IDs.
+- Clarified the container-app Monitoring header so provider snapshot status
+  values use the same display labels as replica monitoring rows.
+- Clarified shared storage mount status labels so application storage and
+  volume views use display labels instead of lowercase runtime values.
+- Clarified the container-app Deployment summary so status and capacity text
+  reads as deployment state instead of replica-slot internals.
+- Clarified the container-app Scale and replicas view so visible labels use
+  replica positions and reconciliation wording instead of slot internals.
+- Clarified the container-app Revisions page so inferred revision fallbacks
+  describe running replicas and revision IDs without resource-model wording.
+- Clarified the Environment dashboard replica group and reconciliation labels
+  so they use requested/running replica language instead of slot internals.
+- Clarified environment-variable reference fallbacks so missing configuration
+  or secrets resources are labeled as missing resources.
+- Clarified the Resource Manager Essentials type field so it uses the resource
+  type display name instead of the raw type ID.
+- Clarified Resource Manager settings copy so hidden system-managed resource
+  permissions are described without runtime-resource terminology.
+- Clarified resource Activity event metadata so event rows show user-facing
+  event groups instead of raw event type IDs.
+- Clarified application package editor empty revision labels so missing
+  package selections use display labels.
+- Clarified container-app Deployment replica summary fallbacks so disabled
+  replica fields use display labels.
+- Clarified shared endpoint and resource fallback labels so empty values use
+  display labels instead of lowercase sentinel text.
+- Clarified Resource Manager inventory-visibility settings so
+  system-managed resources are not described as runtime resources.
+- Clarified the resource Activity event-type filter placeholder so it avoids
+  raw/exact event-type wording.
+- Clarified generated resource overview Essentials so the Type field uses the
+  resource type display name when available.
+- Clarified application package editor summary labels so package source and
+  update state are described without source-kind wording.
+- Clarified container-app Revisions fallback labels so missing revision data
+  does not use runtime-revision wording.
+- Clarified Environment dashboard revision columns so deployment and replica
+  tables use app-revision wording instead of runtime-revision wording.
+- Improved Log Explorer read and streaming failures so the UI shows stable
+  recovery guidance while logging original exceptions for diagnostics.
+- Improved the Event Broker streams view so cancelled refreshes do not surface
+  as broker read failures.
+- Clarified Environment page revision and runtime-map fallbacks so missing
+  deployment metadata displays as unavailable instead of not projected.
+- Clarified Resource Manager visibility settings so hidden runtime resources
+  are described as system-managed resources instead of runtime-managed
+  artifacts.
+- Clarified deployment activity and environment graph labels so replicas and
+  topology providers use running/provides wording instead of materialization
+  terminology.
+- Clarified storage mount diagnostics so Resource Manager warns about inactive
+  mounts without exposing materialization terminology.
+- Clarified the resource detail fallback message so missing resource
+  selections no longer refer to projected details.
 - Improved Resource Manager readiness and routing diagnostics so referenced
   resources use the shared qualified-label format, preserving readable display
   names while keeping scoped resource names visible when they differ.
@@ -27,6 +176,8 @@ on `git blame --follow`, and then by the broad type of change.
   when display names differ from resource names.
 - Improved load-balancer route authoring selectors and generated route names
   so container-host and target-resource references use qualified labels.
+- Improved load-balancer certificate selection in register/update flows so
+  secrets-vault references use Resource Manager display labels.
 - Documented the accepted local-development MVP bridges across supported
   sample READMEs and updated the seam audit for host virtual networking and
   load-balancer routing.
@@ -54,10 +205,110 @@ on `git blame --follow`, and then by the broad type of change.
   shown from provider-specific or flattened resource model projections.
 - Improved Resource Manager application exposure actions so target summaries
   and load-balancer selection use qualified resource labels.
+- Improved Device Registry enrollment policy summaries so permission grants
+  and trusted certificate references use Resource Manager display labels when
+  related resources are available.
+- Improved Device Registry device details so enrolled identity resources link
+  to their Resource Manager resource and use qualified display labels.
 - Improved container-app deployment, monitoring, revision, and scaling views
   so materialized replica links and ordering use qualified resource labels.
 - Improved the SQL Server Databases tab so projected database rows link to
   their Resource Manager details while preserving visible resource IDs.
+- Improved the shared application Environment tab so configuration and secret
+  references use readable Resource Manager labels and link to their referenced
+  resources when available.
+- Improved the environment dashboard so deployment, replica-group, deployment
+  projection, and replica-slot tables use qualified resource labels
+  consistently.
+- Improved the environment dashboard active replica-group table so rows sort
+  by the same source-resource display labels shown in the table.
+- Improved the environment dashboard replica-slot reconciliation table so rows
+  sort by visible resource label, slot ordinal, and status instead of store
+  enumeration order.
+- Removed the Environment dashboard model-note panel so the page stays focused
+  on operational environment state instead of internal future-design context.
+- Clarified the Resource Manager database access-control notice so it gives the
+  user the reconcile action to take without exposing internal future-work
+  wording.
+- Clarified the RabbitMQ broker management panel so credential guidance is
+  security-focused and points users to CloudShell grants and access
+  reconciliation.
+- Clarified the Resource Manager RabbitMQ access-control notice so it matches
+  the broker page guidance and avoids implementation wording.
+- Clarified the SQL Server databases tab so loading, empty, summary, and
+  verification text describes attached databases instead of resource projection
+  internals.
+- Improved the Event Broker streams tab so stream read failures show stable,
+  actionable guidance instead of raw runtime exception text.
+- Clarified Configuration Store and Secrets Vault management tabs so user-facing
+  empty states, summaries, and unavailable messages describe settings, secrets,
+  and certificates without runtime-manager terminology.
+- Improved Device Registry device views so unavailable and mutation failure
+  messages use user-facing management and recovery guidance instead of runtime
+  manager or raw exception wording.
+- Improved Container Application deployment and scaling views so update
+  failures show stable recovery guidance and readiness copy avoids internal
+  runtime-materialization wording.
+- Clarified Container Application deployment, revision, monitoring, and scaling
+  copy so user-facing labels describe running replicas and deployment state
+  instead of materialization/projection internals.
+- Simplified the shared application Configuration tab so it summarizes
+  user-facing configuration and diagnostics without exposing raw attribute
+  tables or duplicating endpoint details from the Endpoints tab.
+- Clarified the RabbitMQ broker page so endpoint, management, and reconcile
+  access copy describes configured broker behavior instead of projection
+  internals.
+- Clarified application storage mount summaries and shared mount status labels
+  so users see configured and active storage state instead of runtime
+  materialization wording.
+- Improved Secrets Vault certificate generation errors so the UI shows stable
+  recovery guidance instead of raw cryptography exception messages.
+- Improved the shared application Environment tab so unreadable environment
+  variable definitions are labeled as unreadable instead of raw resource data.
+- Clarified the Resource Manager Environment page so deployment, revision, and
+  replica-slot summaries describe observed running state instead of projection
+  and materialization internals.
+- Improved application artifact create, restore, update, and validation
+  failure messages so the Resource Manager UI shows recovery guidance instead
+  of raw exception text.
+- Improved Resource Manager resource apply, restart, delete, and action
+  failures so the detail page shows stable recovery guidance while logging the
+  original exception for diagnostics.
+- Improved generated Resource Manager identity views so identity update,
+  provisioning, and provisioning-status failures show stable recovery guidance
+  while logging the original exception for diagnostics.
+- Improved Resources list delete and action failure messages so inventory
+  operations show stable recovery guidance while logging the original
+  exception for diagnostics.
+- Improved generated Resource Manager access-control views so grant and revoke
+  failures show stable recovery guidance while logging the original exception
+  for diagnostics.
+- Improved Resource Template export and apply failures so the templates page
+  shows stable recovery guidance while logging the original exception for
+  diagnostics.
+- Improved generated Resource Manager overview views so resource action
+  failures show stable recovery guidance and telemetry summaries avoid
+  projection terminology.
+- Clarified the Health page empty state so it describes resources exposing
+  health checks instead of projected resources advertising checks.
+- Updated Storage resource volume consumers to sort by the same qualified
+  resource labels shown in Resource Manager.
+- Improved the shared application Configuration tab so startup dependencies
+  resolve to linked, qualified Resource Manager labels when available.
+- Fixed Resource Template UI export/import to use registered resource type
+  attribute paths, preventing container app exports from reintroducing the old
+  `container:` wrapper for `image`, `replicas`, and routing fields.
+- Improved the Health dashboard so resource rows, history cards, activity
+  links, and ordering use qualified Resource Manager labels consistently.
+- Improved the Resources page dependency lists and lifecycle confirmation
+  messages so they sort and describe related resources with Resource Manager
+  display labels instead of raw resource names.
+- Improved the Resources page inbound exposure sections so network mappings
+  and load-balancer routes sort related resources by the same Resource Manager
+  display labels shown in the UI.
+- Improved generated Overview and Endpoints exposure sections so dependency
+  graph nodes, network mappings, and load balancer routes order related
+  resources by Resource Manager display labels.
 - Updated the MVP roadmap and sample seam audit so Application Topology is
   tracked as an accepted local-development MVP bridge instead of an active
   fix-now blocker after the app-context diagnostics and explanations landed.

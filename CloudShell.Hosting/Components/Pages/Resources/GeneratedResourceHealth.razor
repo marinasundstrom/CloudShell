@@ -270,7 +270,7 @@
     private string GetNoHealthChecksMessage() =>
         SupportsHealthChecks
             ? L["This resource type supports health checks, but this resource has not registered any health check endpoints yet."].Value
-            : L["This resource does not declare health checks."].Value;
+            : L["This resource has no health checks configured."].Value;
 
     private TimeSpan GetHealthCheckInterval() =>
         TimeSpan.FromSeconds(OrchestrationSettings.GetHealthCheckIntervalSettings().Seconds);

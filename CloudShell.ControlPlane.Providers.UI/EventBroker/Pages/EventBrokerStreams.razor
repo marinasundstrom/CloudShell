@@ -28,7 +28,7 @@ else
         @if (ProtocolRows.Count == 0)
         {
             <EmptyState Title="No protocols"
-                        Message="This broker does not declare protocol endpoints." />
+                        Message="This broker has no protocol endpoints configured." />
         }
         else
         {
@@ -38,7 +38,7 @@ else
                         <th>Name</th>
                         <th>Protocol</th>
                         <th>Endpoint</th>
-                        <th>Format</th>
+                        <th>Event format</th>
                         <th>Capabilities</th>
                     </tr>
                 </thead>
@@ -47,10 +47,10 @@ else
                     {
                         <tr>
                             <td><strong>@protocol.Name</strong></td>
-                            <td>@protocol.Protocol</td>
-                            <td>@FormatOptional(protocol.Address)</td>
-                            <td>@FormatOptional(protocol.EventFormat)</td>
-                            <td>@FormatValues(protocol.Capabilities)</td>
+                            <td>@FormatProtocol(protocol.Protocol)</td>
+                            <td>@FormatEndpoint(protocol.Address)</td>
+                            <td>@FormatEventFormat(protocol.EventFormat)</td>
+                            <td>@FormatCapabilities(protocol.Capabilities)</td>
                         </tr>
                     }
                 </tbody>
@@ -94,7 +94,7 @@ else
                             <td><strong>@stream.Name</strong></td>
                             <td>@stream.EventCount</td>
                             <td>@stream.LastSequence</td>
-                            <td>@FormatOptionalTimestamp(stream.LastEventAt)</td>
+                            <td>@FormatLastEvent(stream.LastEventAt)</td>
                         </tr>
                     }
                 </tbody>
@@ -134,7 +134,7 @@ else
         var endpoint = GetHttpEndpoint();
         if (string.IsNullOrWhiteSpace(endpoint))
         {
-            Error = "This broker does not declare an HTTP event endpoint.";
+            Error = "This broker has no HTTP event endpoint configured.";
             return;
         }
 
@@ -157,16 +157,19 @@ else
             var client = new EventBrokerClient(new Uri(endpoint), httpClient);
             Streams.AddRange(await client.ListStreamsAsync(Resource.Id));
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            Error = exception.Message;
+            Error = $"CloudShell could not read streams from this broker. {FormatStreamReadFailure(exception)}";
         }
     }
 
     private string GetProtocolSummary() =>
-        ProtocolRows.Count == 1
-            ? "1 protocol endpoint is declared for this broker."
-            : $"{ProtocolRows.Count} protocol endpoints are declared for this broker.";
+        ProtocolRows.Count switch
+        {
+            0 => "No protocol endpoints are configured for this broker.",
+            1 => "1 protocol endpoint is configured for this broker.",
+            _ => $"{ProtocolRows.Count} protocol endpoints are configured for this broker."
+        };
 
     private string GetStreamSummary() =>
         Streams.Count == 1
@@ -217,18 +220,59 @@ else
             .ToArray();
     }
 
-    private static string FormatValues(IReadOnlyList<string> values) =>
+    private static string FormatProtocol(string protocol) =>
+        protocol.Trim().ToLowerInvariant() switch
+        {
+            EventBrokerProtocols.Http => "HTTP",
+            EventBrokerProtocols.Mqtt => "MQTT",
+            EventBrokerProtocols.Amqp => "AMQP",
+            EventBrokerProtocols.Kafka => "Kafka",
+            EventBrokerProtocols.EventHubs => "Event Hubs",
+            EventBrokerProtocols.Nats => "NATS",
+            { Length: > 0 } => "Custom",
+            _ => "Not configured"
+        };
+
+    private static string FormatCapabilities(IReadOnlyList<string> values) =>
         values.Count == 0
-            ? "-"
-            : string.Join(", ", values);
+            ? "None"
+            : string.Join(", ", values.Select(FormatCapability).Order(StringComparer.OrdinalIgnoreCase));
 
-    private static string FormatOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "-" : value;
+    private static string FormatCapability(string capability) =>
+        capability.Trim().ToLowerInvariant() switch
+        {
+            EventBrokerProtocolCapabilities.PublishEvents => "Publish",
+            EventBrokerProtocolCapabilities.SubscribeEvents => "Subscribe",
+            EventBrokerProtocolCapabilities.RetainedEvents => "Retained events",
+            EventBrokerProtocolCapabilities.TelemetryIngestion => "Telemetry ingestion",
+            { Length: > 0 } => "Custom",
+            _ => "Not configured"
+        };
 
-    private static string FormatOptionalTimestamp(DateTimeOffset? timestamp) =>
+    private static string FormatEndpoint(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Not mapped" : value;
+
+    private static string FormatEventFormat(string? value) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            "json" => "JSON",
+            { Length: > 0 } => "Custom",
+            _ => "Not configured"
+        };
+
+    private static string FormatLastEvent(DateTimeOffset? timestamp) =>
         timestamp is null
-            ? "-"
+            ? "No events"
             : timestamp.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+
+    private static string FormatStreamReadFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "Check that the HTTP event endpoint is reachable.",
+            TaskCanceledException => "The stream request timed out.",
+            UnauthorizedAccessException => "Check Event Broker read permissions for this resource.",
+            _ => "Check the broker endpoint and try again."
+        };
 
     private sealed record EventBrokerProtocolRow(
         string Name,

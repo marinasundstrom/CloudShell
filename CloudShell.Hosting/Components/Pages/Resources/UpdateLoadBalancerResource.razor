@@ -589,7 +589,7 @@ else
 
     private static string FormatEntrypoint(ResourceEndpoint endpoint)
     {
-        var port = endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "unspecified";
+        var port = endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "Unspecified";
         return $"{endpoint.Protocol}:{port}";
     }
 
@@ -651,7 +651,10 @@ else
         foreach (var catalog in CertificateCatalogs)
         {
             var certificates = await catalog.ListCertificatesAsync(Resources);
-            options.AddRange(certificates.Select(CertificateOption.FromDescriptor));
+            options.AddRange(certificates.Select(descriptor =>
+                CertificateOption.FromDescriptor(
+                    descriptor,
+                    GetResourceLabel(descriptor.VaultResourceId))));
         }
 
         return options
@@ -674,7 +677,11 @@ else
                 certificate.VaultResourceId,
                 certificate.CertificateName,
                 certificate.Version);
-            merged.TryAdd(key, CertificateOption.FromReference(certificate));
+            merged.TryAdd(
+                key,
+                CertificateOption.FromReference(
+                    certificate,
+                    GetResourceLabel(certificate.VaultResourceId)));
         }
 
         return merged.Values
@@ -747,9 +754,11 @@ else
         public CertificateReference ToReference() =>
             new(VaultResourceId, Name, Version);
 
-        public static CertificateOption FromDescriptor(CertificateReferenceDescriptor descriptor)
+        public static CertificateOption FromDescriptor(
+            CertificateReferenceDescriptor descriptor,
+            string vaultLabel)
         {
-            var label = $"{ResourceDisplayLabels.GetName(descriptor.VaultResourceId)} / {descriptor.Name}";
+            var label = $"{vaultLabel} / {descriptor.Name}";
             if (!string.IsNullOrWhiteSpace(descriptor.Version))
             {
                 label += $" ({descriptor.Version})";
@@ -768,9 +777,11 @@ else
                 descriptor.Version);
         }
 
-        public static CertificateOption FromReference(CertificateReference reference)
+        public static CertificateOption FromReference(
+            CertificateReference reference,
+            string vaultLabel)
         {
-            var label = $"{ResourceDisplayLabels.GetName(reference.VaultResourceId)} / {reference.CertificateName}";
+            var label = $"{vaultLabel} / {reference.CertificateName}";
             if (!string.IsNullOrWhiteSpace(reference.Version))
             {
                 label += $" ({reference.Version})";

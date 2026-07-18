@@ -2,10 +2,12 @@
 @using CloudShell.Abstractions.ControlPlane
 @using CloudShell.Abstractions.ResourceManager
 @using System.Diagnostics.CodeAnalysis
+@using Microsoft.Extensions.Logging
 @inject IResourceManager ResourceManager
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
+@inject ILogger<GeneratedResourceAccessControl> Logger
 
     <div class="generated-resource-view">
         @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
@@ -153,13 +155,13 @@
         @if (ShouldShowSqlGrantMaterializationNotice())
         {
             <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Role="status">
-                @L["Database grants are saved in CloudShell. Reconcile access to create SQL-side users and roles. Workload credential delivery remains provider-owned future work."]
+                @L["Database grants are saved in CloudShell. Reconcile access to create SQL-side users and roles when the database provider supports reconciliation."]
             </ProcedureMessage>
         }
         @if (ShouldShowRabbitMQGrantMaterializationNotice())
         {
             <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Role="status">
-                @L["RabbitMQ grants are saved in CloudShell. Reconcile access to create broker-native users and virtual-host permissions. Broker administrator credentials remain provider-owned and hidden."]
+                @L["RabbitMQ grants are saved in CloudShell. Reconcile access to create broker-native users and virtual-host permissions. Broker administrator credentials stay hidden."]
             </ProcedureMessage>
         }
         <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>
@@ -334,9 +336,9 @@
             CustomPermission = string.Empty;
             await LoadAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatAccessControlFailure(exception, "assign access");
         }
         finally
         {
@@ -369,9 +371,9 @@
             ProcedureMessage = L["Access permission revoked. Provision or reconcile the principal to apply provider-side changes."].Value;
             await LoadAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatAccessControlFailure(exception, "revoke access");
         }
         finally
         {
@@ -381,6 +383,21 @@
 
     private string ResolvePermission() =>
         IsCustomPermission ? CustomPermission.Trim() : SelectedPermission.Trim();
+
+    private string FormatAccessControlFailure(Exception exception, string operation)
+    {
+        Logger.LogWarning(
+            exception,
+            "Resource access-control operation failed for {ResourceId}: {Operation}",
+            Resource?.Id ?? ResourceId,
+            operation);
+
+        return exception switch
+        {
+            HttpRequestException => L["CloudShell could not reach the Control Plane while trying to {0}. Check connectivity and try again.", operation].Value,
+            _ => L["CloudShell could not {0}. Check the selected principal, permission, and resource state, then try again.", operation].Value
+        };
+    }
 
     private string GetGrantButtonLabel() =>
         GrantingPermission
@@ -623,7 +640,7 @@
             ResourcePrincipalKind.WorkloadIdentity => "Workload identity",
             ResourcePrincipalKind.External => "External principal",
             ResourcePrincipalKind.DeviceIdentity => "Device identity",
-            _ => Principal.Kind.ToString()
+            _ => "Unknown principal"
         };
     }
 

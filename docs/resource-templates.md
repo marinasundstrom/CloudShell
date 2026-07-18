@@ -241,6 +241,11 @@ attribute contract, but resource-owned values should still live under
 configuration settings or secrets can be exported when they are non-secret
 intent.
 
+The Control Plane export result includes the resource type definitions used by
+the exported entries so remote clients and split-hosted Resource Manager UIs
+can serialize the same authored paths as the Control Plane instead of falling
+back to raw or dotted attribute groups.
+
 ## Relationship To Orchestration
 
 Resource templates are desired resource state. Orchestrator deployments are

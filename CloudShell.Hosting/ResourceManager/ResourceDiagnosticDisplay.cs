@@ -258,7 +258,7 @@ public static class ResourceDiagnosticDisplay
 
         diagnostics.Add(new ResourceDiagnosticView(
             "Warning",
-            "Storage mounts not fully materialized",
+            "Storage mounts not fully active",
             message));
     }
 
@@ -326,15 +326,15 @@ public static class ResourceDiagnosticDisplay
         int? mountCount)
     {
         var countText = materializedCount is not null && mountCount is not null
-            ? $" {materializedCount.Value} of {mountCount.Value} declared storage mounts are materialized."
+            ? $" {materializedCount.Value} of {mountCount.Value} declared storage mounts are active."
             : string.Empty;
 
         return NormalizeVolumeMountMaterializationStatus(status) switch
         {
-            "partial" => $"Only some declared storage mounts are materialized.{countText}",
+            "partial" => $"Only some declared storage mounts are active.{countText}",
             "notActive" => $"Declared storage mounts are not active.{countText}",
-            "unknown" => $"CloudShell has not observed storage mount materialization yet.{countText}",
-            _ => $"Storage mount materialization status is '{status}'.{countText}"
+            "unknown" => $"CloudShell has not observed the storage mount state yet.{countText}",
+            _ => $"Storage mount state is '{status}'.{countText}"
         };
     }
 

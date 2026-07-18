@@ -39,7 +39,7 @@ else
                     <dd>@GetScalingMode()</dd>
                 </div>
                 <div>
-                    <dt>Materialized</dt>
+                    <dt>Running</dt>
                     <dd>@GetMaterializedSummary()</dd>
                 </div>
             </dl>
@@ -107,13 +107,13 @@ else
         <div class="blade-section-header">
             <div>
                 <h3>Runtime details</h3>
-                <p>Replica and routing materialization details for this app.</p>
+                <p>Replica and routing details for this app.</p>
             </div>
         </div>
         <dl class="detail-list">
             <dt>Requested replicas</dt>
             <dd>@GetDeploymentRequestedReplicas()</dd>
-            <dt>Materialized replicas</dt>
+            <dt>Running replicas</dt>
             <dd>@GetDeploymentMaterializedReplicas()</dd>
             <dt>Orchestrator service</dt>
             <dd>@GetDeploymentService()</dd>
@@ -265,9 +265,9 @@ else
                 CurrentDeploymentResourceId = Resource.Id;
             }
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ImageDeploymentMessage = exception.Message;
+            ImageDeploymentMessage = FormatImageDeploymentFailure(exception);
         }
         finally
         {
@@ -281,7 +281,7 @@ else
         if (latest is null)
         {
             return MaterializedReplicas.Count > 0
-                ? "Runtime replicas are materialized; no deployment record is available."
+                ? "Running replicas are available; no deployment record is available."
                 : "No image deployment has been recorded yet.";
         }
 
@@ -291,12 +291,12 @@ else
         var timestamp = latest.CompletedAt ?? latest.StartedAt;
         return string.Create(
             CultureInfo.CurrentCulture,
-            $"Last deployment {FormatDeploymentStatus(latest.Status).ToLowerInvariant()} {timestamp.ToLocalTime():g} by {actor}.");
+            $"Last deployment: {FormatDeploymentStatus(latest.Status)} at {timestamp.ToLocalTime():g} by {actor}.");
     }
 
     private string GetCurrentDeploymentSummary() =>
         Resource is not null && IsReplicaModeEnabled(Resource)
-            ? "This app is served by a materialized replica group. Revision and replica details are available when needed."
+            ? "This app is served by an active replica group. Revision and replica details are available when needed."
             : "This app is served by a single runtime instance. Revision details are available when needed.";
 
     private static string GetDeploymentActionSummary(Resource resource) =>
@@ -319,7 +319,7 @@ else
         Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId) ??
         GetMaterializedReplicaAttribute(ResourceAttributeNames.DeploymentServiceId) ??
         GetInferredDeploymentServiceId() ??
-        "not observed";
+        "Not reported";
 
     private string GetReplicaGroup() =>
         ActiveDeployment?.ReplicaGroup?.Id ??
@@ -327,7 +327,7 @@ else
         Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentReplicaGroupId) ??
         GetMaterializedReplicaAttribute(ResourceAttributeNames.DeploymentReplicaGroupId) ??
         GetInferredReplicaGroupId() ??
-        "not observed";
+        "Not reported";
 
     private string? GetMaterializedReplicaAttribute(string attributeName) =>
         MaterializedReplicas
@@ -362,7 +362,7 @@ else
 
     private string GetDeploymentCapacity() =>
         Resource is not null && IsReplicaModeEnabled(Resource)
-            ? $"{GetDeploymentMaterializedReplicas()} of {GetDeploymentRequestedReplicas()} replica slots occupied"
+            ? $"{GetDeploymentMaterializedReplicas()} of {GetDeploymentRequestedReplicas()} replicas running"
             : "Single instance";
 
     private string GetMaterializedSummary() =>
@@ -380,7 +380,7 @@ else
     private string GetDeploymentRequestedReplicas() =>
         Resource is not null && IsReplicaModeEnabled(Resource)
             ? GetDeploymentRequestedReplicasValue(Resource).ToString(CultureInfo.InvariantCulture)
-            : "not enabled";
+            : "Not enabled";
 
     private int GetDeploymentRequestedReplicasValue(Resource resource) =>
         ActiveDeployment?.ReplicaGroup?.RequestedReplicas ??
@@ -402,7 +402,7 @@ else
     private string GetDeploymentMaterializedReplicas() =>
         Resource is not null && IsReplicaModeEnabled(Resource)
             ? GetDeploymentMaterializedReplicaCount().ToString(CultureInfo.InvariantCulture)
-            : "not enabled";
+            : "Not enabled";
 
     private int GetDeploymentMaterializedReplicaCount()
     {
@@ -520,8 +520,8 @@ else
                 ResourceOrchestratorDeploymentStatus.Applying => "CloudShell is applying this image to the selected container host.",
                 ResourceOrchestratorDeploymentStatus.Failed => LatestDeployment.Error ??
                     "The latest image deployment failed. Check deployment events and logs for details.",
-                ResourceOrchestratorDeploymentStatus.Pending => "Start the app to materialize runtime instances.",
-                ResourceOrchestratorDeploymentStatus.Deleted => "The current runtime projection has been removed.",
+                ResourceOrchestratorDeploymentStatus.Pending => "Start the app to create running instances.",
+                ResourceOrchestratorDeploymentStatus.Deleted => "The current deployment state has been removed.",
                 _ => string.Empty
             };
         }
@@ -539,9 +539,9 @@ else
                 "active" => string.Empty,
                 "applying" => "CloudShell is applying this image to the selected container host.",
                 "failed" => "The latest image deployment failed. Check deployment events and logs for details.",
-                "pending" => "Start the app to materialize runtime instances.",
-                "deleted" => "The current runtime projection has been removed.",
-                _ => "No runtime projection is available for this app yet."
+                "pending" => "Start the app to create running instances.",
+                "deleted" => "The current deployment state has been removed.",
+                _ => "No deployment state is available for this app yet."
             };
         }
 
@@ -550,9 +550,9 @@ else
             ResourceState.Running => string.Empty,
             ResourceState.Starting => "CloudShell is starting this container app.",
             ResourceState.Stopping => "CloudShell is stopping this container app.",
-            ResourceState.Stopped => "Start the app to materialize runtime instances.",
+            ResourceState.Stopped => "Start the app to create running instances.",
             ResourceState.Degraded => "The app is degraded. Check deployment events, health, and logs for details.",
-            _ => "No runtime projection is available for this app yet."
+            _ => "No deployment state is available for this app yet."
         };
     }
 
@@ -603,9 +603,16 @@ else
 
         return DeploymentReadinessView.Ready(
             "Ready to deploy",
-            "CloudShell will request the new runtime state and activate it after materialization succeeds.",
+            "CloudShell will apply the requested image and activate it after the app is updated.",
             "Image deployment preflight");
     }
+
+    private static string FormatImageDeploymentFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Control Plane while requesting the deployment. Check connectivity and try again.",
+            _ => "CloudShell could not request the image deployment. Check deployment readiness, events, and logs before trying again."
+        };
 
     private async Task<string> ReadDeploymentImageAsync()
     {
@@ -654,9 +661,10 @@ else
         var triggeredBy = string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy)
             ? "Triggered by system"
             : $"Triggered by {resourceEvent.TriggeredBy}";
+        var severity = ResourceSignalSeverityParser.ToLevel(resourceEvent.Severity);
         return string.Create(
             CultureInfo.CurrentCulture,
-            $"{resourceEvent.Timestamp.ToLocalTime():g} | {resourceEvent.EventType} | {triggeredBy}");
+            $"{resourceEvent.Timestamp.ToLocalTime():g} | {severity} | {triggeredBy}");
     }
 
     private static string GetDeploymentEventTitle(string eventType) =>
@@ -692,7 +700,7 @@ else
             ResourceOrchestratorDeploymentStatus.Failed => "Needs attention",
             ResourceOrchestratorDeploymentStatus.Deleted => "Removed",
             ResourceOrchestratorDeploymentStatus.Pending => "Not running",
-            _ => status.ToString()
+            _ => "Unknown"
         };
 
     private static string GetDeploymentEventCssClass(ResourceEvent resourceEvent) =>

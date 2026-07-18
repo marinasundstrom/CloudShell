@@ -60,7 +60,7 @@
             <div>
                 <label for="resource-activity-event-type">@L["Event type"]</label>
                 <FluentTextField Id="resource-activity-event-type" @bind-Value="EventTypeFilter"
-                                 Placeholder="@L["Exact event type"]" />
+                                 Placeholder="@L["Filter by event type"]" />
             </div>
             <div>
                 <label for="resource-activity-triggered-by">@L["Triggered by"]</label>
@@ -245,7 +245,7 @@
             : L["Triggered by {0}", resourceEvent.TriggeredBy].Value;
 
     private string FormatEventMetadata(ResourceEvent resourceEvent) =>
-        L["{0} · {1}", resourceEvent.EventType, FormatTriggeredBy(resourceEvent)].Value;
+        L["{0} · {1}", ResourceEventDisplayNames.GetGroupName(resourceEvent.EventType, L), FormatTriggeredBy(resourceEvent)].Value;
 
     private static string BuildTraceRoute(ResourceEvent resourceEvent)
     {

@@ -185,7 +185,7 @@ public static class EnvironmentRuntimeMapProjection
                     ResourceClass.Container.ToString(),
                     "replica-group",
                     Text(
-                        "{0} of {1} slot(s), {2} materialized",
+                        "{0} of {1} slots occupied, {2} running replicas",
                         replicaGroup.OccupiedSlots,
                         replicaGroup.RequestedSlots,
                         replicaGroup.MaterializedReplicas),
@@ -624,7 +624,7 @@ public static class EnvironmentRuntimeMapProjection
                             links,
                             loadBalancerNodeId,
                             bindingNodeId,
-                            Text("materializes"),
+                            Text("provides"),
                             "routing",
                             EnvironmentRuntimeArtifactKinds.RoutingBinding,
                             binding.LoadBalancerResourceId,
@@ -858,7 +858,7 @@ public static class EnvironmentRuntimeMapProjection
                             links,
                             providerNodeId,
                             mappingNodeId,
-                            Text("materializes"),
+                            Text("provides"),
                             "topology",
                             EnvironmentRuntimeArtifactKinds.EndpointMapping,
                             mapping.ProviderResourceId,
@@ -1397,7 +1397,8 @@ public static class EnvironmentRuntimeMapProjection
 
     private static bool IsProjected(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&
-        !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase);
+        !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(value, "not available", StringComparison.OrdinalIgnoreCase);
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
@@ -1406,7 +1407,7 @@ public static class EnvironmentRuntimeMapProjection
         resource.ResourceAttributes.GetValueOrDefault(name);
 
     private static string GetOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "not projected" : value;
+        string.IsNullOrWhiteSpace(value) ? "not available" : value;
 
     private static bool TryGetDatabaseServerResourceId(Resource resource, out string serverResourceId)
     {

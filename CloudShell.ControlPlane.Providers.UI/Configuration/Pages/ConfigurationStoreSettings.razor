@@ -4,7 +4,7 @@
 @if (SettingManager is null)
 {
     <EmptyState Title="Setting management unavailable"
-                Message="This UI host does not have access to the Configuration Store runtime manager." />
+                Message="This UI host cannot manage settings for this Configuration Store." />
 }
 else if (Resource is null)
 {
@@ -24,6 +24,12 @@ else
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
             <ProcedureMessage Message="@ErrorMessage" />
+        }
+        @if (RemovedExistingSettings.Count > 0)
+        {
+            <ProcedureMessage Compact="true" Severity="ResourceSignalSeverity.Warning" Role="status">
+                @GetRemovedSettingSummary()
+            </ProcedureMessage>
         }
 
         <ResourceEditorSection Class="configuration-store-setting-editor">
@@ -66,6 +72,7 @@ else
     private CloudShell.Abstractions.ResourceManager.Resource? Resource { get; set; }
     private IConfigurationStoreRuntimeSettingManager? SettingManager { get; set; }
     private List<SettingInput> Settings { get; } = [];
+    private List<string> RemovedExistingSettings { get; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private string? ErrorMessage { get; set; }
 
@@ -78,6 +85,7 @@ else
             : await ResourceManager.GetResourceAsync(ResourceId);
 
         Settings.Clear();
+        RemovedExistingSettings.Clear();
         if (SettingManager is not null && Resource is not null)
         {
             var settings = await SettingManager.ListSettingsAsync(Resource.Id);
@@ -108,8 +116,8 @@ else
     {
         var count = Settings.Count(setting => !string.IsNullOrWhiteSpace(setting.Name));
         return count == 1
-            ? "1 runtime setting is configured for this store."
-            : $"{count} runtime settings are configured for this store.";
+            ? "1 setting is configured for this store."
+            : $"{count} settings are configured for this store.";
     }
 
     private void AddSetting()
@@ -121,6 +129,7 @@ else
     private void RemoveSetting(SettingInput setting)
     {
         Settings.Remove(setting);
+        TrackRemovedSetting(setting);
         if (Settings.Count == 0)
         {
             Settings.Add(new());
@@ -133,7 +142,7 @@ else
     {
         if (SettingManager is null || Resource is null)
         {
-            return ResourceProcedureResult.Completed("Configuration Store setting management is unavailable.");
+            return ResourceProcedureResult.Completed("Configuration Store settings cannot be managed from this UI host.");
         }
 
         var settings = BuildSettings();
@@ -147,7 +156,30 @@ else
             settings,
             cancellationToken);
         ErrorMessage = null;
+        RemovedExistingSettings.Clear();
         return ResourceProcedureResult.Completed("Configuration Store settings updated.");
+    }
+
+    private void TrackRemovedSetting(SettingInput setting)
+    {
+        if (!setting.IsExisting || string.IsNullOrWhiteSpace(setting.Name))
+        {
+            return;
+        }
+
+        var label = setting.Name.Trim();
+        if (!RemovedExistingSettings.Contains(label, StringComparer.OrdinalIgnoreCase))
+        {
+            RemovedExistingSettings.Add(label);
+        }
+    }
+
+    private string GetRemovedSettingSummary()
+    {
+        var names = string.Join(", ", RemovedExistingSettings.Order(StringComparer.OrdinalIgnoreCase));
+        return RemovedExistingSettings.Count == 1
+            ? $"Setting {names} will be deleted when you apply changes."
+            : $"Settings {names} will be deleted when you apply changes.";
     }
 
     private IReadOnlyList<ConfigurationStoreRuntimeSetting>? BuildSettings()
@@ -187,11 +219,14 @@ else
 
         public string? Value { get; set; }
 
+        public bool IsExisting { get; set; }
+
         public static SettingInput FromSetting(ConfigurationStoreRuntimeSetting setting) =>
             new()
             {
                 Name = setting.Name,
-                Value = setting.Value
+                Value = setting.Value,
+                IsExisting = true
             };
     }
 }

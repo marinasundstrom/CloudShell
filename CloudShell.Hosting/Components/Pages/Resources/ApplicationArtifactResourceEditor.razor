@@ -50,16 +50,16 @@ else if (ExistingResource is null)
 else if (!CanEditExistingResource)
 {
     <ProcedureMessage Severity="ResourceSignalSeverity.Info">
-        This resource was declared by a launcher, graph builder, or host-owned resource graph. Its application artifact settings are read-only in Resource Manager.
+        This resource was declared by a launcher, graph builder, or host-owned resource graph. Its application package settings are read-only in Resource Manager.
     </ProcedureMessage>
     <FormPanel>
-        <ResourceEditorSection Title="Current artifact">
+        <ResourceEditorSection Title="Current package">
             <dl class="resource-summary-grid">
-                <dt>Source kind</dt>
+                <dt>Package source</dt>
                 <dd>@GetCurrentSourceKind()</dd>
-                <dt>Artifacts enabled</dt>
+                <dt>Package updates</dt>
                 <dd>@GetCurrentArtifactsEnabled()</dd>
-                <dt>Artifact</dt>
+                <dt>Package revision</dt>
                 <dd>@GetCurrentArtifactLabel()</dd>
             </dl>
         </ResourceEditorSection>
@@ -69,13 +69,13 @@ else
 {
     <div class="type-registration">
         <FormPanel>
-            <ResourceEditorSection Title="Current artifact">
+            <ResourceEditorSection Title="Current package">
                 <dl class="resource-summary-grid">
-                    <dt>Source kind</dt>
+                    <dt>Package source</dt>
                     <dd>@GetCurrentSourceKind()</dd>
-                    <dt>Artifacts enabled</dt>
+                    <dt>Package updates</dt>
                     <dd>@GetCurrentArtifactsEnabled()</dd>
-                    <dt>Artifact</dt>
+                    <dt>Package revision</dt>
                     <dd>@GetCurrentArtifactLabel()</dd>
                 </dl>
             </ResourceEditorSection>
@@ -281,13 +281,13 @@ else
         @if (StoreStatus?.IsEnabled != true)
         {
             <ProcedureMessage Severity="ResourceSignalSeverity.Warning">
-                Application artifact upload is not enabled for this Control Plane host.
+                Application package upload is not enabled for this Control Plane host.
             </ProcedureMessage>
         }
         else if (Layouts.Count == 0)
         {
             <ProcedureMessage Severity="ResourceSignalSeverity.Warning">
-                This resource type does not announce supported application artifact layouts.
+                This resource type does not announce supported application package layouts.
             </ProcedureMessage>
         }
         else
@@ -298,7 +298,7 @@ else
                 <FluentTextField Id="@($"{EditorId}-name")" @bind-Value="NameInput" Placeholder="API" />
             }
 
-            <label for="@($"{EditorId}-layout")">Artifact layout</label>
+            <label for="@($"{EditorId}-layout")">Package layout</label>
             <FluentSelect TOption="string"
                           Id="@($"{EditorId}-layout")"
                           @bind-Value="SelectedLayoutKind"
@@ -335,11 +335,11 @@ else
     private RenderFragment RevisionHistoryFields() => @<text>
         @if (!IsCreateMode)
         {
-            <ResourceEditorSection Title="Artifact revisions">
+            <ResourceEditorSection Title="Package revisions">
                 @if (ArtifactRevisions.Count == 0)
                 {
                     <ProcedureMessage Compact="true" Severity="ResourceSignalSeverity.Info">
-                        No stored artifact revisions are available for this resource.
+                        No stored package revisions are available for this resource.
                     </ProcedureMessage>
                 }
                 else
@@ -422,14 +422,16 @@ else
                 return;
             }
 
-            StatusMessage = $"Application resource created with artifact revision {revision.RevisionId}.";
+            StatusMessage = $"Application resource created with package revision {revision.RevisionId}.";
             Navigation.NavigateTo(
                 RegistrationNavigation?.GetReturnUrlOrDefault() ??
                 $"/resources/{Uri.EscapeDataString(resourceId)}");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ErrorMessage = exception.Message;
+            ErrorMessage = FormatArtifactFailure(
+                exception,
+                "Application resource creation failed. Check the application package and resource name, then try again.");
         }
         finally
         {
@@ -458,7 +460,7 @@ else
         }
 
         IsRestoring = true;
-        StatusMessage = "Applying artifact revision...";
+        StatusMessage = "Applying package revision...";
         ErrorMessage = null;
         ValidationSignals = [];
         try
@@ -474,14 +476,14 @@ else
             ValidationSignals = ToSignals(result.Diagnostics);
             if (result.HasErrors || !result.IsCommitted)
             {
-                ErrorMessage = "Application artifact revision was not applied.";
+                ErrorMessage = "Application package revision was not applied.";
                 return;
             }
 
-            StatusMessage = $"Applied artifact revision {revision.RevisionId}.";
+            StatusMessage = $"Applied package revision {revision.RevisionId}.";
             if (restart)
             {
-                StatusMessage = "Restarting resource with selected artifact revision...";
+                StatusMessage = "Restarting resource with selected package revision...";
                 var restartResult = await ResourceManager.RestartResourceAsync(
                     ExistingResource.Id,
                     ignoreDependentWarning: true);
@@ -494,8 +496,10 @@ else
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ErrorMessage = $"Application artifact revision restore failed: {exception.Message}";
-            ValidationSignals = [ResourceProcedureSignal.Error(exception.Message)];
+            ErrorMessage = FormatArtifactFailure(
+                exception,
+                "Application package revision restore failed. Check that the revision still exists and try again.");
+            ValidationSignals = [ResourceProcedureSignal.Error(ErrorMessage)];
         }
         finally
         {
@@ -517,13 +521,13 @@ else
                 signals:
                 [
                     ResourceProcedureSignal.Warning(
-                        "Resources declared by launchers, graph builders, or the host cannot change source artifacts from Resource Manager.")
+                        "Resources declared by launchers, graph builders, or the host cannot change source packages from Resource Manager.")
                 ]);
         }
 
         if (SelectedFile is null)
         {
-            return ResourceProcedureResult.Completed("Select an application artifact package before applying.");
+            return ResourceProcedureResult.Completed("Select an application package before applying.");
         }
 
         IsBusy = true;
@@ -536,7 +540,7 @@ else
             if (revision is null)
             {
                 return new ResourceProcedureResult(
-                    "Application artifact validation failed.",
+                    "Application package validation failed.",
                     signals: ValidationSignals);
             }
 
@@ -550,20 +554,23 @@ else
                 cancellationToken);
             var signals = ToSignals(result.Diagnostics);
             return result.HasErrors || !result.IsCommitted
-                ? new ResourceProcedureResult("Application artifact was not accepted.", signals: signals)
+                ? new ResourceProcedureResult("Application package was not accepted.", signals: signals)
                 : ResourceProcedureResult.CompletedWithRestartRequired(
-                    "Application artifact accepted.",
+                    "Application package accepted.",
                     ExistingResource.Id,
-                    "Restart the resource to use the accepted artifact package.") with
+                    "Restart the resource to use the accepted application package.") with
                     {
                         Signals = signals
                     };
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            var message = FormatArtifactFailure(
+                exception,
+                "Application package update failed. Check the application package and resource configuration, then try again.");
             return new ResourceProcedureResult(
-                $"Application artifact update failed: {exception.Message}",
-                signals: [ResourceProcedureSignal.Error(exception.Message)]);
+                message,
+                signals: [ResourceProcedureSignal.Error(message)]);
         }
         finally
         {
@@ -579,24 +586,24 @@ else
         var selectedFile = SelectedFile;
         if (selectedFile is null || string.IsNullOrWhiteSpace(EffectiveResourceTypeId))
         {
-            ErrorMessage = "Select an application artifact package.";
+            ErrorMessage = "Select an application package.";
             return null;
         }
 
         var layout = GetSelectedLayout();
         if (layout is null)
         {
-            ErrorMessage = "Select an artifact layout.";
+            ErrorMessage = "Select a package layout.";
             return null;
         }
 
-        StatusMessage = "Uploading application artifact...";
+        StatusMessage = "Uploading application package...";
         ErrorMessage = null;
         ValidationSignals = [];
         var toastId = CreateArtifactToastId(resourceId);
         await Toasts.PublishAsync(
             new CoreShellToastRequest(
-                "Uploading application artifact",
+                "Uploading application package",
                 $"Uploading {selectedFile.Name} for {resourceName}.",
                 CoreShellNotificationSeverity.Info,
                 CoreShellNotificationStatus.InProgress,
@@ -629,11 +636,11 @@ else
                 new CompleteDeploymentArtifactUploadCommand(upload.UploadId),
                 cancellationToken);
 
-            StatusMessage = "Validating application artifact...";
+            StatusMessage = "Validating application package...";
             await Toasts.UpdateAsync(
                 toastId,
                 new CoreShellToastUpdate(
-                    "Validating application artifact",
+                    "Validating application package",
                     $"Validating {selectedFile.Name} for {resourceName}.",
                     CoreShellNotificationSeverity.Info,
                     CoreShellNotificationStatus.InProgress,
@@ -653,11 +660,11 @@ else
             ValidationSignals = ToSignals(validation.Diagnostics);
             if (validation.HasErrors)
             {
-                ErrorMessage = "Application artifact validation failed.";
+                ErrorMessage = "Application package validation failed.";
                 await Toasts.UpdateAsync(
                     toastId,
                     new CoreShellToastUpdate(
-                        "Application artifact validation failed",
+                        "Application package validation failed",
                         $"{selectedFile.Name} was not accepted.",
                         CoreShellNotificationSeverity.Error,
                         CoreShellNotificationStatus.Failed),
@@ -665,11 +672,11 @@ else
                 return null;
             }
 
-            StatusMessage = $"Accepted artifact revision {revision.RevisionId}.";
+            StatusMessage = $"Accepted package revision {revision.RevisionId}.";
             await Toasts.UpdateAsync(
                 toastId,
                 new CoreShellToastUpdate(
-                    "Application artifact accepted",
+                    "Application package accepted",
                     $"Accepted {selectedFile.Name} as revision {revision.RevisionId}.",
                     CoreShellNotificationSeverity.Success,
                     CoreShellNotificationStatus.Succeeded),
@@ -681,14 +688,24 @@ else
             await Toasts.UpdateAsync(
                 toastId,
                 new CoreShellToastUpdate(
-                    "Application artifact failed",
-                    exception.Message,
+                    "Application package failed",
+                    FormatArtifactFailure(
+                        exception,
+                        "Application package upload or validation failed. Check the package and try again."),
                     CoreShellNotificationSeverity.Error,
                     CoreShellNotificationStatus.Failed),
                 cancellationToken);
             throw;
         }
     }
+
+    private static string FormatArtifactFailure(Exception exception, string fallback) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Control Plane while managing the application package. Check connectivity and try again.",
+            InvalidOperationException => fallback,
+            _ => fallback
+        };
 
     private ResourceTemplate CreateTemplate(
         string resourceId,
@@ -864,16 +881,18 @@ else
         };
 
     private string GetCurrentSourceKind() =>
-        GetAttribute(SourceKindAttribute, "localPath");
+        FormatSourceKind(GetAttribute(SourceKindAttribute, "localPath"));
 
     private string GetCurrentArtifactsEnabled() =>
-        GetAttribute(ArtifactsEnabledAttribute, "false");
+        bool.TryParse(GetAttribute(ArtifactsEnabledAttribute, "false"), out var enabled) && enabled
+            ? "Yes"
+            : "No";
 
     private string GetCurrentArtifactLabel()
     {
         var reference = GetCurrentArtifactReference();
         return reference is null
-            ? "none"
+            ? "None"
             : $"{reference.ArtifactId} / {reference.RevisionId}";
     }
 
@@ -901,7 +920,7 @@ else
     {
         var revision = GetSelectedRevision();
         return revision is null
-            ? "none"
+            ? "None"
             : $"{revision.RevisionId} ({revision.SizeBytes} bytes)";
     }
 
@@ -910,13 +929,23 @@ else
         var revision = GetSelectedRevision();
         if (revision is null)
         {
-            return "none";
+            return "None";
         }
 
+        var sourceKind = FormatSourceKind(revision.SourceKind);
         return string.IsNullOrWhiteSpace(revision.SourceVersion)
-            ? revision.SourceKind
-            : $"{revision.SourceKind} / {revision.SourceVersion}";
+            ? sourceKind
+            : $"{sourceKind} / {revision.SourceVersion}";
     }
+
+    private static string FormatSourceKind(string sourceKind) =>
+        sourceKind switch
+        {
+            DeploymentArtifactSourceKinds.UploadedArtifact => "Uploaded package",
+            "localPath" => "Local path",
+            { Length: > 0 } => sourceKind,
+            _ => "Unknown"
+        };
 
     private string GetAttribute(string name, string fallback) =>
         ExistingResource?.ResourceAttributes.GetValueOrDefault(name) ?? fallback;

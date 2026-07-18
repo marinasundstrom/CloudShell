@@ -18,7 +18,7 @@ else
         @if (EnvironmentRows.Count == 0)
         {
             <EmptyState Title="No environment variables"
-                        Message="This resource does not declare environment variables." />
+                        Message="This resource has no environment variables configured." />
         }
         else
         {
@@ -35,8 +35,19 @@ else
                     {
                         <tr>
                             <td>@row.Name</td>
-                            <td>@row.Source</td>
-                            <td>@row.Value</td>
+                            <td>@FormatSource(row.Source)</td>
+                            <td>
+                                @if (row.Reference is { CanLink: true } reference)
+                                {
+                                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(reference.ResourceId!)">
+                                        @row.Value
+                                    </FluentAnchor>
+                                }
+                                else
+                                {
+                                    @row.Value
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -65,15 +76,21 @@ else
         Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
-        EnvironmentRows = Resource is null
+        var rows = Resource is null
             ? []
             : GetEnvironmentRows(Resource);
+        EnvironmentRows = rows.Count == 0
+            ? rows
+            : await ResolveReferenceRowsAsync(rows);
     }
 
     private string GetEnvironmentSummary() =>
-        EnvironmentRows.Count == 1
-            ? "1 environment variable is declared for this resource."
-            : $"{EnvironmentRows.Count} environment variables are declared for this resource.";
+        EnvironmentRows.Count switch
+        {
+            0 => "No environment variables are configured for this resource.",
+            1 => "1 environment variable is configured for this resource.",
+            _ => $"{EnvironmentRows.Count} environment variables are configured for this resource."
+        };
 
     private static IReadOnlyList<EnvironmentRow> GetEnvironmentRows(Resource resource)
     {
@@ -120,8 +137,8 @@ else
             [
                 new(
                     attributeRoot,
-                    "raw",
-                    "unreadable value")
+                    "unreadable",
+                    "CloudShell could not read this environment variable definition.")
             ];
         }
     }
@@ -186,24 +203,28 @@ else
 
         if (property.Value.TryGetProperty("configurationSettingRef", out var configurationRef))
         {
+            var reference = ReadReference(
+                configurationRef,
+                "storeResourceId",
+                "name");
             return new(
                 property.Name,
                 "configuration",
-                FormatReference(
-                    configurationRef,
-                    "storeResourceId",
-                    "name"));
+                FormatReference(reference),
+                reference);
         }
 
         if (property.Value.TryGetProperty("secretRef", out var secretRef))
         {
+            var reference = ReadReference(
+                secretRef,
+                "vaultResourceId",
+                "name");
             return new(
                 property.Name,
                 "secret",
-                FormatReference(
-                    secretRef,
-                    "vaultResourceId",
-                    "name"));
+                FormatReference(reference),
+                reference);
         }
 
         if (property.Value.TryGetProperty("value", out var value))
@@ -214,7 +235,7 @@ else
                 FormatLiteralValue(property.Name, value.GetString()));
         }
 
-        return new(property.Name, "unknown", "unsupported value shape");
+        return new(property.Name, "unsupported", "Unsupported definition");
     }
 
     private static EnvironmentRow CreateRow(string name, EnvironmentVariableParts parts)
@@ -226,7 +247,12 @@ else
                 "configuration",
                 FormatReference(
                     parts.ConfigurationSettingRef.StoreResourceId,
-                    parts.ConfigurationSettingRef.Name));
+                    parts.ConfigurationSettingRef.Name,
+                    parts.ConfigurationSettingRef.Version),
+                new EnvironmentReference(
+                    parts.ConfigurationSettingRef.StoreResourceId,
+                    parts.ConfigurationSettingRef.Name,
+                    parts.ConfigurationSettingRef.Version));
         }
 
         if (parts.SecretRef.HasValue)
@@ -236,7 +262,12 @@ else
                 "secret",
                 FormatReference(
                     parts.SecretRef.VaultResourceId,
-                    parts.SecretRef.Name));
+                    parts.SecretRef.Name,
+                    parts.SecretRef.Version),
+                new EnvironmentReference(
+                    parts.SecretRef.VaultResourceId,
+                    parts.SecretRef.Name,
+                    parts.SecretRef.Version));
         }
 
         if (parts.Value is not null)
@@ -244,7 +275,7 @@ else
             return new(name, "literal", FormatLiteralValue(name, parts.Value));
         }
 
-        return new(name, "unknown", "unsupported value shape");
+        return new(name, "unsupported", "Unsupported definition");
     }
 
     private static bool TryReadPath(
@@ -279,40 +310,112 @@ else
         string name) =>
         variables.GetValueOrDefault(name) ?? new EnvironmentVariableParts();
 
-    private static string FormatReference(
+    private async Task<IReadOnlyList<EnvironmentRow>> ResolveReferenceRowsAsync(
+        IReadOnlyList<EnvironmentRow> rows)
+    {
+        var resourceIds = rows
+            .Select(row => row.Reference?.ResourceId)
+            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+            .Select(resourceId => resourceId!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (resourceIds.Length == 0)
+        {
+            return rows;
+        }
+
+        var resources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resourceId in resourceIds)
+        {
+            var resource = await ResourceManager.GetResourceAsync(resourceId);
+            if (resource is not null)
+            {
+                resources[resourceId] = resource;
+            }
+        }
+
+        return rows
+            .Select(row =>
+            {
+                if (row.Reference is not { } reference)
+                {
+                    return row;
+                }
+
+                var resolvedReference = resources.TryGetValue(reference.ResourceId!, out var resource)
+                    ? reference with { Resource = resource }
+                    : reference;
+                return row with
+                {
+                    Reference = resolvedReference,
+                    Value = FormatReference(resolvedReference, includeMissingStatus: true)
+                };
+            })
+            .ToArray();
+    }
+
+    private static EnvironmentReference ReadReference(
         JsonElement element,
         string resourceIdProperty,
         string nameProperty)
     {
         var resourceId = TryGetString(element, resourceIdProperty);
-        var name = TryGetString(element, nameProperty);
-
-        if (!string.IsNullOrWhiteSpace(resourceId) &&
-            !string.IsNullOrWhiteSpace(name))
-        {
-            return $"{resourceId}/{name}";
-        }
-
-        return resourceId ?? name ?? "unresolved reference";
+        return new(
+            resourceId,
+            TryGetString(element, nameProperty),
+            TryGetString(element, "version"));
     }
 
-    private static string FormatReference(string? resourceId, string? name)
+    private static string FormatReference(
+        string? resourceId,
+        string? name,
+        string? version = null) =>
+        FormatReference(new EnvironmentReference(resourceId, name, version));
+
+    private static string FormatReference(
+        EnvironmentReference reference,
+        bool includeMissingStatus = false)
     {
-        if (!string.IsNullOrWhiteSpace(resourceId) &&
-            !string.IsNullOrWhiteSpace(name))
+        if (string.IsNullOrWhiteSpace(reference.ResourceId))
         {
-            return $"{resourceId}/{name}";
+            return reference.Name ?? "Unresolved reference";
         }
 
-        return resourceId ?? name ?? "unresolved reference";
+        var resourceLabel = reference.Resource is null
+            ? ResourceDisplayLabels.GetName(reference.ResourceId)
+            : ResourceDisplayLabels.GetQualifiedLabel(reference.Resource);
+        var value = string.IsNullOrWhiteSpace(reference.Name)
+            ? resourceLabel
+            : $"{resourceLabel}/{reference.Name}";
+        if (!string.IsNullOrWhiteSpace(reference.Version))
+        {
+            value = $"{value} ({reference.Version})";
+        }
+
+        return includeMissingStatus && reference.Resource is null
+            ? $"{value} (Unavailable)"
+            : value;
     }
 
     private static string FormatLiteralValue(string name, string? value) =>
         IsSensitiveName(name)
-            ? "redacted"
+            ? "Redacted"
             : string.IsNullOrWhiteSpace(value)
-                ? "unset"
+                ? "Unset"
                 : value;
+
+    private static string FormatSource(string source) =>
+        source switch
+        {
+            "configuration" => "Configuration",
+            "literal" => "Literal",
+            "secret" => "Secret",
+            "unsupported" => "Unsupported",
+            "unreadable" => "Unreadable",
+            "unknown" => "Unknown",
+            { Length: > 0 } => "Custom",
+            _ => "Unknown"
+        };
 
     private static string? TryGetString(JsonElement element, string propertyName) =>
         element.TryGetProperty(propertyName, out var value) &&
@@ -327,7 +430,22 @@ else
         name.Contains("apikey", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("api-key", StringComparison.OrdinalIgnoreCase);
 
-    private sealed record EnvironmentRow(string Name, string Source, string Value);
+    private sealed record EnvironmentRow(
+        string Name,
+        string Source,
+        string Value,
+        EnvironmentReference? Reference = null);
+
+    private sealed record EnvironmentReference(
+        string? ResourceId,
+        string? Name,
+        string? Version,
+        Resource? Resource = null)
+    {
+        public bool CanLink =>
+            Resource is not null &&
+            !string.IsNullOrWhiteSpace(ResourceId);
+    }
 
     private sealed record EnvironmentVariableParts(
         string? Value = null,

@@ -134,7 +134,7 @@ else
                 consumer.Mounts.Count > 0 ||
                 consumer.Resource.DependsOn.Any(dependency =>
                     string.Equals(dependency, volume.Id, StringComparison.OrdinalIgnoreCase)))
-            .OrderBy(consumer => consumer.Resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(consumer => ResourceDisplayLabels.GetQualifiedLabel(consumer.Resource), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private static IReadOnlyList<ResourceVolumeMount> GetMountsForVolume(
@@ -155,7 +155,7 @@ else
     {
         var subPath = GetVolumeSubPath(volume.Volume);
         return volume.Consumers.Count == 0
-            ? $"{subPath} - no consumers"
+            ? $"{subPath} - No consumers"
             : $"{subPath} - {volume.Consumers.Count} consumer{Pluralize(volume.Consumers.Count)}";
     }
 
@@ -163,7 +163,7 @@ else
     {
         var parts = new List<string>
         {
-            volume.Volume.EffectiveTypeId
+            "Volume"
         };
 
         var materializationSummaries = volume.Consumers

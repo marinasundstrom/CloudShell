@@ -85,6 +85,9 @@ else
 
     private CloudShell.Abstractions.ResourceManager.Resource? Resource { get; set; }
 
+    private IReadOnlyDictionary<string, CloudShell.Abstractions.ResourceManager.Resource> ResourcesById { get; set; } =
+        new Dictionary<string, CloudShell.Abstractions.ResourceManager.Resource>(StringComparer.OrdinalIgnoreCase);
+
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private IReadOnlyList<DeviceEnrollmentProfile> Profiles =>
@@ -106,12 +109,18 @@ else
     protected override async Task OnParametersSetAsync()
     {
         Resource = null;
+        ResourcesById = new Dictionary<string, CloudShell.Abstractions.ResourceManager.Resource>(StringComparer.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(ResourceId))
         {
             return;
         }
 
         Resource = await ResourceManager.GetResourceAsync(ResourceId);
+        if (Resource is not null)
+        {
+            ResourcesById = (await ResourceManager.ListResourcesAsync())
+                .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        }
     }
 
     private string GetPolicySummary()
@@ -127,53 +136,69 @@ else
             : $"{profiles.Count} enrollment profiles are configured for this registry.";
 
     private static string FormatProfileKind(string? kind) =>
-        string.IsNullOrWhiteSpace(kind)
-            ? DeviceEnrollmentProfileKinds.Group
-            : kind;
+        kind?.Trim().ToLowerInvariant() switch
+        {
+            null or "" => "Group",
+            DeviceEnrollmentProfileKinds.Group => "Group",
+            DeviceEnrollmentProfileKinds.Individual => "Individual",
+            _ => "Custom"
+        };
 
     private static string FormatPolicySubjects(DeviceEnrollmentPolicy policy)
     {
         var subjects = policy.Subjects
             .Where(subject => !string.IsNullOrWhiteSpace(subject))
-            .Select(subject => $"subject:{subject.Trim()}");
+            .Select(subject => $"Subject {subject.Trim()}");
         var prefixes = policy.SubjectPrefixes
             .Where(prefix => !string.IsNullOrWhiteSpace(prefix))
-            .Select(prefix => $"prefix:{prefix.Trim()}");
+            .Select(prefix => $"Prefix {prefix.Trim()}");
 
         return FormatValues(subjects.Concat(prefixes));
     }
 
     private static string FormatRequiredClaims(IReadOnlyList<DeviceEnrollmentRequiredClaim> claims) =>
         claims.Count == 0
-            ? "-"
+            ? "None"
             : string.Join(
                 ", ",
                 claims
                     .OrderBy(claim => claim.Name, StringComparer.OrdinalIgnoreCase)
                     .Select(claim => $"{claim.Name}={claim.Value}"));
 
-    private static string FormatGrants(IReadOnlyList<DeviceEnrollmentPermissionGrant> grants) =>
+    private string FormatGrants(IReadOnlyList<DeviceEnrollmentPermissionGrant> grants) =>
         grants.Count == 0
-            ? "-"
+            ? "None"
             : string.Join(
                 ", ",
                 grants
-                    .OrderBy(grant => grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(grant => GetResourceLabel(grant.TargetResourceId), StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(grant => grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
-                    .Select(grant => $"{grant.TargetResourceId}: {grant.Permission}"));
+                    .Select(grant => $"{GetResourceLabel(grant.TargetResourceId)}: {grant.Permission}"));
 
-    private static string FormatTrustedCertificates(IReadOnlyList<ResourceCertificateReference> certificates) =>
+    private string FormatTrustedCertificates(IReadOnlyList<ResourceCertificateReference> certificates) =>
         certificates.Count == 0
-            ? "-"
+            ? "None"
             : string.Join(
                 ", ",
                 certificates
-                    .OrderBy(certificate => certificate.VaultResourceId, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(certificate => GetResourceLabel(certificate.VaultResourceId), StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(certificate => certificate.VaultResourceId, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(certificate => certificate.Name, StringComparer.OrdinalIgnoreCase)
-                    .Select(certificate =>
-                        string.IsNullOrWhiteSpace(certificate.Version)
-                            ? $"{certificate.VaultResourceId}/{certificate.Name}"
-                            : $"{certificate.VaultResourceId}/{certificate.Name}@{certificate.Version}"));
+                    .Select(FormatTrustedCertificate));
+
+    private string FormatTrustedCertificate(ResourceCertificateReference certificate)
+    {
+        var label = $"{GetResourceLabel(certificate.VaultResourceId)}/{certificate.Name}";
+        return string.IsNullOrWhiteSpace(certificate.Version)
+            ? label
+            : $"{label}@{certificate.Version}";
+    }
+
+    private string GetResourceLabel(string resourceId) =>
+        ResourcesById.TryGetValue(resourceId, out var resource)
+            ? ResourceDisplayLabels.GetQualifiedLabel(resource)
+            : ResourceDisplayLabels.GetName(resourceId);
 
     private static string FormatValues(IEnumerable<string> values)
     {
@@ -184,7 +209,7 @@ else
             .ToArray();
 
         return normalized.Length == 0
-            ? "-"
+            ? "None"
             : string.Join(", ", normalized);
     }
 

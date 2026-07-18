@@ -246,7 +246,7 @@
                         }
                         <EndpointLink Address="@preferredEndpoint.Address"
                                       Text="@preferredEndpoint.Text"
-                                      EmptyText="@L["n/a"].Value"
+                                      EmptyText="@L["No endpoint"].Value"
                                       EmptyClass="muted"
                                       StopClickPropagation="true" />
                         @if (!string.IsNullOrWhiteSpace(preferredEndpoint.Source))
@@ -420,7 +420,7 @@
                         <dd>@selected.DisplayName</dd>
                     }
                     <dt>@L["Type"]</dt>
-                    <dd>@selected.EffectiveTypeId</dd>
+                    <dd>@GetResourceTypeDisplayName(selected)</dd>
                     <dt>@L["Resource group"]</dt>
                     <dd>@(group?.Name ?? L["Default group"])</dd>
                     <dt>@L["Region"]</dt>
@@ -431,15 +431,15 @@
                         selected.Source != ResourceSource.User ||
                         selected.ManagementMode != ResourceManagementMode.UserManaged ||
                         !string.IsNullOrWhiteSpace(selected.OwnerResourceId))
-                    {
-                        <dt>@L["Source"]</dt>
-                        <dd>@selected.Source</dd>
-                        <dt>@L["Management"]</dt>
-                        <dd>@selected.ManagementMode</dd>
-                        <dt>@L["Visibility"]</dt>
-                        <dd>@selected.Visibility</dd>
-                        @if (!string.IsNullOrWhiteSpace(selected.OwnerResourceId))
                         {
+                            <dt>@L["Source"]</dt>
+                            <dd>@FormatResourceSource(selected.Source)</dd>
+                            <dt>@L["Management"]</dt>
+                            <dd>@FormatManagementMode(selected.ManagementMode)</dd>
+                            <dt>@L["Visibility"]</dt>
+                            <dd>@FormatResourceVisibility(selected.Visibility)</dd>
+                            @if (!string.IsNullOrWhiteSpace(selected.OwnerResourceId))
+                            {
                             <dt>@L["Owner"]</dt>
                             <dd>@FormatResourceName(selected.OwnerResourceId)</dd>
                         }
@@ -470,26 +470,29 @@
                 </section>
             }
 
-            <section class="blade-section">
-                <h3>@L["Endpoints"]</h3>
-                <div class="endpoint-list">
-                    @foreach (var endpoint in selected.Endpoints)
-                    {
-                        <div>
-                            <strong>@endpoint.Name</strong>
-                            <span>@FormatEndpointSummary(endpoint)</span>
-                            @if (GetEndpointNetworkMapping(selected, endpoint.Name) is { } mapping)
-                            {
-                                <EndpointLink Address="@mapping.Address"
-                                              EmptyText="@L["n/a"].Value"
-                                              EmptyClass="muted"
-                                              StopClickPropagation="true" />
-                            }
-                            <small>@FormatExposure(endpoint.Exposure)</small>
-                        </div>
-                    }
-                </div>
-            </section>
+            @if (selected.Endpoints.Count > 0)
+            {
+                <section class="blade-section">
+                    <h3>@L["Endpoints"]</h3>
+                    <div class="endpoint-list">
+                        @foreach (var endpoint in selected.Endpoints)
+                        {
+                            <div>
+                                <strong>@endpoint.Name</strong>
+                                <span>@FormatEndpointSummary(endpoint)</span>
+                                @if (GetEndpointNetworkMapping(selected, endpoint.Name) is { } mapping)
+                                {
+                                    <EndpointLink Address="@mapping.Address"
+                                                  EmptyText="@L["Not mapped"].Value"
+                                                  EmptyClass="muted"
+                                                  StopClickPropagation="true" />
+                                }
+                                <small>@FormatExposure(endpoint.Exposure)</small>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
 
             @if (IsLoadBalancerResource(selected))
             {
@@ -524,7 +527,7 @@
                         <h3>@L["Networking"]</h3>
                         <dl class="detail-list">
                             <dt>@L["Kind"]</dt>
-                            <dd>@GetAttributeValue(selected, ResourceAttributeNames.NetworkKind, selected.Kind)</dd>
+                            <dd>@FormatNetworkKind(GetAttributeValue(selected, ResourceAttributeNames.NetworkKind, selected.Kind))</dd>
                             <dt>@L["Host readiness"]</dt>
                             <dd>@FormatNetworkReadiness(selected)</dd>
                             @if (selected.ResourceAttributes.ContainsKey(ResourceAttributeNames.NetworkProvisionedMappingCount))
@@ -637,7 +640,7 @@
                         <div class="dependency-list">
                             @foreach (var dependency in selected.DependsOn
                                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                                .OrderBy(dependencyId => dependencyId, StringComparer.OrdinalIgnoreCase))
+                                .OrderBy(FormatResourceName, StringComparer.OrdinalIgnoreCase))
                             {
                                 @ResourceRelationshipLink(dependency)
                             }
@@ -1037,7 +1040,7 @@ StringComparer.OrdinalIgnoreCase);
             return new ResourceAttentionSignal(
                 ResourceSignalSeverity.Warning,
                 L["Potential bad state: health checks report healthy while the resource is {0}. Verify the lifecycle state, health probe target, and possible leftover process.",
-                    resource.State?.ToString() ?? L["not running"].Value].Value);
+                    FormatResourceState(resource.State)].Value);
         }
 
         return null;
@@ -1458,9 +1461,9 @@ resourceGroups) =>
             SelectedResource = null;
             await LoadResourceModelAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatResourceInventoryOperationFailure(exception, "delete the resource");
             ProcedureSignals = [];
         }
     }
@@ -1588,15 +1591,29 @@ resourceGroups) =>
             ProcedureSignals = result.Signals;
             await RefreshResourcesAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatResourceInventoryOperationFailure(exception, "run the resource operation");
             ProcedureSignals = [];
         }
         finally
         {
             ExecutingActionKeys.Remove(GetActionKey(resource, action));
         }
+    }
+
+    private string FormatResourceInventoryOperationFailure(Exception exception, string operation)
+    {
+        Logger.LogWarning(
+            exception,
+            "Resource inventory operation failed: {Operation}",
+            operation);
+
+        return exception switch
+        {
+            HttpRequestException => L["CloudShell could not reach the Control Plane while trying to {0}. Check connectivity and try again.", operation].Value,
+            _ => L["CloudShell could not {0}. Check the resource state and try again.", operation].Value
+        };
     }
 
     private IReadOnlyList<Resource> GetStoppedDependencies(Resource resource)
@@ -1641,7 +1658,8 @@ resourceGroups) =>
         ResourceInventory
             .Where(candidate => candidate.DependsOn.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
             .Where(candidate => IsActiveDependencyState(candidate.State))
-            .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<Resource> GetDependentResources(Resource resource) =>
@@ -1716,18 +1734,58 @@ resourceGroups) =>
         string fallback) =>
         resource.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
 
+    private string FormatResourceSource(ResourceSource source) =>
+        source switch
+        {
+            ResourceSource.User => L["User-created"].Value,
+            ResourceSource.Provider => L["Provider-created"].Value,
+            ResourceSource.Orchestrator => L["Orchestrator-created"].Value,
+            ResourceSource.RuntimeController => L["Runtime-created"].Value,
+            _ => L["Unknown"].Value
+        };
+
+    private string FormatManagementMode(ResourceManagementMode mode) =>
+        mode switch
+        {
+            ResourceManagementMode.UserManaged => L["User-managed"].Value,
+            ResourceManagementMode.ProviderManaged => L["Provider-managed"].Value,
+            ResourceManagementMode.OrchestratorManaged => L["Orchestrator-managed"].Value,
+            ResourceManagementMode.RuntimeManaged => L["Runtime-managed"].Value,
+            _ => L["Unknown"].Value
+        };
+
+    private string FormatResourceVisibility(ResourceVisibility visibility) =>
+        visibility switch
+        {
+            ResourceVisibility.Normal => L["Visible"].Value,
+            ResourceVisibility.Hidden => L["Hidden"].Value,
+            ResourceVisibility.Diagnostic => L["Diagnostic"].Value,
+            _ => L["Unknown"].Value
+        };
+
     private string FormatNetworkReadiness(Resource resource)
     {
-        var readiness = GetAttributeValue(resource, ResourceAttributeNames.NetworkHostReadiness, "unknown");
+        var readiness = GetAttributeValue(resource, ResourceAttributeNames.NetworkHostReadiness, "Unknown");
         return readiness switch
         {
             "logicalOnly" => L["Logical only"].Value,
             "providerRequired" when GetMissingMappingProviderIds(resource).Length == 0 => L["Ready"].Value,
             "providerRequired" => L["Provider missing"].Value,
             "ready" => L["Ready"].Value,
+            "unknown" => L["Unknown"].Value,
             _ => readiness
         };
     }
+
+    private string FormatNetworkKind(string kind) =>
+        kind switch
+        {
+            _ when string.Equals(kind, nameof(NetworkResourceKind.Logical), StringComparison.OrdinalIgnoreCase) => L["Logical"].Value,
+            _ when string.Equals(kind, nameof(NetworkResourceKind.Virtual), StringComparison.OrdinalIgnoreCase) => L["Virtual"].Value,
+            _ when string.Equals(kind, nameof(NetworkResourceKind.Host), StringComparison.OrdinalIgnoreCase) => L["Host"].Value,
+            { Length: > 0 } => kind,
+            _ => L["Unknown"].Value
+        };
 
     private static string[] GetMappingProviderIds(Resource resource) =>
         resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NetworkMappingProviders, out var providers)
@@ -1752,7 +1810,7 @@ resourceGroups) =>
                     resource.Id,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
-            .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(mapping => GetResourceLabel(mapping.Network), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private LoadBalancerRouteView[] GetInboundLoadBalancerRoutes(Resource resource) =>
@@ -1765,7 +1823,7 @@ resourceGroups) =>
                     resource.Id,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
-            .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(route => GetResourceLabel(route.LoadBalancer), StringComparer.OrdinalIgnoreCase)
             .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -1798,7 +1856,7 @@ resourceGroups) =>
     private string FormatEndpointSummary(ResourceEndpoint endpoint)
     {
         var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
-            ? L["unspecified"].Value
+            ? L["Unspecified"].Value
             : endpoint.Protocol;
         return endpoint.TargetPort is null
             ? protocol
@@ -1812,7 +1870,7 @@ resourceGroups) =>
             ResourceExposureScope.Local => L["local"].Value,
             ResourceExposureScope.Network => L["network"].Value,
             ResourceExposureScope.Public => L["public"].Value,
-            _ => exposure.ToString()
+            _ => L["Unknown"].Value
         };
 
     private static ResourceEndpointNetworkMapping? GetEndpointNetworkMapping(
@@ -1925,7 +1983,7 @@ resourceGroups) =>
         {
             L["Exposure: {0}", ResourceNameMappingDisplay.GetExposureLabel(mapping)].Value,
             FormatNameMappingProvider(mapping),
-            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(mapping, Localize)].Value
+            L["Routing status: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(mapping, Localize)].Value
         };
 
         var zone = string.IsNullOrWhiteSpace(mapping.ParentResourceId)
@@ -2009,7 +2067,19 @@ resourceGroups) =>
         ExecutingActionKeys.Contains(GetActionKey(resource, action));
 
     private string GetLifecycleStatusLabel(Resource resource) =>
-        GetLifecycleProgressLabel(resource) ?? resource.State?.ToString() ?? ResourceState.Unknown.ToString();
+        GetLifecycleProgressLabel(resource) ?? FormatResourceState(resource.State);
+
+    private string FormatResourceState(ResourceState? state) =>
+        state switch
+        {
+            ResourceState.Running => L["Running"].Value,
+            ResourceState.Starting => L["Starting"].Value,
+            ResourceState.Stopping => L["Stopping"].Value,
+            ResourceState.Paused => L["Paused"].Value,
+            ResourceState.Degraded => L["Degraded"].Value,
+            ResourceState.Stopped => L["Stopped"].Value,
+            _ => L["Unknown"].Value
+        };
 
     private string? GetLifecycleProgressLabel(Resource resource)
     {
@@ -2033,7 +2103,7 @@ resourceGroups) =>
         {
             builder.OpenElement(0, "span");
             builder.AddAttribute(1, "class", "muted");
-            builder.AddContent(2, L["n/a"]);
+            builder.AddContent(2, L["No health checks"]);
             builder.CloseElement();
             return;
         }
@@ -2258,7 +2328,11 @@ resourceGroups) =>
 
     private string GetDependencyConfirmationMessage(PendingResourceAction pending)
     {
-        var names = string.Join(", ", pending.StoppedDependencies.Select(dependency => dependency.Name));
+        var names = string.Join(
+            ", ",
+            pending.StoppedDependencies
+                .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
+                .Select(GetResourceLabel));
         return L[
             "The following dependencies are not running: {0}. Start them as well?",
             names].Value;
@@ -2266,7 +2340,11 @@ resourceGroups) =>
 
     private string GetDependentWarningMessage(PendingResourceAction pending)
     {
-        var names = string.Join(", ", pending.ActiveDependents.Select(dependent => dependent.Name));
+        var names = string.Join(
+            ", ",
+            pending.ActiveDependents
+                .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
+                .Select(GetResourceLabel));
         return L[
             "The following running resources depend on this resource: {0}. Stopping it may disrupt them. Do you want to stop the resource?",
             names].Value;

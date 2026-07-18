@@ -290,9 +290,9 @@ else
                                     <ResourceTableIdentity IconName="queue"
                                                            IconTitle="Queue"
                                                            Title="@FormatName(queue.Name)"
-                                                           Summary="@queue.VirtualHost" />
+                                                           Summary="@FormatVirtualHost(queue.VirtualHost)" />
                                 </td>
-                                <td>@FormatNullable(queue.State)</td>
+                                <td>@FormatQueueState(queue.State)</td>
                                 <td>@FormatNumber(queue.Messages)</td>
                                 <td>@FormatNumber(queue.MessagesReady)</td>
                                 <td>@FormatNumber(queue.MessagesUnacknowledged)</td>
@@ -482,7 +482,7 @@ else
 
         if (!Dashboard.Succeeded)
         {
-            return $"CloudShell could not read RabbitMQ dashboard data for virtual host {Dashboard.VirtualHost}.";
+            return $"CloudShell could not read RabbitMQ dashboard data for virtual host {FormatVirtualHost(Dashboard.VirtualHost)}.";
         }
 
         return $"Showing queue depth and broker counters for virtual host {FormatVirtualHost(Dashboard.VirtualHost)}.";
@@ -499,25 +499,33 @@ else
     }
 
     private static string FormatVirtualHost(string? virtualHost) =>
-        string.IsNullOrWhiteSpace(virtualHost) ? "<default>" : virtualHost!;
+        string.IsNullOrWhiteSpace(virtualHost) ? "(default)" : virtualHost!;
 
     private static string FormatName(string? name) =>
-        string.IsNullOrWhiteSpace(name) ? "<default>" : name!;
+        string.IsNullOrWhiteSpace(name) ? "(default)" : name!;
 
-    private static string FormatNullable(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "-" : value!;
+    private static string FormatQueueState(string? state) =>
+        state?.Trim().ToLowerInvariant() switch
+        {
+            "running" => "Running",
+            "idle" => "Idle",
+            "flow" => "Flow controlled",
+            "blocked" => "Blocked",
+            { Length: > 0 } => "Custom",
+            _ => "Not reported"
+        };
 
     private static string FormatNumber(int? value) =>
-        value.HasValue ? value.Value.ToString("N0", CultureInfo.CurrentCulture) : "-";
+        value.HasValue ? value.Value.ToString("N0", CultureInfo.CurrentCulture) : "Not reported";
 
     private static string FormatNumber(long? value) =>
-        value.HasValue ? value.Value.ToString("N0", CultureInfo.CurrentCulture) : "-";
+        value.HasValue ? value.Value.ToString("N0", CultureInfo.CurrentCulture) : "Not reported";
 
     private static string FormatRate(double? value) =>
-        value.HasValue ? $"{value.Value.ToString("N2", CultureInfo.CurrentCulture)}/s" : "-";
+        value.HasValue ? $"{value.Value.ToString("N2", CultureInfo.CurrentCulture)}/s" : "Not reported";
 
     private static string FormatTimestamp(DateTimeOffset? value) =>
-        value.HasValue ? value.Value.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture) : "-";
+        value.HasValue ? value.Value.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture) : "Not reported";
 
     public async ValueTask DisposeAsync()
     {

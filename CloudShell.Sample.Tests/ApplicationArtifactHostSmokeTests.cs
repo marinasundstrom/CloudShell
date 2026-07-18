@@ -38,7 +38,7 @@ public sealed class ApplicationArtifactHostSmokeTests
             await host.WaitForHttpOkAsync("/", StartupTimeout);
             var addPageHtml = await host.GetStringAsync(
                 "/resources/add?type=application.dotnet-app");
-            Assert.Contains("Artifact layout", addPageHtml);
+            Assert.Contains("Package layout", addPageHtml);
             Assert.Contains("Package kind", addPageHtml);
             Assert.Contains("Package", addPageHtml);
             Assert.DoesNotContain("Application artifact upload is not enabled", addPageHtml);

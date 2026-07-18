@@ -29,12 +29,12 @@ else
     @if (IsLoading)
     {
         <EmptyState Title="Loading databases"
-                    Message="CloudShell is reading projected database resources." />
+                    Message="CloudShell is loading databases attached to this SQL Server resource." />
     }
     else if (DatabaseRows.Count == 0)
     {
         <EmptyState Title="No databases"
-                    Message="No SQL database resources reference this SQL Server resource." />
+                    Message="No databases are attached to this SQL Server resource." />
     }
     else
     {
@@ -43,7 +43,7 @@ else
                 <tr>
                     <th>Database</th>
                     <th>Source</th>
-                    <th>Ensure created</th>
+                    <th>Auto-create</th>
                     <th>State</th>
                     <th>Verification</th>
                 </tr>
@@ -63,8 +63,8 @@ else
                                 </TitleContent>
                             </ResourceTableIdentity>
                         </td>
-                        <td>@database.Source</td>
-                        <td>@FormatBoolean(database.EnsureCreated)</td>
+                        <td>@FormatSource(database.Source)</td>
+                        <td>@FormatEnsureCreated(database.EnsureCreated)</td>
                         <td>@FormatState(database.Resource.State)</td>
                         <td>@database.Verification</td>
                     </tr>
@@ -128,9 +128,12 @@ else
     private string GetSummaryMessage()
     {
         var count = DatabaseRows.Count.ToString(CultureInfo.InvariantCulture);
-        return DatabaseRows.Count == 1
-            ? "1 database declaration references this SQL Server resource."
-            : $"{count} database declarations reference this SQL Server resource.";
+        return DatabaseRows.Count switch
+        {
+            0 => "No databases are attached to this SQL Server resource.",
+            1 => "1 database is attached to this SQL Server resource.",
+            _ => $"{count} databases are attached to this SQL Server resource."
+        };
     }
 
     private static bool IsDatabaseForServer(Resource database, string serverResourceId) =>
@@ -148,7 +151,7 @@ else
         var source = GetAttribute(
             resource,
             SqlDatabaseResourceTypeProvider.Attributes.Source.ToString(),
-            "declared");
+            "configured");
         var ensureCreated = TryGetBoolean(
             resource,
             SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated.ToString());
@@ -158,7 +161,7 @@ else
             databaseName,
             source,
             ensureCreated,
-            "Projected from resource declarations");
+            "Managed by CloudShell");
     }
 
     private static string GetAttribute(
@@ -176,16 +179,37 @@ else
             ? parsed
             : null;
 
-    private static string FormatBoolean(bool? value) =>
+    private static string FormatEnsureCreated(bool? value) =>
         value switch
         {
             true => "Yes",
             false => "No",
-            _ => "not declared"
+            _ => "Not configured"
         };
 
     private static string FormatState(Abstractions.ResourceManager.ResourceState? state) =>
-        state?.ToString() ?? "n/a";
+        state switch
+        {
+            Abstractions.ResourceManager.ResourceState.Running => "Running",
+            Abstractions.ResourceManager.ResourceState.Starting => "Starting",
+            Abstractions.ResourceManager.ResourceState.Stopping => "Stopping",
+            Abstractions.ResourceManager.ResourceState.Paused => "Paused",
+            Abstractions.ResourceManager.ResourceState.Degraded => "Needs attention",
+            Abstractions.ResourceManager.ResourceState.Stopped => "Stopped",
+            Abstractions.ResourceManager.ResourceState.Unknown => "Unknown",
+            null => "Not reported",
+            _ => "Unknown"
+        };
+
+    private static string FormatSource(string source) =>
+        source.Trim().ToLowerInvariant() switch
+        {
+            "configured" or "declared" => "Configured",
+            "provider" => "Provider",
+            "imported" => "Imported",
+            { Length: > 0 } => "Other",
+            _ => "Not configured"
+        };
 
     private sealed record SqlDatabaseRow(
         Resource Resource,

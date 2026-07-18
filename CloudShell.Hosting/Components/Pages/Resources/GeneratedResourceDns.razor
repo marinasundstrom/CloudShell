@@ -274,7 +274,7 @@
         {
             L["Exposure: {0}", ResourceNameMappingDisplay.GetExposureLabel(view.Mapping)].Value,
             FormatNameMappingProvider(view.Mapping),
-            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping, Localize)].Value
+            L["Routing status: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping, Localize)].Value
         };
 
         var zone = string.IsNullOrWhiteSpace(view.Mapping.ParentResourceId)

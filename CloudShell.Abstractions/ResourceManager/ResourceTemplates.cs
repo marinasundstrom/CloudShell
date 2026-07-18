@@ -13,10 +13,18 @@ public sealed record ResourceTemplateExportRequest(
 
 public sealed record ResourceTemplateExportResult(
     ResourceTemplate Template,
-    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics,
+    IReadOnlyList<ResourceTypeDefinition>? ResourceTypes = null)
 {
     public bool HasErrors => Diagnostics.Any(diagnostic =>
         diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+
+    public ResourceTemplateSerializerOptions CreateSerializerOptions(
+        IEnumerable<ResourceTypeDefinition>? additionalResourceTypes = null) =>
+        new((ResourceTypes ?? [])
+            .Concat(additionalResourceTypes ?? [])
+            .GroupBy(resourceType => resourceType.TypeId)
+            .Select(group => group.First()));
 }
 
 public sealed record ResourceTemplateApplyResult(

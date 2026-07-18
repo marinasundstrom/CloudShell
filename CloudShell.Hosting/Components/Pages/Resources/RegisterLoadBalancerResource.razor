@@ -531,7 +531,10 @@
         foreach (var catalog in CertificateCatalogs)
         {
             var certificates = await catalog.ListCertificatesAsync(Resources);
-            options.AddRange(certificates.Select(CertificateOption.FromDescriptor));
+            options.AddRange(certificates.Select(descriptor =>
+                CertificateOption.FromDescriptor(
+                    descriptor,
+                    GetResourceLabel(descriptor.VaultResourceId))));
         }
 
         return options
@@ -564,9 +567,11 @@
         public CertificateReference ToReference() =>
             new(VaultResourceId, Name, Version);
 
-        public static CertificateOption FromDescriptor(CertificateReferenceDescriptor descriptor)
+        public static CertificateOption FromDescriptor(
+            CertificateReferenceDescriptor descriptor,
+            string vaultLabel)
         {
-            var label = $"{ResourceDisplayLabels.GetName(descriptor.VaultResourceId)} / {descriptor.Name}";
+            var label = $"{vaultLabel} / {descriptor.Name}";
             if (!string.IsNullOrWhiteSpace(descriptor.Version))
             {
                 label += $" ({descriptor.Version})";

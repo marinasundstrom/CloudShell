@@ -1,9 +1,11 @@
 @using CloudShell.Abstractions.ControlPlane
 @using CloudShell.Abstractions.ResourceManager
+@using Microsoft.Extensions.Logging
 @inject IResourceManager ResourceManager
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
+@inject ILogger<GeneratedResourceIdentity> Logger
 
     <div class="generated-resource-view">
         @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
@@ -84,7 +86,7 @@
                 <dt>@L["Name"]</dt>
                 <dd>@FormatIdentityName(identity)</dd>
                 <dt>@L["Kind"]</dt>
-                <dd>@identity.Kind</dd>
+                <dd>@FormatIdentityKind(identity.Kind)</dd>
                 <dt>@L["Provider"]</dt>
                 <dd>@FormatIdentityProvider(identity)</dd>
                 <dt>@L["Subject"]</dt>
@@ -280,9 +282,9 @@
                 : L["Identity disabled for this resource."].Value;
             await LoadAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatIdentityOperationFailure(exception, "update the resource identity");
         }
         finally
         {
@@ -309,6 +311,14 @@
         string.IsNullOrWhiteSpace(identity.Subject)
             ? L["Not assigned"].Value
             : identity.Subject;
+
+    private string FormatIdentityKind(ResourceIdentityBindingKind kind) =>
+        kind switch
+        {
+            ResourceIdentityBindingKind.Provider => L["Provider-backed"].Value,
+            ResourceIdentityBindingKind.Required => L["Required by resource"].Value,
+            _ => L["Unknown"].Value
+        };
 
     private string FormatIdentityReference(ResourceIdentityReference identity)
     {
@@ -348,9 +358,9 @@
         {
             ProvisioningStatus = await ResourceManager.GetResourceIdentityProvisioningStatusAsync(Resource.Id);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProvisioningStatusError = exception.Message;
+            ProvisioningStatusError = FormatIdentityOperationFailure(exception, "read identity provisioning status");
         }
     }
 
@@ -427,14 +437,29 @@
                 : diagnostic.Message;
             await LoadProvisioningStatusAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            ProcedureMessage = exception.Message;
+            ProcedureMessage = FormatIdentityOperationFailure(exception, "provision the resource identity");
         }
         finally
         {
             ProvisioningIdentity = false;
         }
+    }
+
+    private string FormatIdentityOperationFailure(Exception exception, string operation)
+    {
+        Logger.LogWarning(
+            exception,
+            "Resource identity operation failed for {ResourceId}: {Operation}",
+            Resource?.Id ?? ResourceId,
+            operation);
+
+        return exception switch
+        {
+            HttpRequestException => L["CloudShell could not reach the Control Plane while trying to {0}. Check connectivity and try again.", operation].Value,
+            _ => L["CloudShell could not {0}. Check the identity settings and try again.", operation].Value
+        };
     }
 
     private string BuildResourceRoute(string resourceId) =>

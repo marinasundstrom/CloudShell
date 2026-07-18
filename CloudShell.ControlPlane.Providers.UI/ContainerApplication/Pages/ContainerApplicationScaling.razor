@@ -35,20 +35,20 @@ else
         <dl class="detail-list">
             <dt>Mode</dt>
             <dd>@GetModeLabel()</dd>
-            <dt>Requested replica slots</dt>
+            <dt>Requested replicas</dt>
             <dd>@RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
-            <dt>Replica slots</dt>
+            <dt>Replica entries</dt>
             <dd>@ReplicaSlots.Count.ToString(CultureInfo.InvariantCulture)</dd>
-            <dt>Occupied slots</dt>
+            <dt>Assigned replicas</dt>
             <dd>@OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
-            <dt>Materialized slots</dt>
+            <dt>Running replicas</dt>
             <dd>@GetMaterializedSlotsLabel()</dd>
-            <dt>Slot state</dt>
+            <dt>Reconciliation</dt>
             <dd>@GetReplicaSlotStateSummary()</dd>
             <dt>Session affinity</dt>
             <dd>@GetSessionAffinityLabel(Resource)</dd>
             <dt>Resource type</dt>
-            <dd>@Resource.EffectiveTypeId</dd>
+            <dd>Container app</dd>
         </dl>
 
         <label for="graph-container-app-replicas">Replicas</label>
@@ -132,23 +132,23 @@ else
     @if (Resource is not null && RequestedReplicaSlots > 1)
     {
         <section class="blade-section">
-            <h3>Replica slots</h3>
+            <h3>Replica entries</h3>
             @if (ReplicaSlots.Count == 0)
             {
-                <EmptyState Title="No replica slots are materialized"
-                            Message="No requested replica slots are materialized for this app yet." />
+                <EmptyState Title="No replica entries"
+                            Message="No requested replicas are active for this app yet." />
             }
             else
             {
                 <ResourceTable>
                     <thead>
                         <tr>
-                            <th>Slot</th>
+                            <th>Replica</th>
                             <th>Occupant</th>
                             <th>State</th>
                             <th>Revision</th>
                             <th>Container</th>
-                            <th>Materialization</th>
+                            <th>Runtime status</th>
                             <th>Reconciliation</th>
                             <th>Host</th>
                         </tr>
@@ -161,7 +161,7 @@ else
                             <tr>
                                 <td>
                                     <ResourceTableIdentity IconName="replica"
-                                                           IconTitle="Replica slot"
+                                                           IconTitle="Replica"
                                                            Title="@slot.Label"
                                                            Summary="@GetSlotSummary(slot)" />
                                 </td>
@@ -191,16 +191,16 @@ else
                                         <ResourceStateIndicator State="replica.State" Variant="pill" />
                                     }
                                 </td>
-                                <td>@(replica is null ? "not materialized" : GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version))</td>
+                                <td>@(replica is null ? "Not running" : GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version))</td>
                                 <td>
-                                    <strong>@(replica is null ? "not materialized" : GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name))</strong>
+                                    <strong>@(replica is null ? "Not running" : GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name))</strong>
                                 </td>
-                                <td>@(replica is null ? "vacant slot" : GetMaterializationLabel(replica))</td>
+                                <td>@(replica is null ? "Vacant" : GetMaterializationLabel(replica))</td>
                                 <td>
                                     @GetReplicaSlotStatusLabel(slotState)
                                     <div class="table-subtext">@GetReplicaSlotStateDetail(slotState)</div>
                                 </td>
-                                <td>@(replica is null ? "not assigned" : GetAttribute(replica, ResourceAttributeNames.ContainerHostId, "default host"))</td>
+                                <td>@(replica is null ? "Not assigned" : GetAttribute(replica, ResourceAttributeNames.ContainerHostId, "Default host"))</td>
                             </tr>
                         }
                     </tbody>
@@ -343,7 +343,7 @@ else
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             ReplicaUpdateSeverity = ResourceSignalSeverity.Error;
-            ReplicaUpdateMessage = $"Replica update failed: {exception.Message}";
+            ReplicaUpdateMessage = FormatReplicaUpdateFailure(exception);
         }
         finally
         {
@@ -420,7 +420,7 @@ else
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             RoutingUpdateSeverity = ResourceSignalSeverity.Error;
-            RoutingUpdateMessage = $"Routing update failed: {exception.Message}";
+            RoutingUpdateMessage = FormatRoutingUpdateFailure(exception);
         }
         finally
         {
@@ -430,6 +430,20 @@ else
 
     private string GetModeLabel() =>
         RequestedReplicaSlots > 1 ? "Replicated" : "Single instance";
+
+    private static string FormatReplicaUpdateFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Control Plane while updating replicas. Check connectivity and try again.",
+            _ => "CloudShell could not update replicas for this container app. Check readiness diagnostics and try again."
+        };
+
+    private static string FormatRoutingUpdateFailure(Exception exception) =>
+        exception switch
+        {
+            HttpRequestException => "CloudShell could not reach the Control Plane while updating routing. Check connectivity and try again.",
+            _ => "CloudShell could not update routing for this container app. Check the routing settings and try again."
+        };
 
     private int OccupiedReplicaSlots =>
         ReplicaSlots.Count(slot => slot.Occupant is not null);
@@ -450,7 +464,7 @@ else
         return Resource?.State switch
         {
             ResourceState.Starting or ResourceState.Stopped or ResourceState.Stopping => "0",
-            _ => "not observed"
+            _ => "Not reported"
         };
     }
 
@@ -458,7 +472,7 @@ else
     {
         if (ReplicaSlotStates.Count == 0)
         {
-            return "not observed";
+            return "Not reported";
         }
 
         var openCount = ReplicaSlotStates.Count(state =>
@@ -610,11 +624,11 @@ else
     private static string GetMaterializationLabel(Resource resource) =>
         GetAttribute(resource, ResourceAttributeNames.RuntimeMaterialization, "unknown") switch
         {
-            "orchestratorMaterialized" => "Materialized",
+            "orchestratorMaterialized" => "Running",
             "orchestratorPending" => "Pending",
             "orchestratorFailed" => "Failed",
-            var materialization when !string.IsNullOrWhiteSpace(materialization) => materialization,
-            _ => "unknown"
+            { Length: > 0 } => "Unknown",
+            _ => "Unknown"
         };
 
     private ResourceReplicaSlotState? GetSlotState(ReplicaSlotView slot) =>
@@ -630,16 +644,16 @@ else
             ResourceReplicaSlotReconciliationStatus.Repairing => "Repairing",
             ResourceReplicaSlotReconciliationStatus.Repaired => "Repaired",
             ResourceReplicaSlotReconciliationStatus.RepairFailed => "Repair failed",
-            ResourceReplicaSlotReconciliationStatus.Materialized => "Materialized",
-            null => "not observed",
-            _ => state.Status.ToString()
+            ResourceReplicaSlotReconciliationStatus.Materialized => "Reconciled",
+            null => "Not reported",
+            _ => "Unknown"
         };
 
     private static string GetReplicaSlotStateDetail(ResourceReplicaSlotState? state)
     {
         if (state is null)
         {
-            return "No slot reconciliation state recorded";
+            return "No reconciliation state recorded";
         }
 
         if (!string.IsNullOrWhiteSpace(state.LastResult))
@@ -684,6 +698,6 @@ else
         int SlotCount,
         Resource? Occupant)
     {
-        public string Label => $"Slot {Ordinal.ToString(CultureInfo.InvariantCulture)}";
+        public string Label => $"Replica {Ordinal.ToString(CultureInfo.InvariantCulture)}";
     }
 }

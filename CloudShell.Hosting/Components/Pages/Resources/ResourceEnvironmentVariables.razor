@@ -408,8 +408,8 @@ else
 
     private static string FormatUnavailableReference(string? resourceId) =>
         string.IsNullOrWhiteSpace(resourceId)
-            ? "(unavailable)"
-            : $"{ResourceDisplayLabels.GetName(resourceId)} (unavailable)";
+            ? "Missing resource"
+            : $"{ResourceDisplayLabels.GetName(resourceId)} (missing resource)";
 
     private static TextFieldType GetLiteralValueTextFieldType(string? name, bool hasStoredSensitiveValue) =>
         hasStoredSensitiveValue || ResourceSettingDisplay.IsSensitiveLiteralName(name)

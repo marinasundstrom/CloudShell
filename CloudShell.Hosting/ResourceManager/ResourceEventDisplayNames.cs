@@ -158,12 +158,12 @@ internal static class ResourceEventDisplayNames
 
         if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.ReplicaMaterializing, StringComparison.OrdinalIgnoreCase))
         {
-            return localizer["Replica materializing"].Value;
+            return localizer["Replica starting"].Value;
         }
 
         if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.ReplicaMaterialized, StringComparison.OrdinalIgnoreCase))
         {
-            return localizer["Replica materialized"].Value;
+            return localizer["Replica running"].Value;
         }
 
         if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.RoutingUpdating, StringComparison.OrdinalIgnoreCase))
