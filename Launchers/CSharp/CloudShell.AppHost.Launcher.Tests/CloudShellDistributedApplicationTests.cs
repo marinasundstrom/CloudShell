@@ -116,7 +116,9 @@ public sealed class CloudShellDistributedApplicationTests
         var templateJson = ResourceTemplateSerializer.SerializeTemplate(
             app.BuildTemplate(),
             ResourceTemplateFormat.Json,
-            new ResourceTemplateSerializerOptions(app.Resources.ResourceTypeDefinitions.Values));
+            new ResourceTemplateSerializerOptions(
+                app.Resources.ResourceTypeDefinitions.Values,
+                app.Resources.ResourceCapabilityAttributeProviders.Values));
 
         var expected = CanonicalizeTemplateJson(ReadLauncherParityFixture("javascript-app-parity.json"));
         var actual = CanonicalizeTemplateJson(templateJson);
@@ -299,7 +301,9 @@ public sealed class CloudShellDistributedApplicationTests
             app.BuildTemplate(environmentId: "local"),
             templatePath,
             ResourceTemplateFormat.Yaml,
-            new ResourceTemplateSerializerOptions(app.Resources.ResourceTypeDefinitions.Values));
+            new ResourceTemplateSerializerOptions(
+                app.Resources.ResourceTypeDefinitions.Values,
+                app.Resources.ResourceCapabilityAttributeProviders.Values));
 
         var document = await File.ReadAllTextAsync(templatePath);
         var roundTripped = ResourceTemplateSerializer.DeserializeTemplate(document);

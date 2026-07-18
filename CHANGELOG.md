@@ -27,6 +27,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed built-in application Resource Manager tabs so provider-specific
   read-only Environment views do not suppress the generic environment-variable
   editor for resources that advertise the `environment.variables` capability.
+- Fixed C# launcher template serialization so provider-registered capability
+  attribute paths are used when emitting resource templates, preserving
+  root-level `environmentVariables` output for environment-variable-capable
+  resources.
 - Fixed ReplicatedContainerHealth Resource Manager reads after starting a
   replicated container app so hidden runtime-replica projection no longer
   blocks on an in-flight resource graph refresh.

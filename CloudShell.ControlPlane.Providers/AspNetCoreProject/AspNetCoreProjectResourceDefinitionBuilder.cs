@@ -322,6 +322,10 @@ public static class AspNetCoreProjectResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
+        graph.AddResourceTypeDefinition(new AspNetCoreProjectResourceTypeProvider().TypeDefinition);
+        graph.AddResourceCapabilityAttributeProvider(new EnvironmentVariablesCapabilityProvider());
+        graph.AddResourceCapabilityAttributeProvider(new VolumeConsumerCapabilityProvider());
+
         var builder = new AspNetCoreProjectResourceDefinitionBuilder(name)
             .WithRuntimeMonitoring()
             .WithDefaultConsoleLogSource();

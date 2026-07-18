@@ -30,6 +30,8 @@ public abstract class ContainerizableResourceDefinitionBuilder<TBuilder>(
         _typeId = ContainerApplicationResourceTypeProvider.ResourceTypeId;
         _providerId = ContainerApplicationResourceTypeProvider.ProviderId;
         ResourceGraph?.AddResourceTypeDefinition(new ContainerApplicationResourceTypeProvider().TypeDefinition);
+        ResourceGraph?.AddResourceCapabilityAttributeProvider(new EnvironmentVariablesCapabilityProvider());
+        ResourceGraph?.AddResourceCapabilityAttributeProvider(new VolumeConsumerCapabilityProvider());
 
         SetScalarAttribute(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerImage,
@@ -97,6 +99,8 @@ public abstract class ContainerizableResourceDefinitionBuilder<TBuilder>(
         }
 
         graph.AddResourceTypeDefinition(new ContainerApplicationResourceTypeProvider().TypeDefinition);
+        graph.AddResourceCapabilityAttributeProvider(new EnvironmentVariablesCapabilityProvider());
+        graph.AddResourceCapabilityAttributeProvider(new VolumeConsumerCapabilityProvider());
 
         if (HasContainerHostDependency())
         {

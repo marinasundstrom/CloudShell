@@ -48,26 +48,26 @@
           "resourceId": "secrets.vault:secrets"
         }
       ],
+      "environmentVariables": {
+        "PORT": {
+          "value": "5173"
+        },
+        "Sample__Message": {
+          "configurationSettingRef": {
+            "storeResourceId": "configuration.store:settings",
+            "name": "Sample--Message"
+          }
+        },
+        "Sample__ApiKey": {
+          "secretRef": {
+            "vaultResourceId": "secrets.vault:secrets",
+            "name": "Sample--ApiKey"
+          }
+        }
+      },
       "project": {
         "path": "samples/LauncherParity/App",
         "serviceDiscoveryName": "frontend",
-        "environmentVariables": {
-          "PORT": {
-            "value": "5173"
-          },
-          "Sample__Message": {
-            "configurationSettingRef": {
-              "storeResourceId": "configuration.store:settings",
-              "name": "Sample--Message"
-            }
-          },
-          "Sample__ApiKey": {
-            "secretRef": {
-              "vaultResourceId": "secrets.vault:secrets",
-              "name": "Sample--ApiKey"
-            }
-          }
-        },
         "references": [
           {
             "resourceId": "configuration.store:settings"

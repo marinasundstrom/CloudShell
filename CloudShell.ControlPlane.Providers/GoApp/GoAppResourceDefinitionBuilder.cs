@@ -328,6 +328,8 @@ public static class GoAppResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(graph);
 
         graph.AddResourceTypeDefinition(new GoAppResourceTypeProvider().TypeDefinition);
+        graph.AddResourceCapabilityAttributeProvider(new EnvironmentVariablesCapabilityProvider());
+        graph.AddResourceCapabilityAttributeProvider(new VolumeConsumerCapabilityProvider());
 
         var builder = new GoAppResourceDefinitionBuilder(name)
             .WithProjectPath(projectPath)

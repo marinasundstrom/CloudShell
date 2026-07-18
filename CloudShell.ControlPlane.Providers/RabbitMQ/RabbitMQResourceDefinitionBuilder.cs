@@ -185,6 +185,7 @@ public static class RabbitMQResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(graph);
 
         graph.AddResourceTypeDefinition(new RabbitMQResourceTypeProvider().TypeDefinition);
+        graph.AddResourceCapabilityAttributeProvider(new VolumeConsumerCapabilityProvider());
 
         var builder = new RabbitMQResourceDefinitionBuilder(name)
             .WithDefaultContainerLogSource();

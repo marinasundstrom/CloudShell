@@ -328,6 +328,8 @@ public static class PythonAppResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(graph);
 
         graph.AddResourceTypeDefinition(new PythonAppResourceTypeProvider().TypeDefinition);
+        graph.AddResourceCapabilityAttributeProvider(new EnvironmentVariablesCapabilityProvider());
+        graph.AddResourceCapabilityAttributeProvider(new VolumeConsumerCapabilityProvider());
 
         var builder = new PythonAppResourceDefinitionBuilder(name)
             .WithProjectPath(projectPath)

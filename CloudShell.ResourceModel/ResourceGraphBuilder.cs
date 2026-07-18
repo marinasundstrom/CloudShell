@@ -292,6 +292,8 @@ public class ResourceGraphBuilder(
 {
     private readonly List<IResourceDefinitionBuilder> _resources = [];
     private readonly Dictionary<ResourceTypeId, ResourceTypeDefinition> _resourceTypeDefinitions = [];
+    private readonly Dictionary<ResourceCapabilityId, IResourceCapabilityAttributeProvider>
+        _resourceCapabilityAttributeProviders = [];
     private readonly Dictionary<string, ResourceIdentityDeclaration> _resourceIdentities =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourceAccessGrantDeclaration> _permissionGrants = [];
@@ -302,6 +304,9 @@ public class ResourceGraphBuilder(
 
     public IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> ResourceTypeDefinitions =>
         _resourceTypeDefinitions;
+
+    public IReadOnlyDictionary<ResourceCapabilityId, IResourceCapabilityAttributeProvider>
+        ResourceCapabilityAttributeProviders => _resourceCapabilityAttributeProviders;
 
     public ResourceGraphBuilder DefineResources(
         Action<ResourceGraphBuilder> configure)
@@ -345,6 +350,15 @@ public class ResourceGraphBuilder(
         ArgumentNullException.ThrowIfNull(definition);
 
         _resourceTypeDefinitions[definition.TypeId] = definition;
+        return this;
+    }
+
+    public ResourceGraphBuilder AddResourceCapabilityAttributeProvider(
+        IResourceCapabilityAttributeProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        _resourceCapabilityAttributeProviders[provider.CapabilityId] = provider;
         return this;
     }
 

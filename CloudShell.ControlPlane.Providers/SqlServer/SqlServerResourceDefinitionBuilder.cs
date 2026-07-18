@@ -171,6 +171,7 @@ public static class SqlServerResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(graph);
 
         graph.AddResourceTypeDefinition(new SqlServerResourceTypeProvider().TypeDefinition);
+        graph.AddResourceCapabilityAttributeProvider(new VolumeConsumerCapabilityProvider());
 
         var builder = new SqlServerResourceDefinitionBuilder(name);
         graph.Add(builder);

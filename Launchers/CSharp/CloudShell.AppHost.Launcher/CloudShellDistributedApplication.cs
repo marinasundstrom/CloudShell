@@ -136,7 +136,9 @@ public sealed class CloudShellDistributedApplicationBuilder
     }
 
     private ResourceTemplateSerializerOptions CreateSerializerOptions() =>
-        new(Resources.ResourceTypeDefinitions.Values);
+        new(
+            Resources.ResourceTypeDefinitions.Values,
+            Resources.ResourceCapabilityAttributeProviders.Values);
 
     private IReadOnlyDictionary<string, string>? MergeMetadata(
         IReadOnlyDictionary<string, string>? metadata)
