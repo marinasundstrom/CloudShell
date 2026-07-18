@@ -44,6 +44,9 @@
     public ResourceTypeContribution? ResourceType { get; set; }
 
     [Parameter]
+    public IReadOnlyList<LogSource>? ResourceLogSources { get; set; }
+
+    [Parameter]
     public EventCallback<Resource> ResourceUpdated { get; set; }
 
     private IReadOnlyList<Resource> ChildResources { get; set; } = [];
@@ -81,9 +84,11 @@
             .Where(DisplaySelection.ShowsResource)
             .ToArray();
         DependentResources = await LoadDependentResourcesAsync();
-        LogSources = Authorization.CanReadLogs()
-            ? await LogManager.ListLogSourcesAsync(new LogQuery(ResourceId: Resource.Id))
-            : [];
+        LogSources = ResourceLogSources is { Count: > 0 }
+            ? ResourceLogSources
+            : Authorization.CanReadLogs()
+                ? await LogManager.ListLogSourcesAsync(new LogQuery(ResourceId: Resource.Id))
+                : [];
         Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
         InboundNetworkMappings = await LoadInboundNetworkMappingsAsync();
         InboundLoadBalancerRoutes = await LoadInboundLoadBalancerRoutesAsync();
@@ -334,7 +339,7 @@
             {
                 <dt>@L["Logs"]</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildLogRoute(LogSources[0])">
+                    <a class="resource-link" href="@BuildLogRoute(Resource.Id, LogSources)">
                         @L["Open logs"]
                     </a>
                 </dd>

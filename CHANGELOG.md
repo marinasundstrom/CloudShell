@@ -27,6 +27,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed inline Resource Manager log tabs so resource-scoped log sources render
   a default stream selection immediately instead of showing an empty
   "No log selected" state while the first log read is still loading.
+- Fixed generated Resource Manager Overview log rows so resources with multiple
+  log sources use the parent page's scoped log list and open the Logs tab
+  default instead of forcing the first catalog source.
 
 #### Changed
 
