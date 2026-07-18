@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified the Environment summary metric for replica reconciliation so open
+  issues are presented as replica issues instead of replica-position issues.
 - Clarified container-app Scale and replicas labels so the replica summary and
   table use replica-entry wording instead of position terminology.
 - Clarified generated Health, Recovery, and volume consumer views so absent
