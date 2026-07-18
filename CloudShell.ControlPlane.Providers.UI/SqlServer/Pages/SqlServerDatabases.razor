@@ -42,10 +42,8 @@ else
             <thead>
                 <tr>
                     <th>Database</th>
-                    <th>Source</th>
-                    <th>Auto-create</th>
+                    <th>Provisioning</th>
                     <th>State</th>
-                    <th>Verification</th>
                 </tr>
             </thead>
             <tbody>
@@ -63,10 +61,8 @@ else
                                 </TitleContent>
                             </ResourceTableIdentity>
                         </td>
-                        <td>@FormatSource(database.Source)</td>
-                        <td>@FormatEnsureCreated(database.EnsureCreated)</td>
+                        <td>@FormatProvisioning(database.Source, database.EnsureCreated)</td>
                         <td>@FormatState(database.Resource.State)</td>
-                        <td>@database.Verification</td>
                     </tr>
                 }
             </tbody>
@@ -159,9 +155,8 @@ else
         return new SqlDatabaseRow(
             resource,
             databaseName,
-            source,
             ensureCreated,
-            "Managed by CloudShell");
+            source);
     }
 
     private static string GetAttribute(
@@ -179,13 +174,26 @@ else
             ? parsed
             : null;
 
-    private static string FormatEnsureCreated(bool? value) =>
-        value switch
+    private static string FormatProvisioning(string source, bool? ensureCreated)
+    {
+        var normalizedSource = source.Trim().ToLowerInvariant();
+        if (normalizedSource == "imported")
         {
-            true => "Yes",
-            false => "No",
-            _ => "Not configured"
+            return "Imported; creation not managed";
+        }
+
+        if (normalizedSource == "provider")
+        {
+            return "Provider-created";
+        }
+
+        return ensureCreated switch
+        {
+            true => "Ensured by CloudShell",
+            false => "Declared; creation not managed",
+            _ => "Creation policy not configured"
         };
+    }
 
     private static string FormatState(Abstractions.ResourceManager.ResourceState? state) =>
         state switch
@@ -201,22 +209,11 @@ else
             _ => "Unknown"
         };
 
-    private static string FormatSource(string source) =>
-        source.Trim().ToLowerInvariant() switch
-        {
-            "configured" or "declared" => "Configured",
-            "provider" => "Provider",
-            "imported" => "Imported",
-            { Length: > 0 } => "Other",
-            _ => "Not configured"
-        };
-
     private sealed record SqlDatabaseRow(
         Resource Resource,
         string Label,
-        string Source,
         bool? EnsureCreated,
-        string Verification)
+        string Source)
     {
         public string ResourceId => Resource.Id;
         public string QualifiedLabel => ResourceDisplayLabels.GetQualifiedLabel(Resource);

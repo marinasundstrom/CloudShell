@@ -47,6 +47,8 @@ on `git blame --follow`, and then by the broad type of change.
   identity references do not repeat the resource name in provisioning rows.
 - Improved shared application Environment pages so environment variables show
   their runtime purpose, such as service connection or telemetry.
+- Simplified SQL Server database pages so database rows show provisioning intent
+  instead of low-value source and verification columns.
 
 #### Changed
 

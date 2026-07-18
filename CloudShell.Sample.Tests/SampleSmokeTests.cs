@@ -1165,8 +1165,11 @@ public sealed class SampleSmokeTests
         var graphSqlDatabasesHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString("application:databases")}");
         Assert.Contains("Databases", graphSqlDatabasesHtml);
+        Assert.Contains("Provisioning", graphSqlDatabasesHtml);
+        Assert.Contains("Ensured by CloudShell", graphSqlDatabasesHtml);
         Assert.Contains("application_topology", graphSqlDatabasesHtml);
         Assert.Contains("application.sql-database:application-topology-db", graphSqlDatabasesHtml);
+        Assert.DoesNotContain("Managed by CloudShell", graphSqlDatabasesHtml);
 
         var graphSqlStorageHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Storage.Value)}");
