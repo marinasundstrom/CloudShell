@@ -141,7 +141,7 @@ public sealed class EnvironmentRuntimeMapProjectionTests
         Assert.Contains(map.Links, link =>
             link.Source == $"resource:{loadBalancer.Id}" &&
             link.Target == routingNode.Id &&
-            link.Label == "materializes" &&
+            link.Label == "provides" &&
             link.ArtifactKind == EnvironmentRuntimeArtifactKinds.RoutingBinding);
     }
 
@@ -226,7 +226,7 @@ public sealed class EnvironmentRuntimeMapProjectionTests
         Assert.Contains(map.Links, link =>
             link.Source == providerNode.Id &&
             link.Target == mappingNode.Id &&
-            link.Label == "materializes" &&
+            link.Label == "provides" &&
             link.Kind == "topology");
         Assert.Contains(map.Links, link =>
             link.Source == mappingNode.Id &&

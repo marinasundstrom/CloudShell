@@ -89,7 +89,7 @@ public sealed class ResourceDependencyGraphProjectionTests
         Assert.Contains(graph.Links, link =>
             link.Source == gateway.Id &&
             link.Target == api.Id &&
-            link.Label == "materializes" &&
+            link.Label == "provides" &&
             link.Kind == ResourceDependencyGraphLinkKinds.Topology);
         Assert.Contains(graph.Links, link =>
             link.Source == loadBalancer.Id &&

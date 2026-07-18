@@ -709,9 +709,9 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
-        Assert.Equal("Storage mounts not fully materialized", diagnostic.Title);
+        Assert.Equal("Storage mounts not fully active", diagnostic.Title);
         Assert.Equal(
-            "Only some declared storage mounts are materialized. 1 of 2 declared storage mounts are materialized.",
+            "Only some declared storage mounts are active. 1 of 2 declared storage mounts are active.",
             diagnostic.Message);
     }
 
@@ -724,9 +724,9 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
-        Assert.Equal("Storage mounts not fully materialized", diagnostic.Title);
+        Assert.Equal("Storage mounts not fully active", diagnostic.Title);
         Assert.Equal(
-            "CloudShell has not observed storage mount materialization yet. 0 of 1 declared storage mounts are materialized.",
+            "CloudShell has not observed the storage mount state yet. 0 of 1 declared storage mounts are active.",
             diagnostic.Message);
     }
 
@@ -808,9 +808,9 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
-        Assert.Equal("Storage volume mounts not fully materialized", diagnostic.Title);
+        Assert.Equal("Storage volume mounts not fully active", diagnostic.Title);
         Assert.Equal(
-            "1 consumer of volumes owned by this Storage resource reports storage mounts that are not fully materialized: API: unknown (0/1 materialized).",
+            "1 consumer of volumes owned by this Storage resource reports storage mounts that are not fully active: API: unknown (0/1 active).",
             diagnostic.Message);
     }
 
