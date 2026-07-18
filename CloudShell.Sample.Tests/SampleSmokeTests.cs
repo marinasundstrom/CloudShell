@@ -1111,6 +1111,8 @@ public sealed class SampleSmokeTests
         Assert.Contains("Resource diagnostics", graphApiConfigurationHtml);
         Assert.Contains("Service discovery", graphApiConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphApiConfigurationHtml);
+        Assert.Contains("Health checks", graphApiConfigurationHtml);
+        Assert.DoesNotContain("health.checks", graphApiConfigurationHtml);
 
         var graphApiEnvironmentHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.dotnet-app:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
@@ -1157,6 +1159,11 @@ public sealed class SampleSmokeTests
         Assert.Contains("Storage", graphSqlStorageHtml);
         Assert.Contains("SQL Data", graphSqlStorageHtml);
         Assert.Contains("Mount target unavailable", graphSqlStorageHtml);
+
+        var graphSecretsDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("secrets.vault:application-topology-secrets")}/details");
+        Assert.Contains("Secrets Vault", graphSecretsDetailsHtml);
+        Assert.DoesNotContain("SecretsVault", graphSecretsDetailsHtml);
 
         var graphApplicationAddHtml = await host.GetStringAsync(
             "/resources/add?type=application.dotnet-app");

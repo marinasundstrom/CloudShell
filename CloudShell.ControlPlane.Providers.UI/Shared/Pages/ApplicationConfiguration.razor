@@ -273,6 +273,7 @@ else
     private static string FormatCapabilityLabel(string capabilityId) =>
         capabilityId switch
         {
+            HealthChecksCapabilityId => "Health checks",
             ResourceCapabilityIds.Liveness => "Liveness checks",
             ResourceCapabilityIds.Recovery => "Recovery policy",
             ResourceCapabilityIds.EndpointSource => "Endpoint source",
@@ -307,6 +308,8 @@ else
             ResourceCapabilityIds.StorageMountProvider => "Storage mount provider",
             _ => capabilityId
         };
+
+    private const string HealthChecksCapabilityId = "health.checks";
 
     private static string FormatActionLabel(ResourceAction action) =>
         action.Id switch

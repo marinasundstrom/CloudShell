@@ -168,7 +168,7 @@
         <dt>@L["Type"]</dt>
         <dd>@GetResourceTypeDisplayName(Resource)</dd>
         <dt>@L["Class"]</dt>
-        <dd>@Resource.ResourceClass</dd>
+        <dd>@GetResourceClassDisplayName(Resource.ResourceClass)</dd>
         <dt>@L["Provider"]</dt>
         <dd>@Resource.Provider</dd>
         <dt>@L["Group"]</dt>
@@ -1183,6 +1183,20 @@
 
     private string GetResourceTypeDisplayName(Resource resource) =>
         FindResourceType(resource)?.DisplayName ?? resource.EffectiveTypeId;
+
+    private string GetResourceClassDisplayName(ResourceClass resourceClass) => resourceClass switch
+    {
+        ResourceClass.Executable => L["Executable"].Value,
+        ResourceClass.Project => L["Project"].Value,
+        ResourceClass.Container => L["Container"].Value,
+        ResourceClass.Service => L["Service"].Value,
+        ResourceClass.Network => L["Network"].Value,
+        ResourceClass.Storage => L["Storage"].Value,
+        ResourceClass.Configuration => L["Configuration"].Value,
+        ResourceClass.Infrastructure => L["Infrastructure"].Value,
+        ResourceClass.SecretsVault => L["Secrets Vault"].Value,
+        _ => L["Generic"].Value
+    };
 
     private string BuildLogRoute(LogSource log)
     {

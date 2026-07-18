@@ -38,6 +38,8 @@ on `git blame --follow`, and then by the broad type of change.
   preserving the compact visual layout.
 - Improved shared application Configuration pages so known capabilities and
   resource operations render user-facing labels instead of internal IDs.
+- Improved generated Resource Manager Overview and shared Configuration pages
+  so resource classes and health-check capabilities use display labels.
 
 #### Changed
 
