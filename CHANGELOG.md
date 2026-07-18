@@ -56,6 +56,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Cleaned up Usage pages so overview content is summary/chart-first, detailed
   metric/sample tables are secondary drill-down content, and sample metadata
   details use readable labels.
+- Removed raw resource IDs from primary Resource Manager essentials sections;
+  stable identifiers remain in troubleshooting/configuration views.
 
 #### Changed
 

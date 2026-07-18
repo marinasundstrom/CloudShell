@@ -156,8 +156,6 @@
             .ToArray();
 
     private RenderFragment RenderEssentials() => @<dl class="detail-list">
-        <dt>@L["Resource ID"]</dt>
-        <dd>@Resource.Id</dd>
         <dt>@L["Name"]</dt>
         <dd>@DisplaySelection.GetResourceName(Resource)</dd>
         @if (DisplaySelection.ShouldShowDisplayName(Resource))
