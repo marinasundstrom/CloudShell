@@ -51,6 +51,8 @@ on `git blame --follow`, and then by the broad type of change.
   instead of low-value source and verification columns.
 - Fixed Secrets Vault secret and certificate editors so existing values use a
   fixed mask instead of a placeholder derived from stored value length.
+- Moved RabbitMQ Broker pages away from showing raw resource identifiers in the
+  primary broker details.
 
 #### Changed
 
