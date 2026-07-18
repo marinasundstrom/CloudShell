@@ -49,6 +49,8 @@ public static class JavaScriptAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceCapabilityProjector, VolumeConsumerCapabilityProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceCapabilityAttributeProvider, EnvironmentVariablesCapabilityProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, VolumeConsumerGraphValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, JavaScriptAppReferenceGraphValidator>());

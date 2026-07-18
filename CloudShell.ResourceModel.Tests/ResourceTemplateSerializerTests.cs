@@ -718,6 +718,51 @@ resources:
     }
 
     [Fact]
+    public void SerializeTemplate_UsesCapabilityAttributePathsWhenProvided()
+    {
+        var template = new ResourceTemplate(
+            "container-app",
+            [
+                new(
+                    "api",
+                    ContainerApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        [EnvironmentVariablesCapabilityProvider.AttributeId] =
+                            ResourceAttributeValue.Object(new Dictionary<string, ResourceAttributeValue>
+                            {
+                                ["ASPNETCORE_ENVIRONMENT"] = ResourceAttributeValue.Object(
+                                    new Dictionary<string, ResourceAttributeValue>
+                                    {
+                                        ["value"] = "Development"
+                                    })
+                            })
+                    })
+            ]);
+        var options = new ResourceTemplateSerializerOptions(
+            [new ContainerApplicationResourceTypeProvider().TypeDefinition],
+            [new EnvironmentVariablesCapabilityProvider()]);
+
+        var yaml = ResourceTemplateSerializer.SerializeTemplate(
+            template,
+            ResourceTemplateFormat.Yaml,
+            options);
+        var roundTripped = ResourceTemplateSerializer.DeserializeTemplate(
+            yaml,
+            ResourceTemplateFormat.Yaml,
+            options);
+        var resource = Assert.Single(roundTripped.Resources);
+        var variables = resource.ResourceAttributeValues
+            .GetObject<Dictionary<string, ResourceEnvironmentVariableValue>>(
+                EnvironmentVariablesCapabilityProvider.AttributeId);
+
+        Assert.Contains("environmentVariables:", yaml);
+        Assert.DoesNotContain("attributes:", yaml);
+        Assert.DoesNotContain("environment:", yaml);
+        Assert.Equal("Development", variables!["ASPNETCORE_ENVIRONMENT"].Value);
+    }
+
+    [Fact]
     public void SerializeDefinition_OmitsEmptyStateSections()
     {
         var definition = new ResourceState(

@@ -850,8 +850,14 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
 
         if (environmentVariables is not null)
         {
-            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
-                ResourceAttributeValue.FromObject(environmentVariables);
+            attributes[EnvironmentVariablesCapabilityProvider.AttributeId] =
+                ResourceAttributeValue.FromObject(environmentVariables.ToDictionary(
+                    variable => variable.Key,
+                    variable => new ResourceEnvironmentVariableValue(
+                        variable.Value.Value,
+                        variable.Value.ConfigurationSettingRef,
+                        variable.Value.SecretRef),
+                    StringComparer.OrdinalIgnoreCase));
         }
 
         if (serviceDiscoveryName is not null)

@@ -19,8 +19,8 @@ public sealed class ResourceModelResourceManagerMapperTests
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "./Api/Api.csproj",
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
-                    ResourceAttributeValue.FromObject(new Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>
+                [EnvironmentVariablesCapabilityProvider.AttributeId] =
+                    ResourceAttributeValue.FromObject(new Dictionary<string, ResourceEnvironmentVariableValue>
                     {
                         ["SERVICE_APIKEY"] = new(Value: "local-secret")
                     })
@@ -30,7 +30,7 @@ public sealed class ResourceModelResourceManagerMapperTests
         var projected = ResourceModelResourceManagerMapper.ToResourceManagerResource(resource);
 
         Assert.True(projected.ResourceAttributes.TryGetValue(
-            AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+            EnvironmentVariablesCapabilityProvider.AttributeId.ToString(),
             out var serialized));
         using var document = JsonDocument.Parse(serialized);
         Assert.True(document.RootElement.TryGetProperty("SERVICE_APIKEY", out var variable));

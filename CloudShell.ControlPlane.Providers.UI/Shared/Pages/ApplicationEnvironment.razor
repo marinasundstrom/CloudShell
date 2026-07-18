@@ -66,11 +66,7 @@ else
     private IReadOnlyList<EnvironmentRow> EnvironmentRows { get; set; } = [];
     private static readonly string[] EnvironmentAttributeRoots =
     [
-        AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
-        JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
-        JavaAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
-        GoAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
-        PythonAppResourceTypeProvider.Attributes.EnvironmentVariables.ToString()
+        EnvironmentVariablesCapabilityProvider.AttributeId.ToString()
     ];
 
     protected override async Task OnParametersSetAsync()

@@ -5,6 +5,7 @@
 @inject IResourceManager ResourceManager
 @inject IResourceTemplateManager Templates
 @inject IEnumerable<IResourceTypeProvider> ResourceTypeProviders
+@inject IEnumerable<IResourceCapabilityAttributeProvider> CapabilityAttributeProviders
 @inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
@@ -301,7 +302,8 @@
         new((exportResourceTypes ?? [])
             .Concat(ResourceTypeProviders.Select(provider => provider.TypeDefinition))
             .GroupBy(resourceType => resourceType.TypeId)
-            .Select(group => group.First()));
+            .Select(group => group.First()),
+            CapabilityAttributeProviders);
 
     private async Task LoadGroupsAsync()
     {

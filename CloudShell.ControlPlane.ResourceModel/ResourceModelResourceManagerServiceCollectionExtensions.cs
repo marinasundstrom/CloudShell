@@ -264,6 +264,8 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
             serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
         services.AddScoped<IResourceOrchestratorServiceProcedureProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
+        services.AddScoped<IResourceEnvironmentVariableConfigurationProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
 
         return services;
     }

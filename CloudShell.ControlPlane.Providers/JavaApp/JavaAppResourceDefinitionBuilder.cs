@@ -7,7 +7,7 @@ public sealed class JavaAppResourceDefinitionBuilder(string name) :
         JavaAppResourceTypeProvider.ProviderId)
 {
     private readonly List<NetworkingEndpointRequestValue> _endpointRequests = [];
-    private readonly Dictionary<string, JavaAppEnvironmentVariableValue> _environmentVariables =
+    private readonly Dictionary<string, ResourceEnvironmentVariableValue> _environmentVariables =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourceReference> _references = [];
     private readonly List<VolumeMountDefinition> _volumeMounts = [];
@@ -150,7 +150,7 @@ public sealed class JavaAppResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             string.IsNullOrWhiteSpace(value) ? null : value.Trim());
         return SetObjectAttribute(
-            JavaAppResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 
@@ -164,7 +164,7 @@ public sealed class JavaAppResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             ConfigurationSettingRef: configurationSetting);
         return SetObjectAttribute(
-            JavaAppResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 
@@ -178,7 +178,7 @@ public sealed class JavaAppResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             SecretRef: secret);
         return SetObjectAttribute(
-            JavaAppResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 

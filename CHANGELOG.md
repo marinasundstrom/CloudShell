@@ -20,6 +20,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed container-app stop so replica reconciliation is suppressed during
   provider shutdown and queued replica-slot repairs are cleared after a
   successful stop, preventing stopped apps from being repaired back to running.
+- Fixed Resource Manager environment variable editing so resources with the
+  `environment.variables` capability expose the editor even when no variables
+  exist yet, and environment variables are authored/exported through the
+  root-level `environmentVariables` template field.
 - Fixed ReplicatedContainerHealth Resource Manager reads after starting a
   replicated container app so hidden runtime-replica projection no longer
   blocks on an in-flight resource graph refresh.

@@ -2430,6 +2430,8 @@ resources:
         Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
             capability.Id == ResourceCapabilityIds.LogSources);
         Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.EnvironmentVariables);
+        Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(projectedContainer.ResourceActions, action =>
             action.Id == ContainerApplicationResourceTypeProvider.Operations.Start.ToString());
@@ -2485,6 +2487,35 @@ resources:
 
         Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, restart));
         Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, stop));
+
+        var environmentProvider = Assert.IsAssignableFrom<IResourceEnvironmentVariableConfigurationProvider>(
+            provider);
+        Assert.True(environmentProvider.CanConfigureEnvironmentVariables(projectedContainer));
+        Assert.Empty(environmentProvider.GetConfiguredEnvironmentVariables(projectedContainer.Id));
+
+        var environmentUpdate = await environmentProvider.UpdateEnvironmentVariablesAsync(
+            procedure,
+            [new EnvironmentVariableAssignment("ASPNETCORE_ENVIRONMENT", "Development")]);
+
+        Assert.Equal("Updated environment variables for api.", environmentUpdate.Message);
+        Assert.True(environmentUpdate.RestartRequired);
+        Assert.Equal(container.EffectiveResourceId, environmentUpdate.RestartResourceId);
+
+        var configuredEnvironment = Assert.Single(
+            environmentProvider.GetConfiguredEnvironmentVariables(projectedContainer.Id));
+        Assert.Equal("ASPNETCORE_ENVIRONMENT", configuredEnvironment.Name);
+        Assert.Equal("Development", configuredEnvironment.Value);
+
+        var environmentContainer = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == container.EffectiveResourceId);
+        Assert.True(environmentContainer.ResourceAttributes.TryGetValue(
+            ResourceCapabilityIds.EnvironmentVariables,
+            out var serializedEnvironmentVariables));
+        using (var environmentDocument = JsonDocument.Parse(serializedEnvironmentVariables))
+        {
+            var variable = environmentDocument.RootElement.GetProperty("ASPNETCORE_ENVIRONMENT");
+            Assert.Equal("Development", variable.GetProperty("value").GetString());
+        }
 
         var stopResult = await provider.ExecuteActionAsync(procedure, stop);
         var restartResult = await provider.ExecuteActionAsync(procedure, restart);
@@ -3619,8 +3650,8 @@ resources:
         Assert.Equal(5010, endpointRequest.Port);
         Assert.NotNull(await projectProjection.GetStopOperationAsync());
         var environmentVariables = resolution.Target.Attributes
-            .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
+            .GetObject<Dictionary<string, ResourceEnvironmentVariableValue>>(
+                EnvironmentVariablesCapabilityProvider.AttributeId);
         Assert.NotNull(environmentVariables);
         Assert.True(environmentVariables.TryGetValue(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",

@@ -23,7 +23,6 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         public static readonly ResourceAttributeId HotReload = "project.hotReload";
         public static readonly ResourceAttributeId UseLaunchSettings = "project.useLaunchSettings";
         public static readonly ResourceAttributeId EndpointRequests = "project.endpointRequests";
-        public static readonly ResourceAttributeId EnvironmentVariables = "project.environmentVariables";
         public static readonly ResourceAttributeId ServiceDiscoveryName = "project.serviceDiscoveryName";
         public static readonly ResourceAttributeId References = "project.references";
     }
@@ -70,9 +69,6 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
                 itemType: ResourceAttributeValueType.ComplexType,
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
                 path: "endpoints"),
-            [Attributes.EnvironmentVariables] = new(
-                Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
-                ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ServiceDiscoveryName] = new(
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.References] = ResourceAttributeDefinition.Collection(
@@ -81,6 +77,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         Capabilities:
         [
             new(ResourceCommonCapabilityIds.EndpointSource),
+            new(ResourceCommonCapabilityIds.EnvironmentVariables),
             new(ResourceCommonCapabilityIds.Monitoring),
             new(VolumeConsumerCapabilityProvider.CapabilityIdValue)
         ],
@@ -177,7 +174,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
             change.AttributeId == Attributes.HotReload ||
             change.AttributeId == Attributes.UseLaunchSettings ||
             change.AttributeId == Attributes.EndpointRequests ||
-            change.AttributeId == Attributes.EnvironmentVariables ||
+            change.AttributeId == EnvironmentVariablesCapabilityProvider.AttributeId ||
             change.AttributeId == Attributes.ServiceDiscoveryName ||
             change.AttributeId == Attributes.References ||
             change.AttributeId == ApplicationArtifactAttributeIds.Enabled ||

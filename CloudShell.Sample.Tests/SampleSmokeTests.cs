@@ -442,8 +442,8 @@ public sealed class SampleSmokeTests
         if (javaScriptApp is not null)
         {
             var variables = javaScriptApp.ResourceAttributeValues
-                .GetObject<Dictionary<string, JavaScriptAppEnvironmentVariableValue>>(
-                    JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables);
+                .GetObject<Dictionary<string, ResourceEnvironmentVariableValue>>(
+                    EnvironmentVariablesCapabilityProvider.AttributeId);
             Assert.NotNull(variables);
             Assert.NotEmpty(variables);
         }

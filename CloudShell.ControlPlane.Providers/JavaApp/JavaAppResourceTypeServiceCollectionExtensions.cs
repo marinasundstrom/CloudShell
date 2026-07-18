@@ -51,6 +51,8 @@ public static class JavaAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceCapabilityAttributeProvider, VolumeConsumerCapabilityProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceCapabilityAttributeProvider, EnvironmentVariablesCapabilityProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, VolumeConsumerGraphValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, JavaAppReferenceGraphValidator>());

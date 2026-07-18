@@ -21,7 +21,6 @@ public sealed class PythonAppResourceTypeProvider :
         public static readonly ResourceAttributeId Module = "python-app:module";
         public static readonly ResourceAttributeId Arguments = "python-app:arguments";
         public static readonly ResourceAttributeId EndpointRequests = "python-app:project.endpointRequests";
-        public static readonly ResourceAttributeId EnvironmentVariables = "python-app:project.environmentVariables";
         public static readonly ResourceAttributeId ServiceDiscoveryName = "python-app:project.serviceDiscoveryName";
         public static readonly ResourceAttributeId References = "python-app:project.references";
     }
@@ -70,10 +69,6 @@ public sealed class PythonAppResourceTypeProvider :
                 itemType: ResourceAttributeValueType.ComplexType,
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
                 path: "endpoints"),
-            [Attributes.EnvironmentVariables] = new(
-                Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
-                Path: "project.environmentVariables",
-                ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ServiceDiscoveryName] = new(
                 Path: "project.serviceDiscoveryName",
                 ValueType: ResourceAttributeValueType.String),
@@ -84,6 +79,7 @@ public sealed class PythonAppResourceTypeProvider :
         Capabilities:
         [
             new(ResourceCommonCapabilityIds.EndpointSource),
+            new(ResourceCommonCapabilityIds.EnvironmentVariables),
             new(ResourceCommonCapabilityIds.Monitoring),
             new(VolumeConsumerCapabilityProvider.CapabilityIdValue),
             new(

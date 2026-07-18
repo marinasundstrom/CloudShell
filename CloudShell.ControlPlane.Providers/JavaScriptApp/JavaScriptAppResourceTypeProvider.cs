@@ -21,7 +21,6 @@ public sealed class JavaScriptAppResourceTypeProvider :
         public static readonly ResourceAttributeId Script = "javascript-app:script";
         public static readonly ResourceAttributeId Arguments = "javascript-app:arguments";
         public static readonly ResourceAttributeId EndpointRequests = "javascript-app:project.endpointRequests";
-        public static readonly ResourceAttributeId EnvironmentVariables = "javascript-app:project.environmentVariables";
         public static readonly ResourceAttributeId ServiceDiscoveryName = "javascript-app:project.serviceDiscoveryName";
         public static readonly ResourceAttributeId References = "javascript-app:project.references";
     }
@@ -71,10 +70,6 @@ public sealed class JavaScriptAppResourceTypeProvider :
                 itemType: ResourceAttributeValueType.ComplexType,
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
                 path: "endpoints"),
-            [Attributes.EnvironmentVariables] = new(
-                Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
-                Path: "project.environmentVariables",
-                ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ServiceDiscoveryName] = new(
                 Path: "project.serviceDiscoveryName",
                 ValueType: ResourceAttributeValueType.String),
@@ -85,6 +80,7 @@ public sealed class JavaScriptAppResourceTypeProvider :
         Capabilities:
         [
             new(ResourceCommonCapabilityIds.EndpointSource),
+            new(ResourceCommonCapabilityIds.EnvironmentVariables),
             new(ResourceCommonCapabilityIds.Monitoring),
             new(VolumeConsumerCapabilityProvider.CapabilityIdValue),
             new(

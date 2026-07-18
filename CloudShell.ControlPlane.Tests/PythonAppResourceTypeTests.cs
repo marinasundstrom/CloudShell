@@ -121,8 +121,8 @@ public sealed class PythonAppResourceTypeTests
         Assert.Equal(5188, endpoint.Port);
         Assert.Equal(5188, endpoint.TargetPort);
 
-        var variables = resource.ResourceAttributeValues.GetObject<Dictionary<string, PythonAppEnvironmentVariableValue>>(
-            PythonAppResourceTypeProvider.Attributes.EnvironmentVariables);
+        var variables = resource.ResourceAttributeValues.GetObject<Dictionary<string, ResourceEnvironmentVariableValue>>(
+            EnvironmentVariablesCapabilityProvider.AttributeId);
         Assert.NotNull(variables);
         Assert.Equal("development", variables["APP_MODE"].Value);
 

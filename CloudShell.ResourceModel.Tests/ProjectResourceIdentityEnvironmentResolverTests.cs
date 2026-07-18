@@ -134,9 +134,9 @@ public sealed class ProjectResourceIdentityEnvironmentResolverTests
             "api",
             new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
-                [GoAppResourceTypeProvider.Attributes.EnvironmentVariables] =
+                [EnvironmentVariablesCapabilityProvider.AttributeId] =
                     ResourceAttributeValue.FromObject(
-                        new Dictionary<string, GoAppEnvironmentVariableValue>(StringComparer.OrdinalIgnoreCase)
+                        new Dictionary<string, ResourceEnvironmentVariableValue>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["APP_MODE"] = new("development")
                         })

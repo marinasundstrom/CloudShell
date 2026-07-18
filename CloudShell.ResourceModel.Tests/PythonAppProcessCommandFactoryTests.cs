@@ -111,9 +111,9 @@ public sealed class PythonAppProcessCommandFactoryTests
 
         if (environmentPort is not null)
         {
-            attributes[PythonAppResourceTypeProvider.Attributes.EnvironmentVariables] =
+            attributes[EnvironmentVariablesCapabilityProvider.AttributeId] =
                 ResourceAttributeValue.FromObject(
-                    new Dictionary<string, PythonAppEnvironmentVariableValue>
+                    new Dictionary<string, ResourceEnvironmentVariableValue>
                     {
                         ["PORT"] = new(environmentPort)
                     });

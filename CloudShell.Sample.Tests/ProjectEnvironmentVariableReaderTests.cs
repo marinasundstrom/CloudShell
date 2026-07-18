@@ -15,7 +15,7 @@ public sealed class ProjectEnvironmentVariableReaderTests
                     false,
                     ResourceDefinitionValueSource.ResourceState),
                 new(
-                    "project.environmentVariables.CLOUDSHELL_METRIC_INGEST_ENDPOINT.value",
+                    "environment.variables.CLOUDSHELL_METRIC_INGEST_ENDPOINT.value",
                     "http://127.0.0.1:5011/api/control-plane/v1/metrics/ingest",
                     ResourceDefinitionValueSource.ResourceState)
             ]);
@@ -38,7 +38,7 @@ public sealed class ProjectEnvironmentVariableReaderTests
                 false,
                 ResourceDefinitionValueSource.ResourceState),
             new(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables,
+                EnvironmentVariablesCapabilityProvider.AttributeId,
                 ResourceAttributeValue.Object(
                     new Dictionary<string, ResourceAttributeValue>
                     {
@@ -63,7 +63,7 @@ public sealed class ProjectEnvironmentVariableReaderTests
         var resource = CreateJavaAppResource(
         [
             new(
-                JavaAppResourceTypeProvider.Attributes.EnvironmentVariables,
+                EnvironmentVariablesCapabilityProvider.AttributeId,
                 ResourceAttributeValue.Object(
                     new Dictionary<string, ResourceAttributeValue>
                     {

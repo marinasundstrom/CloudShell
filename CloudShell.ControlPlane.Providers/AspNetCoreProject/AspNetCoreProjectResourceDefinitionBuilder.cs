@@ -4,7 +4,7 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
     ResourceDefinitionBuilder<AspNetCoreProjectResourceDefinitionBuilder>(name)
 {
     private readonly List<NetworkingEndpointRequestValue> _endpointRequests = [];
-    private readonly Dictionary<string, AspNetCoreProjectEnvironmentVariableValue> _environmentVariables =
+    private readonly Dictionary<string, ResourceEnvironmentVariableValue> _environmentVariables =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourceReference> _references = [];
     private readonly List<VolumeMountDefinition> _volumeMounts = [];
@@ -147,7 +147,7 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             string.IsNullOrWhiteSpace(value) ? null : value.Trim());
         return SetObjectAttribute(
-            AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 
@@ -161,7 +161,7 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             ConfigurationSettingRef: configurationSetting);
         return SetObjectAttribute(
-            AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 
@@ -175,7 +175,7 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             SecretRef: secret);
         return SetObjectAttribute(
-            AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 

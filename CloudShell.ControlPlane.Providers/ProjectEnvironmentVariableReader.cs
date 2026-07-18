@@ -7,14 +7,7 @@ internal static class ProjectEnvironmentVariableReader
     {
         ArgumentNullException.ThrowIfNull(attributes);
 
-        var values = attributes.GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
-            AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
-        if (values is { Count: > 0 })
-        {
-            return values;
-        }
-
-        return ReadFlattened(attributes, AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables)
+        return ReadCommon(attributes)
             .ToDictionary(
                 variable => variable.Key,
                 variable => new AspNetCoreProjectEnvironmentVariableValue(
@@ -29,14 +22,7 @@ internal static class ProjectEnvironmentVariableReader
     {
         ArgumentNullException.ThrowIfNull(attributes);
 
-        var values = attributes.GetObject<Dictionary<string, JavaScriptAppEnvironmentVariableValue>>(
-            JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables);
-        if (values is { Count: > 0 })
-        {
-            return values;
-        }
-
-        return ReadFlattened(attributes, JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables)
+        return ReadCommon(attributes)
             .ToDictionary(
                 variable => variable.Key,
                 variable => new JavaScriptAppEnvironmentVariableValue(
@@ -51,14 +37,7 @@ internal static class ProjectEnvironmentVariableReader
     {
         ArgumentNullException.ThrowIfNull(attributes);
 
-        var values = attributes.GetObject<Dictionary<string, JavaAppEnvironmentVariableValue>>(
-            JavaAppResourceTypeProvider.Attributes.EnvironmentVariables);
-        if (values is { Count: > 0 })
-        {
-            return values;
-        }
-
-        return ReadFlattened(attributes, JavaAppResourceTypeProvider.Attributes.EnvironmentVariables)
+        return ReadCommon(attributes)
             .ToDictionary(
                 variable => variable.Key,
                 variable => new JavaAppEnvironmentVariableValue(
@@ -73,14 +52,7 @@ internal static class ProjectEnvironmentVariableReader
     {
         ArgumentNullException.ThrowIfNull(attributes);
 
-        var values = attributes.GetObject<Dictionary<string, GoAppEnvironmentVariableValue>>(
-            GoAppResourceTypeProvider.Attributes.EnvironmentVariables);
-        if (values is { Count: > 0 })
-        {
-            return values;
-        }
-
-        return ReadFlattened(attributes, GoAppResourceTypeProvider.Attributes.EnvironmentVariables)
+        return ReadCommon(attributes)
             .ToDictionary(
                 variable => variable.Key,
                 variable => new GoAppEnvironmentVariableValue(
@@ -95,17 +67,30 @@ internal static class ProjectEnvironmentVariableReader
     {
         ArgumentNullException.ThrowIfNull(attributes);
 
-        var values = attributes.GetObject<Dictionary<string, PythonAppEnvironmentVariableValue>>(
-            PythonAppResourceTypeProvider.Attributes.EnvironmentVariables);
+        return ReadCommon(attributes)
+            .ToDictionary(
+                variable => variable.Key,
+                variable => new PythonAppEnvironmentVariableValue(
+                    variable.Value.Value,
+                    variable.Value.ConfigurationSettingRef,
+                    variable.Value.SecretRef),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyDictionary<string, ResourceEnvironmentVariableValue> ReadCommon(
+        ResourceAttributeSet attributes)
+    {
+        var values = attributes.GetObject<Dictionary<string, ResourceEnvironmentVariableValue>>(
+            EnvironmentVariablesCapabilityProvider.AttributeId);
         if (values is { Count: > 0 })
         {
             return values;
         }
 
-        return ReadFlattened(attributes, PythonAppResourceTypeProvider.Attributes.EnvironmentVariables)
+        return ReadFlattened(attributes, EnvironmentVariablesCapabilityProvider.AttributeId)
             .ToDictionary(
                 variable => variable.Key,
-                variable => new PythonAppEnvironmentVariableValue(
+                variable => new ResourceEnvironmentVariableValue(
                     variable.Value.Value,
                     variable.Value.ConfigurationSettingRef,
                     variable.Value.SecretRef),

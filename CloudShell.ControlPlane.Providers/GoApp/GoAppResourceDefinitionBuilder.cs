@@ -7,7 +7,7 @@ public sealed class GoAppResourceDefinitionBuilder(string name) :
         GoAppResourceTypeProvider.ProviderId)
 {
     private readonly List<NetworkingEndpointRequestValue> _endpointRequests = [];
-    private readonly Dictionary<string, GoAppEnvironmentVariableValue> _environmentVariables =
+    private readonly Dictionary<string, ResourceEnvironmentVariableValue> _environmentVariables =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourceReference> _references = [];
     private readonly List<VolumeMountDefinition> _volumeMounts = [];
@@ -132,7 +132,7 @@ public sealed class GoAppResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             string.IsNullOrWhiteSpace(value) ? null : value.Trim());
         return SetObjectAttribute(
-            GoAppResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 
@@ -146,7 +146,7 @@ public sealed class GoAppResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             ConfigurationSettingRef: configurationSetting);
         return SetObjectAttribute(
-            GoAppResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 
@@ -160,7 +160,7 @@ public sealed class GoAppResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             SecretRef: secret);
         return SetObjectAttribute(
-            GoAppResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 

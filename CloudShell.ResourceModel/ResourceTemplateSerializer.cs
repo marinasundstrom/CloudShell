@@ -536,7 +536,24 @@ public static class ResourceTemplateSerializer
             return null;
         }
 
-        return resourceType.Attributes;
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>(
+            resourceType.Attributes ?? new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>());
+        foreach (var capability in resourceType.Capabilities ?? [])
+        {
+            if (!options.ResourceCapabilityAttributeProviders.TryGetValue(
+                    capability.Id,
+                    out var attributeProvider))
+            {
+                continue;
+            }
+
+            foreach (var attribute in attributeProvider.AttributeDefinitions)
+            {
+                attributes.TryAdd(attribute.Key, attribute.Value);
+            }
+        }
+
+        return attributes;
     }
 
     private static string ResolveAttributePath(
@@ -755,14 +772,23 @@ public static class ResourceTemplateSerializer
 public sealed class ResourceTemplateSerializerOptions
 {
     public ResourceTemplateSerializerOptions(
-        IEnumerable<ResourceTypeDefinition>? resourceTypes = null)
+        IEnumerable<ResourceTypeDefinition>? resourceTypes = null,
+        IEnumerable<IResourceCapabilityAttributeProvider>? capabilityAttributeProviders = null)
     {
         ResourceTypes = resourceTypes?
             .ToDictionary(
                 resourceType => resourceType.TypeId,
                 resourceType => resourceType)
             ?? new Dictionary<ResourceTypeId, ResourceTypeDefinition>();
+        ResourceCapabilityAttributeProviders = capabilityAttributeProviders?
+            .ToDictionary(
+                provider => provider.CapabilityId,
+                provider => provider)
+            ?? new Dictionary<ResourceCapabilityId, IResourceCapabilityAttributeProvider>();
     }
 
     public IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> ResourceTypes { get; }
+
+    public IReadOnlyDictionary<ResourceCapabilityId, IResourceCapabilityAttributeProvider>
+        ResourceCapabilityAttributeProviders { get; }
 }

@@ -156,8 +156,8 @@ public sealed class ResourceGraphBuilderTests
             graph.BuildGraph().Resources,
             resource => resource.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId);
         var variables = definition.ResourceAttributeValues
-            .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
+            .GetObject<Dictionary<string, ResourceEnvironmentVariableValue>>(
+                EnvironmentVariablesCapabilityProvider.AttributeId);
 
         Assert.NotNull(variables);
         Assert.True(variables.TryGetValue("Sample__Mode", out var variable));
@@ -1323,8 +1323,8 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
         Assert.Equal(5010, endpoint.Port);
         var environmentVariables = project.ResourceAttributeValues
-            .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables) ?? [];
+            .GetObject<Dictionary<string, ResourceEnvironmentVariableValue>>(
+                EnvironmentVariablesCapabilityProvider.AttributeId) ?? [];
         Assert.True(environmentVariables.ContainsKey("CLOUDSHELL_TRACE_INGEST_ENDPOINT"));
         var reference = Assert.Single(project.ResourceAttributeValues.GetObject<ResourceReference[]>(
             AspNetCoreProjectResourceTypeProvider.Attributes.References) ?? []);
@@ -1460,8 +1460,8 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
 
         var environmentVariables = app.ResourceAttributeValues
-            .GetObject<Dictionary<string, JavaScriptAppEnvironmentVariableValue>>(
-                JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables) ?? [];
+            .GetObject<Dictionary<string, ResourceEnvironmentVariableValue>>(
+                EnvironmentVariablesCapabilityProvider.AttributeId) ?? [];
         Assert.Equal("development", environmentVariables["NODE_ENV"].Value);
         var reference = Assert.Single(app.ResourceAttributeValues.GetObject<ResourceReference[]>(
             JavaScriptAppResourceTypeProvider.Attributes.References) ?? []);
@@ -1648,8 +1648,8 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
 
         var environmentVariables = app.ResourceAttributeValues
-            .GetObject<Dictionary<string, JavaAppEnvironmentVariableValue>>(
-                JavaAppResourceTypeProvider.Attributes.EnvironmentVariables) ?? [];
+            .GetObject<Dictionary<string, ResourceEnvironmentVariableValue>>(
+                EnvironmentVariablesCapabilityProvider.AttributeId) ?? [];
         Assert.Equal("development", environmentVariables["APP_ENV"].Value);
         var reference = Assert.Single(app.ResourceAttributeValues.GetObject<ResourceReference[]>(
             JavaAppResourceTypeProvider.Attributes.References) ?? []);

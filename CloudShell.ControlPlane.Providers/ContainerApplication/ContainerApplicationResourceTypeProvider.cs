@@ -80,6 +80,7 @@ public sealed class ContainerApplicationResourceTypeProvider :
         Capabilities:
         [
             new(ResourceCommonCapabilityIds.EndpointSource),
+            new(ResourceCommonCapabilityIds.EnvironmentVariables),
             new(ResourceCommonCapabilityIds.Monitoring),
             new(VolumeConsumerCapabilityProvider.CapabilityIdValue)
         ],

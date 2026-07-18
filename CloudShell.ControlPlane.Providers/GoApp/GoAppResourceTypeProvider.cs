@@ -21,7 +21,6 @@ public sealed class GoAppResourceTypeProvider :
         public static readonly ResourceAttributeId BinaryPath = "go-app:binaryPath";
         public static readonly ResourceAttributeId Arguments = "go-app:arguments";
         public static readonly ResourceAttributeId EndpointRequests = "go-app:project.endpointRequests";
-        public static readonly ResourceAttributeId EnvironmentVariables = "go-app:project.environmentVariables";
         public static readonly ResourceAttributeId ServiceDiscoveryName = "go-app:project.serviceDiscoveryName";
         public static readonly ResourceAttributeId References = "go-app:project.references";
     }
@@ -70,10 +69,6 @@ public sealed class GoAppResourceTypeProvider :
                 itemType: ResourceAttributeValueType.ComplexType,
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest,
                 path: "endpoints"),
-            [Attributes.EnvironmentVariables] = new(
-                Description: "Process environment variables keyed by variable name. Values are resolved when the resource starts.",
-                Path: "project.environmentVariables",
-                ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ServiceDiscoveryName] = new(
                 Path: "project.serviceDiscoveryName",
                 ValueType: ResourceAttributeValueType.String),
@@ -84,6 +79,7 @@ public sealed class GoAppResourceTypeProvider :
         Capabilities:
         [
             new(ResourceCommonCapabilityIds.EndpointSource),
+            new(ResourceCommonCapabilityIds.EnvironmentVariables),
             new(ResourceCommonCapabilityIds.Monitoring),
             new(VolumeConsumerCapabilityProvider.CapabilityIdValue),
             new(

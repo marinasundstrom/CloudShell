@@ -7,7 +7,7 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
         JavaScriptAppResourceTypeProvider.ProviderId)
 {
     private readonly List<NetworkingEndpointRequestValue> _endpointRequests = [];
-    private readonly Dictionary<string, JavaScriptAppEnvironmentVariableValue> _environmentVariables =
+    private readonly Dictionary<string, ResourceEnvironmentVariableValue> _environmentVariables =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourceReference> _references = [];
     private readonly List<VolumeMountDefinition> _volumeMounts = [];
@@ -139,7 +139,7 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             string.IsNullOrWhiteSpace(value) ? null : value.Trim());
         return SetObjectAttribute(
-            JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 
@@ -153,7 +153,7 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             ConfigurationSettingRef: configurationSetting);
         return SetObjectAttribute(
-            JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 
@@ -167,7 +167,7 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
         _environmentVariables[name.Trim()] = new(
             SecretRef: secret);
         return SetObjectAttribute(
-            JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables,
+            EnvironmentVariablesCapabilityProvider.AttributeId,
             _environmentVariables);
     }
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
 using Resource = CloudShell.ResourceModel.Resource;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
@@ -11,6 +12,7 @@ public sealed class ResourceModelGraphProcedureProvider :
     IResourceActionAvailabilityProvider,
     IResourceImageUpdateProvider,
     IResourceReplicaUpdateProvider,
+    IResourceEnvironmentVariableConfigurationProvider,
     IResourceOrchestratorDeploymentProvider,
     IResourceOrchestratorServiceProcedureProvider
 {
@@ -18,6 +20,7 @@ public sealed class ResourceModelGraphProcedureProvider :
     private static readonly ResourceOperationId ContainerReplicasUpdateOperationId = "container.replicas.update";
     private static readonly ResourceAttributeId ContainerImageAttributeId = "container.image";
     private static readonly ResourceAttributeId ContainerReplicasAttributeId = "container.replicas";
+    private static readonly ResourceAttributeId EnvironmentVariablesAttributeId = "environment.variables";
 
     private readonly ResourceModelGraphResourceProvider _resourceProvider;
     private readonly ResourceModelGraphResourceResolver _resourceResolver;
@@ -205,7 +208,7 @@ public sealed class ResourceModelGraphProcedureProvider :
             attributes[ContainerReplicasAttributeId] = requestedReplicas.Value;
         }
 
-        await ApplyContainerUpdateAttributesAsync(
+        await ApplyResourceDefinitionAttributesAsync(
             context,
             attributes,
             triggeredBy,
@@ -243,7 +246,7 @@ public sealed class ResourceModelGraphProcedureProvider :
                 $"Resource model graph resource '{context.Resource.Id}' does not support replica updates.");
         }
 
-        await ApplyContainerUpdateAttributesAsync(
+        await ApplyResourceDefinitionAttributesAsync(
             context,
             new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
@@ -256,6 +259,58 @@ public sealed class ResourceModelGraphProcedureProvider :
             $"Updated replicas for {context.Resource.Name} to '{replicas}'.",
             context.Resource.Id,
             "Container app replica deployment must be reconciled.");
+    }
+
+    public bool CanConfigureEnvironmentVariables(ResourceManagerResource resource) =>
+        IsBridgeResource(resource) &&
+        resource.HasCapability(ResourceCapabilityIds.EnvironmentVariables);
+
+    public IReadOnlyList<EnvironmentVariableAssignment> GetConfiguredEnvironmentVariables(
+        string resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return [];
+        }
+
+        var resource = GetResources().FirstOrDefault(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+        if (resource is null || !CanConfigureEnvironmentVariables(resource))
+        {
+            return [];
+        }
+
+        return ReadEnvironmentVariables(resource.ResourceAttributes);
+    }
+
+    public async Task<ResourceProcedureResult> UpdateEnvironmentVariablesAsync(
+        ResourceProcedureContext context,
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(environmentVariables);
+
+        if (!CanConfigureEnvironmentVariables(context.Resource))
+        {
+            throw new NotSupportedException(
+                $"Resource model graph resource '{context.Resource.Id}' does not support environment variables.");
+        }
+
+        await ApplyResourceDefinitionAttributesAsync(
+            context,
+            new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [EnvironmentVariablesAttributeId] = ResourceAttributeValue.Object(
+                    ToEnvironmentVariableAttributeValue(environmentVariables))
+            },
+            context.TriggeredBy,
+            cancellationToken);
+
+        return ResourceProcedureResult.CompletedWithRestartRequired(
+            $"Updated environment variables for {context.Resource.Name}.",
+            context.Resource.Id,
+            "Restart the resource before the environment variable changes take effect.");
     }
 
     public bool CanEvaluateAction(
@@ -335,7 +390,7 @@ public sealed class ResourceModelGraphProcedureProvider :
             CreateCompletedMessage(action, context.Resource, execution.Diagnostics));
     }
 
-    private async Task ApplyContainerUpdateAttributesAsync(
+    private async Task ApplyResourceDefinitionAttributesAsync(
         ResourceProcedureContext context,
         IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue> attributes,
         string? triggeredBy,
@@ -375,6 +430,346 @@ public sealed class ResourceModelGraphProcedureProvider :
             throw new InvalidOperationException(FormatDiagnostics(apply.Diagnostics));
         }
     }
+
+    private static IReadOnlyList<EnvironmentVariableAssignment> ReadEnvironmentVariables(
+        IReadOnlyDictionary<string, string> attributes)
+    {
+        var environmentVariables = ReadEnvironmentVariables(attributes, EnvironmentVariablesAttributeId.ToString());
+        return environmentVariables.Count == 0
+            ? []
+            : environmentVariables
+                .OrderBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+    }
+
+    private static IReadOnlyList<EnvironmentVariableAssignment> ReadEnvironmentVariables(
+        IReadOnlyDictionary<string, string> attributes,
+        string rootAttributeName)
+    {
+        var variables = new Dictionary<string, EnvironmentVariableParts>(StringComparer.OrdinalIgnoreCase);
+        if (attributes.TryGetValue(rootAttributeName, out var value) &&
+            !string.IsNullOrWhiteSpace(value))
+        {
+            ReadEnvironmentVariableObject(value, variables);
+        }
+
+        ReadFlattenedEnvironmentVariables(attributes, rootAttributeName, variables);
+
+        return variables
+            .Select(variable => ToEnvironmentVariableAssignment(variable.Key, variable.Value))
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .ToArray();
+    }
+
+    private static void ReadEnvironmentVariableObject(
+        string value,
+        Dictionary<string, EnvironmentVariableParts> variables)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind == JsonValueKind.String)
+                {
+                    variables[property.Name] = GetParts(variables, property.Name) with
+                    {
+                        Value = property.Value.GetString() ?? string.Empty
+                    };
+                    continue;
+                }
+
+                if (property.Value.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                var parts = GetParts(variables, property.Name);
+                if (TryGetPropertyString(property.Value, "value", out var literalValue))
+                {
+                    parts = parts with { Value = literalValue };
+                }
+
+                if (TryGetObjectProperty(property.Value, "configurationSettingRef", out var configurationRef))
+                {
+                    parts = parts with
+                    {
+                        ConfigurationSetting = ReadConfigurationSettingReference(configurationRef)
+                    };
+                }
+
+                if (TryGetObjectProperty(property.Value, "secretRef", out var secretRef))
+                {
+                    parts = parts with { Secret = ReadSecretReference(secretRef) };
+                }
+
+                variables[property.Name] = parts;
+            }
+        }
+        catch (JsonException)
+        {
+        }
+    }
+
+    private static void ReadFlattenedEnvironmentVariables(
+        IReadOnlyDictionary<string, string> attributes,
+        string rootAttributeName,
+        Dictionary<string, EnvironmentVariableParts> variables)
+    {
+        var prefix = rootAttributeName + ".";
+        foreach (var (attributeName, value) in attributes)
+        {
+            if (!attributeName.StartsWith(prefix, StringComparison.Ordinal) ||
+                string.IsNullOrEmpty(value))
+            {
+                continue;
+            }
+
+            var path = attributeName[prefix.Length..];
+            if (TryReadEnvironmentVariablePath(path, ".value", out var variableName, out _))
+            {
+                variables[variableName] = GetParts(variables, variableName) with { Value = value };
+                continue;
+            }
+
+            if (TryReadEnvironmentVariablePath(
+                    path,
+                    ".configurationSettingRef.",
+                    out variableName,
+                    out var configurationProperty))
+            {
+                var parts = GetParts(variables, variableName);
+                var reference = parts.ConfigurationSetting ?? new ConfigurationSettingReference(
+                    string.Empty,
+                    string.Empty);
+                reference = configurationProperty switch
+                {
+                    "storeResourceId" => reference with { StoreResourceId = value },
+                    "name" => reference with { SettingName = value },
+                    "settingName" => reference with { SettingName = value },
+                    "version" => reference with { Version = value },
+                    _ => reference
+                };
+                variables[variableName] = parts with { ConfigurationSetting = reference };
+                continue;
+            }
+
+            if (TryReadEnvironmentVariablePath(
+                    path,
+                    ".secretRef.",
+                    out variableName,
+                    out var secretProperty))
+            {
+                var parts = GetParts(variables, variableName);
+                var reference = parts.Secret ?? new SecretReference(
+                    string.Empty,
+                    string.Empty);
+                reference = secretProperty switch
+                {
+                    "vaultResourceId" => reference with { VaultResourceId = value },
+                    "name" => reference with { SecretName = value },
+                    "secretName" => reference with { SecretName = value },
+                    "version" => reference with { Version = value },
+                    _ => reference
+                };
+                variables[variableName] = parts with { Secret = reference };
+            }
+        }
+    }
+
+    private static IReadOnlyDictionary<string, ResourceAttributeValue> ToEnvironmentVariableAttributeValue(
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
+    {
+        var variables = new Dictionary<string, ResourceAttributeValue>(StringComparer.OrdinalIgnoreCase);
+        foreach (var environmentVariable in environmentVariables)
+        {
+            var name = environmentVariable.Name.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            variables[name] = ResourceAttributeValue.Object(
+                ToEnvironmentVariablePropertyValue(environmentVariable));
+        }
+
+        return variables;
+    }
+
+    private static IReadOnlyDictionary<string, ResourceAttributeValue> ToEnvironmentVariablePropertyValue(
+        EnvironmentVariableAssignment environmentVariable)
+    {
+        if (environmentVariable.ConfigurationSetting is not null)
+        {
+            return new Dictionary<string, ResourceAttributeValue>
+            {
+                ["configurationSettingRef"] = ResourceAttributeValue.Object(
+                    ToConfigurationSettingReferenceValue(environmentVariable.ConfigurationSetting))
+            };
+        }
+
+        if (environmentVariable.Secret is not null)
+        {
+            return new Dictionary<string, ResourceAttributeValue>
+            {
+                ["secretRef"] = ResourceAttributeValue.Object(
+                    ToSecretReferenceValue(environmentVariable.Secret))
+            };
+        }
+
+        return new Dictionary<string, ResourceAttributeValue>
+        {
+            ["value"] = environmentVariable.Value ?? string.Empty
+        };
+    }
+
+    private static IReadOnlyDictionary<string, ResourceAttributeValue> ToConfigurationSettingReferenceValue(
+        ConfigurationSettingReference reference)
+    {
+        var values = new Dictionary<string, ResourceAttributeValue>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["storeResourceId"] = reference.StoreResourceId,
+            ["name"] = reference.SettingName
+        };
+        if (!string.IsNullOrWhiteSpace(reference.Version))
+        {
+            values["version"] = reference.Version;
+        }
+
+        return values;
+    }
+
+    private static IReadOnlyDictionary<string, ResourceAttributeValue> ToSecretReferenceValue(
+        SecretReference reference)
+    {
+        var values = new Dictionary<string, ResourceAttributeValue>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["vaultResourceId"] = reference.VaultResourceId,
+            ["name"] = reference.SecretName
+        };
+        if (!string.IsNullOrWhiteSpace(reference.Version))
+        {
+            values["version"] = reference.Version;
+        }
+
+        return values;
+    }
+
+    private static EnvironmentVariableAssignment ToEnvironmentVariableAssignment(
+        string name,
+        EnvironmentVariableParts parts)
+    {
+        if (parts.ConfigurationSetting is not null)
+        {
+            return EnvironmentVariableAssignment.FromConfiguration(
+                name,
+                parts.ConfigurationSetting);
+        }
+
+        if (parts.Secret is not null)
+        {
+            return EnvironmentVariableAssignment.FromSecret(name, parts.Secret);
+        }
+
+        return new EnvironmentVariableAssignment(name, parts.Value ?? string.Empty);
+    }
+
+    private static ConfigurationSettingReference? ReadConfigurationSettingReference(JsonElement element)
+    {
+        var storeResourceId = GetPropertyString(element, "storeResourceId");
+        var name = GetPropertyString(element, "name") ?? GetPropertyString(element, "settingName");
+        if (string.IsNullOrWhiteSpace(storeResourceId) || string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        return new ConfigurationSettingReference(
+            storeResourceId,
+            name,
+            GetPropertyString(element, "version"));
+    }
+
+    private static SecretReference? ReadSecretReference(JsonElement element)
+    {
+        var vaultResourceId = GetPropertyString(element, "vaultResourceId");
+        var name = GetPropertyString(element, "name") ?? GetPropertyString(element, "secretName");
+        if (string.IsNullOrWhiteSpace(vaultResourceId) || string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        return new SecretReference(
+            vaultResourceId,
+            name,
+            GetPropertyString(element, "version"));
+    }
+
+    private static bool TryReadEnvironmentVariablePath(
+        string path,
+        string marker,
+        out string variableName,
+        out string propertyName)
+    {
+        var markerIndex = path.IndexOf(marker, StringComparison.Ordinal);
+        if (markerIndex <= 0)
+        {
+            variableName = string.Empty;
+            propertyName = string.Empty;
+            return false;
+        }
+
+        variableName = path[..markerIndex];
+        propertyName = path[(markerIndex + marker.Length)..];
+        return !string.IsNullOrWhiteSpace(variableName) &&
+            (string.Equals(marker, ".value", StringComparison.Ordinal) ||
+                !string.IsNullOrWhiteSpace(propertyName));
+    }
+
+    private static EnvironmentVariableParts GetParts(
+        Dictionary<string, EnvironmentVariableParts> variables,
+        string name) =>
+        variables.GetValueOrDefault(name) ?? new EnvironmentVariableParts();
+
+    private static bool TryGetObjectProperty(
+        JsonElement element,
+        string propertyName,
+        out JsonElement property)
+    {
+        if (element.ValueKind == JsonValueKind.Object &&
+            element.TryGetProperty(propertyName, out property) &&
+            property.ValueKind == JsonValueKind.Object)
+        {
+            return true;
+        }
+
+        property = default;
+        return false;
+    }
+
+    private static bool TryGetPropertyString(
+        JsonElement element,
+        string propertyName,
+        out string? value)
+    {
+        if (element.ValueKind == JsonValueKind.Object &&
+            element.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.String)
+        {
+            value = property.GetString();
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static string? GetPropertyString(JsonElement element, string propertyName) =>
+        TryGetPropertyString(element, propertyName, out var value) ? value : null;
 
     private async ValueTask<ResourceModelGraphOperationResolution> ResolveExecutableOperationAsync(
         string resourceId,
@@ -519,3 +914,8 @@ internal sealed record ResourceModelGraphServiceExecutorResolution(
 internal sealed record ResourceModelGraphServiceInstanceExecutorResolution(
     IResourceModelGraphOrchestratorServiceExecutor Executor,
     ResourceModelGraphOrchestratorServiceInstanceContext Context);
+
+internal sealed record EnvironmentVariableParts(
+    string? Value = null,
+    ConfigurationSettingReference? ConfigurationSetting = null,
+    SecretReference? Secret = null);
