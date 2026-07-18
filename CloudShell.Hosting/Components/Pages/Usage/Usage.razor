@@ -237,7 +237,7 @@ else
                                     <th scope="col">@L["Resource"]</th>
                                     <th scope="col">@L["Usage metric"]</th>
                                     <th class="usage-table-value" scope="col">@L["Value"]</th>
-                                    <th scope="col">@L["Attributes"]</th>
+                                    <th scope="col">@L["Details"]</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -259,7 +259,7 @@ else
                                         <td>
                                             @if (sample.UsageAttributes.Count == 0)
                                             {
-                                                <span class="usage-table-empty">@L["None"]</span>
+                                                <span class="usage-table-empty">@L["No details"]</span>
                                             }
                                             else
                                             {
