@@ -485,6 +485,69 @@ public sealed class ShellNavigationTests
             items.Select(item => item.Id).ToArray());
     }
 
+    [Fact]
+    public void ResourceTabLayoutProjection_OrdersManagementTabsByOperationalFlow()
+    {
+        var tabs = new[]
+        {
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Activity,
+                "Activity",
+                90,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Identity,
+                "Identity",
+                82,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Monitoring,
+                "Monitoring",
+                80,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.AccessControl,
+                "Access control",
+                85,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Health,
+                "Health",
+                78,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Environment,
+                "Environment",
+                80,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Usage,
+                "Usage",
+                81,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Recovery,
+                "Recovery",
+                79,
+                typeof(ParameterizedPage))
+        };
+
+        var items = ResourceTabLayoutProjection.CreateItems(tabs);
+
+        Assert.Equal(
+            [
+                ResourcePredefinedViewIds.Health.Value,
+                ResourcePredefinedViewIds.Recovery.Value,
+                ResourcePredefinedViewIds.Environment.Value,
+                ResourcePredefinedViewIds.Monitoring.Value,
+                ResourcePredefinedViewIds.Usage.Value,
+                ResourcePredefinedViewIds.Identity.Value,
+                ResourcePredefinedViewIds.AccessControl.Value,
+                ResourcePredefinedViewIds.Activity.Value
+            ],
+            items.Select(item => item.Id).ToArray());
+    }
+
     private static ICloudShellNavigator CreateNavigator<TExtension>(
         TestNavigationManager? navigationManager = null)
         where TExtension : class, ICloudShellExtension, new()

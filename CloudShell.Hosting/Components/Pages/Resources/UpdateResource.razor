@@ -926,7 +926,7 @@
             tabs.Add(new ResourceTabContribution(
                 GeneratedIdentityTabId,
                 "Identity",
-                -90,
+                82,
                 typeof(GeneratedResourceIdentity),
                 GroupTitle: ResourceTabGroupTitles.Management,
                 Icon: GetPredefinedViewIcon(GeneratedIdentityTabId)));
@@ -1077,11 +1077,7 @@
                 Icon: GetPredefinedViewIcon(GeneratedMetricsTabId)));
         }
 
-        return tabs
-            .Concat(contributedTabs)
-            .OrderBy(GetResourceTabOrder)
-            .ThenBy(tab => tab.Title, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        return tabs.Concat(contributedTabs).ToArray();
     }
 
     private bool HasDefaultIdentityProvider()
@@ -1092,36 +1088,6 @@
         var effectiveProviders = declarations?.CreateIdentityProviderCatalog(configuredProviders) ?? configuredProviders;
 
         return effectiveProviders.DefaultProvider is not null;
-    }
-
-    private static int GetResourceTabOrder(ResourceTabContribution tab)
-    {
-        if (tab.Id == GeneratedOverviewTabId)
-        {
-            return int.MinValue;
-        }
-
-        if (tab.Id == GeneratedIdentityTabId)
-        {
-            return int.MaxValue - 2;
-        }
-
-        if (tab.Id == GeneratedAccessControlTabId)
-        {
-            return int.MaxValue - 1;
-        }
-
-        if (tab.Id == GeneratedActivityTabId)
-        {
-            return int.MaxValue;
-        }
-
-        if (tab.Id == ResourcePredefinedViewIds.Environment)
-        {
-            return int.MaxValue - 2;
-        }
-
-        return tab.Order;
     }
 
     private static string? GetPredefinedViewIcon(ResourceViewId id) =>

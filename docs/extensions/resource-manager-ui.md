@@ -164,6 +164,16 @@ Resource Manager. Providers can contribute resource views for complete
 resource-specific workflows or replace selected built-in views when the
 generated view is not appropriate.
 
+CoreShell owns the generic shell primitives used to render those tabs, such as
+pages, routes, navigation targets, and tabbed layout presenters. Resource
+Manager owns the resource-page model layered on top of those primitives:
+predefined resource views, resource tab groups, generated resource tabs,
+provider-owned resource tabs, tab ordering, visibility, and routing between
+resource-detail views. Do not push Resource Manager-specific resource-page
+semantics into CoreShell; a different CoreShell-based product area should be
+able to use the same layout primitives without inheriting Resource Manager's
+resource tab taxonomy.
+
 CloudShell also has predefined resource detail views for common concerns such as
 Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and
 Activity. These views are identified by the constants in

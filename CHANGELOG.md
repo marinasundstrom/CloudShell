@@ -97,6 +97,9 @@ on `git blame --follow`, and then by the broad type of change.
   properties without adding provider-specific serialization adapters.
 - Stabilized Resource Manager tab projection so generated resource details
   order semantic groups and provider-owned tabs consistently across resources.
+- Aligned generated Resource Manager Management-tab ordering with the projected
+  tab layout so health/readiness views stay ahead of lower-frequency identity,
+  access-control, and activity views.
 
 ### 2026-07-17
 
