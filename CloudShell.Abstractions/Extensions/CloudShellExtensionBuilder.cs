@@ -359,6 +359,7 @@ internal sealed class CloudShellExtensionBuilder(
         ValidatePredefinedViewReplacement(id);
 
         var resourceType = _resourceTypes[typeIndex];
+        ValidateResourceTabRouteSegment(resourceType, id);
         var tabs = resourceType.ResourceTabs
             .Append(new ResourceTabContribution(
                 id,
@@ -411,6 +412,36 @@ internal sealed class CloudShellExtensionBuilder(
 
         _resourceTypes[typeIndex] = resourceType with { PredefinedViewSections = sections };
         return this;
+    }
+
+    private static void ValidateResourceTabRouteSegment(
+        ResourceTypeContribution resourceType,
+        ResourceViewId id)
+    {
+        var routeSegment = ResourceManagerRoutes.GetResourceViewSegment(id);
+        var existingTab = resourceType.ResourceTabs.FirstOrDefault(tab =>
+            string.Equals(
+                ResourceManagerRoutes.GetResourceViewSegment(tab.Id),
+                routeSegment,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (existingTab is not null)
+        {
+            throw new InvalidOperationException(
+                $"Resource type '{resourceType.Id}' already has resource view '{existingTab.Id}' using public route segment '{routeSegment}'. Resource view route segments must be unique within a resource type.");
+        }
+
+        var predefinedView = ResourcePredefinedViews.All.FirstOrDefault(definition =>
+            string.Equals(
+                ResourceManagerRoutes.GetResourceViewSegment(definition.Id),
+                routeSegment,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (predefinedView is not null && predefinedView.Id != id)
+        {
+            throw new InvalidOperationException(
+                $"Resource type '{resourceType.Id}' cannot contribute resource view '{id}' using public route segment '{routeSegment}' because that segment is reserved by predefined resource view '{predefinedView.Id}'. Reuse the predefined view ID to replace that view.");
+        }
     }
 
     private static void ValidatePredefinedViewReplacement(ResourceViewId id)

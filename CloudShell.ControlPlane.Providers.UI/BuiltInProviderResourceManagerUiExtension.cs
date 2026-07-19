@@ -506,10 +506,10 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 10)
             .AddResourceTab<SharedPages.ApplicationStorage>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Application, "storage"),
+                ResourcePredefinedViewIds.Storage,
                 "Storage",
                 60,
-                groupTitle: ResourceTabGroupTitles.Application,
+                groupTitle: ResourceTabGroupTitles.Storage,
                 icon: "storage")
             .AddResourceTab<SharedPages.ApplicationStorage>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),

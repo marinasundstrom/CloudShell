@@ -215,6 +215,14 @@ Predefined view IDs are logical hierarchical IDs represented by
   `networking:endpoints`. The public path segment is conventionally the
   `Identifier` within the current resource page.
 
+Because the public path omits `GroupId`, each contributed `Identifier` must be
+unique, case-insensitively, within a resource type. Predefined view identifiers
+are reserved. A provider that owns a replacement for a predefined view must use
+the exact `ResourcePredefinedViewIds` value instead of declaring the same
+identifier in another group. The extension builder rejects duplicate or
+reserved route segments during registration so ambiguity cannot reach runtime
+view selection.
+
 Use `ResourceTabGroupIds`, `ResourceTabGroupTitles`, and
 `ResourcePredefinedViewIds` instead of creating raw string literals in
 providers or shell UI code.
@@ -380,6 +388,9 @@ This means:
 
 - A provider can replace a predefined view by contributing a normal resource tab
   with the same predefined view ID when replacement is allowed.
+- A provider cannot reuse a predefined view's public route segment under a
+  different group, or contribute two tabs with the same public route segment
+  for one resource type.
 - A provider can contribute a predefined view section only for a view that
   explicitly supports sections.
 - Unknown or non-extensible predefined-view section targets are rejected during

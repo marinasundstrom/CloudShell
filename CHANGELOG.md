@@ -87,6 +87,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Moved combined resource-detail route compatibility parsing out of the page
   component and covered encoded canonical view suffixes and hierarchical
   resource IDs with focused tests.
+- Rejected ambiguous Resource Manager tab route segments during extension
+  registration, including custom tabs that collide with predefined view
+  identifiers, and normalized container-app Storage to the predefined view ID.
 - Included exported resource type metadata with resource template exports so
   API and split-hosting clients can serialize templates with authored
   attribute paths instead of fallback attribute groups.

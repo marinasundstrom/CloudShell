@@ -44,6 +44,21 @@ public sealed class BuiltInProviderResourceManagerUiExtensionTests
             tab => tab.Id == ResourcePredefinedViewIds.Environment);
     }
 
+    [Fact]
+    public void ContainerApplicationStorage_ReplacesPredefinedStorageView()
+    {
+        var resourceType = CreateCatalog()
+            .ResourceTypes
+            .Single(type => type.Id == "application.container-app");
+
+        var storageTab = Assert.Single(
+            resourceType.ResourceTabs,
+            tab => tab.Id.Identifier == ResourcePredefinedViewIds.Storage.Identifier);
+
+        Assert.Equal(ResourcePredefinedViewIds.Storage, storageTab.Id);
+        Assert.Equal(ResourceTabGroupTitles.Storage, storageTab.GroupTitle);
+    }
+
     private static ShellCatalog CreateCatalog()
     {
         var services = new ServiceCollection();
