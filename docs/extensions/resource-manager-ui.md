@@ -156,6 +156,11 @@ operational workspace.
 
 Resource types can also contribute tabs or an update component. Those
 provider-owned views override the generated default for resources of that type.
+Resource Manager passes `ResourceId` to contributed tab components. Generated
+views may receive additional Resource Manager-owned context such as resource
+type, log selection, trace selection, or telemetry scope. A provider replacing
+a predefined view should load any additional data it owns through domain
+managers instead of depending on those internal generated-view parameters.
 
 ## Predefined Resource Views
 

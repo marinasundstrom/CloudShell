@@ -78,6 +78,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Moved generated resource-view selection and provider-tab replacement out of
   the Resource Manager page into a tested Resource Manager tab resolver, while
   keeping CoreShell limited to generic tab layout and route presentation.
+- Moved generated resource-view component parameter projection behind the same
+  Resource Manager boundary and limited provider-contributed replacement views
+  to the documented resource ID context.
 - Included exported resource type metadata with resource template exports so
   API and split-hosting clients can serialize templates with authored
   attribute paths instead of fallback attribute groups.

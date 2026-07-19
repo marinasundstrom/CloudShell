@@ -815,43 +815,19 @@
         Resource resource,
         ResourceTypeContribution? resourceType,
         ResourceTabContribution selectedTab,
-        ResourceTabResolution tabResolution)
-    {
-        var parameters = new Dictionary<string, object?>
-        {
-            ["ResourceId"] = resource.Id
-        };
-
-        if (resourceType is not null && tabResolution.AcceptsResourceTypeContext(selectedTab.Id))
-        {
-            parameters["ResourceType"] = resourceType;
-        }
-
-        if (selectedTab.Id == ResourcePredefinedViewIds.Activity)
-        {
-            parameters["TraceId"] = RequestedTraceId;
-            parameters["SpanId"] = RequestedSpanId;
-        }
-        else if (selectedTab.Id == ResourcePredefinedViewIds.Logs)
-        {
-            parameters["LogSourceId"] = RequestedLogSourceId;
-            parameters["TraceId"] = RequestedTraceId;
-            parameters["View"] = RequestedLogView;
-            parameters["SourceIds"] = RequestedLogSourceIds;
-            parameters["LogSources"] = ResourceLogSources;
-        }
-        else if (selectedTab.Id == ResourcePredefinedViewIds.Traces)
-        {
-            parameters["TraceId"] = RequestedTraceId;
-            parameters["ScopeResourceId"] = RequestedScopeResourceId;
-        }
-        else if (selectedTab.Id == ResourcePredefinedViewIds.Metrics)
-        {
-            parameters["ScopeResourceId"] = RequestedScopeResourceId;
-        }
-
-        return parameters;
-    }
+        ResourceTabResolution tabResolution) =>
+        ResourceTabComponentParameterResolver.Resolve(new ResourceTabComponentContext(
+            resource,
+            resourceType,
+            selectedTab,
+            tabResolution,
+            RequestedTraceId,
+            RequestedSpanId,
+            RequestedLogSourceId,
+            RequestedLogView,
+            RequestedLogSourceIds,
+            ResourceLogSources,
+            RequestedScopeResourceId));
 
     private bool HasDefaultIdentityProvider()
     {
