@@ -194,6 +194,10 @@ detail paths use the predefined view's local identifier, while the legacy
 `/details` and `/edit` paths continue to defer to that query. Missing,
 ambiguous, and malformed selections produce a Resource Manager recovery state
 that links back to Overview; they are not CoreShell routing concepts.
+Resource Manager also retains a narrow route-binding compatibility parser for
+requests where an encoded canonical `<group>:<view>` suffix is folded into the
+resource ID route value. It splits only canonical view IDs, preserving normal
+hierarchical resource IDs and ordinary trailing path names.
 
 CloudShell also has predefined resource detail views for common concerns such as
 Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and
