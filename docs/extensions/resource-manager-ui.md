@@ -174,6 +174,15 @@ semantics into CoreShell; a different CoreShell-based product area should be
 able to use the same layout primitives without inheriting Resource Manager's
 resource tab taxonomy.
 
+The Resource Manager tab resolver combines projected resource shape,
+capabilities, available operational data, authorization, and provider tab
+contributions into the resource's effective view set. Provider contributions
+with the same predefined view ID replace the generated fallback. The resolver
+also retains which views it generated so the host can pass Resource
+Manager-specific context only to generated components that accept it. The
+resource page consumes this resolved model; CoreShell receives only the
+resulting generic tab layout and route targets.
+
 CloudShell also has predefined resource detail views for common concerns such as
 Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and
 Activity. These views are identified by the constants in
