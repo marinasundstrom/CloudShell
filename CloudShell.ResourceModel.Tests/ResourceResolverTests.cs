@@ -329,6 +329,128 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
+    public void Resolve_ReportsAttributeAllowedValueDiagnostics()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["endpoint.exposure"] = new(
+                            ValueType: ResourceAttributeValueType.String,
+                            AllowedValues:
+                            [
+                                "Local",
+                                "Public"
+                            ])
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["endpoint.exposure"] = "Private"
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeValueInvalid, diagnostic.Code);
+        Assert.Equal("endpoint.exposure", diagnostic.Target);
+        Assert.Contains("allowed values", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Resolve_ReportsClosedComplexShapeAdditionalFields()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["runtime"] = new(
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShape: new(
+                                new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                                {
+                                    ["kind"] = new(ValueType: ResourceAttributeValueType.String)
+                                },
+                                AllowAdditionalProperties: false))
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["runtime"] = ResourceAttributeValue.Object(
+                    new Dictionary<string, ResourceAttributeValue>
+                    {
+                        ["kind"] = "process",
+                        ["extra"] = "not allowed"
+                    })
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeValueInvalid, diagnostic.Code);
+        Assert.Equal("runtime.extra", diagnostic.Target);
+        Assert.Contains("does not allow additional field 'extra'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Resolve_ValidatesComplexShapeAdditionalProperties()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["labels"] = new(
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShape: new(
+                                AdditionalProperties: new(ValueType: ResourceAttributeValueType.String)))
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["labels"] = ResourceAttributeValue.Object(
+                    new Dictionary<string, ResourceAttributeValue>
+                    {
+                        ["owner"] = "platform",
+                        ["replicas"] = 2
+                    })
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeValueInvalid, diagnostic.Code);
+        Assert.Equal("labels.replicas", diagnostic.Target);
+        Assert.Contains("labels.replicas", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Resolve_ValidatesEndpointMappingAttributeValuesAgainstRuntimeProvidedShapes()
     {
         var resolver = new ResourceResolver(

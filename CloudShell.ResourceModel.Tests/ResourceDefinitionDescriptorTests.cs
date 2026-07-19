@@ -146,6 +146,73 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void ResourceTypeDefinition_CanDescribeValidationFacetsAsJsonTarget()
+    {
+        var typeDefinition = new ResourceTypeDefinition(
+            "application.container-app",
+            ExecutableApplicationResourceTypeProvider.ClassId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["application.exposure"] = new(
+                    Description: "Endpoint exposure mode.",
+                    ValueType: ResourceAttributeValueType.String,
+                    Format: "cloudshell.exposureMode",
+                    AllowedValues:
+                    [
+                        "Local",
+                        "Public"
+                    ],
+                    Path: "endpoint.exposure")
+            });
+
+        var json = JsonSerializer.Serialize(typeDefinition, JsonSerializerOptions.Web);
+        var roundTrip = JsonSerializer.Deserialize<ResourceTypeDefinition>(json, JsonSerializerOptions.Web);
+
+        Assert.NotNull(roundTrip);
+        Assert.Contains("\"format\":\"cloudshell.exposureMode\"", json);
+        Assert.Contains("\"allowedValues\":[\"Local\",\"Public\"]", json);
+        var attribute = roundTrip.Attributes!["application.exposure"];
+        Assert.Equal("cloudshell.exposureMode", attribute.Format);
+        Assert.Equal(
+            ["Local", "Public"],
+            attribute.AllowedValues!.Select(value => value.StringValue!).ToArray());
+    }
+
+    [Fact]
+    public void ResourceTypeDefinition_CanDescribeOpenAndClosedComplexShapesAsJsonTarget()
+    {
+        var typeDefinition = new ResourceTypeDefinition(
+            "application.configured",
+            ExecutableApplicationResourceTypeProvider.ClassId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["labels"] = new(
+                    ValueType: ResourceAttributeValueType.ComplexType,
+                    ValueShape: new(
+                        AdditionalProperties: new(ValueType: ResourceAttributeValueType.String))),
+                ["runtime"] = new(
+                    ValueType: ResourceAttributeValueType.ComplexType,
+                    ValueShape: new(
+                        new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                        {
+                            ["kind"] = new(ValueType: ResourceAttributeValueType.String)
+                        },
+                        AllowAdditionalProperties: false))
+            });
+
+        var json = JsonSerializer.Serialize(typeDefinition, JsonSerializerOptions.Web);
+        var roundTrip = JsonSerializer.Deserialize<ResourceTypeDefinition>(json, JsonSerializerOptions.Web);
+
+        Assert.NotNull(roundTrip);
+        Assert.Contains("\"additionalProperties\"", json);
+        Assert.Contains("\"allowAdditionalProperties\":false", json);
+        Assert.Equal(
+            ResourceAttributeValueType.String,
+            roundTrip.Attributes!["labels"].ValueShape!.AdditionalProperties!.ValueType);
+        Assert.False(roundTrip.Attributes!["runtime"].ValueShape!.AllowAdditionalProperties);
+    }
+
+    [Fact]
     public void AttributePathResolver_ResolvesPathAliasAndCanonicalId()
     {
         var definitions = new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>

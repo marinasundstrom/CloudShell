@@ -929,15 +929,28 @@ public sealed class ResourceResolver
             return;
         }
 
+        ValidateAllowedValues(
+            path,
+            target,
+            value,
+            definition,
+            diagnosticCode,
+            diagnosticSubject,
+            diagnostics);
+
         var shape = ResolveAttributeValueShape(definition, shapeDefinitions);
 
         if (definition.ValueType == ResourceAttributeValueType.ComplexType &&
-            shape?.Attributes is not null)
+            shape is not null)
         {
             var objectValue = value.ObjectValue ?? new Dictionary<string, ResourceAttributeValue>();
+            var knownFieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var (fieldName, fieldDefinition) in shape.Attributes)
+            foreach (var (fieldName, fieldDefinition) in shape.Attributes ??
+                new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>())
             {
+                knownFieldNames.Add(fieldName.ToString());
+
                 if (!objectValue.TryGetValue(fieldName.ToString(), out var fieldValue))
                 {
                     if (fieldDefinition.Required)
@@ -961,7 +974,132 @@ public sealed class ResourceResolver
                     diagnosticSubject,
                     diagnostics);
             }
+
+            foreach (var (fieldName, fieldValue) in objectValue
+                .OrderBy(field => field.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                if (knownFieldNames.Contains(fieldName))
+                {
+                    continue;
+                }
+
+                if (shape.AdditionalProperties is not null)
+                {
+                    ValidateAttributeValue(
+                        $"{path}.{fieldName}",
+                        $"{target}.{fieldName}",
+                        fieldValue,
+                        shape.AdditionalProperties,
+                        shapeDefinitions,
+                        diagnosticCode,
+                        diagnosticSubject,
+                        diagnostics);
+                    continue;
+                }
+
+                if (shape.AllowAdditionalProperties == false)
+                {
+                    diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                        diagnosticCode,
+                        $"{diagnosticSubject} '{path}' does not allow additional field '{fieldName}'.",
+                        $"{target}.{fieldName}"));
+                }
+            }
         }
+    }
+
+    private static void ValidateAllowedValues(
+        string path,
+        ResourceAttributeId target,
+        ResourceAttributeValue value,
+        ResourceAttributeDefinition definition,
+        string diagnosticCode,
+        string diagnosticSubject,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (definition.AllowedValues is null ||
+            definition.AllowedValues.Count == 0 ||
+            definition.AllowedValues.Any(allowedValue => AttributeValuesEqual(value, allowedValue)))
+        {
+            return;
+        }
+
+        diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+            diagnosticCode,
+            $"{diagnosticSubject} '{path}' is not one of the allowed values.",
+            target));
+    }
+
+    private static bool AttributeValuesEqual(
+        ResourceAttributeValue left,
+        ResourceAttributeValue right)
+    {
+        if (left.Kind != right.Kind)
+        {
+            return false;
+        }
+
+        return left.Kind switch
+        {
+            ResourceAttributeValueKind.String => string.Equals(left.StringValue, right.StringValue, StringComparison.Ordinal),
+            ResourceAttributeValueKind.Boolean => left.BooleanValue == right.BooleanValue,
+            ResourceAttributeValueKind.Integer => left.IntegerValue == right.IntegerValue,
+            ResourceAttributeValueKind.Decimal => left.DecimalValue == right.DecimalValue,
+            ResourceAttributeValueKind.Object => AttributeObjectValuesEqual(left.ObjectValue, right.ObjectValue),
+            ResourceAttributeValueKind.Array => AttributeArrayValuesEqual(left.ArrayValue, right.ArrayValue),
+            _ => false
+        };
+    }
+
+    private static bool AttributeObjectValuesEqual(
+        IReadOnlyDictionary<string, ResourceAttributeValue>? left,
+        IReadOnlyDictionary<string, ResourceAttributeValue>? right)
+    {
+        if (left is null || right is null)
+        {
+            return left is null && right is null;
+        }
+
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        foreach (var (key, leftValue) in left)
+        {
+            if (!right.TryGetValue(key, out var rightValue) ||
+                !AttributeValuesEqual(leftValue, rightValue))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool AttributeArrayValuesEqual(
+        IReadOnlyList<ResourceAttributeValue>? left,
+        IReadOnlyList<ResourceAttributeValue>? right)
+    {
+        if (left is null || right is null)
+        {
+            return left is null && right is null;
+        }
+
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (!AttributeValuesEqual(left[index], right[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void ValidateAttributeValueCollection(

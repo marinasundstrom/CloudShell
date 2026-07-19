@@ -92,6 +92,9 @@ on `git blame --follow`, and then by the broad type of change.
   against the in-memory class/type/capability schema catalog, reports unknown
   attributes and ad hoc instance capabilities, and preserves code-first
   schemas as the source of truth for future builder generation.
+- Extended attribute schemas with declarative shape facets for semantic
+  formats, allowed values, closed complex objects, and typed additional
+  properties without adding provider-specific serialization adapters.
 
 ### 2026-07-17
 

@@ -36,7 +36,9 @@ public sealed record ResourceAttributeDefinition(
     ResourceAttributeMutability? Mutability = null,
     string? Path = null,
     string? DisplayName = null,
-    IReadOnlyList<string>? Aliases = null)
+    IReadOnlyList<string>? Aliases = null,
+    string? Format = null,
+    IReadOnlyList<ResourceAttributeValue>? AllowedValues = null)
 {
     [JsonIgnore]
     public ResourceAttributeValueShapeId? ItemShapeId => IsCollection ? ValueShapeId : null;
@@ -49,6 +51,8 @@ public sealed record ResourceAttributeDefinition(
         string? description = null,
         bool required = false,
         string? requiredMessage = null,
+        string? format = null,
+        IReadOnlyList<ResourceAttributeValue>? allowedValues = null,
         bool? readOnly = null,
         ResourceAttributeMutability? mutability = null,
         string? path = null,
@@ -59,6 +63,8 @@ public sealed record ResourceAttributeDefinition(
             RequiredMessage: requiredMessage,
             Description: description,
             ValueType: itemType,
+            Format: format,
+            AllowedValues: allowedValues,
             ValueShape: itemShape,
             ValueShapeId: itemShapeId,
             IsCollection: true,
@@ -79,7 +85,9 @@ public sealed record ResourceAttributeCollectionDefinition(
     int? MaxSize = null);
 
 public sealed record ResourceAttributeValueShape(
-    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? Attributes = null);
+    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? Attributes = null,
+    bool? AllowAdditionalProperties = null,
+    ResourceAttributeDefinition? AdditionalProperties = null);
 
 public enum ResourceAttributeValueType
 {

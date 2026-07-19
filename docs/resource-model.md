@@ -779,6 +779,24 @@ and source metadata that tells whether the attribute came from the class, type,
 or a capability. Generated APIs should keep using canonical IDs internally and
 only expose authored names as user-facing method/property names.
 
+Attribute definitions describe shape and validation facets; they do not own
+custom serialization code. In addition to primitive `ValueType`, collection
+metadata, and complex `ValueShape`/`ValueShapeId`, a schema can declare:
+
+- `Format`, a semantic hint such as `uri`, `port`, `duration`, `path`,
+  `hostname`, or a provider-owned format ID for generated builders, editors,
+  and future format validators.
+- `AllowedValues`, the enum-like set of accepted values for attributes such as
+  protocol, exposure mode, or routing policy.
+- `AllowAdditionalProperties` and `AdditionalProperties` on complex value
+  shapes, so schemas can distinguish closed objects from map-like objects such
+  as labels, annotations, and environment variable dictionaries.
+
+These facets stay declarative. Provider-specific conversion between runtime
+objects and `ResourceAttributeValue` belongs in provider projection,
+normalization, or apply code. Serializers consume `Path`, aliases, and value
+shape metadata generically; they do not call provider-specific adapters.
+
 Capabilities are part of the class/type schema contract. A resource class or
 resource type declares which capabilities are available, and capability
 providers may contribute additional schema attributes for those declared
@@ -827,9 +845,9 @@ The desired compatibility model is:
 - Capabilities are attached behavior. A capability may declare the attributes
   that configure or describe that behavior, and those attributes can then be
   inherited from class/type definitions or set by the resource instance.
-- Future capability selection may attach a capability when an authored
-  resource uses one of its attributes, if the provider/capability contract
-  declares that inference safe and unambiguous.
+- Capability support is declared by the resource class or type. Resource
+  instances may provide payload for supported capabilities, but authored
+  attributes should not implicitly attach new capability behavior.
 - `ParentResourceId`, `OwnerResourceId`, dependencies, and references express
   resource relationships; attribute IDs should not encode resource hierarchy.
 
