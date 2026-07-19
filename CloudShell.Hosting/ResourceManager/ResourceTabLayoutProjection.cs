@@ -11,7 +11,10 @@ internal static class ResourceTabLayoutProjection
         ICoreShellRouteService? routes = null,
         string? resourceId = null) =>
         BuildGroups(tabs)
-            .SelectMany((group, groupIndex) => group.Tabs.Select((tab, tabIndex) =>
+            .SelectMany((group, groupIndex) => group.Tabs
+                .OrderBy(GetTabOrder)
+                .ThenBy(tab => tab.Title, StringComparer.OrdinalIgnoreCase)
+                .Select((tab, tabIndex) =>
                 new CloudShellTabbedLayoutItem(
                     tab.Id.Value,
                     tab.Title,
@@ -60,14 +63,22 @@ internal static class ResourceTabLayoutProjection
     private static int GetGroupOrder(string groupId) =>
         groupId switch
         {
-            ResourceTabGroupIds.Messaging => 10,
-            ResourceTabGroupIds.Networking => 20,
-            ResourceTabGroupIds.Storage => 30,
-            ResourceTabGroupIds.Environment => 40,
+            ResourceTabGroupIds.General => 0,
+            ResourceTabGroupIds.Application => 10,
+            ResourceTabGroupIds.Messaging => 20,
+            ResourceTabGroupIds.Networking => 30,
+            ResourceTabGroupIds.Runtime => 40,
+            ResourceTabGroupIds.Storage => 50,
+            ResourceTabGroupIds.Environment => 60,
             ResourceTabGroupIds.Telemetry => 90,
             ResourceTabGroupIds.Management => 100,
-            _ => 0
+            _ => 80
         };
+
+    private static int GetTabOrder(ResourceTabContribution tab) =>
+        tab.Id == ResourcePredefinedViewIds.Overview
+            ? int.MinValue
+            : tab.Order;
 
     private static string ResolveGroupTitle(ResourceTabContribution tab) =>
         !string.IsNullOrWhiteSpace(tab.GroupTitle)

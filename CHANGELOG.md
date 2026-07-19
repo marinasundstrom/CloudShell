@@ -95,6 +95,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Extended attribute schemas with declarative shape facets for semantic
   formats, allowed values, closed complex objects, and typed additional
   properties without adding provider-specific serialization adapters.
+- Stabilized Resource Manager tab projection so generated resource details
+  order semantic groups and provider-owned tabs consistently across resources.
 
 ### 2026-07-17
 

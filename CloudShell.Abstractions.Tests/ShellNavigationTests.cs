@@ -399,7 +399,7 @@ public sealed class ShellNavigationTests
     }
 
     [Fact]
-    public void ResourceTabLayoutProjection_OrdersMessagingAfterGeneral()
+    public void ResourceTabLayoutProjection_OrdersSemanticGroupsForResourceWorkflow()
     {
         var tabs = new[]
         {
@@ -419,6 +419,11 @@ public sealed class ShellNavigationTests
                 20,
                 typeof(ParameterizedPage)),
             new ResourceTabContribution(
+                new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
+                "Deployment",
+                15,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
@@ -435,6 +440,7 @@ public sealed class ShellNavigationTests
         Assert.Equal(
             [
                 ResourceTabGroupTitles.General,
+                ResourceTabGroupTitles.Application,
                 ResourceTabGroupTitles.Messaging,
                 ResourceTabGroupTitles.Networking,
                 ResourceTabGroupTitles.Storage,
@@ -444,6 +450,39 @@ public sealed class ShellNavigationTests
                 .Select(item => item.GroupTitle ?? string.Empty)
                 .Distinct()
                 .ToArray());
+    }
+
+    [Fact]
+    public void ResourceTabLayoutProjection_OrdersTabsWithinGroupByContributionOrder()
+    {
+        var tabs = new[]
+        {
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Configuration,
+                "Configuration",
+                20,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Overview,
+                "Overview",
+                100,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                new ResourceViewId(ResourceTabGroupIds.General, "settings"),
+                "Settings",
+                10,
+                typeof(ParameterizedPage))
+        };
+
+        var items = ResourceTabLayoutProjection.CreateItems(tabs);
+
+        Assert.Equal(
+            [
+                ResourcePredefinedViewIds.Overview.Value,
+                "general:settings",
+                ResourcePredefinedViewIds.Configuration.Value
+            ],
+            items.Select(item => item.Id).ToArray());
     }
 
     private static ICloudShellNavigator CreateNavigator<TExtension>(
