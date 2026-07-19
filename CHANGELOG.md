@@ -81,6 +81,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Moved generated resource-view component parameter projection behind the same
   Resource Manager boundary and limited provider-contributed replacement views
   to the documented resource ID context.
+- Moved resource-view path, legacy query, selection, and missing-view policy
+  into a tested Resource Manager resolver instead of keeping it in the resource
+  page component.
 - Included exported resource type metadata with resource template exports so
   API and split-hosting clients can serialize templates with authored
   attribute paths instead of fallback attribute groups.

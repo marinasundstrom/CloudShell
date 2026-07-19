@@ -188,6 +188,13 @@ Manager-specific context only to generated components that accept it. The
 resource page consumes this resolved model; CoreShell receives only the
 resulting generic tab layout and route targets.
 
+Resource Manager also owns resource-view selection semantics. Public resource
+detail paths use the predefined view's local identifier, while the legacy
+`tab=<group>:<view>` query accepts the canonical `ResourceViewId`. Legacy
+`/details` and `/edit` paths continue to defer to that query. Missing,
+ambiguous, and malformed selections produce a Resource Manager recovery state
+that links back to Overview; they are not CoreShell routing concepts.
+
 CloudShell also has predefined resource detail views for common concerns such as
 Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and
 Activity. These views are identified by the constants in

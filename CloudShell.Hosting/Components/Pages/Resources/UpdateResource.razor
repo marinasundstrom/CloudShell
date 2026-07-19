@@ -42,8 +42,15 @@
         canReadUsage,
         hasDefaultIdentityProvider);
     var tabs = tabResolution.Tabs;
-    var selectedTab = GetSelectedTab(tabs);
-    var selectedTabIssue = GetSelectedTabIssue(tabs);
+    var tabSelection = ResourceTabSelectionResolver.Resolve(
+        tabs,
+        RequestedRouteView,
+        RequestedQueryTabId,
+        SelectedTabId);
+    var selectedTab = tabSelection.SelectedTab;
+    var selectedTabIssue = tabSelection.Issue is null
+        ? null
+        : CreateResourceViewSelectionIssue(tabSelection.Issue);
     var isGeneratedOverview = selectedTabIssue is null &&
         selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
     var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
@@ -305,7 +312,10 @@
             HasResourceMonitoring,
             Authorization.CanReadUsage(),
             HasDefaultIdentityProvider()).Tabs;
-        SelectedTabId = ResolveRequestedTabId(tabs);
+        SelectedTabId = ResourceTabSelectionResolver.Resolve(
+            tabs,
+            RequestedRouteView,
+            RequestedQueryTabId).RequestedViewId;
 
         if (ConfigurationContext?.ResourceId != resource.Id)
         {
@@ -413,106 +423,12 @@
         }
     }
 
-    private ResourceTabContribution? GetSelectedTab(IReadOnlyList<ResourceTabContribution> tabs)
-    {
-        if (GetSelectedTabIssue(tabs) is not null)
-        {
-            return null;
-        }
-
-        if (SelectedTabId is { } selectedTabId)
-        {
-            return tabs.FirstOrDefault(tab => tab.Id == selectedTabId);
-        }
-
-        return tabs.FirstOrDefault();
-    }
-
-    private ResourceViewSelectionIssue? GetSelectedTabIssue(IReadOnlyList<ResourceTabContribution> tabs)
-    {
-        var requested = GetRequestedTabDisplayValue();
-        if (string.IsNullOrWhiteSpace(requested))
-        {
-            return null;
-        }
-
-        if (!TryResolveRequestedTabId(tabs, out var requestedTabId))
-        {
-            if (HasRequestedRouteViewSegment())
-            {
-                return CreateResourceViewSelectionIssue(
-                    L["Resource view '{0}' is not available for this resource.", requested].Value);
-            }
-
-            return CreateResourceViewSelectionIssue(
-                L["Resource view '{0}' is not a valid view ID.", requested].Value);
-        }
-
-        return tabs.Any(tab => tab.Id == requestedTabId)
-            ? null
-            : CreateResourceViewSelectionIssue(
-                L["Resource view '{0}' is not available for this resource.", requested].Value);
-    }
-
-    private ResourceViewId? ResolveRequestedTabId(IReadOnlyList<ResourceTabContribution> tabs) =>
-        TryResolveRequestedTabId(tabs, out var requestedTabId)
-            ? requestedTabId
-            : null;
-
-    private bool TryResolveRequestedTabId(
-        IReadOnlyList<ResourceTabContribution> tabs,
-        out ResourceViewId requestedTabId)
-    {
-        requestedTabId = default;
-        var requested = GetRequestedTabDisplayValue();
-        if (string.IsNullOrWhiteSpace(requested))
-        {
-            return false;
-        }
-
-        var normalized = Uri.UnescapeDataString(requested.Trim());
-        if (ResourceViewId.TryParse(normalized, out requestedTabId))
-        {
-            return true;
-        }
-
-        var matchingTabs = tabs
-            .Where(tab => string.Equals(
-                ResourceManagerRoutes.GetResourceViewSegment(tab.Id),
-                normalized,
-                StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        if (matchingTabs.Length == 1)
-        {
-            requestedTabId = matchingTabs[0].Id;
-            return true;
-        }
-
-        return false;
-    }
-
-    private string? GetRequestedTabDisplayValue()
-    {
-        if (HasRequestedRouteViewSegment())
-        {
-            return RequestedRouteView;
-        }
-
-        return RequestedQueryTabId;
-    }
-
-    private bool HasRequestedRouteViewSegment() =>
-        !string.IsNullOrWhiteSpace(RequestedRouteView) &&
-        !IsLegacyResourceDetailsSegment(RequestedRouteView);
-
-    private static bool IsLegacyResourceDetailsSegment(string value) =>
-        string.Equals(value.Trim(), "details", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(value.Trim(), "edit", StringComparison.OrdinalIgnoreCase);
-
-    private ResourceViewSelectionIssue CreateResourceViewSelectionIssue(string message) =>
+    private ResourceViewSelectionIssue CreateResourceViewSelectionIssue(ResourceTabSelectionIssue issue) =>
         new(
             L["Resource view not found"].Value,
-            message,
+            issue.Kind == ResourceTabSelectionIssueKind.InvalidViewId
+                ? L["Resource view '{0}' is not a valid view ID.", issue.RequestedValue].Value
+                : L["Resource view '{0}' is not available for this resource.", issue.RequestedValue].Value,
             L["Open overview"].Value,
             string.IsNullOrWhiteSpace(ResourceId)
                 ? ResourceManagerShellLinks.ResourceManagerPage(
