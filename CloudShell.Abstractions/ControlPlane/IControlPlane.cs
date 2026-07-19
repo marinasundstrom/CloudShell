@@ -147,6 +147,9 @@ public interface IResourceManager
 
 public interface IResourceTemplateManager
 {
+    Task<ResourceDefinitionSchemaCatalogSnapshot> GetResourceDefinitionSchemaCatalogAsync(
+        CancellationToken cancellationToken = default);
+
     Task<ResourceTemplateExportResult> ExportResourceTemplateAsync(
         ResourceTemplateExportRequest request,
         CancellationToken cancellationToken = default);

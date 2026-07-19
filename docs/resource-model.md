@@ -753,6 +753,13 @@ determines whether the document uses a nested object. For example,
 `javascript-app:runtime` renders as `runtime`, while
 `javascript-app:project.path` renders as `project.path`.
 
+Remote authoring clients obtain a serializable
+`ResourceDefinitionSchemaCatalogSnapshot` from the Control Plane and rebuild
+the same serializer catalog locally. The snapshot is a transport projection of
+the installed code-first schemas, not a second schema source. This is required
+when deserializing authored paths whose canonical IDs cannot be inferred from
+the document alone.
+
 The Resource model includes a schema-local `ResourceAttributePathResolver` that
 can resolve canonical IDs, authored paths, and aliases to canonical
 `ResourceAttributeId` values and report ambiguous paths before a caller applies

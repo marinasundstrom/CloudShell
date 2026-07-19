@@ -302,7 +302,9 @@ public sealed class CloudShellDistributedApplicationTests
             new ResourceTemplateSerializerOptions(app.Resources.CreateSchemaCatalog()));
 
         var document = await File.ReadAllTextAsync(templatePath);
-        var roundTripped = ResourceTemplateSerializer.DeserializeTemplate(document);
+        var roundTripped = ResourceTemplateSerializer.DeserializeTemplate(
+            document,
+            options: new ResourceTemplateSerializerOptions(app.Resources.CreateSchemaCatalog()));
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
         services.AddNetworkResourceType();
@@ -329,6 +331,10 @@ public sealed class CloudShellDistributedApplicationTests
             resource.EffectiveResourceId == "configuration.store:settings");
         Assert.Contains(snapshot.Resources, resource =>
             resource.EffectiveResourceId == "application.javascript-app:frontend");
+        var frontend = snapshot.Resources.Single(resource =>
+            resource.EffectiveResourceId == "application.javascript-app:frontend");
+        Assert.True(frontend.ResourceAttributeValues.ContainsKey(
+            EnvironmentVariablesCapabilityProvider.AttributeId));
     }
 
     private sealed class RecordingCommandRunner : ICloudShellHostLauncherCommandRunner

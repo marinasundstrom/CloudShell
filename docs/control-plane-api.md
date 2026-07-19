@@ -86,6 +86,19 @@ derived from accepted resource state. It is not a user-authored deployment
 template API. See
 [Orchestration and Deployments](orchestration-and-deployments.md).
 
+Resource template clients can read the installed code-first schema projection:
+
+```text
+GET /api/control-plane/v1/resource-definition-schemas
+```
+
+The response contains resource class definitions, resource type definitions,
+and capability attribute schemas. Remote clients and the CLI use it to resolve
+authored YAML or JSON paths to canonical attribute IDs before sending a typed
+template to the apply endpoint. Provider implementations remain installed in
+the Control Plane and are not transferred through this contract. See
+[Resource templates](resource-templates.md).
+
 Application artifact upload is exposed as a resource-scoped Control Plane
 capability for Resource Manager create/edit workflows. The implementation
 still uses deployment-artifact contracts internally; the public route shape is

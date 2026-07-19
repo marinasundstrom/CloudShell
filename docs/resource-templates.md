@@ -209,12 +209,21 @@ The implemented apply surfaces are:
 - `IResourceTemplateManager.ApplyResourceTemplateAsync(...)` for in-process
   and remote Control Plane clients.
 - `POST /resource-templates/apply` on the Control Plane API.
+- `GET /resource-definition-schemas` on the Control Plane API, which projects
+  the installed code-first class, type, and capability schemas needed to map
+  authored template paths back to canonical attribute IDs.
 - `CloudShell.Cli template apply`, which accepts `create-or-update`,
   `create-only`, and `update-existing` apply modes.
 - launcher packages under `Launchers/`, including
   `Launchers/CSharp/CloudShell.AppHost.Launcher`, which builds a
   `ResourceTemplate` from a `ResourceGraphBuilder`, writes YAML or JSON, and
   applies it through the CLI or runs a local host profile before applying.
+
+The CLI reads the target Control Plane's schema catalog before deserializing a
+template. This keeps provider implementations in the Control Plane while still
+making authored paths such as `environmentVariables` resolve predictably to
+the provider-versioned canonical attribute ID used by validation and runtime
+handlers.
 
 Control Plane host setup also exposes `DefineResources(...)` and
 `DefineInitialTemplate(...)` for in-memory graph declarations. Both callbacks

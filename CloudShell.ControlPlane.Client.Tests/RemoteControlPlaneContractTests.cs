@@ -31,6 +31,8 @@ using ResourceAttributeValueMap = CloudShell.ResourceModel.ResourceAttributeValu
 using ResourceAttributeValueType = CloudShell.ResourceModel.ResourceAttributeValueType;
 using ResourceClassDefinition = CloudShell.ResourceModel.ResourceClassDefinition;
 using ResourceClassId = CloudShell.ResourceModel.ResourceClassId;
+using ResourceCapabilityDeclaration = CloudShell.ResourceModel.ResourceCapabilityDeclaration;
+using ResourceCapabilityId = CloudShell.ResourceModel.ResourceCapabilityId;
 using ResourceDefinition = CloudShell.ResourceModel.ResourceDefinition;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 using ResourceDefinitionValidationResult = CloudShell.ResourceModel.ResourceDefinitionValidationResult;
@@ -39,6 +41,7 @@ using ResourceModelResource = CloudShell.ResourceModel.Resource;
 using ResourceTypeId = CloudShell.ResourceModel.ResourceTypeId;
 using ResourceTypeDefinition = CloudShell.ResourceModel.ResourceTypeDefinition;
 using ResourceTemplateSerializer = CloudShell.ResourceModel.ResourceTemplateSerializer;
+using IResourceCapabilityAttributeProvider = CloudShell.ResourceModel.IResourceCapabilityAttributeProvider;
 using IResourceTypeProvider = CloudShell.ResourceModel.IResourceTypeProvider;
 
 namespace CloudShell.ControlPlane.Client.Tests;
@@ -1459,6 +1462,28 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ProjectsResourceDefinitionSchemaCatalog()
+    {
+        await using var app = await CreateAppAsync(includeTemplateResource: true);
+        var controlPlane = CreateClient(app);
+
+        var snapshot = await controlPlane.GetResourceDefinitionSchemaCatalogAsync();
+        var serializerOptions = snapshot.CreateSerializerOptions();
+
+        Assert.Contains(snapshot.ResourceTypes, definition =>
+            definition.TypeId == ContractTemplateResourceTypeProvider.ResourceTypeId);
+        Assert.Contains(snapshot.ResourceClassDefinitions, definition =>
+            definition.ClassId == ContractTemplateResourceTypeProvider.ClassId);
+        Assert.Contains(snapshot.ResourceCapabilityAttributeSchemas, schema =>
+            schema.CapabilityId == ContractTemplateCapabilityProvider.CapabilityId);
+        var schema = Assert.IsType<CloudShell.ResourceModel.ResourceDefinitionSchema>(
+            serializerOptions.SchemaCatalog.GetResourceSchema(
+                ContractTemplateResourceTypeProvider.ResourceTypeId));
+        Assert.Contains(schema.Attributes, attribute =>
+            attribute.AttributeId == ContractTemplateCapabilityProvider.AttributeId);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_UploadsDeploymentArtifactToConfiguredHostStore()
     {
         await using var app = await CreateAppAsync();
@@ -1804,6 +1829,9 @@ public sealed class RemoteControlPlaneContractTests
         {
             builder.Services.AddSingleton(ContractTemplateResourceTypeProvider.ClassDefinition);
             builder.Services.AddSingleton<IResourceTypeProvider, ContractTemplateResourceTypeProvider>();
+            builder.Services.AddSingleton<
+                IResourceCapabilityAttributeProvider,
+                ContractTemplateCapabilityProvider>();
         }
 
         controlPlane.AddIdentityProvider(
@@ -2412,6 +2440,10 @@ public sealed class RemoteControlPlaneContractTests
             ResourceTypeId,
             ClassId,
             DefaultProviderId: ProviderId,
+            Capabilities:
+            [
+                new ResourceCapabilityDeclaration(ContractTemplateCapabilityProvider.CapabilityId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
             {
                 [Attributes.Image] = new(
@@ -2431,6 +2463,27 @@ public sealed class RemoteControlPlaneContractTests
             ResourceProviderContext context,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
+    }
+
+    private sealed class ContractTemplateCapabilityProvider : IResourceCapabilityAttributeProvider
+    {
+        public static readonly ResourceCapabilityId CapabilityId = "contract.settings";
+        public static readonly ResourceAttributeId AttributeId = "contract.settings:values";
+
+        ResourceCapabilityId IResourceCapabilityAttributeProvider.CapabilityId => CapabilityId;
+
+        public IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition> AttributeDefinitions { get; } =
+            new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                [AttributeId] = new(Path: "settings")
+            };
+
+        public IReadOnlyDictionary<
+            CloudShell.ResourceModel.ResourceAttributeValueShapeId,
+            CloudShell.ResourceModel.ResourceAttributeValueShapeDefinition> AttributeValueShapes { get; } =
+                new Dictionary<
+                    CloudShell.ResourceModel.ResourceAttributeValueShapeId,
+                    CloudShell.ResourceModel.ResourceAttributeValueShapeDefinition>();
     }
 
     private sealed class ContractResolutionFailureProvider : IResourceProvider, IResourceProcedureProvider

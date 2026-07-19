@@ -522,6 +522,12 @@ public sealed class RemoteControlPlane : IControlPlane
         return await ReadRequiredAsync<ResourceTemplateExportResult>(response, cancellationToken);
     }
 
+    public async Task<ResourceDefinitionSchemaCatalogSnapshot> GetResourceDefinitionSchemaCatalogAsync(
+        CancellationToken cancellationToken = default) =>
+        await GetRequiredAsync<ResourceDefinitionSchemaCatalogSnapshot>(
+            "resource-definition-schemas",
+            cancellationToken);
+
     public async Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
         ResourceDefinitionTemplate template,
         CancellationToken cancellationToken = default) =>

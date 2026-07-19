@@ -1234,6 +1234,24 @@ public sealed class InProcessControlPlane(
             ResolveExportResourceClasses(result.Template));
     }
 
+    public Task<ResourceDefinitionSchemaCatalogSnapshot> GetResourceDefinitionSchemaCatalogAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(new ResourceDefinitionSchemaCatalogSnapshot(
+            resourceDefinitionSchemaCatalog.ResourceTypes.Values
+                .OrderBy(definition => definition.TypeId.ToString(), StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            resourceDefinitionSchemaCatalog.ResourceCapabilityAttributeProviders.Values
+                .Select(ResourceCapabilityAttributeSchema.FromProvider)
+                .OrderBy(schema => schema.CapabilityId.ToString(), StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            resourceDefinitionSchemaCatalog.ResourceClassDefinitions.Values
+                .OrderBy(definition => definition.ClassId.ToString(), StringComparer.OrdinalIgnoreCase)
+                .ToArray()));
+    }
+
     private IReadOnlyList<ResourceTypeDefinition> ResolveExportResourceTypes(
         ResourceDefinitionTemplate template)
     {

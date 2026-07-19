@@ -146,6 +146,10 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resource-templates/export", ExportResourceTemplate)
             .WithName("CloudShellControlPlane_ExportResourceTemplate");
 
+        api.MapGet("/resource-definition-schemas", GetResourceDefinitionSchemas)
+            .WithName("CloudShellControlPlane_GetResourceDefinitionSchemas")
+            .Produces<ResourceDefinitionSchemaCatalogSnapshot>(StatusCodes.Status200OK);
+
         api.MapPost("/resource-templates/apply", ApplyResourceTemplate)
             .WithName("CloudShellControlPlane_ApplyResourceTemplate");
 
@@ -932,6 +936,11 @@ public static class CloudShellControlPlaneApiExtensions
             return ToProblem(exception);
         }
     }
+
+    private static async Task<IResult> GetResourceDefinitionSchemas(
+        IResourceTemplateManager templates,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await templates.GetResourceDefinitionSchemaCatalogAsync(cancellationToken));
 
     private static async Task<IResult> ApplyResourceTemplate(
         ResourceTemplateApplyRequest request,

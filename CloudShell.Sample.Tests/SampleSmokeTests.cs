@@ -405,12 +405,15 @@ public sealed class SampleSmokeTests
         string[] expectedResourceIds)
     {
         var document = await SampleProcess.RunCSharpLauncherTemplateAsync(projectPath);
-        var template = CloudShell.ResourceModel.ResourceTemplateSerializer.DeserializeTemplate(document);
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
         services.AddBuiltInResourceModelProviderTypes();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
+        var template = CloudShell.ResourceModel.ResourceTemplateSerializer.DeserializeTemplate(
+            document,
+            options: new CloudShell.ResourceModel.ResourceTemplateSerializerOptions(
+                serviceProvider.GetRequiredService<CloudShell.ResourceModel.ResourceDefinitionSchemaCatalog>()));
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()

@@ -11,6 +11,18 @@ public sealed record ResourceTemplateExportRequest(
     public IReadOnlyList<string> RequestedResourceIds => ResourceIds ?? [];
 }
 
+public sealed record ResourceDefinitionSchemaCatalogSnapshot(
+    IReadOnlyList<ResourceTypeDefinition> ResourceTypes,
+    IReadOnlyList<ResourceCapabilityAttributeSchema> ResourceCapabilityAttributeSchemas,
+    IReadOnlyList<ResourceClassDefinition> ResourceClassDefinitions)
+{
+    public ResourceTemplateSerializerOptions CreateSerializerOptions() =>
+        new(new ResourceDefinitionSchemaCatalog(
+            ResourceTypes,
+            ResourceCapabilityAttributeSchemas,
+            ResourceClassDefinitions));
+}
+
 public sealed record ResourceTemplateExportResult(
     ResourceTemplate Template,
     IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics,

@@ -13,10 +13,15 @@ internal static class ResourceTemplateApplyClient
         string? bearerToken,
         CancellationToken cancellationToken)
     {
-        var template = await ReadTemplateAsync(templatePath, cancellationToken);
         using var client = await ControlPlaneClientFactory.CreateAsync(
             controlPlaneUrl,
             bearerToken,
+            cancellationToken);
+        var schemaCatalog = await client.ControlPlane
+            .GetResourceDefinitionSchemaCatalogAsync(cancellationToken);
+        var template = await ReadTemplateAsync(
+            templatePath,
+            schemaCatalog.CreateSerializerOptions(),
             cancellationToken);
         return await client.ControlPlane.ApplyResourceTemplateAsync(
             new ResourceTemplateApplyRequest(template, mode),
@@ -25,6 +30,7 @@ internal static class ResourceTemplateApplyClient
 
     private static async Task<ResourceTemplate> ReadTemplateAsync(
         string templatePath,
+        ResourceTemplateSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
         var fullPath = Path.GetFullPath(templatePath);
@@ -36,6 +42,7 @@ internal static class ResourceTemplateApplyClient
         var document = await File.ReadAllTextAsync(fullPath, cancellationToken);
         return ResourceTemplateSerializer.DeserializeTemplate(
             document,
-            ResourceTemplateSerializer.GetFormatFromFilePath(fullPath));
+            ResourceTemplateSerializer.GetFormatFromFilePath(fullPath),
+            serializerOptions);
     }
 }
