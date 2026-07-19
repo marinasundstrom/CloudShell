@@ -88,6 +88,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a stable Resource Definition schema projection for generated launcher
   builder APIs and made template attribute serialization order deterministic by
   authored document path.
+- Added an opt-in Resource Definition schema validator that checks definitions
+  against the in-memory class/type/capability schema catalog, reports unknown
+  attributes and ad hoc instance capabilities, and preserves code-first
+  schemas as the source of truth for future builder generation.
 
 ### 2026-07-17
 

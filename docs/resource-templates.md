@@ -308,11 +308,12 @@ apply, projection, and runtime behavior remain installed in the Control Plane
 through provider packages.
 
 For generated launcher builders, the same schema facets should become the
-generator input. A provider may keep the source schema as YAML, generate or
-load the runtime `ResourceClassDefinition` and `ResourceTypeDefinition`
-records, and expose those through the catalog. Builder generators should then
-emit fluent APIs that write canonical attribute IDs while presenting stable
-authored names from schema `Path` metadata.
+generator input. Providers keep the source schema in code by registering
+runtime `ResourceClassDefinition`, `ResourceTypeDefinition`, and capability
+attribute definitions, then expose those through the catalog. Builder
+generators should consume the catalog projection or a generated YAML/JSON
+artifact derived from it, emit fluent APIs that write canonical attribute IDs,
+and present stable authored names from schema `Path` metadata.
 
 ## Commands And Delete
 

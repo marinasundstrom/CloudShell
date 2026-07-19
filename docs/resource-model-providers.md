@@ -151,14 +151,20 @@ same resource model provider package. Template import/export can consume those
 schema facets through a `ResourceDefinitionSchemaCatalog`, while validation and
 execution continue through the provider interfaces.
 
-Provider packages may later move their class/type definitions and capability
-attribute schemas into checked-in YAML artifacts. That is a good fit for
-generated launcher builders and language SDKs because it gives generation a
-stable source that is easy to diff and review. The provider package still owns
-the artifact version and must ship matching implementation code. Hosts should
-register the compiled/runtime representation of those schemas into the
-`ResourceDefinitionSchemaCatalog`; generators can consume either the YAML
-source or the catalog projection as long as both represent the same provider
+Capabilities should be declared by resource classes or resource types, not by
+individual resource instances. Instance definitions may provide payload for a
+capability that the class/type schema already declares, but they should not
+attach new behavior by introducing an ad hoc capability ID. This keeps provider
+UI, validation, generated builders, and runtime behavior tied to the same
+schema contract.
+
+Provider packages should keep their class/type definitions and capability
+attribute schemas code-first. Checked-in or exported YAML/JSON schema files can
+still be useful as generated artifacts for review, documentation, editor
+support, launcher builders, and language SDKs, but they are projections of the
+provider-owned in-memory schema. Hosts register those runtime definitions into
+the `ResourceDefinitionSchemaCatalog`; generators should consume the catalog
+projection or an artifact generated from it for the same provider package
 version.
 
 Provider packages should expose a host registration method such as

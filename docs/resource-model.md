@@ -779,22 +779,37 @@ and source metadata that tells whether the attribute came from the class, type,
 or a capability. Generated APIs should keep using canonical IDs internally and
 only expose authored names as user-facing method/property names.
 
+Capabilities are part of the class/type schema contract. A resource class or
+resource type declares which capabilities are available, and capability
+providers may contribute additional schema attributes for those declared
+capabilities. A `ResourceDefinition` instance may provide payload/configuration
+for a capability that its class or type already supports, but it should not add
+new capability behavior by declaring an ad hoc capability at the instance
+level. This keeps generated builders, UI affordances, validation, and runtime
+behavior aligned with the same in-memory schema.
+
 `ResourceClassDefinition` and `ResourceTypeDefinition` are schemas. They are
-not merely runtime registration objects. Over time, provider packages may store
-those schemas as checked-in YAML artifacts and generate C#, TypeScript, or
-other launcher builder APIs from them. That path would make schema review,
-documentation, editor support, and API generation more predictable. The YAML
-artifact should be treated as provider-owned source for a specific schema
-version; it should not become a detached contract that can drift from the
-provider implementation that validates, projects, applies, and runs the
-resource.
+not merely runtime registration objects. Provider code owns those definitions
+and registers the in-memory schema into the host. YAML, JSON, or another
+serialized schema format may be useful as a projected artifact for review,
+documentation, editor support, or generated C#, TypeScript, and launcher
+builder APIs, but it is not the source of truth.
 
 The current in-memory definition records remain the runtime representation.
-That keeps today's provider packages simple while leaving a clean transition
-path: load or generate `ResourceClassDefinition`, `ResourceTypeDefinition`,
-and capability attribute schemas from YAML, put them into
-`ResourceDefinitionSchemaCatalog`, and let serializers and generator pipelines
-consume the same catalog API.
+That keeps provider packages code-first while leaving a clean projection path:
+register `ResourceClassDefinition`, `ResourceTypeDefinition`, and capability
+attribute schemas in `ResourceDefinitionSchemaCatalog`, then let serializers,
+schema export, validators, and generator pipelines consume the same catalog
+API. Serialized schema files should be regenerated from that catalog or treated
+as convenience artifacts that must match the provider package version.
+
+Schema-aware authoring paths should validate against the composed catalog.
+`ResourceDefinitionSchemaValidator` checks a `ResourceDefinition` against the
+registered in-memory class/type/capability schema, canonicalizes authored
+attribute paths, and reports unknown attributes plus the existing required,
+read-only, and value-shape diagnostics. This validation is an opt-in
+schema-boundary check for import, launcher, and future generated-builder flows;
+it does not turn the serialized schema projection into the provider contract.
 
 Template serialization should be deterministic. Attribute output is ordered by
 the resolved authored document path and then by canonical attribute ID, so

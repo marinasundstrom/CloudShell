@@ -1184,6 +1184,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string UnknownResourceClass = "resourceDefinition.unknownResourceClass";
     public const string RequiredAttributeMissing = "resourceDefinition.requiredAttributeMissing";
     public const string RequiredCapabilityMissing = "resourceDefinition.requiredCapabilityMissing";
+    public const string UnknownCapability = "resourceDefinition.unknownCapability";
     public const string OperationOverrideNotAllowed = "resourceDefinition.operationOverrideNotAllowed";
     public const string CapabilityProviderMissing = "resourceDefinition.capabilityProviderMissing";
     public const string OperationProviderMissing = "resourceDefinition.operationProviderMissing";
@@ -1210,6 +1211,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string AttributeValueInvalid = "resourceDefinition.attributeValueInvalid";
     public const string AttributePathAmbiguous = "resourceDefinition.attributePathAmbiguous";
     public const string DuplicateAttributePath = "resourceDefinition.duplicateAttributePath";
+    public const string UnknownAttribute = "resourceDefinition.unknownAttribute";
     public const string ReadOnlyAttributeChange = "resourceDefinition.readOnlyAttributeChange";
     public const string ResourceDefinitionTargetMismatch = "resourceDefinition.targetMismatch";
 }
