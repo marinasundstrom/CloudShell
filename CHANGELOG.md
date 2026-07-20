@@ -88,6 +88,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Revalidated Resource Manager action capability, ownership, read-only, and
   in-flight state when actions are requested and after confirmation, preventing
   stale UI events from dispatching unavailable or duplicate operations.
+- Revalidated Resource Manager delete ownership, visibility, provider
+  capability, and read-only state before confirmation and dispatch, with stable
+  reasons when a stale delete request is rejected.
 - Moved generated resource-view selection and provider-tab replacement out of
   the Resource Manager page into a tested Resource Manager tab resolver, while
   keeping CoreShell limited to generic tab layout and route presentation.

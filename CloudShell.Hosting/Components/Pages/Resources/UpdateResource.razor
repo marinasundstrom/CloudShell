@@ -516,14 +516,11 @@
 
     private void PromptDelete(Resource resource)
     {
-        if (!CanDeleteResource(resource))
+        var deleteState = GetDeleteControlState(resource);
+        if (!deleteState.IsEnabled)
         {
-            if (IsReadOnly)
-            {
-                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
-                ProcedureSignals = [];
-            }
-
+            ProcedureMessage = deleteState.Title;
+            ProcedureSignals = [];
             return;
         }
 
@@ -543,14 +540,11 @@
             return;
         }
 
-        if (!CanDeleteResource(Resource))
+        var deleteState = GetDeleteControlState(Resource);
+        if (!deleteState.IsEnabled)
         {
-            if (IsReadOnly)
-            {
-                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
-                ProcedureSignals = [];
-            }
-
+            ProcedureMessage = deleteState.Title;
+            ProcedureSignals = [];
             ConfirmDelete = false;
             return;
         }
@@ -812,11 +806,13 @@
         !IsReadOnly && OperationCapabilities.CanManage;
 
     private bool CanDeleteResource(Resource resource) =>
-        !IsReadOnly &&
-        resource.IsNormalResource &&
-        resource.Source == ResourceSource.User &&
-        resource.ManagementMode == ResourceManagementMode.UserManaged &&
-        OperationCapabilities.CanDelete;
+        GetDeleteControlState(resource).IsEnabled;
+
+    private ResourceDeleteControlState GetDeleteControlState(Resource resource) =>
+        ResourceDeleteControlStateResolver.Resolve(
+            resource,
+            OperationCapabilities,
+            IsReadOnly);
 
     private bool IsExecutingAction(ResourceAction action) =>
         ExecutingActionIds.Contains(action.Id);
