@@ -12,7 +12,8 @@ internal static class ResourceDeleteControlStateResolver
     public static ResourceDeleteControlState Resolve(
         Resource resource,
         ResourceOperationCapabilities capabilities,
-        bool isReadOnly)
+        bool isReadOnly,
+        bool isDeleting = false)
     {
         ArgumentNullException.ThrowIfNull(resource);
         ArgumentNullException.ThrowIfNull(capabilities);
@@ -27,6 +28,11 @@ internal static class ResourceDeleteControlStateResolver
             resource.ManagementMode != ResourceManagementMode.UserManaged)
         {
             return new(false, "Delete unavailable. Resource is not user-managed.");
+        }
+
+        if (isDeleting)
+        {
+            return new(false, "Delete unavailable. The resource is already being deleted.");
         }
 
         return capabilities.CanDelete

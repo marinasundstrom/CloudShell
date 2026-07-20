@@ -818,7 +818,8 @@
         ResourceDeleteControlStateResolver.Resolve(
             resource,
             OperationCapabilities,
-            IsReadOnly);
+            IsReadOnly,
+            IsDeleting);
 
     private bool IsExecutingAction(ResourceAction action) =>
         ExecutingActionIds.Contains(action.Id);

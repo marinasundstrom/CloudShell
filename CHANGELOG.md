@@ -94,6 +94,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Revalidated Resource Manager apply-handler availability, provider management
   capability, read-only mode, and in-flight state before applying resource
   changes, preventing stale or duplicate apply dispatch.
+- Added per-resource delete progress tracking to Resource Manager and included
+  in-flight deletion in the shared delete policy, preventing repeated stale
+  confirmation events from dispatching duplicate deletes.
 - Moved generated resource-view selection and provider-tab replacement out of
   the Resource Manager page into a tested Resource Manager tab resolver, while
   keeping CoreShell limited to generic tab layout and route presentation.

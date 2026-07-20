@@ -212,7 +212,9 @@ confirmation and again before dispatch, because resource state and provider
 readiness can change while the page or confirmation UI remains open.
 Delete controls follow the same pattern: Resource Manager rechecks normal
 visibility, user ownership, user-managed mode, provider delete capability, and
-read-only state before confirmation and again before dispatch.
+read-only state before confirmation and again before dispatch. Delete state is
+tracked per resource so repeated confirmation events cannot dispatch the same
+delete concurrently.
 Apply controls recheck provider management capability, read-only mode, the
 current view's apply-handler registration, and in-flight state before invoking
 the configuration context.

@@ -397,11 +397,15 @@
                     <strong>@L["Delete registration?"]</strong>
                     <span>@L["The provider will commit the delete procedure for this resource."]</span>
                     <FormActions>
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      Disabled="@DeletingResourceIds.Contains(selected.Id)"
+                                      OnClick="CancelDelete">
                             @L["Cancel"]
                         </FluentButton>
-                        <FluentButton Appearance="Appearance.Accent" OnClick="() => DeleteResource(selected)">
-                            @L["Delete"]
+                        <FluentButton Appearance="Appearance.Accent"
+                                      Disabled="@DeletingResourceIds.Contains(selected.Id)"
+                                      OnClick="() => DeleteResource(selected)">
+                            @(DeletingResourceIds.Contains(selected.Id) ? L["Deleting"] : L["Delete"])
                         </FluentButton>
                     </FormActions>
                 </div>
@@ -685,6 +689,7 @@
     private int lastUrlPageSize = -1;
     private Resource? SelectedResource { get; set; }
     private string? DeleteConfirmationResourceId { get; set; }
+    private HashSet<string> DeletingResourceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private string? ProcedureMessage { get; set; }
     private IReadOnlyList<ResourceProcedureSignal> ProcedureSignals { get; set; } = [];
     private HashSet<string> ExecutingActionKeys { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -1454,6 +1459,7 @@ resourceGroups) =>
 
         try
         {
+            DeletingResourceIds.Add(resource.Id);
             var result = await ResourceManager.DeleteResourceAsync(resource.Id);
             ProcedureMessage = result.Message;
             ProcedureSignals = result.Signals;
@@ -1465,6 +1471,10 @@ resourceGroups) =>
         {
             ProcedureMessage = FormatResourceInventoryOperationFailure(exception, "delete the resource");
             ProcedureSignals = [];
+        }
+        finally
+        {
+            DeletingResourceIds.Remove(resource.Id);
         }
     }
 
@@ -1685,7 +1695,8 @@ resourceGroups) =>
         ResourceDeleteControlStateResolver.Resolve(
             resource,
             GetCapabilities(resource),
-            IsReadOnly);
+            IsReadOnly,
+            DeletingResourceIds.Contains(resource.Id));
 
     private ResourceOperationCapabilities GetCapabilities(Resource resource) =>
         ResourceCapabilities.GetValueOrDefault(resource.Id) ??

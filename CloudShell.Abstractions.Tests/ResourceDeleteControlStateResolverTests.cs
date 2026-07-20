@@ -58,6 +58,21 @@ public sealed class ResourceDeleteControlStateResolverTests
             state.Title);
     }
 
+    [Fact]
+    public void Resolve_RejectsDuplicateDelete()
+    {
+        var state = ResourceDeleteControlStateResolver.Resolve(
+            CreateResource(),
+            CreateCapabilities(canDelete: true),
+            isReadOnly: false,
+            isDeleting: true);
+
+        Assert.False(state.IsEnabled);
+        Assert.Equal(
+            "Delete unavailable. The resource is already being deleted.",
+            state.Title);
+    }
+
     private static Resource CreateResource(
         ResourceSource source = ResourceSource.User,
         ResourceManagementMode managementMode = ResourceManagementMode.UserManaged) =>
