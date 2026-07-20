@@ -199,6 +199,12 @@ requests where an encoded canonical `<group>:<view>` suffix is folded into the
 resource ID route value. It splits only canonical view IDs, preserving normal
 hierarchical resource IDs and ordinary trailing path names.
 
+Resource Manager also resolves action-control state at its UI boundary. The
+same policy combines Control Plane action capability reasons, read-only mode,
+and in-flight execution state for inline buttons and overflow-menu commands,
+so both presentations remain disabled and explanatory under the same
+conditions.
+
 CloudShell also has predefined resource detail views for common concerns such as
 Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and
 Activity. These views are identified by the constants in
