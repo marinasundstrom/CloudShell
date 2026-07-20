@@ -16,7 +16,8 @@ internal static class ResourceActionControlStateResolver
         ResourceOperationCapabilities capabilities,
         bool isReadOnly,
         bool isExecuting,
-        string workingLabel)
+        string workingLabel,
+        string? uiUnavailableReason = null)
     {
         ArgumentNullException.ThrowIfNull(action);
         ArgumentNullException.ThrowIfNull(capabilities);
@@ -25,12 +26,17 @@ internal static class ResourceActionControlStateResolver
         var unavailableReason = capabilities.GetActionUnavailableReason(action.Id);
         var title = isReadOnly
             ? $"{action.DisplayName} unavailable. Resource Manager is in read-only mode."
+            : !string.IsNullOrWhiteSpace(uiUnavailableReason)
+                ? $"{action.DisplayName} unavailable. {uiUnavailableReason}"
             : !string.IsNullOrWhiteSpace(unavailableReason)
                 ? $"{action.DisplayName} unavailable. {unavailableReason}"
                 : action.DisplayName;
 
         return new ResourceActionControlState(
-            !isReadOnly && !isExecuting && capabilities.CanExecuteAction(action.Id),
+            !isReadOnly &&
+                !isExecuting &&
+                string.IsNullOrWhiteSpace(uiUnavailableReason) &&
+                capabilities.CanExecuteAction(action.Id),
             isExecuting,
             title,
             isExecuting ? workingLabel : action.DisplayName);

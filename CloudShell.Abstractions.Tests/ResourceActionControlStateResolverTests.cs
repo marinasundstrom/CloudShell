@@ -75,6 +75,26 @@ public sealed class ResourceActionControlStateResolverTests
         Assert.Equal("Working", state.Label);
     }
 
+    [Fact]
+    public void Resolve_UiRestrictionTakesPrecedenceOverCapabilityReason()
+    {
+        var state = ResourceActionControlStateResolver.Resolve(
+            ResourceAction.Restart,
+            CreateCapabilities(new ResourceActionCapability(
+                ResourceActionIds.Restart,
+                false,
+                "The runtime is unavailable.")),
+            isReadOnly: false,
+            isExecuting: false,
+            workingLabel: "Working",
+            uiUnavailableReason: "Resource is not user-managed.");
+
+        Assert.False(state.IsEnabled);
+        Assert.Equal(
+            "Restart unavailable. Resource is not user-managed.",
+            state.Title);
+    }
+
     private static ResourceOperationCapabilities CreateCapabilities(
         ResourceActionCapability action) =>
         new(

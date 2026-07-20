@@ -201,9 +201,9 @@ hierarchical resource IDs and ordinary trailing path names.
 
 Resource Manager also resolves action-control state at its UI boundary. The
 same policy combines Control Plane action capability reasons, read-only mode,
-and in-flight execution state for inline buttons and overflow-menu commands,
-so both presentations remain disabled and explanatory under the same
-conditions.
+resource-management restrictions, and in-flight execution state for resource
+list/detail surfaces and inline/overflow commands, so every presentation
+remains disabled and explanatory under the same conditions.
 
 CloudShell also has predefined resource detail views for common concerns such as
 Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and

@@ -1684,32 +1684,6 @@ resourceGroups) =>
         IsUserManagedNormalResource(resource) &&
         GetCapabilities(resource).CanDelete;
 
-    private bool CanExecuteAction(Resource resource, ResourceAction action) =>
-        !IsReadOnly &&
-        IsUserManagedNormalResource(resource) &&
-        GetCapabilities(resource).CanExecuteAction(action.Id);
-
-    private string GetActionTitle(Resource resource, ResourceAction action)
-    {
-        if (IsReadOnly)
-        {
-            return $"{action.DisplayName} unavailable. Resource Manager is in read-only mode.";
-        }
-
-        if (!IsUserManagedNormalResource(resource))
-        {
-            return $"{action.DisplayName} unavailable. Resource is not user-managed.";
-        }
-
-        var reason = GetCapabilities(resource).GetActionUnavailableReason(action.Id);
-        if (!string.IsNullOrWhiteSpace(reason))
-        {
-            return $"{action.DisplayName} unavailable. {reason}";
-        }
-
-        return action.DisplayName;
-    }
-
     private ResourceOperationCapabilities GetCapabilities(Resource resource) =>
         ResourceCapabilities.GetValueOrDefault(resource.Id) ??
         ResourceOperationCapabilities.None(resource.Id);
@@ -2167,13 +2141,13 @@ resourceGroups) =>
         var sequence = 0;
         foreach (var action in resource.ResourceActions.Where(IsInlineAction))
         {
+            var actionState = GetActionControlState(resource, action);
             builder.OpenComponent<FluentButton>(sequence++);
             builder.AddAttribute(sequence++, "Class", "action-icon-button");
             builder.AddAttribute(sequence++, "Appearance", Appearance.Neutral);
             builder.AddAttribute(sequence++, "Style", "width: 2rem; min-width: 2rem;");
-            builder.AddAttribute(sequence++, "Title", GetActionTitle(resource, action));
-            builder.AddAttribute(sequence++, "Disabled",
-                !CanExecuteAction(resource, action) || IsExecutingAction(resource, action));
+            builder.AddAttribute(sequence++, "Title", actionState.Title);
+            builder.AddAttribute(sequence++, "Disabled", !actionState.IsEnabled);
             builder.AddAttribute(sequence++, "OnClick",
                 EventCallback.Factory.Create<MouseEventArgs>(
                     this,
@@ -2226,9 +2200,10 @@ resourceGroups) =>
             var menuSequence = 0;
             foreach (var action in overflowActions)
             {
+                var actionState = GetActionControlState(resource, action);
                 menuBuilder.OpenComponent<FluentMenuItem>(menuSequence++);
-                menuBuilder.AddAttribute(menuSequence++, "Disabled",
-                    !CanExecuteAction(resource, action) || IsExecutingAction(resource, action));
+                menuBuilder.AddAttribute(menuSequence++, "Disabled", !actionState.IsEnabled);
+                menuBuilder.AddAttribute(menuSequence++, "Title", actionState.Title);
                 menuBuilder.AddAttribute(menuSequence++, "OnClick",
                     EventCallback.Factory.Create<MouseEventArgs>(
                         this,
@@ -2239,9 +2214,7 @@ resourceGroups) =>
                     itemBuilder.AddAttribute(1, "class", "menu-action-content");
                     AddActionIcon(itemBuilder, action.EffectivePresentation.Icon, 2);
                     itemBuilder.OpenElement(5, "span");
-                    itemBuilder.AddContent(6, IsExecutingAction(resource, action)
-                        ? L["Working"]
-                        : action.DisplayName);
+                    itemBuilder.AddContent(6, actionState.Label);
                     itemBuilder.CloseElement();
                     itemBuilder.CloseElement();
                 }));
@@ -2293,6 +2266,19 @@ resourceGroups) =>
 
     private static bool IsInlineAction(ResourceAction action) =>
         action.EffectivePresentation.DisplayStyle == ResourceActionDisplayStyle.Inline;
+
+    private ResourceActionControlState GetActionControlState(
+        Resource resource,
+        ResourceAction action) =>
+        ResourceActionControlStateResolver.Resolve(
+            action,
+            GetCapabilities(resource),
+            IsReadOnly,
+            IsExecutingAction(resource, action),
+            L["Working"].Value,
+            IsUserManagedNormalResource(resource)
+                ? null
+                : L["Resource is not user-managed."].Value);
 
     private static void AddActionIcon(
         RenderTreeBuilder builder,

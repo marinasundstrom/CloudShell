@@ -81,7 +81,7 @@ on `git blame --follow`, and then by the broad type of change.
 
 - Moved Resource Manager action-control enablement, progress labels, read-only
   explanations, and provider-readiness reasons behind one tested presentation
-  policy shared by inline and overflow actions.
+  policy shared by resource list/detail surfaces and inline/overflow actions.
 - Moved generated resource-view selection and provider-tab replacement out of
   the Resource Manager page into a tested Resource Manager tab resolver, while
   keeping CoreShell limited to generic tab layout and route presentation.
