@@ -1672,11 +1672,6 @@ resourceGroups) =>
             .ThenBy(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private bool CanManage(Resource resource) =>
-        !IsReadOnly &&
-        IsUserManagedNormalResource(resource) &&
-        GetCapabilities(resource).CanManage;
-
     private bool CanOpenGeneratedDetails(Resource resource)
     {
         var group = GetGroup(resource);

@@ -56,6 +56,7 @@
     var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
     var canApplyResourceChanges = selectedTab?.ShowsApplyButton == true &&
         CanApplyResourceChanges();
+    var applyControlState = GetApplyControlState();
 }
 
 <section class="page-heading compact">
@@ -97,7 +98,8 @@
             </FluentButton>
             @if (canApplyResourceChanges)
             {
-                <FluentButton Appearance="Appearance.Accent" Disabled="@(ConfigurationContext?.CanApply != true || IsApplying)"
+                <FluentButton Appearance="Appearance.Accent" Disabled="@(!applyControlState.IsEnabled)"
+                              Title="@applyControlState.Title"
                               IconStart="new Icons.Regular.Size20.Checkmark()" OnClick="ApplyChanges">
                     @(IsApplying ? L["Applying"] : L["Apply"])
                 </FluentButton>
@@ -418,14 +420,11 @@
 
     private async Task ApplyChanges()
     {
-        if (ConfigurationContext is null || !CanApplyResourceChanges())
+        var applyState = GetApplyControlState();
+        if (ConfigurationContext is null || !applyState.IsEnabled)
         {
-            if (IsReadOnly)
-            {
-                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
-                ProcedureSignals = [];
-            }
-
+            ProcedureMessage = applyState.Title;
+            ProcedureSignals = [];
             return;
         }
 
@@ -804,6 +803,13 @@
 
     private bool CanApplyResourceChanges() =>
         !IsReadOnly && OperationCapabilities.CanManage;
+
+    private ResourceApplyControlState GetApplyControlState() =>
+        ResourceApplyControlStateResolver.Resolve(
+            OperationCapabilities,
+            IsReadOnly,
+            ConfigurationContext?.CanApply == true,
+            IsApplying);
 
     private bool CanDeleteResource(Resource resource) =>
         GetDeleteControlState(resource).IsEnabled;
