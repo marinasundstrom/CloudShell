@@ -4,28 +4,18 @@
 @using CloudShell.Abstractions.ResourceManager
 @using CloudShell.Abstractions.ControlPlane
 @using Microsoft.AspNetCore.WebUtilities
-@using Microsoft.Extensions.Logging
 @inject IResourceManager ResourceManager
 @inject ILogManager LogManager
 @inject IResourceHealthManager HealthManager
 @inject ICloudShellAuthorizationService Authorization
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-@inject IResourceOrchestrationSettings OrchestrationSettings
-@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject ShellCatalog ShellCatalog
 @inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
-@inject ILogger<GeneratedResourceOverview> Logger
 
-    <div class="generated-resource-view">
-        @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
-        {
-            <ProcedureMessage Message="@ProcedureMessage" />
-        }
-    <ResourceProcedureSignals Signals="ProcedureSignals" />
-
+<div class="generated-resource-view">
     <GeneratedResourceViewLayout ResourceType="ResourceType"
                                  ResourceId="@Resource.Id"
                                  Resource="Resource"
@@ -46,9 +36,6 @@
     [Parameter]
     public IReadOnlyList<LogSource>? ResourceLogSources { get; set; }
 
-    [Parameter]
-    public EventCallback<Resource> ResourceUpdated { get; set; }
-
     private IReadOnlyList<Resource> ChildResources { get; set; } = [];
     private IReadOnlyList<Resource> DependentResources { get; set; } = [];
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
@@ -67,11 +54,6 @@
         new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
     private ResourceOperationCapabilities Capabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
-    private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
-    private string? ProcedureMessage { get; set; }
-    private IReadOnlyList<ResourceProcedureSignal> ProcedureSignals { get; set; } = [];
-    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
-
     private bool IsNetworkResource => Resource.ResourceClass == ResourceClass.Network ||
         Resource.HasCapability(ResourceCapabilityIds.NetworkingProvider);
 
@@ -521,120 +503,8 @@
         return L["{0} configured check(s)", checkCount].Value;
     }
 
-    private bool CanExecuteAction(ResourceAction action) =>
-        !IsReadOnly && Capabilities.CanExecuteAction(action.Id);
-
-    private bool IsExecutingAction(ResourceAction action) =>
-        ExecutingActionIds.Contains(action.Id);
-
-    private string GetActionButtonLabel(ResourceAction action)
-    {
-        if (IsExecutingAction(action))
-        {
-            return L["Working"].Value;
-        }
-
-        return action.Kind switch
-        {
-            ResourceActionKind.Start => L["Start"].Value,
-            ResourceActionKind.Stop => L["Stop"].Value,
-            ResourceActionKind.Pause => L["Pause"].Value,
-            ResourceActionKind.Restart => L["Restart"].Value,
-            _ => GetCustomActionCommandLabel(action)
-        };
-    }
-
-    private static string GetCustomActionCommandLabel(ResourceAction action)
-    {
-        var words = action.DisplayName.Split(
-            ' ',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return words.Length == 0 ? action.Id : words[0];
-    }
-
-    private async Task ExecuteAction(ResourceAction action)
-    {
-        if (!CanExecuteAction(action) || IsExecutingAction(action))
-        {
-            if (IsReadOnly)
-            {
-                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
-                ProcedureSignals = [];
-            }
-
-            return;
-        }
-
-        if (action.RequiresConfirmation)
-        {
-            var confirmed = await JS.InvokeAsync<bool>(
-                "confirm",
-                action.Description ??
-                L["Start {0} for {1}?", action.DisplayName, GetResourceLabel(Resource)].Value);
-            if (!confirmed)
-            {
-                return;
-            }
-        }
-
-        ExecutingActionIds.Add(action.Id);
-        ProcedureMessage = null;
-        ProcedureSignals = [];
-        try
-        {
-            var result = await ResourceManager.ExecuteResourceActionAsync(
-                new ExecuteResourceActionCommand(
-                    Resource.Id,
-                    action.Id,
-                    StartDependencies: ShouldStartDependencies(action),
-                    IgnoreDependentWarning: true,
-                    DependencyStartFailureBehavior: GetDependencyStartFailureBehavior()));
-            ProcedureMessage = result.Message;
-            ProcedureSignals = result.Signals;
-            var resource = await ResourceManager.GetResourceAsync(Resource.Id);
-            if (resource is not null)
-            {
-                await ResourceUpdated.InvokeAsync(resource);
-                Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
-            }
-            else
-            {
-                Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
-            }
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            ProcedureMessage = FormatOverviewActionFailure(exception);
-            ProcedureSignals = [];
-        }
-        finally
-        {
-            ExecutingActionIds.Remove(action.Id);
-        }
-    }
-
     private string GetAttributeValue(string name, string fallback) =>
         Resource.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
-
-    private string FormatOverviewActionFailure(Exception exception)
-    {
-        Logger.LogWarning(
-            exception,
-            "Generated overview resource action failed for {ResourceId}",
-            Resource.Id);
-
-        return exception switch
-        {
-            HttpRequestException => L["CloudShell could not reach the Control Plane while running the resource action. Check connectivity and try again."].Value,
-            _ => L["CloudShell could not run the resource action. Check the resource state and try again."].Value
-        };
-    }
-
-    private static bool ShouldStartDependencies(ResourceAction action) =>
-        action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
-
-    private DependencyStartFailureBehavior GetDependencyStartFailureBehavior() =>
-        OrchestrationSettings.GetDependencyStartFailureSettings().Behavior;
 
     private string FormatNetworkReadiness()
     {

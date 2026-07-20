@@ -206,8 +206,7 @@
                 @if (isGeneratedOverview)
                 {
                     <GeneratedResourceOverview Resource="resource" ResourceGroup="group" ResourceType="resourceType"
-                                               ResourceLogSources="ResourceLogSources"
-                                               ResourceUpdated="HandleResourceUpdated" />
+                                               ResourceLogSources="ResourceLogSources" />
                 }
                 else
                 {
@@ -595,14 +594,6 @@
             ResourceContentVersion++;
             StateHasChanged();
         });
-    }
-
-    private async Task HandleResourceUpdated(Resource resource)
-    {
-        Resource = resource;
-        ResourceGroup = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
-        await LoadResourceAffordancesAsync(resource);
-        ResourceContentVersion++;
     }
 
     private async Task ReloadResourceAsync()

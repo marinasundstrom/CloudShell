@@ -204,6 +204,9 @@ same policy combines Control Plane action capability reasons, read-only mode,
 resource-management restrictions, and in-flight execution state for resource
 list/detail surfaces and inline/overflow commands, so every presentation
 remains disabled and explanatory under the same conditions.
+Generated Overview content consumes action readiness for diagnostics but does
+not dispatch actions itself; the containing resource detail page owns action
+controls, confirmation, execution progress, and procedure feedback.
 
 CloudShell also has predefined resource detail views for common concerns such as
 Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and
