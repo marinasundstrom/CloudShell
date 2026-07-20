@@ -800,9 +800,6 @@
     private static bool IsInlineAction(ResourceAction action) =>
         action.EffectivePresentation.DisplayStyle == ResourceActionDisplayStyle.Inline;
 
-    private bool CanExecuteAction(ResourceAction action) =>
-        !IsReadOnly && OperationCapabilities.CanExecuteAction(action.Id);
-
     private ResourceActionControlState GetActionControlState(ResourceAction action) =>
         ResourceActionControlStateResolver.Resolve(
             action,
@@ -854,14 +851,16 @@
 
     private async Task ExecuteAction(ResourceAction action)
     {
-        if (Resource is null || !CanExecuteAction(action) || IsExecutingAction(action))
+        if (Resource is null)
         {
-            if (IsReadOnly)
-            {
-                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
-                ProcedureSignals = [];
-            }
+            return;
+        }
 
+        var actionState = GetActionControlState(action);
+        if (!actionState.IsEnabled)
+        {
+            ProcedureMessage = actionState.Title;
+            ProcedureSignals = [];
             return;
         }
 

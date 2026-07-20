@@ -207,6 +207,9 @@ remains disabled and explanatory under the same conditions.
 Generated Overview content consumes action readiness for diagnostics but does
 not dispatch actions itself; the containing resource detail page owns action
 controls, confirmation, execution progress, and procedure feedback.
+Action request handlers re-evaluate that same policy before opening
+confirmation and again before dispatch, because resource state and provider
+readiness can change while the page or confirmation UI remains open.
 
 CloudShell also has predefined resource detail views for common concerns such as
 Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and

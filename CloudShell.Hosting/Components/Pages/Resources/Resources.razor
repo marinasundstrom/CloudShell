@@ -1468,9 +1468,10 @@ resourceGroups) =>
 
     private async Task RequestResourceAction(Resource resource, ResourceAction action)
     {
-        if (IsReadOnly)
+        var actionState = GetActionControlState(resource, action);
+        if (!actionState.IsEnabled)
         {
-            ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            ProcedureMessage = actionState.Title;
             ProcedureSignals = [];
             return;
         }
@@ -1567,9 +1568,10 @@ resourceGroups) =>
         ResourceAction action,
         bool startDependencies)
     {
-        if (IsReadOnly)
+        var actionState = GetActionControlState(resource, action);
+        if (!actionState.IsEnabled)
         {
-            ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            ProcedureMessage = actionState.Title;
             ProcedureSignals = [];
             return;
         }

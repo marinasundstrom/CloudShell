@@ -72,6 +72,9 @@ public sealed class ResourceActionControlStateResolverTests
 
         Assert.False(state.IsEnabled);
         Assert.True(state.IsExecuting);
+        Assert.Equal(
+            "Restart unavailable. The action is already in progress.",
+            state.Title);
         Assert.Equal("Working", state.Label);
     }
 

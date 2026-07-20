@@ -85,6 +85,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Removed the obsolete generated Overview action-dispatch path so resource
   actions, confirmation, progress, and procedure feedback remain owned by the
   resource detail page instead of a hidden second implementation.
+- Revalidated Resource Manager action capability, ownership, read-only, and
+  in-flight state when actions are requested and after confirmation, preventing
+  stale UI events from dispatching unavailable or duplicate operations.
 - Moved generated resource-view selection and provider-tab replacement out of
   the Resource Manager page into a tested Resource Manager tab resolver, while
   keeping CoreShell limited to generic tab layout and route presentation.

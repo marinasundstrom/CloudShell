@@ -28,6 +28,8 @@ internal static class ResourceActionControlStateResolver
             ? $"{action.DisplayName} unavailable. Resource Manager is in read-only mode."
             : !string.IsNullOrWhiteSpace(uiUnavailableReason)
                 ? $"{action.DisplayName} unavailable. {uiUnavailableReason}"
+            : isExecuting
+                ? $"{action.DisplayName} unavailable. The action is already in progress."
             : !string.IsNullOrWhiteSpace(unavailableReason)
                 ? $"{action.DisplayName} unavailable. {unavailableReason}"
                 : action.DisplayName;
