@@ -5471,6 +5471,45 @@ h3 {
         flex-direction: column;
     }
 
+    .resource-inventory-view-switch {
+        width: 100%;
+    }
+
+    .resource-inventory-view-switch fluent-anchor {
+        flex: 1 1 50%;
+    }
+
+    .resource-inventory-view-switch fluent-anchor::part(control) {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .resource-list .inventory-toolbar,
+    .log-viewer-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .inventory-options,
+    .log-viewer-actions {
+        justify-content: space-between;
+    }
+
+    .resource-graph-options {
+        width: 100%;
+        margin-left: 0;
+        padding-top: .4rem;
+        border-top: 1px solid var(--cloudshell-divider);
+    }
+
+    .recent-trace-item {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .recent-trace-item .recent-trace-duration {
+        grid-column: 1 / -1;
+    }
+
     .extension-grid,
     .signal-grid {
         grid-template-columns: 1fr;

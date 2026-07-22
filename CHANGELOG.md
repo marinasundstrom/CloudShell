@@ -33,6 +33,9 @@ link to ADR entries when a change depends on a recorded decision.
   streams remain visually distinguishable across refreshes.
 - Compacted the resource graph summary and topology options into a single
   toolbar strip, leaving more viewport space for the dependency canvas.
+- Added narrow-shell layouts for the inventory view switch, resource filters,
+  graph options, telemetry headers, and trace duration meters so the denser
+  presentation remains usable without clipped controls.
 
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
