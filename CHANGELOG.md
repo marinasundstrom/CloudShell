@@ -56,6 +56,9 @@ link to ADR entries when a change depends on a recorded decision.
 - Changed expanded compact navigation into an overlay drawer with a dismissible
   backdrop so opening the menu no longer squeezes or clips the active page, and
   restored pointer cursors for navigational menu items.
+- Aligned shell and page compaction on a rem-based breakpoint so browser zoom
+  and larger default text scale navigation, toolbars, forms, and resource cards
+  together instead of retaining a disproportionately wide desktop sidebar.
 - Fixed phone-width log exploration so source controls stack without overlap
   and log entries place messages on a second line instead of forcing them
   off-canvas behind a wide console row.

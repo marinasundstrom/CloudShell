@@ -198,7 +198,7 @@
     }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 56.25rem) {
     .shell-notifications-panel {
         right: auto;
         left: 0;

@@ -27,7 +27,7 @@
     padding: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 56.25rem) {
     .shell-topbar {
         position: relative;
         align-items: stretch;

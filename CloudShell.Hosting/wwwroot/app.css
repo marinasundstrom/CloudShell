@@ -895,7 +895,7 @@ h3 {
     width: 100%;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 56.25rem) {
     .mobile-icon-only .mobile-button-label {
         display: none;
     }
@@ -2929,7 +2929,7 @@ h3 {
     background: rgba(148, 98, 0, .16);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 56.25rem) {
     .generated-resource-view .detail-list {
         grid-template-columns: 1fr;
     }
@@ -5481,7 +5481,7 @@ h3 {
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 56.25rem) {
     .page-heading {
         align-items: stretch;
         flex-direction: column;

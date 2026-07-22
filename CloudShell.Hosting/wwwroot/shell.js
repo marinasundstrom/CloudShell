@@ -200,7 +200,7 @@
     }
 
     function isCompactViewport() {
-        return window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
+        return window.matchMedia && window.matchMedia("(max-width: 56.25rem)").matches;
     }
 
     function setNavCollapsed(collapsed) {
