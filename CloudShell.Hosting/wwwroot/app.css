@@ -3689,8 +3689,8 @@ h3 {
 
 .log-entry {
     display: grid;
-    grid-template-columns: 4.6rem minmax(12rem, 16rem) 5rem max-content;
-    gap: .6rem;
+    grid-template-columns: 2.6rem 4.6rem minmax(8rem, 14rem) max-content max-content;
+    gap: .5rem;
     align-items: start;
     min-width: max-content;
     padding: .32rem .55rem;
@@ -3719,6 +3719,7 @@ h3 {
 }
 
 .log-entry time,
+.log-entry-line,
 .log-entry-source,
 .log-entry-level,
 .log-entry-severity {
@@ -3726,10 +3727,48 @@ h3 {
     white-space: nowrap;
 }
 
+.log-entry-line {
+    padding-right: .35rem;
+    color: #64748b;
+    text-align: right;
+    user-select: none;
+}
+
 .log-entry-source {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    padding: 0 .35rem;
+    border-radius: 3px;
+    background: #253047;
+    color: #dbeafe;
+    font-weight: 650;
+}
+
+.log-entry-severity {
+    padding: 0 .35rem;
+    border-radius: 3px;
+    background: #334155;
+    color: #e2e8f0;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.log-entry-severity.warning {
+    background: #713f12;
+    color: #fef3c7;
+}
+
+.log-entry-severity.error,
+.log-entry-severity.critical {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+.log-entry-severity.verbose {
+    background: #312e81;
+    color: #e0e7ff;
 }
 
 .log-entry-body {

@@ -4,16 +4,18 @@
 
 <div @ref="LogEntryList" class="log-entry-list @(WrapMessages ? "wrap" : null)" role="log"
      aria-label="@AriaLabel">
-    @foreach (var entry in Entries)
+    @for (var entryIndex = 0; entryIndex < Entries.Count; entryIndex++)
     {
+        var entry = Entries[entryIndex];
         var isStructured = HasStructuredMetadata(entry);
         var isSelectedEntry = IsEntrySelected?.Invoke(entry) == true;
         <button
             class="log-entry @(isStructured ? "structured" : null) @(isSelectedEntry ? "selected" : null)"
             type="button" aria-pressed="@isSelectedEntry" @onclick="() => SelectEntry(entry)">
+            <span class="log-entry-line" aria-hidden="true">@(entryIndex + 1)</span>
             <time>@entry.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
-            <span class="log-entry-source">@entry.Source</span>
-            <span class="log-entry-severity">@entry.Severity</span>
+            <span class="log-entry-source" title="@entry.Source">@entry.Source</span>
+            <span class="log-entry-severity @GetSeverityClass(entry.Severity)">@entry.Severity</span>
             <div class="log-entry-body">
                 <pre>@entry.Message</pre>
                 @if (isStructured)
@@ -105,6 +107,16 @@
 
     private Task SelectEntry(LogEntry entry) =>
         EntrySelected.InvokeAsync(entry);
+
+    private static string GetSeverityClass(string? severity) =>
+        severity?.Trim().ToLowerInvariant() switch
+        {
+            "critical" or "fatal" => "critical",
+            "error" => "error",
+            "warning" or "warn" => "warning",
+            "debug" or "trace" => "verbose",
+            _ => "information"
+        };
 
     private string GetStructuredSummary(LogEntry entry)
     {
