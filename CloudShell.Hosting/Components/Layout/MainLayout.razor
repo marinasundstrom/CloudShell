@@ -13,6 +13,9 @@
                  NavigationRequested="CollapseNavigationForCompactViewportAsync" />
     </aside>
 
+    <button type="button" class="nav-backdrop" aria-label="@L["Close navigation"]"
+            @onclick="() => SetCollapsedStateAsync(true)"></button>
+
     <main class="shell-main">
         <ShellTopbar />
 

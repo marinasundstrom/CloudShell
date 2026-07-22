@@ -80,6 +80,16 @@
     color: var(--cloudshell-text);
     font-size: .9rem;
     text-decoration: none;
+    cursor: pointer;
+}
+
+::deep .fluent-nav-item.cloudshell-nav-link,
+::deep .cloudshell-nav-link {
+    cursor: pointer;
+}
+
+::deep .fluent-nav-link .positioning-region {
+    cursor: pointer;
 }
 
 ::deep .fluent-nav-link:hover,

@@ -53,6 +53,9 @@ link to ADR entries when a change depends on a recorded decision.
 - Reflowed the Resource Manager inventory into labeled mobile cards so state,
   health, endpoints, and row actions remain reachable without horizontal
   scrolling; the desktop resource grid remains unchanged.
+- Changed expanded compact navigation into an overlay drawer with a dismissible
+  backdrop so opening the menu no longer squeezes or clips the active page, and
+  restored pointer cursors for navigational menu items.
 - Fixed phone-width log exploration so source controls stack without overlap
   and log entries place messages on a second line instead of forcing them
   off-canvas behind a wide console row.
