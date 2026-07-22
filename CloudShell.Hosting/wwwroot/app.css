@@ -664,6 +664,35 @@ h3 {
     flex-basis: 2.3rem;
 }
 
+.resource-kind-icon.resource-class-executable,
+.resource-kind-icon.resource-class-project,
+.resource-kind-icon.resource-class-container {
+    border-color: color-mix(in srgb, #c55a3d 42%, var(--cloudshell-stroke));
+    background: color-mix(in srgb, #c55a3d 12%, var(--cloudshell-surface-muted));
+    color: #c55a3d;
+}
+
+.resource-kind-icon.resource-class-service,
+.resource-kind-icon.resource-class-network {
+    border-color: color-mix(in srgb, #3778bf 42%, var(--cloudshell-stroke));
+    background: color-mix(in srgb, #3778bf 12%, var(--cloudshell-surface-muted));
+    color: #3778bf;
+}
+
+.resource-kind-icon.resource-class-storage,
+.resource-kind-icon.resource-class-infrastructure {
+    border-color: color-mix(in srgb, #9b6b2f 42%, var(--cloudshell-stroke));
+    background: color-mix(in srgb, #9b6b2f 12%, var(--cloudshell-surface-muted));
+    color: #9b6b2f;
+}
+
+.resource-kind-icon.resource-class-configuration,
+.resource-kind-icon.resource-class-secretsvault {
+    border-color: color-mix(in srgb, #7656b5 42%, var(--cloudshell-stroke));
+    background: color-mix(in srgb, #7656b5 12%, var(--cloudshell-surface-muted));
+    color: #7656b5;
+}
+
 .resource-blade {
     position: sticky;
     top: 4.7rem;

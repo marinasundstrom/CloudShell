@@ -19,6 +19,9 @@ link to ADR entries when a change depends on a recorded decision.
   overhead while preserving accessible filter labels.
 - Added console-style log line numbers and compact source and severity badges so
   mixed-resource streams are easier to scan without opening entry details.
+- Added consistent resource-class color accents to shared resource icons so
+  workloads, services, infrastructure, and configuration resources are easier
+  to distinguish across inventory, detail, health, and graph views.
 
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
