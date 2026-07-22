@@ -5,15 +5,19 @@
                   Class="@GetViewClass(graphView: false)"
                   IconStart="@(new Icons.Regular.Size20.Table())"
                   Href="@TableHref"
+                  Title="@L["Table"]"
+                  aria-label="@L["Table"]"
                   aria-current="@GetAriaCurrent(graphView: false)">
-        @L["Table"]
+        <span class="mobile-button-label">@L["Table"]</span>
     </FluentAnchor>
     <FluentAnchor Appearance="Appearance.Neutral"
                   Class="@GetViewClass(graphView: true)"
                   IconStart="@(new Icons.Regular.Size20.ShareAndroid())"
                   Href="@GraphHref"
+                  Title="@L["Graph"]"
+                  aria-label="@L["Graph"]"
                   aria-current="@GetAriaCurrent(graphView: true)">
-        @L["Graph"]
+        <span class="mobile-button-label">@L["Graph"]</span>
     </FluentAnchor>
 </nav>
 
@@ -28,7 +32,9 @@
     public bool GraphSelected { get; set; }
 
     private string GetViewClass(bool graphView) =>
-        GraphSelected == graphView ? "resource-inventory-view active" : "resource-inventory-view";
+        GraphSelected == graphView
+            ? "resource-inventory-view mobile-icon-only active"
+            : "resource-inventory-view mobile-icon-only";
 
     private string? GetAriaCurrent(bool graphView) =>
         GraphSelected == graphView ? "page" : null;

@@ -17,16 +17,21 @@
         @if (GetSettingsRoute() is { } settingsRoute)
         {
             <FluentAnchor Appearance="Appearance.Neutral"
+                          Class="mobile-icon-only"
                           IconStart="@(new Icons.Regular.Size20.Settings())"
+                          Title="@L["Health settings"]" aria-label="@L["Health settings"]"
                           Href="@settingsRoute">
-                @L["Health settings"]
+                <span class="mobile-button-label">@L["Health settings"]</span>
             </FluentAnchor>
         }
         <FluentButton Appearance="Appearance.Neutral"
+                      Class="mobile-icon-only"
                       Disabled="@IsCheckingHealth"
                       IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      Title="@(IsCheckingHealth ? L["Checking"] : L["Refresh"])"
+                      aria-label="@(IsCheckingHealth ? L["Checking"] : L["Refresh"])"
                       OnClick="RefreshHealthAsync">
-            @(IsCheckingHealth ? L["Checking"] : L["Refresh"])
+            <span class="mobile-button-label">@(IsCheckingHealth ? L["Checking"] : L["Refresh"])</span>
         </FluentButton>
     </Actions>
 </PageHeading>

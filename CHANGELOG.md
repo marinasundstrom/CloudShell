@@ -47,6 +47,9 @@ link to ADR entries when a change depends on a recorded decision.
   navigation preference; mobile expand/collapse changes remain session-local.
 - Fixed compact navigation so choosing a menu destination closes the mobile
   menu while leaving the desktop navigation state unchanged.
+- Compacted familiar mobile toolbar actions such as refresh, settings, and
+  inventory view switching to icons while retaining labels for assistive
+  technology, pointer tooltips, and the full desktop presentation.
 - Fixed phone-width log exploration so source controls stack without overlap
   and log entries place messages on a second line instead of forcing them
   off-canvas behind a wide console row.

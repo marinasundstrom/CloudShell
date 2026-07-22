@@ -20,9 +20,11 @@
     <Actions>
         <span class="toolbar-meta">@L["Current host"]</span>
         <FluentButton Appearance="Appearance.Neutral"
+                      Class="mobile-icon-only"
                       IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      Title="@L["Refresh"]" aria-label="@L["Refresh"]"
                       OnClick="RefreshAsync">
-            @L["Refresh"]
+            <span class="mobile-button-label">@L["Refresh"]</span>
         </FluentButton>
     </Actions>
 </PageHeading>

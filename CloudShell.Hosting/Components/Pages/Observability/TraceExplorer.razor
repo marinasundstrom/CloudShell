@@ -28,9 +28,11 @@
                     @L["Clear trace filter"]
                 </FluentButton>
             }
-            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+            <FluentButton Appearance="Appearance.Neutral" Class="mobile-icon-only"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          Title="@L["Refresh"]" aria-label="@L["Refresh"]"
                           OnClick="RefreshSpansAsync">
-                @L["Refresh"]
+                <span class="mobile-button-label">@L["Refresh"]</span>
             </FluentButton>
         </Actions>
     </ResourceActivityHeader>
@@ -50,9 +52,11 @@ else if (ShowHeading)
             <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllResources">
                 @L["All trace resources"]
             </FluentButton>
-            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+            <FluentButton Appearance="Appearance.Neutral" Class="mobile-icon-only"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          Title="@L["Refresh"]" aria-label="@L["Refresh"]"
                           OnClick="RefreshSpansAsync">
-                @L["Refresh"]
+                <span class="mobile-button-label">@L["Refresh"]</span>
             </FluentButton>
         </Actions>
     </PageHeading>

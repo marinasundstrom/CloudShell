@@ -18,9 +18,11 @@
         <ResourceInventoryViewSwitch TableHref="@GetResourcesRoute()"
                                      GraphHref="@GetResourceGraphRoute()"
                                      GraphSelected="true" />
-        <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+        <FluentButton Appearance="Appearance.Neutral" Class="mobile-icon-only"
+                      IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      Title="@L["Refresh"]" aria-label="@L["Refresh"]"
                       OnClick="RefreshAsync">
-            @L["Refresh"]
+            <span class="mobile-button-label">@L["Refresh"]</span>
         </FluentButton>
     </Actions>
 </PageHeading>

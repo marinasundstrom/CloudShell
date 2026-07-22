@@ -40,18 +40,23 @@
     <Actions>
         <ResourceInventoryViewSwitch TableHref="@GetResourcesRoute()"
                                      GraphHref="@GetResourceGraphRoute()" />
-        <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+        <FluentButton Appearance="Appearance.Neutral" Class="mobile-icon-only"
+                      IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      Title="@(IsCheckingHealth ? L["Checking..."] : L["Refresh"])"
+                      aria-label="@(IsCheckingHealth ? L["Checking..."] : L["Refresh"])"
                       OnClick="RefreshResourcesAsync">
-            @(IsCheckingHealth ? L["Checking..."] : L["Refresh"])
+            <span class="mobile-button-label">@(IsCheckingHealth ? L["Checking..."] : L["Refresh"])</span>
         </FluentButton>
         <FluentButton Appearance="Appearance.Neutral" OnClick="OpenTemplates">
             @L["Templates"]
         </FluentButton>
         @if (CanOpenSettings)
         {
-            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.Settings())"
+            <FluentButton Appearance="Appearance.Neutral" Class="mobile-icon-only"
+                          IconStart="@(new Icons.Regular.Size20.Settings())"
+                          Title="@L["Settings"]" aria-label="@L["Settings"]"
                           OnClick="OpenSettings">
-                @L["Settings"]
+                <span class="mobile-button-label">@L["Settings"]</span>
             </FluentButton>
         }
         @if (!IsReadOnly && Authorization.CanAccessResourceGroup(

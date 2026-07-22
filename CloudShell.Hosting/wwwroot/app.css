@@ -896,6 +896,15 @@ h3 {
 }
 
 @media (max-width: 720px) {
+    .mobile-icon-only .mobile-button-label {
+        display: none;
+    }
+
+    .mobile-icon-only::part(control) {
+        min-width: 2rem;
+        padding-inline: .5rem;
+    }
+
     .container-app-scale-form {
         grid-template-columns: 1fr;
     }
@@ -5489,6 +5498,14 @@ h3 {
     .resource-inventory-view-switch fluent-anchor::part(control) {
         justify-content: center;
         width: 100%;
+    }
+
+    .resource-inventory-view-switch {
+        width: auto;
+    }
+
+    .resource-inventory-view-switch fluent-anchor {
+        flex: 0 0 auto;
     }
 
     .resource-list .inventory-toolbar,

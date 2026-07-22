@@ -27,10 +27,11 @@
                     <option value="@GraphModeDeclarations">@L["Declared dependencies"]</option>
                 </select>
             </label>
-            <FluentButton Appearance="Appearance.Neutral"
+            <FluentButton Appearance="Appearance.Neutral" Class="mobile-icon-only"
                           IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          Title="@L["Refresh"]" aria-label="@L["Refresh"]"
                           OnClick="RefreshAsync">
-                @L["Refresh"]
+                <span class="mobile-button-label">@L["Refresh"]</span>
             </FluentButton>
         </Actions>
     </PageHeading>
@@ -52,10 +53,11 @@ else
                     <option value="@GraphModeDeclarations">@L["Declared dependencies"]</option>
                 </select>
             </label>
-            <FluentButton Appearance="Appearance.Neutral"
+            <FluentButton Appearance="Appearance.Neutral" Class="mobile-icon-only"
                           IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          Title="@L["Refresh"]" aria-label="@L["Refresh"]"
                           OnClick="RefreshAsync">
-                @L["Refresh"]
+                <span class="mobile-button-label">@L["Refresh"]</span>
             </FluentButton>
         </Actions>
     </ResourceActivityHeader>
