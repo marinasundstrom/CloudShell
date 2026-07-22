@@ -39,6 +39,13 @@ link to ADR entries when a change depends on a recorded decision.
 - Refined Resource Manager pagination into a compact status bar that keeps the
   visible resource range and page-size control separate from page navigation.
 
+#### Fixed
+
+- Fixed narrow shell layouts by connecting the shell toggle to Fluent UI
+  Blazor's collapsible `FluentNavMenu` contract and initially collapsing below
+  the mobile breakpoint without overwriting the user's stored desktop
+  navigation preference; mobile expand/collapse changes remain session-local.
+
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 

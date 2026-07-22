@@ -51,8 +51,18 @@
     {
         if (firstRender)
         {
-            IsNavCollapsed = await LoadCollapsedStateAsync();
-            await StoreCollapsedStateAsync(persistBrowser: true);
+            var storedCollapsed = await LoadCollapsedStateAsync();
+            var compactViewport = await JSRuntime.InvokeAsync<bool>("cloudShellNav.isCompactViewport");
+            IsNavCollapsed = compactViewport || storedCollapsed;
+            if (compactViewport && !storedCollapsed)
+            {
+                await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", true, false);
+            }
+            else
+            {
+                await StoreCollapsedStateAsync(persistBrowser: true);
+            }
+
             StateHasChanged();
         }
 
@@ -66,7 +76,15 @@
     private async Task SetCollapsedStateAsync(bool collapsed)
     {
         IsNavCollapsed = collapsed;
-        await StoreCollapsedStateAsync(persistBrowser: true);
+        var compactViewport = await JSRuntime.InvokeAsync<bool>("cloudShellNav.isCompactViewport");
+        if (compactViewport)
+        {
+            await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", collapsed, false);
+        }
+        else
+        {
+            await StoreCollapsedStateAsync(persistBrowser: true);
+        }
 
         StateHasChanged();
     }

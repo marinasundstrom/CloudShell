@@ -14,7 +14,9 @@
 </div>
 
 <nav class="nav-shell" aria-label="@L["Primary"]">
-    <ShellCoreShellNavMenu Id="@ShellIds.MainMenu" />
+    <ShellCoreShellNavMenu Id="@ShellIds.MainMenu"
+                           Expanded="@(!IsCollapsed)"
+                           ExpandedChanged="OnMenuExpandedChanged" />
 </nav>
 
 <div class="sidebar-footer">
@@ -36,6 +38,9 @@
         string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.ApplicationName)
             ? "CloudShell"
             : DisplayOptions.CurrentValue.ApplicationName.Trim();
+
+    private Task OnMenuExpandedChanged(bool expanded) =>
+        IsCollapsedChanged.InvokeAsync(!expanded);
 
     private Task ToggleNavigation() =>
         IsCollapsedChanged.InvokeAsync(!IsCollapsed);

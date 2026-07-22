@@ -20,6 +20,11 @@
     <div class="coreshell-nav-menu">
         <FluentNavMenu Class="cloudshell-nav-menu"
                        Title="@L[Menu.Title]"
+                       Collapsible="true"
+                       CustomToggle="true"
+                       CustomToggleId="navmenu-toggle"
+                       Expanded="Expanded"
+                       ExpandedChanged="ExpandedChanged"
                        Margin="0">
             @foreach (var item in Menu.Items.Where(item => item.ParentId is null))
             {
@@ -61,6 +66,12 @@
 @code {
     [Parameter, EditorRequired]
     public CoreShellMenuId Id { get; set; }
+
+    [Parameter]
+    public bool Expanded { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<bool> ExpandedChanged { get; set; }
 
     private HashSet<string> CollapsedGroups { get; } = new(StringComparer.OrdinalIgnoreCase);
 

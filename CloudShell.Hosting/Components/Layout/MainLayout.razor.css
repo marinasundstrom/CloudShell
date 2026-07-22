@@ -116,6 +116,7 @@
 @media (max-width: 900px) {
     .shell {
         grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
     }
 
     .shell.nav-collapsed,
@@ -129,6 +130,11 @@
         z-index: auto;
         width: auto;
         height: auto;
+    }
+
+    .shell.nav-collapsed .shell-sidebar,
+    :root.nav-collapsed .shell .shell-sidebar {
+        width: auto;
     }
 
     .shell.nav-collapsed ::deep .brand {

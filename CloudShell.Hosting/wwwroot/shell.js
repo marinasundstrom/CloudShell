@@ -2,7 +2,7 @@
     var navCollapsedStorageKey = "cloudshell.navigation.collapsed";
     var themeStorageKey = "cloudshell.theme";
 
-    setNavCollapsed(readStoredNavCollapsed() === true);
+    setNavCollapsed(isCompactViewport() || readStoredNavCollapsed() === true);
     initializeAccountSelectors();
 
     window.cloudShellNav = {
@@ -18,6 +18,9 @@
         },
         getStoredCollapsed: function () {
             return readStoredNavCollapsed();
+        },
+        isCompactViewport: function () {
+            return isCompactViewport();
         }
     };
 
@@ -194,6 +197,10 @@
             localStorage.setItem(navCollapsedStorageKey, collapsed ? "true" : "false");
         } catch {
         }
+    }
+
+    function isCompactViewport() {
+        return window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
     }
 
     function setNavCollapsed(collapsed) {
