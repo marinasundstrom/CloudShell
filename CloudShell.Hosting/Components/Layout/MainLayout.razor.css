@@ -67,16 +67,17 @@
     padding-inline: .45rem;
 }
 
-.shell.nav-collapsed ::deep .fluent-nav-link .positioning-region {
+.shell.nav-collapsed ::deep .fluent-nav-item.cloudshell-nav-link .positioning-region {
     justify-content: center;
     padding-inline: .45rem;
 }
 
-.shell.nav-collapsed ::deep .nav-parent-row.has-children .fluent-nav-link .positioning-region {
+.shell.nav-collapsed ::deep .nav-parent-row.has-children .fluent-nav-item.cloudshell-nav-link .positioning-region {
     padding-inline: .45rem;
 }
 
-.shell.nav-collapsed ::deep .fluent-nav-link .content-region {
+.shell.nav-collapsed ::deep .fluent-nav-item.cloudshell-nav-link .content-region,
+.shell.nav-collapsed ::deep .fluent-nav-item.cloudshell-nav-link .fluent-nav-link {
     justify-content: center;
     margin-inline-start: 0;
 }

@@ -88,7 +88,7 @@
     cursor: pointer;
 }
 
-::deep .fluent-nav-link .positioning-region {
+::deep .fluent-nav-item.cloudshell-nav-link .positioning-region {
     cursor: pointer;
 }
 
@@ -97,7 +97,7 @@
     text-decoration: none;
 }
 
-::deep .fluent-nav-link .positioning-region {
+::deep .fluent-nav-item.cloudshell-nav-link .positioning-region {
     display: flex;
     align-items: center;
     width: 100%;
@@ -108,12 +108,21 @@
     gap: .6rem;
 }
 
-::deep .fluent-nav-link .content-region {
+::deep .fluent-nav-item.cloudshell-nav-link .content-region {
     display: flex;
     align-items: center;
+    width: 100%;
     min-width: 0;
     margin-inline-start: 0;
     white-space: nowrap;
+}
+
+::deep .fluent-nav-item.cloudshell-nav-link .fluent-nav-link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    gap: .6rem;
 }
 
 ::deep .fluent-nav-link .fluent-nav-text {
@@ -124,19 +133,19 @@
     text-overflow: ellipsis;
 }
 
-::deep .fluent-nav-link .positioning-region:hover {
+::deep .fluent-nav-item.cloudshell-nav-link:hover .positioning-region {
     background: var(--cloudshell-hover);
     color: var(--cloudshell-text);
     text-decoration: none;
 }
 
-::deep .fluent-nav-link.active .positioning-region {
+::deep .fluent-nav-item.cloudshell-nav-link .cloudshell-nav-link.active .positioning-region {
     background: var(--cloudshell-selected);
     color: var(--cloudshell-accent-foreground);
     box-shadow: inset 3px 0 0 var(--cloudshell-accent);
 }
 
-::deep .fluent-nav-link.active .positioning-region::before {
+::deep .fluent-nav-item.cloudshell-nav-link .cloudshell-nav-link.active .positioning-region::before {
     display: none;
 }
 
@@ -149,7 +158,7 @@
     font-size: .84rem;
 }
 
-::deep .nav-subitems .fluent-nav-link .positioning-region {
+::deep .nav-subitems .fluent-nav-item.cloudshell-nav-link .positioning-region {
     min-height: 2rem;
     padding-block: .4rem;
 }

@@ -59,6 +59,9 @@ link to ADR entries when a change depends on a recorded decision.
 - Aligned shell and page compaction on a rem-based breakpoint so browser zoom
   and larger default text scale navigation, toolbars, forms, and resource cards
   together instead of retaining a disproportionately wide desktop sidebar.
+- Fixed expanded navigation labels wrapping below their icons by aligning shell
+  selectors with FluentNavLink's rendered item, positioning, and content
+  regions; hover, active, and collapsed icon-rail states use the same structure.
 - Fixed phone-width log exploration so source controls stack without overlap
   and log entries place messages on a second line instead of forcing them
   off-canvas behind a wide console row.
