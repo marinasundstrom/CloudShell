@@ -1290,29 +1290,35 @@ h3 {
     align-items: center;
     gap: .65rem;
     flex-wrap: wrap;
-}
-
-.resource-graph-summary div {
-    display: grid;
-    min-width: 8rem;
-    gap: .1rem;
-    padding: .55rem .65rem;
+    min-height: 3rem;
+    padding: .45rem .65rem;
     border: 1px solid var(--cloudshell-divider);
     border-radius: 4px;
     background: var(--cloudshell-surface-muted);
 }
 
-.resource-graph-summary span {
-    color: var(--cloudshell-text-muted);
-    font-size: .78rem;
+.resource-graph-summary .resource-graph-stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: .35rem;
+    padding-right: .65rem;
+    border-right: 1px solid var(--cloudshell-divider);
 }
 
-.resource-graph-summary strong {
-    font-size: 1.2rem;
+.resource-graph-stat span {
+    color: var(--cloudshell-text-muted);
+    font-size: .76rem;
+}
+
+.resource-graph-stat strong {
+    font-size: .9rem;
     font-weight: 650;
 }
 
-.resource-graph-topology-toggle {
+.resource-graph-options {
+    display: flex;
+    align-items: center;
+    gap: .9rem;
     margin-left: auto;
 }
 

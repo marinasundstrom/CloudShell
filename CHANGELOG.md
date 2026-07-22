@@ -31,6 +31,8 @@ link to ADR entries when a change depends on a recorded decision.
   scope.
 - Added deterministic per-source colors to log badges so merged resource
   streams remain visually distinguishable across refreshes.
+- Compacted the resource graph summary and topology options into a single
+  toolbar strip, leaving more viewport space for the dependency canvas.
 
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.

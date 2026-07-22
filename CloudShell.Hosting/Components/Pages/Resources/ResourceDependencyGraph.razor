@@ -34,31 +34,31 @@
     else
     {
         <div class="resource-graph-summary">
-            <div>
+            <div class="resource-graph-stat">
                 <span>@L["Resources"]</span>
                 <strong>@Graph.ResourceCount</strong>
             </div>
-            <div>
+            <div class="resource-graph-stat">
                 <span>@L["Dependencies"]</span>
                 <strong>@Graph.DependencyCount</strong>
             </div>
             @if (IncludeNetworkTopologyOverlay)
             {
-                <div>
+                <div class="resource-graph-stat">
                     <span>@L["Topology"]</span>
                     <strong>@Graph.TopologyCount</strong>
                 </div>
             }
-            <FluentCheckbox Class="resource-graph-topology-toggle"
-                            Value="@IncludeImplicitResources"
-                            ValueChanged="OnImplicitResourcesChanged">
-                @L["Implicit resources"]
-            </FluentCheckbox>
-            <FluentCheckbox Class="resource-graph-topology-toggle"
-                            Value="@IncludeNetworkTopologyOverlay"
-                            ValueChanged="OnNetworkTopologyOverlayChanged">
-                @L["Network topology"]
-            </FluentCheckbox>
+            <div class="resource-graph-options">
+                <FluentCheckbox Value="@IncludeImplicitResources"
+                                ValueChanged="OnImplicitResourcesChanged">
+                    @L["Implicit resources"]
+                </FluentCheckbox>
+                <FluentCheckbox Value="@IncludeNetworkTopologyOverlay"
+                                ValueChanged="OnNetworkTopologyOverlayChanged">
+                    @L["Network topology"]
+                </FluentCheckbox>
+            </div>
         </div>
     }
     <div class="resource-graph-shell @(Graph.Nodes.Count == 0 ? "empty" : null)">
