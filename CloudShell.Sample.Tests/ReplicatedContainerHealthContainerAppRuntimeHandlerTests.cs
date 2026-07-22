@@ -810,6 +810,41 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_ReportsUnsupportedClientIpAffinityBeforeLifecycleDispatch()
+    {
+        var bridge = CreateRuntimeBridge(
+            new RecordingCommandRunner(),
+            CreateConfiguration(replicaCleanupLimit: 2),
+            new TestHostEnvironment(Path.GetTempPath()));
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092,
+            includeClientIpSessionAffinity: true);
+
+        var startReason = bridge.GetOperationUnavailableReason(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.Start);
+        var restartReason = bridge.GetOperationUnavailableReason(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.Restart);
+        var imageReason = bridge.GetOperationUnavailableReason(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.UpdateImage);
+        var replicasReason = bridge.GetOperationUnavailableReason(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas);
+        var stopReason = bridge.GetOperationUnavailableReason(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.Stop);
+
+        Assert.Contains("does not support ClientIp session affinity", startReason);
+        Assert.Equal(startReason, restartReason);
+        Assert.Equal(startReason, imageReason);
+        Assert.Equal(startReason, replicasReason);
+        Assert.Null(stopReason);
+    }
+
+    [Fact]
     public async Task RuntimeBridge_RoutingReconciliationUsesReplicaGroupInstancesForBackends()
     {
         var contentRoot = Path.Combine(
@@ -1287,6 +1322,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         int? endpointPort = null,
         bool includeHealthChecks = false,
         bool includeCookieSessionAffinity = false,
+        bool includeClientIpSessionAffinity = false,
         IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null,
         string? projectPath = null,
         string? containerBuildContext = null,
@@ -1333,6 +1369,11 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 "CloudShellReplica";
             attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds] =
                 3600;
+        }
+        else if (includeClientIpSessionAffinity)
+        {
+            attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode] =
+                ResourceOrchestratorSessionAffinityMode.ClientIp.ToString();
         }
 
         if (!string.IsNullOrWhiteSpace(projectPath))
@@ -1825,6 +1866,11 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             observedStatus = status;
             return true;
         }
+
+        public string? GetOperationUnavailableReason(
+            GraphResource resource,
+            ResourceOperationId operationId) =>
+            null;
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
             GraphResource resource,

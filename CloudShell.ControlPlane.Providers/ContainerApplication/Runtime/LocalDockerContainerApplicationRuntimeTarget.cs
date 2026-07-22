@@ -5,13 +5,19 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class LocalDockerContainerApplicationRuntimeTarget(
     ILocalDockerContainerApplicationRuntimeBridge bridge) :
-    IContainerApplicationRuntimeTarget
+    IContainerApplicationRuntimeTarget,
+    IContainerApplicationRuntimeReadinessProvider
 {
     public bool CanHandle(GraphResource resource) =>
         bridge.CanHandle(resource);
 
     public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) =>
         bridge.GetStatus(resource);
+
+    public string? GetOperationUnavailableReason(
+        GraphResource resource,
+        ResourceOperationId operationId) =>
+        bridge.GetOperationUnavailableReason(resource, operationId);
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         GraphResource resource,

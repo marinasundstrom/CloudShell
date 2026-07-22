@@ -222,6 +222,21 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
     }
 
+    public string? GetOperationUnavailableReason(
+        GraphResource resource,
+        ResourceOperationId operationId)
+    {
+        if (operationId == ContainerApplicationResourceTypeProvider.Operations.Stop ||
+            !RequiresIngress(resource) ||
+            CreateSessionAffinityPolicyFromResource(resource)?.Mode !=
+                ResourceOrchestratorSessionAffinityMode.ClientIp)
+        {
+            return null;
+        }
+
+        return $"Local Docker container app runtime does not support ClientIp session affinity for '{resource.EffectiveResourceId}'. Use Cookie affinity or disable session affinity.";
+    }
+
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
         GraphResource resource,
         CancellationToken cancellationToken = default)
@@ -1213,6 +1228,10 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
     private static bool IsHttpEndpoint(NetworkingEndpointRequestValue endpoint) =>
         string.Equals(endpoint.Name, "http", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase);
+
+    private static bool RequiresIngress(GraphResource resource) =>
+        ResolveReplicas(resource) > 1 &&
+        TryResolveHttpEndpoint(resource, [], out _);
 
     private LocalDockerContainerApplicationRuntimeDefinition ResolveDefinition(GraphResource resource) =>
         TryResolveDefinition(resource, out var definition)

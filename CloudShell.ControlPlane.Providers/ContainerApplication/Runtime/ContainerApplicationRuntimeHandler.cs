@@ -25,6 +25,33 @@ public interface IContainerApplicationRuntimeHandler
         CancellationToken cancellationToken = default);
 }
 
+public interface IContainerApplicationRuntimeReadinessProvider
+{
+    string? GetOperationUnavailableReason(
+        Resource resource,
+        ResourceOperationId operationId);
+}
+
+public static class ContainerApplicationRuntimeReadiness
+{
+    public static string? GetOperationUnavailableReason(
+        IContainerApplicationRuntimeHandler? runtimeHandler,
+        Resource resource,
+        ResourceOperationId operationId)
+    {
+        if (NoopContainerApplicationRuntimeHandler.IsMissing(runtimeHandler))
+        {
+            return NoopContainerApplicationRuntimeHandler.CreateRuntimeUnavailableReason(
+                resource,
+                operationId);
+        }
+
+        return runtimeHandler is IContainerApplicationRuntimeReadinessProvider readinessProvider
+            ? readinessProvider.GetOperationUnavailableReason(resource, operationId)
+            : null;
+    }
+}
+
 public sealed class NoopContainerApplicationRuntimeHandler :
     IContainerApplicationRuntimeHandler
 {

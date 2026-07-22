@@ -12,7 +12,8 @@ public interface IContainerApplicationRuntimeTarget :
 public sealed class DelegatingContainerApplicationRuntimeHandler(
     IEnumerable<IContainerApplicationRuntimeTarget> targets) :
     IContainerApplicationRuntimeHandler,
-    IContainerApplicationOrchestratorRuntimeHandler
+    IContainerApplicationOrchestratorRuntimeHandler,
+    IContainerApplicationRuntimeReadinessProvider
 {
     private readonly NoopContainerApplicationRuntimeHandler fallback = new();
     private readonly IReadOnlyList<IContainerApplicationRuntimeTarget> targets = targets.ToArray();
@@ -21,6 +22,22 @@ public sealed class DelegatingContainerApplicationRuntimeHandler(
         TryGetTarget(resource, out var target)
             ? target.GetStatus(resource)
             : ContainerApplicationRuntimeStatus.Unknown;
+
+    public string? GetOperationUnavailableReason(
+        Resource resource,
+        ResourceOperationId operationId)
+    {
+        if (!TryGetTarget(resource, out var target))
+        {
+            return NoopContainerApplicationRuntimeHandler.CreateRuntimeUnavailableReason(
+                resource,
+                operationId);
+        }
+
+        return target is IContainerApplicationRuntimeReadinessProvider readinessProvider
+            ? readinessProvider.GetOperationUnavailableReason(resource, operationId)
+            : null;
+    }
 
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         Resource resource,

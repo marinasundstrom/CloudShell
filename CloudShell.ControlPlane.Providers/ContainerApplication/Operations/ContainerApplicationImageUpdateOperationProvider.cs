@@ -49,9 +49,10 @@ public sealed class ContainerApplicationImageUpdateOperationProvider(
                 GetUnavailableReason(resource)));
 
     private string? GetUnavailableReason(Resource resource) =>
-        NoopContainerApplicationRuntimeHandler.IsMissing(_runtimeHandler)
-            ? NoopContainerApplicationRuntimeHandler.CreateRuntimeUnavailableReason(resource, OperationId)
-            : null;
+        ContainerApplicationRuntimeReadiness.GetOperationUnavailableReason(
+            _runtimeHandler,
+            resource,
+            OperationId);
 }
 
 public sealed class ContainerApplicationImageUpdateOperation(

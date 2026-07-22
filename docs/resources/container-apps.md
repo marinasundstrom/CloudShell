@@ -457,10 +457,13 @@ proxy. `ClientIp` remains accepted as portable resource intent, but current
 local Traefik enforcement is cookie-based. Local Docker routing reconciliation
 returns the stable
 `localDockerContainerApplication.sessionAffinityUnsupported` diagnostic for
-`ClientIp` instead of emitting non-sticky routing configuration. Other
-providers that do not enforce a declared affinity policy should likewise
-document or report that non-parity instead of implying that the setting is
-active.
+`ClientIp` instead of emitting non-sticky routing configuration. The local
+Docker runtime also projects that incompatibility through the container-app
+operation readiness contract, so start, restart, image update, and replica
+update are unavailable with the same provider reason before dispatch; stop
+remains available for cleanup. Other providers that do not enforce a declared
+affinity policy should likewise document or report that non-parity instead of
+implying that the setting is active.
 
 Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this

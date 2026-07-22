@@ -17,6 +17,10 @@ public interface ILocalDockerContainerApplicationRuntimeBridge
         GraphResource resource,
         out ContainerApplicationRuntimeStatus status);
 
+    string? GetOperationUnavailableReason(
+        GraphResource resource,
+        ResourceOperationId operationId);
+
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         GraphResource resource,
         ResourceOperationId operationId,

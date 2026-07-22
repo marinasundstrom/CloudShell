@@ -158,6 +158,44 @@ public sealed class ContainerApplicationOperationTests
             ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas);
     }
 
+    [Fact]
+    public async Task RuntimeReadinessProvider_ProjectsProviderReasonBeforeDispatch()
+    {
+        var runtimeHandler = new UnavailableContainerApplicationRuntimeHandler();
+        var startProvider = new ContainerApplicationStartOperationProvider(runtimeHandler);
+        var stopProvider = new ContainerApplicationStopOperationProvider(runtimeHandler);
+        var restartProvider = new ContainerApplicationRestartOperationProvider(runtimeHandler);
+        var imageProvider = new ContainerApplicationImageUpdateOperationProvider(runtimeHandler);
+        var replicasProvider = new ContainerApplicationReplicasUpdateOperationProvider(runtimeHandler);
+        var pipeline = CreatePipeline(startProvider, stopProvider, restartProvider, imageProvider, replicasProvider);
+
+        var result = await pipeline.ValidateAsync(
+            CreateDefinition(),
+            new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(result.HasErrors);
+        var start = Assert.IsType<ContainerApplicationLifecycleOperation>(
+            result.Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.Start));
+        var stop = Assert.IsType<ContainerApplicationLifecycleOperation>(
+            result.Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.Stop));
+        var restart = Assert.IsType<ContainerApplicationLifecycleOperation>(
+            result.Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.Restart));
+        var image = Assert.IsType<ContainerApplicationImageUpdateOperation>(
+            result.Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.UpdateImage));
+        var replicas = Assert.IsType<ContainerApplicationReplicasUpdateOperation>(
+            result.Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas));
+
+        Assert.False(await start.CanExecuteAsync());
+        Assert.False(await restart.CanExecuteAsync());
+        Assert.False(await image.CanExecuteAsync());
+        Assert.False(await replicas.CanExecuteAsync());
+        Assert.Contains("provider readiness failed", start.UnavailableReason);
+        Assert.Contains("provider readiness failed", restart.UnavailableReason);
+        Assert.Contains("provider readiness failed", image.UnavailableReason);
+        Assert.Contains("provider readiness failed", replicas.UnavailableReason);
+        Assert.True(await stop.CanExecuteAsync());
+    }
+
     private static ResourceDefinitionValidationPipeline CreatePipeline(
         ContainerApplicationStartOperationProvider startProvider,
         ContainerApplicationStopOperationProvider stopProvider,
@@ -217,7 +255,7 @@ public sealed class ContainerApplicationOperationTests
         Assert.Contains(operationId.Value, diagnostic.Message);
     }
 
-    private sealed class TestContainerApplicationRuntimeHandler :
+    private class TestContainerApplicationRuntimeHandler :
         IContainerApplicationRuntimeHandler
     {
         public List<(Resource Resource, ResourceOperationId OperationId)> LifecycleInvocations { get; } = [];
@@ -253,5 +291,17 @@ public sealed class ContainerApplicationOperationTests
             ReplicasApplyInvocations.Add(resource);
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
+    }
+
+    private sealed class UnavailableContainerApplicationRuntimeHandler :
+        TestContainerApplicationRuntimeHandler,
+        IContainerApplicationRuntimeReadinessProvider
+    {
+        public string? GetOperationUnavailableReason(
+            Resource resource,
+            ResourceOperationId operationId) =>
+            operationId == ContainerApplicationResourceTypeProvider.Operations.Stop
+                ? null
+                : "Container application provider readiness failed.";
     }
 }

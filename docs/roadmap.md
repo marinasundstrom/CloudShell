@@ -366,8 +366,9 @@ platform fronts or repeatedly polishing secondary editor surfaces:
   sample-specific knowledge.
 - Keep provider runtime enforcement explicit for modeled routing policy.
   Local Docker and local-process runtimes enforce cookie session affinity;
-  unsupported local Docker `ClientIp` affinity now fails with a stable provider
-  diagnostic instead of silently emitting non-sticky routing configuration.
+  unsupported local Docker `ClientIp` affinity now disables affected
+  container-app operations with a provider-readiness reason before dispatch
+  and remains guarded by a stable routing diagnostic at runtime.
 - Stabilize the UI contracts behind the main path before adding new UI
   surface area: resource view registration, menu grouping, route/link
   resolution, shared selectors, action controls, status pills, generated

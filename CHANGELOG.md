@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Fixed
 
+- Fixed local Docker container-app capability signaling so unsupported
+  `ClientIp` affinity disables start, restart, image update, and replica update
+  before dispatch with the provider-readiness reason while preserving stop for
+  cleanup.
 - Fixed local Docker container-app routing reconciliation so unsupported
   `ClientIp` session affinity returns a stable provider diagnostic instead of
   silently emitting non-sticky Traefik configuration.
