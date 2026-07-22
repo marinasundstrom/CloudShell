@@ -138,12 +138,12 @@
         <div class="inventory-toolbar">
             <div class="inventory-filters">
                 <div class="inventory-filter name-filter">
-                    <label for="resource-name-filter">@L["Name"]</label>
+                    <label class="visually-hidden" for="resource-name-filter">@L["Name"]</label>
                     <FluentSearch Id="resource-name-filter" @bind-Value="NameFilter"
                                   Placeholder="@L["Filter by resource"]" />
                 </div>
                 <div class="inventory-filter">
-                    <label for="resource-class-filter">@L["Class"]</label>
+                    <label class="visually-hidden" for="resource-class-filter">@L["Class"]</label>
                     <FluentSelect TOption="ResourceClassFilterOption" Id="resource-class-filter"
                                   Class="inventory-select" Items="@resourceClasses"
                                   OptionText="@(resourceClass => resourceClass.DisplayName)"
@@ -152,14 +152,14 @@
                                   SelectedOptionChanged="ChangeClassFilter" Appearance="Appearance.Neutral" />
                 </div>
                 <div class="inventory-filter">
-                    <label for="resource-type-filter">@L["Type"]</label>
+                    <label class="visually-hidden" for="resource-type-filter">@L["Type"]</label>
                     <FluentSelect TOption="ResourceTypeFilterOption" Id="resource-type-filter" Class="inventory-select"
                                   Items="@resourceTypes" OptionText="@(type => type.DisplayName)" OptionValue="@(type => type.Id)"
                                   SelectedOption="@GetSelectedTypeOption(resourceTypes)" SelectedOptionChanged="ChangeTypeFilter"
                                   Appearance="Appearance.Neutral" />
                 </div>
                 <div class="inventory-filter">
-                    <label for="resource-group-filter">@L["Resource group"]</label>
+                    <label class="visually-hidden" for="resource-group-filter">@L["Resource group"]</label>
                     <FluentSelect TOption="ResourceGroupFilterOption" Id="resource-group-filter"
                                   Class="inventory-select" Items="@resourceGroupFilters"
                                   OptionText="@(group => group.DisplayName)" OptionValue="@(group => group.Id)"

@@ -368,18 +368,19 @@ h3 {
 
 .resource-list .inventory-toolbar {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: .75rem;
     margin: 0;
-    padding: .65rem .75rem;
+    min-height: 3rem;
+    padding: .45rem .7rem;
     border-bottom: 1px solid var(--cloudshell-divider);
 }
 
 .inventory-filters {
     display: flex;
-    align-items: flex-end;
-    gap: .6rem;
+    align-items: center;
+    gap: .45rem;
     flex: 1 1 auto;
     flex-wrap: wrap;
     min-width: 0;
@@ -387,7 +388,6 @@ h3 {
 
 .inventory-filter {
     display: grid;
-    gap: .2rem;
     min-width: 9.5rem;
 }
 
@@ -454,7 +454,7 @@ h3 {
 }
 
 .resource-list-header {
-    min-height: 2.3rem;
+    min-height: 2.15rem;
     min-width: var(--cloudshell-resource-grid-min-width);
     padding: 0 .7rem;
     border-bottom: 1px solid var(--cloudshell-stroke);
@@ -465,9 +465,9 @@ h3 {
 }
 
 .resource-tree-row {
-    min-height: 3.15rem;
+    min-height: 2.7rem;
     min-width: var(--cloudshell-resource-grid-min-width);
-    padding: .35rem .7rem;
+    padding: .25rem .7rem;
     border-bottom: 1px solid var(--cloudshell-divider);
     background: var(--cloudshell-surface);
     font-size: .82rem;

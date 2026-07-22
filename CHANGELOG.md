@@ -10,6 +10,14 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-07-22
+
+#### Changed
+
+- Compacted the Resource Manager inventory toolbar and resource rows so search,
+  filters, status, endpoints, and actions remain visible with less vertical
+  overhead while preserving accessible filter labels.
+
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
