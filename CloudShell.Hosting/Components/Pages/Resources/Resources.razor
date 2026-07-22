@@ -267,15 +267,17 @@
         @if (rows.Count > 0)
         {
             <div class="resource-pagination">
-                <div class="inventory-filter page-size-filter">
-                    <label for="resource-page-size">@L["Rows per page"]</label>
-                    <FluentSelect TOption="int" Id="resource-page-size" Class="page-size-select" Items="@PageSizes"
-                                  OptionText="@(size => size.ToString())" OptionValue="@(size => size.ToString())"
-                                  SelectedOption="@Pagination.ItemsPerPage" SelectedOptionChanged="ChangePageSizeAsync"
-                                  Appearance="Appearance.Neutral" />
+                <div class="resource-pagination-status">
+                    <span class="pagination-range">@GetPaginationRangeLabel(rows.Count)</span>
+                    <div class="inventory-filter page-size-filter">
+                        <label for="resource-page-size">@L["Rows per page"]</label>
+                        <FluentSelect TOption="int" Id="resource-page-size" Class="page-size-select" Items="@PageSizes"
+                                      OptionText="@(size => size.ToString())" OptionValue="@(size => size.ToString())"
+                                      SelectedOption="@Pagination.ItemsPerPage" SelectedOptionChanged="ChangePageSizeAsync"
+                                      Appearance="Appearance.Neutral" />
+                    </div>
                 </div>
                 <div class="pagination-controls">
-                    <span class="pagination-range">@GetPaginationRangeLabel(rows.Count)</span>
                     <FluentButton Appearance="Appearance.Neutral" Disabled="@(Pagination.CurrentPageIndex == 0)"
                                   Title="@L["First page"]" OnClick="GoToFirstPageAsync">
                         &lt;&lt;

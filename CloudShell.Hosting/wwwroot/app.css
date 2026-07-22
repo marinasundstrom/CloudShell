@@ -515,10 +515,18 @@ h3 {
     justify-content: space-between;
     gap: .75rem;
     min-width: 0;
-    padding: .55rem .7rem;
+    min-height: 2.8rem;
+    padding: .35rem .7rem;
     border-top: 1px solid var(--cloudshell-divider);
     background: var(--cloudshell-surface-muted);
     flex-wrap: wrap;
+}
+
+.resource-pagination-status {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    min-width: 0;
 }
 
 .page-size-filter {
@@ -551,7 +559,6 @@ h3 {
 .pagination-range {
     color: var(--cloudshell-text);
     font-weight: 650;
-    margin-right: .25rem;
 }
 
 .resource-row-actions,

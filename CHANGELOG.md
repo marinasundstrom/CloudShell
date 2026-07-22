@@ -36,6 +36,8 @@ link to ADR entries when a change depends on a recorded decision.
 - Added narrow-shell layouts for the inventory view switch, resource filters,
   graph options, telemetry headers, and trace duration meters so the denser
   presentation remains usable without clipped controls.
+- Refined Resource Manager pagination into a compact status bar that keeps the
+  visible resource range and page-size control separate from page navigation.
 
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
