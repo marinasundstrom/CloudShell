@@ -24,6 +24,8 @@ link to ADR entries when a change depends on a recorded decision.
   to distinguish across inventory, detail, health, and graph views.
 - Unified log, trace, and metric explorer headers into compact toolbar surfaces
   so source context and filtering controls occupy the same visual plane.
+- Added proportional duration meters to recent trace rows so latency outliers
+  stand out before opening the detailed trace waterfall.
 
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.

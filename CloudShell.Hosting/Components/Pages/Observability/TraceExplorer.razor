@@ -384,6 +384,7 @@ else if (ShowHeading)
                     var traceSummaries = BuildRecentTraceSummaries(spans);
                     @if (traceSummaries.Count > 0)
                     {
+                        var longestTraceDuration = traceSummaries.Max(trace => trace.Duration.TotalMilliseconds);
                         <div class="recent-trace-list" aria-label="@L["Recent traces"]">
                             @foreach (var trace in traceSummaries)
                             {
@@ -406,7 +407,12 @@ else if (ShowHeading)
                                         }
                                     </span>
                                     <em>@L["{0} spans", trace.SpanCount]</em>
-                                    <b>@FormatDuration(trace.Duration)</b>
+                                    <span class="recent-trace-duration">
+                                        <span class="recent-trace-duration-track" aria-hidden="true">
+                                            <span style="@GetRecentTraceDurationStyle(trace.Duration, longestTraceDuration)"></span>
+                                        </span>
+                                        <b>@FormatDuration(trace.Duration)</b>
+                                    </span>
                                 </a>
                             }
                         </div>
@@ -908,6 +914,13 @@ StringComparison.OrdinalIgnoreCase))?.Span
         duration.TotalSeconds >= 1
             ? $"{duration.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture)}s"
             : $"{duration.TotalMilliseconds.ToString("0.#", CultureInfo.InvariantCulture)}ms";
+
+    private static string GetRecentTraceDurationStyle(TimeSpan duration, double longestDurationMilliseconds)
+    {
+        var denominator = Math.Max(longestDurationMilliseconds, 1);
+        var percent = Math.Clamp(duration.TotalMilliseconds / denominator * 100, 4, 100);
+        return $"width: {percent.ToString("0.##", CultureInfo.InvariantCulture)}%";
+    }
 
     private static string GetTraceRowIndentStyle(int depth) =>
         $"--trace-depth: {depth.ToString(CultureInfo.InvariantCulture)}";

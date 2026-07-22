@@ -4692,7 +4692,7 @@ h3 {
 
 .recent-trace-item {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(6.5rem, 9rem);
     align-items: center;
     gap: .55rem;
     min-width: 0;
@@ -4748,6 +4748,34 @@ h3 {
 
 .recent-trace-item em {
     font-style: normal;
+}
+
+.recent-trace-item .recent-trace-duration {
+    display: grid;
+    grid-template-columns: minmax(3rem, 1fr) auto;
+    align-items: center;
+    gap: .45rem;
+}
+
+.recent-trace-duration-track {
+    display: block;
+    height: .35rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--cloudshell-divider);
+}
+
+.recent-trace-duration-track > span {
+    display: block;
+    height: 100%;
+    min-width: .35rem;
+    border-radius: inherit;
+    background: var(--cloudshell-accent);
+}
+
+.recent-trace-duration b {
+    min-width: 3rem;
+    text-align: right;
 }
 
 .trace-detail {
