@@ -364,9 +364,10 @@ platform fronts or repeatedly polishing secondary editor surfaces:
   isolated service providers, and unique temporary paths.
 - Make the primary application Resource Manager path understandable without
   sample-specific knowledge.
-- Continue provider runtime enforcement for modeled routing policy, especially
-  container app session affinity/sticky routing now that the resource intent
-  and orchestration routing binding metadata exist.
+- Keep provider runtime enforcement explicit for modeled routing policy.
+  Local Docker and local-process runtimes enforce cookie session affinity;
+  unsupported local Docker `ClientIp` affinity now fails with a stable provider
+  diagnostic instead of silently emitting non-sticky routing configuration.
 - Stabilize the UI contracts behind the main path before adding new UI
   surface area: resource view registration, menu grouping, route/link
   resolution, shared selectors, action controls, status pills, generated

@@ -375,6 +375,14 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         CancellationToken cancellationToken = default)
     {
         var definition = ResolveDefinition(resource);
+        var unsupportedAffinityDiagnostic = GetUnsupportedSessionAffinityDiagnostic(
+            resource,
+            routingBindings);
+        if (unsupportedAffinityDiagnostic is not null)
+        {
+            return [unsupportedAffinityDiagnostic];
+        }
+
         try
         {
             await StartIngressAsync(
@@ -1086,6 +1094,24 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
 
         return CreateSessionAffinityPolicyFromResource(resource);
+    }
+
+    private static ResourceDefinitionDiagnostic? GetUnsupportedSessionAffinityDiagnostic(
+        GraphResource resource,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings)
+    {
+        if (!TryResolveHttpEndpoint(resource, routingBindings, out var endpoint))
+        {
+            return null;
+        }
+
+        var sessionAffinity = ResolveSessionAffinity(resource, endpoint, routingBindings);
+        return sessionAffinity?.Mode == ResourceOrchestratorSessionAffinityMode.ClientIp
+            ? ResourceDefinitionDiagnostic.Error(
+                "localDockerContainerApplication.sessionAffinityUnsupported",
+                $"Local Docker container app runtime does not support ClientIp session affinity for '{resource.EffectiveResourceId}'. Use Cookie affinity or disable session affinity.",
+                resource.EffectiveResourceId)
+            : null;
     }
 
     private static ResourceOrchestratorSessionAffinityPolicy? CreateSessionAffinityPolicyFromResource(

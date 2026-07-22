@@ -757,6 +757,59 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_RoutingReconciliationRejectsUnsupportedClientIpAffinity()
+    {
+        var contentRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-replicated-health-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(contentRoot);
+        try
+        {
+            var commandRunner = new RecordingCommandRunner();
+            var bridge = CreateRuntimeBridge(
+                commandRunner,
+                CreateConfiguration(replicaCleanupLimit: 2),
+                new TestHostEnvironment(contentRoot));
+            var resource = await CreateGraphAppResourceAsync(
+                replicas: 2,
+                endpointPort: 5092);
+            var service = CreateOrchestratorService(resource, replicas: 2);
+            var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+                service,
+                "rev-test");
+            var routingBinding = new ResourceOrchestratorServiceRoutingBindingDefinition(
+                "api-http-routing",
+                ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                service.Name,
+                replicaGroup.Id,
+                ResourceEndpointReference.ForEndpoint(resource.EffectiveResourceId, "http"),
+                SessionAffinity: ResourceOrchestratorSessionAffinityPolicy.ClientIp);
+
+            var diagnostics = await bridge.ReconcileOrchestratorServiceRoutingAsync(
+                resource,
+                service,
+                replicaGroup,
+                [routingBinding]);
+
+            var diagnostic = Assert.Single(diagnostics);
+            Assert.Equal(
+                "localDockerContainerApplication.sessionAffinityUnsupported",
+                diagnostic.Code);
+            Assert.Contains("Use Cookie affinity or disable session affinity", diagnostic.Message);
+            Assert.Empty(commandRunner.Commands);
+            Assert.False(File.Exists(
+                Path.Combine(contentRoot, "Data", "runtime-ingress", "dynamic.yml")));
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RuntimeBridge_RoutingReconciliationUsesReplicaGroupInstancesForBackends()
     {
         var contentRoot = Path.Combine(

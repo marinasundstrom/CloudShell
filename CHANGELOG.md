@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Fixed
 
+- Fixed local Docker container-app routing reconciliation so unsupported
+  `ClientIp` session affinity returns a stable provider diagnostic instead of
+  silently emitting non-sticky Traefik configuration.
 - Fixed CLI and launcher template imports so they resolve authored attribute
   paths through the target Control Plane's code-first schema catalog, preserving
   canonical capability attribute IDs such as environment variables during
