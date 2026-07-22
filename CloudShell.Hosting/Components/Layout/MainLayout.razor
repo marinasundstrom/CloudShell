@@ -8,7 +8,9 @@
 
 <div class="shell @CollapsedClass">
     <aside class="shell-sidebar">
-        <NavMenu IsCollapsed="IsNavCollapsed" IsCollapsedChanged="SetCollapsedStateAsync" />
+        <NavMenu IsCollapsed="IsNavCollapsed"
+                 IsCollapsedChanged="SetCollapsedStateAsync"
+                 NavigationRequested="CollapseNavigationForCompactViewportAsync" />
     </aside>
 
     <main class="shell-main">
@@ -87,6 +89,14 @@
         }
 
         StateHasChanged();
+    }
+
+    private async Task CollapseNavigationForCompactViewportAsync()
+    {
+        if (!IsNavCollapsed && await JSRuntime.InvokeAsync<bool>("cloudShellNav.isCompactViewport"))
+        {
+            await SetCollapsedStateAsync(true);
+        }
     }
 
     private async Task<bool> LoadCollapsedStateAsync()

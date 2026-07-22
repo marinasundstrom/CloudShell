@@ -45,6 +45,8 @@ link to ADR entries when a change depends on a recorded decision.
   Blazor's collapsible `FluentNavMenu` contract and initially collapsing below
   the mobile breakpoint without overwriting the user's stored desktop
   navigation preference; mobile expand/collapse changes remain session-local.
+- Fixed compact navigation so choosing a menu destination closes the mobile
+  menu while leaving the desktop navigation state unchanged.
 - Fixed phone-width log exploration so source controls stack without overlap
   and log entries place messages on a second line instead of forcing them
   off-canvas behind a wide console row.

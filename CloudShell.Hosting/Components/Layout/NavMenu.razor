@@ -16,7 +16,8 @@
 <nav class="nav-shell" aria-label="@L["Primary"]">
     <ShellCoreShellNavMenu Id="@ShellIds.MainMenu"
                            Expanded="@(!IsCollapsed)"
-                           ExpandedChanged="OnMenuExpandedChanged" />
+                           ExpandedChanged="OnMenuExpandedChanged"
+                           NavigationRequested="NavigationRequested" />
 </nav>
 
 <div class="sidebar-footer">
@@ -30,6 +31,9 @@
 
     [Parameter]
     public EventCallback<bool> IsCollapsedChanged { get; set; }
+
+    [Parameter]
+    public EventCallback NavigationRequested { get; set; }
 
     private string AriaExpanded => IsCollapsed ? "false" : "true";
     private string? CollapsedClass => IsCollapsed ? "collapsed" : null;
