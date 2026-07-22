@@ -22,6 +22,8 @@ link to ADR entries when a change depends on a recorded decision.
 - Added consistent resource-class color accents to shared resource icons so
   workloads, services, infrastructure, and configuration resources are easier
   to distinguish across inventory, detail, health, and graph views.
+- Unified log, trace, and metric explorer headers into compact toolbar surfaces
+  so source context and filtering controls occupy the same visual plane.
 
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
