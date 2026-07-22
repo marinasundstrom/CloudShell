@@ -14,7 +14,7 @@
             type="button" aria-pressed="@isSelectedEntry" @onclick="() => SelectEntry(entry)">
             <span class="log-entry-line" aria-hidden="true">@(entryIndex + 1)</span>
             <time>@entry.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
-            <span class="log-entry-source" title="@entry.Source">@entry.Source</span>
+            <span class="log-entry-source @GetSourceClass(entry.Source)" title="@entry.Source">@entry.Source</span>
             <span class="log-entry-severity @GetSeverityClass(entry.Severity)">@entry.Severity</span>
             <div class="log-entry-body">
                 <pre>@entry.Message</pre>
@@ -117,6 +117,22 @@
             "debug" or "trace" => "verbose",
             _ => "information"
         };
+
+    private static string GetSourceClass(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return "source-0";
+        }
+
+        var hash = 17;
+        foreach (var character in source)
+        {
+            hash = unchecked(hash * 31 + character);
+        }
+
+        return $"source-{(hash & int.MaxValue) % 6}";
+    }
 
     private string GetStructuredSummary(LogEntry entry)
     {

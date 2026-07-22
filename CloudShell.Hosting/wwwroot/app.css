@@ -3821,6 +3821,31 @@ h3 {
     font-weight: 650;
 }
 
+.log-entry-source.source-1 {
+    background: #3b2b54;
+    color: #ede9fe;
+}
+
+.log-entry-source.source-2 {
+    background: #164e63;
+    color: #cffafe;
+}
+
+.log-entry-source.source-3 {
+    background: #3f3a16;
+    color: #fef9c3;
+}
+
+.log-entry-source.source-4 {
+    background: #4c1d35;
+    color: #fce7f3;
+}
+
+.log-entry-source.source-5 {
+    background: #1f4937;
+    color: #d1fae5;
+}
+
 .log-entry-severity {
     padding: 0 .35rem;
     border-radius: 3px;

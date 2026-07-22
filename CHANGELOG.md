@@ -29,6 +29,8 @@ link to ADR entries when a change depends on a recorded decision.
 - Added a shared Table/Graph view switch to Resource Manager so inventory and
   dependency graph pages present themselves as two views of the same resource
   scope.
+- Added deterministic per-source colors to log badges so merged resource
+  streams remain visually distinguishable across refreshes.
 
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
