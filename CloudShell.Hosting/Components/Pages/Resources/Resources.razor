@@ -38,11 +38,8 @@
              Title="@L["Resources"].Value"
              Description="@L["Explore registered resources, project groups, endpoints, dependencies, and nested sub-resources."].Value">
     <Actions>
-        <FluentAnchor Appearance="Appearance.Neutral"
-                      IconStart="@(new Icons.Regular.Size20.ShareAndroid())"
-                      Href="@GetResourceGraphRoute()">
-            @L["Graph"]
-        </FluentAnchor>
+        <ResourceInventoryViewSwitch TableHref="@GetResourcesRoute()"
+                                     GraphHref="@GetResourceGraphRoute()" />
         <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
                       OnClick="RefreshResourcesAsync">
             @(IsCheckingHealth ? L["Checking..."] : L["Refresh"])
@@ -1280,6 +1277,11 @@ resourceGroups) =>
         ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
             ResourceManagerShellIds.ResourceGraphPage,
             ResourceManagerRoutes.ResourceGraph);
+
+    private string GetResourcesRoute() =>
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourcesPage,
+            ResourceManagerRoutes.Resources);
 
     private string GetCreateResourceGroupRoute() =>
         ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,

@@ -1,0 +1,35 @@
+@inject IStringLocalizer<SharedResource> L
+
+<nav class="resource-inventory-view-switch" aria-label="@L["Resource inventory view"]">
+    <FluentAnchor Appearance="Appearance.Neutral"
+                  Class="@GetViewClass(graphView: false)"
+                  IconStart="@(new Icons.Regular.Size20.Table())"
+                  Href="@TableHref"
+                  aria-current="@GetAriaCurrent(graphView: false)">
+        @L["Table"]
+    </FluentAnchor>
+    <FluentAnchor Appearance="Appearance.Neutral"
+                  Class="@GetViewClass(graphView: true)"
+                  IconStart="@(new Icons.Regular.Size20.ShareAndroid())"
+                  Href="@GraphHref"
+                  aria-current="@GetAriaCurrent(graphView: true)">
+        @L["Graph"]
+    </FluentAnchor>
+</nav>
+
+@code {
+    [Parameter, EditorRequired]
+    public string TableHref { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string GraphHref { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool GraphSelected { get; set; }
+
+    private string GetViewClass(bool graphView) =>
+        GraphSelected == graphView ? "resource-inventory-view active" : "resource-inventory-view";
+
+    private string? GetAriaCurrent(bool graphView) =>
+        GraphSelected == graphView ? "page" : null;
+}

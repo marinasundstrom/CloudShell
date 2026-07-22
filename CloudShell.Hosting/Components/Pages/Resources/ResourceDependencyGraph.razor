@@ -15,11 +15,9 @@
              Title="@L["Resource graph"].Value"
              Description="@L["Visualize registered resources and their dependency relationships."].Value">
     <Actions>
-        <FluentAnchor Appearance="Appearance.Neutral"
-                      IconStart="@(new Icons.Regular.Size20.Table())"
-                      Href="@GetResourcesRoute()">
-            @L["Table"]
-        </FluentAnchor>
+        <ResourceInventoryViewSwitch TableHref="@GetResourcesRoute()"
+                                     GraphHref="@GetResourceGraphRoute()"
+                                     GraphSelected="true" />
         <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
                       OnClick="RefreshAsync">
             @L["Refresh"]
@@ -202,6 +200,11 @@
         ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
             ResourceManagerShellIds.ResourcesPage,
             ResourceManagerRoutes.Resources);
+
+    private string GetResourceGraphRoute() =>
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourceGraphPage,
+            ResourceManagerRoutes.ResourceGraph);
 
     private string GetResourceTypeDisplayName(Resource resource) =>
         ShellCatalog.ResourceTypes.FirstOrDefault(type =>

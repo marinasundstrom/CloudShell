@@ -348,6 +348,32 @@ h3 {
     grid-template-columns: minmax(0, 1fr);
 }
 
+.resource-inventory-view-switch {
+    display: inline-flex;
+    align-items: stretch;
+}
+
+.resource-inventory-view-switch fluent-anchor::part(control) {
+    border-radius: 0;
+}
+
+.resource-inventory-view-switch fluent-anchor:first-child::part(control) {
+    border-radius: 4px 0 0 4px;
+}
+
+.resource-inventory-view-switch fluent-anchor:last-child::part(control) {
+    margin-left: -1px;
+    border-radius: 0 4px 4px 0;
+}
+
+.resource-inventory-view-switch .active::part(control) {
+    position: relative;
+    z-index: 1;
+    border-color: var(--cloudshell-accent);
+    background: var(--cloudshell-selected);
+    color: var(--cloudshell-accent-foreground);
+}
+
 .scope-heading {
     display: flex;
     align-items: baseline;
