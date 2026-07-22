@@ -201,7 +201,8 @@
                 var group = GetGroup(resource);
                 <div class="resource-tree-row @(selected?.Id == resource.Id ? "selected" : null)" role="row"
                      @onclick="() => OpenResource(resource)">
-                    <div class="resource-name-cell" style="--resource-depth: @row.Depth">
+                    <div class="resource-name-cell" role="gridcell" aria-label="@L["Resource"]"
+                         style="--resource-depth: @row.Depth">
                         @if (row.ChildCount > 0)
                         {
                             <button class="tree-toggle" title="@L["Toggle sub-resources"]"
@@ -232,17 +233,17 @@
                             }
                         </div>
                     </div>
-                    <span>@GetResourceTypeDisplayName(resource)</span>
-                    <span>@(group?.Name ?? L["Default group"])</span>
-                    <span>
+                    <span role="gridcell" data-label="@L["Type"]">@GetResourceTypeDisplayName(resource)</span>
+                    <span role="gridcell" data-label="@L["Group"]">@(group?.Name ?? L["Default group"])</span>
+                    <span role="gridcell" data-label="@L["State"]">
                         @if (ResourceLifecycleDisplay.ShouldShowStatus(resource))
                         {
                             <ResourceStateIndicator State="resource.State" ProgressLabel="@GetLifecycleProgressLabel(resource)"
                                                     Variant="pill" />
                         }
                     </span>
-                    <span>@HealthIndicator(resource)</span>
-                    <span class="endpoint">
+                    <span role="gridcell" data-label="@L["Health"]">@HealthIndicator(resource)</span>
+                    <span class="endpoint" role="gridcell" data-label="@L["Endpoint"]">
                         @{
                             var preferredEndpoint = GetPreferredEndpointDisplay(resource);
                         }
@@ -256,7 +257,8 @@
                             <small>@preferredEndpoint.Source</small>
                         }
                     </span>
-                    <span class="resource-row-actions" @onclick:stopPropagation="true">
+                    <span class="resource-row-actions" role="gridcell" data-label="@L["Actions"]"
+                          @onclick:stopPropagation="true">
                         @ResourceActionControls(resource, includeDetailsAction: true)
                     </span>
                 </div>
