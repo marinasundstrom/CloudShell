@@ -921,12 +921,32 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (EnvironmentMapModule is not null)
+        var module = EnvironmentMapModule;
+        EnvironmentMapModule = null;
+
+        if (module is not null)
         {
-            await EnvironmentMapModule.InvokeVoidAsync("disposeEnvironmentStateMap");
-            await EnvironmentMapModule.DisposeAsync();
+            try
+            {
+                await module.InvokeVoidAsync("disposeEnvironmentStateMap");
+            }
+            catch (Exception exception) when (IsRecoverableJsInteropException(exception))
+            {
+            }
+
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (Exception exception) when (IsRecoverableJsInteropException(exception))
+            {
+            }
         }
 
         EnvironmentMapReference?.Dispose();
+        EnvironmentMapReference = null;
     }
+
+    private static bool IsRecoverableJsInteropException(Exception exception) =>
+        exception is JSException or JSDisconnectedException or ObjectDisposedException;
 }

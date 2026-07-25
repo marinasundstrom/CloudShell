@@ -10,6 +10,14 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-07-25
+
+#### Fixed
+
+- Fixed Resource Graph and Environment Map teardown so circuit disconnects
+  during navigation or host shutdown do not surface expected JavaScript
+  disconnection or disposed-object exceptions.
+
 ### 2026-07-22
 
 #### Changed

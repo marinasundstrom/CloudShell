@@ -229,12 +229,32 @@
     {
         ResourceManager.ResourcesChanged -= OnResourcesChanged;
 
-        if (Module is not null)
+        var module = Module;
+        Module = null;
+
+        if (module is not null)
         {
-            await Module.InvokeVoidAsync("disposeResourceDependencyGraph");
-            await Module.DisposeAsync();
+            try
+            {
+                await module.InvokeVoidAsync("disposeResourceDependencyGraph");
+            }
+            catch (Exception exception) when (IsRecoverableJsInteropException(exception))
+            {
+            }
+
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (Exception exception) when (IsRecoverableJsInteropException(exception))
+            {
+            }
         }
 
         DotNetReference?.Dispose();
+        DotNetReference = null;
     }
+
+    private static bool IsRecoverableJsInteropException(Exception exception) =>
+        exception is JSException or JSDisconnectedException or ObjectDisposedException;
 }
