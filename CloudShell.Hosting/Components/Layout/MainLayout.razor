@@ -7,7 +7,7 @@
 @implements IDisposable
 
 <div class="shell @CollapsedClass" @onkeydown="HandleShellKeyDownAsync">
-    <aside class="shell-sidebar">
+    <aside class="shell-sidebar" aria-label="@L["Primary navigation"]">
         <NavMenu IsCollapsed="IsNavCollapsed"
                  IsCollapsedChanged="SetCollapsedStateAsync"
                  NavigationRequested="CollapseNavigationForCompactViewportAsync" />

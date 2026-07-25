@@ -1,9 +1,15 @@
 (function () {
     var navCollapsedStorageKey = "cloudshell.navigation.collapsed";
     var themeStorageKey = "cloudshell.theme";
+    var compactViewportQuery = window.matchMedia &&
+        window.matchMedia("(max-width: 56.25rem)");
 
     setNavCollapsed(isCompactViewport() || readStoredNavCollapsed() === true);
     initializeAccountSelectors();
+
+    if (compactViewportQuery) {
+        compactViewportQuery.addEventListener("change", syncDrawerAccessibility);
+    }
 
     window.cloudShellNav = {
         setCollapsed: function (collapsed, persist) {
@@ -206,13 +212,90 @@
     }
 
     function isCompactViewport() {
-        return window.matchMedia && window.matchMedia("(max-width: 56.25rem)").matches;
+        return compactViewportQuery && compactViewportQuery.matches;
     }
 
     function setNavCollapsed(collapsed) {
         document.querySelectorAll(".shell").forEach(function (shell) {
             shell.classList.toggle("nav-collapsed", collapsed);
         });
+
+        syncDrawerAccessibility();
+    }
+
+    function syncDrawerAccessibility() {
+        document.querySelectorAll(".shell").forEach(function (shell) {
+            var sidebar = shell.querySelector(".shell-sidebar");
+            var main = shell.querySelector(".shell-main");
+            var isOpenDrawer = isCompactViewport() &&
+                !shell.classList.contains("nav-collapsed");
+
+            if (sidebar) {
+                if (isOpenDrawer) {
+                    sidebar.setAttribute("role", "dialog");
+                    sidebar.setAttribute("aria-modal", "true");
+                } else {
+                    sidebar.removeAttribute("role");
+                    sidebar.removeAttribute("aria-modal");
+                }
+            }
+
+            if (main) {
+                main.inert = isOpenDrawer;
+            }
+        });
+    }
+
+    function getOpenDrawer() {
+        if (!isCompactViewport()) {
+            return null;
+        }
+
+        return document.querySelector(".shell:not(.nav-collapsed) .shell-sidebar");
+    }
+
+    function getDrawerFocusableElements(drawer) {
+        return Array.from(drawer.querySelectorAll(
+            "a[href], button:not([disabled]), input:not([disabled]), " +
+            "select:not([disabled]), textarea:not([disabled]), " +
+            "[tabindex]:not([tabindex='-1']), fluent-anchor, fluent-button, fluent-nav-item"))
+            .filter(function (element) {
+                return !element.hasAttribute("disabled") &&
+                    element.getAttribute("aria-hidden") !== "true" &&
+                    element.getClientRects().length > 0;
+            });
+    }
+
+    function trapDrawerFocus(event) {
+        if (event.key !== "Tab") {
+            return;
+        }
+
+        var drawer = getOpenDrawer();
+        if (!drawer) {
+            return;
+        }
+
+        var focusableElements = getDrawerFocusableElements(drawer);
+        if (focusableElements.length === 0) {
+            event.preventDefault();
+            return;
+        }
+
+        var first = focusableElements[0];
+        var last = focusableElements[focusableElements.length - 1];
+        var activeElement = document.activeElement;
+
+        if (!drawer.contains(activeElement)) {
+            event.preventDefault();
+            first.focus();
+        } else if (event.shiftKey && activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
     }
 
     window.cloudShellForms = {
@@ -233,6 +316,8 @@
     }, true);
 
     document.addEventListener("keydown", function (event) {
+        trapDrawerFocus(event);
+
         if (event.key === "Escape") {
             closeOpenFluentMenus(null);
         }

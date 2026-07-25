@@ -26,6 +26,9 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Fixed
 
+- Contained keyboard focus within the open compact navigation drawer, exposed
+  modal navigation semantics, and made background shell content inert until
+  the drawer closes.
 - Fixed compact navigation keyboard behavior so Escape dismisses an open
   drawer and returns focus to its menu toggle.
 - Fixed Resource Graph and Environment Map teardown so circuit disconnects
