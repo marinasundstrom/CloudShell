@@ -737,6 +737,7 @@
             builder.AddAttribute(sequence++, "Class", "action-icon-button");
             builder.AddAttribute(sequence++, "Appearance", Appearance.Neutral);
             builder.AddAttribute(sequence++, "Title", actionState.Title);
+            builder.AddAttribute(sequence++, "aria-label", actionState.Label);
             builder.AddAttribute(sequence++, "Disabled", !actionState.IsEnabled);
             builder.AddAttribute(sequence++, "OnClick",
                 EventCallback.Factory.Create<MouseEventArgs>(this, () => ExecuteAction(action)));
@@ -759,6 +760,10 @@
             builder.AddAttribute(sequence++, "ButtonContent", (RenderFragment)(buttonBuilder =>
             {
                 AddIcon(buttonBuilder, new Icons.Regular.Size20.MoreVertical());
+                buttonBuilder.OpenElement(10, "span");
+                buttonBuilder.AddAttribute(11, "class", "visually-hidden");
+                buttonBuilder.AddContent(12, L["More actions for {0}", GetResourceLabel(resource)]);
+                buttonBuilder.CloseElement();
             }));
             builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(menuBuilder =>
             {

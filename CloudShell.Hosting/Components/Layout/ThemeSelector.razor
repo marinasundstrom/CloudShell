@@ -11,6 +11,7 @@
                       aria-label="@L["Theme"]">
         <ButtonContent>
             <FluentIcon Value="@GetThemeIcon(Mode)" Color="Color.Neutral" />
+            <span class="visually-hidden">@L["Theme"]</span>
         </ButtonContent>
         <ChildContent>
             @foreach (var mode in ThemeModes)
