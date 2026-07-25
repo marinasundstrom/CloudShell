@@ -905,6 +905,36 @@ h3 {
         padding-inline: .5rem;
     }
 
+    .resource-detail-actions fluent-button,
+    .resource-detail-actions fluent-menu-button,
+    .resource-row-actions fluent-button,
+    .resource-row-actions fluent-menu-button,
+    .blade-actions fluent-button,
+    .blade-dismiss,
+    .resource-detail-actions fluent-button::part(control),
+    .resource-detail-actions fluent-menu-button::part(control),
+    .resource-row-actions fluent-button::part(control),
+    .resource-row-actions fluent-menu-button::part(control),
+    .blade-actions fluent-button::part(control),
+    .blade-dismiss::part(control) {
+        min-height: 3rem;
+    }
+
+    .resource-detail-actions .action-icon-button,
+    .resource-detail-actions .action-overflow-button,
+    .resource-row-actions .action-icon-button,
+    .resource-row-actions .action-overflow-button {
+        width: 3rem !important;
+        min-width: 3rem !important;
+        min-height: 3rem;
+    }
+
+    .resource-detail-actions,
+    .resource-row-actions,
+    .blade-actions {
+        row-gap: .5rem;
+    }
+
     .container-app-scale-form {
         grid-template-columns: 1fr;
     }

@@ -17,6 +17,9 @@ link to ADR entries when a change depends on a recorded decision.
 - Replaced the tall grouped resource-detail tab list with a compact grouped
   section selector on narrow layouts, keeping the selected view visible while
   avoiding nearly a full viewport of navigation before page content.
+- Enlarged compact resource lifecycle, overflow, detail, and blade controls to
+  consistent touch targets while retaining explicit labels for destructive and
+  contextual commands.
 
 #### Fixed
 
