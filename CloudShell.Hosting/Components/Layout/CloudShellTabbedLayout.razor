@@ -6,6 +6,24 @@
 
         @if (OrderedItems.Count > 0)
         {
+            <label class="cloudshell-tabbed-select">
+                <span class="visually-hidden">@AriaLabel</span>
+                <select aria-label="@AriaLabel"
+                        value="@SelectedItem?.Id"
+                        @onchange="SelectCompactItemAsync">
+                    @foreach (var group in OrderedItems.GroupBy(GetGroupKey))
+                    {
+                        var firstItem = group.First();
+                        <optgroup label="@GetGroupTitle(firstItem)">
+                            @foreach (var item in group)
+                            {
+                                <option value="@item.Id">@item.Title</option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+            </label>
+
             <div class="cloudshell-tabbed-list" role="tablist" aria-label="@AriaLabel">
                 @foreach (var group in OrderedItems.GroupBy(GetGroupKey))
                 {
@@ -134,6 +152,17 @@
         if (SelectedItemChanged.HasDelegate)
         {
             await SelectedItemChanged.InvokeAsync(item);
+        }
+    }
+
+    private async Task SelectCompactItemAsync(ChangeEventArgs args)
+    {
+        var selectedId = args.Value?.ToString();
+        var item = OrderedItems.FirstOrDefault(item =>
+            string.Equals(item.Id, selectedId, StringComparison.OrdinalIgnoreCase));
+        if (item is not null)
+        {
+            await SelectItemAsync(item);
         }
     }
 

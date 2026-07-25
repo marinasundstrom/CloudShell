@@ -12,6 +12,12 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-07-25
 
+#### Changed
+
+- Replaced the tall grouped resource-detail tab list with a compact grouped
+  section selector on narrow layouts, keeping the selected view visible while
+  avoiding nearly a full viewport of navigation before page content.
+
 #### Fixed
 
 - Fixed Resource Graph and Environment Map teardown so circuit disconnects

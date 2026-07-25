@@ -993,6 +993,10 @@ h3 {
     border-top: 1px solid var(--cloudshell-divider);
 }
 
+.cloudshell-tabbed-select {
+    display: none;
+}
+
 .cloudshell-tabbed-summary>.resource-status-summary,
 .registration-options>.resource-status-summary {
     margin-bottom: 0;
@@ -5599,6 +5603,28 @@ h3 {
     .registration-layout,
     .template-layout {
         grid-template-columns: 1fr;
+    }
+
+    .cloudshell-tabbed-select {
+        display: grid;
+        margin-top: .65rem;
+        padding-top: .65rem;
+        border-top: 1px solid var(--cloudshell-divider);
+    }
+
+    .cloudshell-tabbed-select select {
+        width: 100%;
+        min-height: 2.5rem;
+        padding: .45rem 2.25rem .45rem .65rem;
+        border: 1px solid var(--cloudshell-stroke);
+        border-radius: 4px;
+        background: var(--cloudshell-surface);
+        color: var(--cloudshell-text);
+        font: inherit;
+    }
+
+    .cloudshell-tabbed-list {
+        display: none;
     }
 
     .resource-list {
