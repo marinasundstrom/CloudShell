@@ -21,6 +21,12 @@
         },
         isCompactViewport: function () {
             return isCompactViewport();
+        },
+        focusToggle: function () {
+            var toggle = document.getElementById("navmenu-toggle");
+            if (toggle) {
+                toggle.focus();
+            }
         }
     };
 

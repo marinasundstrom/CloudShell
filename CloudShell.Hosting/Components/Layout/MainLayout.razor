@@ -6,7 +6,7 @@
 @using CoreShell.Blazor
 @implements IDisposable
 
-<div class="shell @CollapsedClass">
+<div class="shell @CollapsedClass" @onkeydown="HandleShellKeyDownAsync">
     <aside class="shell-sidebar">
         <NavMenu IsCollapsed="IsNavCollapsed"
                  IsCollapsedChanged="SetCollapsedStateAsync"
@@ -100,6 +100,19 @@
         {
             await SetCollapsedStateAsync(true);
         }
+    }
+
+    private async Task HandleShellKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key != "Escape" ||
+            IsNavCollapsed ||
+            !await JSRuntime.InvokeAsync<bool>("cloudShellNav.isCompactViewport"))
+        {
+            return;
+        }
+
+        await SetCollapsedStateAsync(true);
+        await JSRuntime.InvokeVoidAsync("cloudShellNav.focusToggle");
     }
 
     private async Task<bool> LoadCollapsedStateAsync()

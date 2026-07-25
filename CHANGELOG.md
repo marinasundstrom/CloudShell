@@ -23,6 +23,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Fixed
 
+- Fixed compact navigation keyboard behavior so Escape dismisses an open
+  drawer and returns focus to its menu toggle.
 - Fixed Resource Graph and Environment Map teardown so circuit disconnects
   during navigation or host shutdown do not surface expected JavaScript
   disconnection or disposed-object exceptions.
