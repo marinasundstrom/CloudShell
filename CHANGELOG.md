@@ -16,6 +16,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 - Added a keyboard-accessible skip link and focusable main landmark so users
   can bypass repeated shell navigation.
+- Added a shared high-visibility focus indicator for keyboard-focused native,
+  Fluent, and custom interactive controls.
 - Replaced the tall grouped resource-detail tab list with a compact grouped
   section selector on narrow layouts, keeping the selected view visible while
   avoiding nearly a full viewport of navigation before page content.

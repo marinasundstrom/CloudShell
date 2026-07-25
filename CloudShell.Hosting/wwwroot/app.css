@@ -27,6 +27,7 @@ body {
     --cloudshell-accent: var(--accent-fill-rest, #0f6cbd);
     --cloudshell-accent-foreground: var(--accent-foreground-rest, #0f6cbd);
     --cloudshell-on-accent: var(--foreground-on-accent-rest, #ffffff);
+    --cloudshell-focus-ring: var(--focus-stroke-outer, #0f6cbd);
     --cloudshell-success-fill: color-mix(in srgb, #107c10 12%, var(--cloudshell-surface));
     --cloudshell-success-text: #0e700e;
     --cloudshell-info-fill: color-mix(in srgb, #0f6cbd 10%, var(--cloudshell-surface));
@@ -52,6 +53,23 @@ input,
 select,
 textarea {
     font: inherit;
+}
+
+:where(
+    a[href],
+    button,
+    input,
+    select,
+    textarea,
+    [role="button"],
+    [role="link"],
+    [tabindex]:not([tabindex="-1"]),
+    fluent-anchor,
+    fluent-button,
+    fluent-menu-button,
+    fluent-select):focus-visible {
+    outline: 3px solid var(--cloudshell-focus-ring);
+    outline-offset: 2px;
 }
 
 h1,
