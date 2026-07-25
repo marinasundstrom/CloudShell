@@ -24,6 +24,9 @@ link to ADR entries when a change depends on a recorded decision.
   resource overflow controls, including resource context for action menus.
 - Added notification-popover expanded state, dialog labeling, initial keyboard
   focus, Escape dismissal, and focus return to its trigger.
+- Added fast accessibility contract tests for shell landmarks, compact-drawer
+  focus containment, focus indicators, reduced motion, notification semantics,
+  and icon-only action names.
 - Replaced the tall grouped resource-detail tab list with a compact grouped
   section selector on narrow layouts, keeping the selected view visible while
   avoiding nearly a full viewport of navigation before page content.
