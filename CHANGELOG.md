@@ -22,6 +22,8 @@ link to ADR entries when a change depends on a recorded decision.
   repeated animation, and smooth scrolling throughout the shell.
 - Added explicit accessible names to icon-only theme, lifecycle, log, and
   resource overflow controls, including resource context for action menus.
+- Added notification-popover expanded state, dialog labeling, initial keyboard
+  focus, Escape dismissal, and focus return to its trigger.
 - Replaced the tall grouped resource-detail tab list with a compact grouped
   section selector on narrow layouts, keeping the selected view visible while
   avoiding nearly a full viewport of navigation before page content.

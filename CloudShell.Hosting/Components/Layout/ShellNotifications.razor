@@ -2,15 +2,20 @@
 @inject ICoreShellNotificationService Notifications
 @inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @inject IStringLocalizer<SharedResource> L
 
 <div class="shell-notifications">
-    <FluentButton Appearance="Appearance.Stealth"
+    <FluentButton Id="shell-notifications-trigger"
+                  Appearance="Appearance.Stealth"
                   Class="shell-notifications-trigger"
                   IconStart="@(new Icons.Regular.Size20.Alert())"
                   OnClick="TogglePanelAsync"
                   title="@L["Notifications"]"
-                  aria-label="@L["Notifications"]">
+                  aria-label="@L["Notifications"]"
+                  aria-haspopup="dialog"
+                  aria-controls="shell-notifications-panel"
+                  aria-expanded="@IsPanelOpen.ToString().ToLowerInvariant()">
         @if (UnreadCount > 0)
         {
             <span class="shell-notifications-count">@UnreadCount</span>
@@ -19,12 +24,18 @@
 
     @if (IsPanelOpen)
     {
-        <section class="shell-notifications-panel" aria-label="@L["Notifications"]">
+        <section id="shell-notifications-panel"
+                 class="shell-notifications-panel"
+                 role="dialog"
+                 aria-labelledby="shell-notifications-title"
+                 @onkeydown="HandlePanelKeyDownAsync">
             <div class="shell-notifications-panel-header">
-                <strong>@L["Notifications"]</strong>
-                <FluentButton Appearance="Appearance.Stealth"
+                <strong id="shell-notifications-title">@L["Notifications"]</strong>
+                <FluentButton Id="shell-notifications-close"
+                              Appearance="Appearance.Stealth"
                               IconStart="@(new Icons.Regular.Size16.Dismiss())"
-                              OnClick="ClosePanel">
+                              OnClick="ClosePanelAsync"
+                              aria-label="@L["Close notifications"]">
                     @L["Close"]
                 </FluentButton>
             </div>
@@ -169,6 +180,10 @@
 
     private bool IsPanelOpen { get; set; }
 
+    private bool FocusPanelOnRender { get; set; }
+
+    private bool ReturnFocusOnRender { get; set; }
+
     private int UnreadCount => Items.Count(NeedsUserAttention);
 
     private IReadOnlyList<CoreShellNotificationInstance> ToastItems =>
@@ -191,6 +206,20 @@
         RefreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         _ = RunRefreshTimerAsync(RefreshTimer, RefreshTimerCancellation.Token);
         await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (FocusPanelOnRender)
+        {
+            FocusPanelOnRender = false;
+            await JSRuntime.InvokeVoidAsync("cloudShellFocus.focusById", "shell-notifications-close");
+        }
+        else if (ReturnFocusOnRender)
+        {
+            ReturnFocusOnRender = false;
+            await JSRuntime.InvokeVoidAsync("cloudShellFocus.focusById", "shell-notifications-trigger");
+        }
     }
 
     public void Dispose()
@@ -234,11 +263,26 @@
     private async Task TogglePanelAsync()
     {
         IsPanelOpen = !IsPanelOpen;
+        FocusPanelOnRender = IsPanelOpen;
+        ReturnFocusOnRender = !IsPanelOpen;
         await LoadAsync();
     }
 
-    private void ClosePanel() =>
+    private Task ClosePanelAsync()
+    {
         IsPanelOpen = false;
+        FocusPanelOnRender = false;
+        ReturnFocusOnRender = true;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandlePanelKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            await ClosePanelAsync();
+        }
+    }
 
     private async Task DismissAsync(string id)
     {

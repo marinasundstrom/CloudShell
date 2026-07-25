@@ -63,6 +63,15 @@
         }
     };
 
+    window.cloudShellFocus = {
+        focusById: function (id) {
+            var element = document.getElementById(id);
+            if (element) {
+                element.focus();
+            }
+        }
+    };
+
     function normalizeThemeMode(mode) {
         if (typeof mode !== "string") {
             return null;
