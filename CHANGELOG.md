@@ -18,6 +18,8 @@ link to ADR entries when a change depends on a recorded decision.
   can bypass repeated shell navigation.
 - Added a shared high-visibility focus indicator for keyboard-focused native,
   Fluent, and custom interactive controls.
+- Honored reduced-motion preferences by suppressing decorative transitions,
+  repeated animation, and smooth scrolling throughout the shell.
 - Replaced the tall grouped resource-detail tab list with a compact grouped
   section selector on narrow layouts, keeping the selected view visible while
   avoiding nearly a full viewport of navigation before page content.
