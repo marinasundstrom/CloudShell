@@ -20,6 +20,9 @@ link to ADR entries when a change depends on a recorded decision.
 - Enlarged compact resource lifecycle, overflow, detail, and blade controls to
   consistent touch targets while retaining explicit labels for destructive and
   contextual commands.
+- Enlarged compact shell navigation, language, theme, notification, and
+  settings controls to consistent touch targets while preserving desktop
+  toolbar density.
 
 #### Fixed
 
