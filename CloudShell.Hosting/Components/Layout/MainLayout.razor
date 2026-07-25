@@ -6,6 +6,8 @@
 @using CoreShell.Blazor
 @implements IDisposable
 
+<a class="skip-link" href="#main-content">@L["Skip to main content"]</a>
+
 <div class="shell @CollapsedClass" @onkeydown="HandleShellKeyDownAsync">
     <aside class="shell-sidebar" aria-label="@L["Primary navigation"]">
         <NavMenu IsCollapsed="IsNavCollapsed"
@@ -16,7 +18,7 @@
     <button type="button" class="nav-backdrop" aria-label="@L["Close navigation"]"
             @onclick="() => SetCollapsedStateAsync(true)"></button>
 
-    <main class="shell-main">
+    <main id="main-content" class="shell-main" tabindex="-1">
         <ShellTopbar />
 
         <article class="shell-content">
