@@ -1,6 +1,9 @@
 # IoT Device Provisioning Future Direction
 
-Status: Deferred strategic direction, not an active proposal.
+Status: Partially realized strategic direction. The existing Device Registry
+implements the first enrollment, identity, presence, and twin slices. Active
+operator-initiated registration design is tracked in the
+[Device registration and management proposal](../proposals/iot/device-registration-and-management.md).
 
 CloudShell should eventually have an IoT story that fits the same resource,
 identity, access, networking, and observability model used by applications and
@@ -12,6 +15,12 @@ through provider-neutral CloudShell concepts.
 This direction is post-MVP and likely post-initial-on-premise. It should not
 displace the local-development MVP, Application Topology confidence, Resource
 Manager stabilization work, or the first on-premise control-plane proof.
+
+The active proposal is intentionally narrower than this future direction. It
+adds one common registry-owned device record across operator registration,
+device enrollment, discovery, import, gateway, and provisioning-station
+sources. Firmware and operating-system updates, application deployment,
+out-of-band flashing, recovery, and broad fleet management remain future work.
 
 ## Problem
 

@@ -160,6 +160,14 @@ This is not an active milestone. It remains a strategic direction until the
 local-development MVP and the first on-premise control-plane scenario are
 credible.
 
+A scoped active proposal now covers the next Device Registry increment:
+[Device registration and management](proposals/iot/device-registration-and-management.md).
+It adds operator-initiated registration and reconciles later enrollment,
+discovery, import, gateway, or provisioning-station facts into the same
+registry-owned device record. Firmware and operating-system updates,
+application deployment, device flashing, recovery, and broader fleet
+management remain outside the active milestone.
+
 Goal: let devices and edge workloads securely join a CloudShell environment,
 appear in the resource graph, use existing CloudShell-managed services, and be
 developed and diagnosed through Resource Manager without requiring CloudShell
@@ -185,8 +193,10 @@ Required outcome:
 | Resource Manager visibility | Device resources show health, activity, telemetry, relationships, and provider-owned non-secret attributes. |
 | Provider boundary | Certificate validation, hardware-root checks, enrollment groups, and provider-specific device state remain provider-owned. |
 
-This is tracked by the
-[IoT device provisioning future direction](future/iot-device-provisioning.md).
+The broader direction is tracked by the
+[IoT device provisioning future direction](future/iot-device-provisioning.md);
+the actionable registration increment is tracked by the
+[Device registration and management proposal](proposals/iot/device-registration-and-management.md).
 
 ### Post-MVP: Extensible Shell Composition
 

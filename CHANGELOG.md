@@ -10,6 +10,16 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-07-27
+
+#### Changed
+
+- Added a Device Registry proposal for operator-initiated device registration,
+  shared reconciliation across enrollment and future registration providers,
+  stable external identifier bindings, independent registration, assurance,
+  administrative, and presence state, and deferred provider-backed device
+  update, deployment, flashing, and recovery capabilities.
+
 ### 2026-07-25
 
 #### Changed

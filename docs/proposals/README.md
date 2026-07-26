@@ -80,6 +80,7 @@ keep only the delta that affects remaining work.
 | 23 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Prioritize the installed CLI plus default local-development host daemon path, then keep launcher/profile, TypeScript/JavaScript, Java, and SDK hardening aligned with that boundary. |
 | 24 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
 | 25 | [Intent-first resource authoring](core/intent-first-resource-authoring.md) | Proposed | Medium-high; broadens authoring without making CloudShell code-centric. | Defer until ResourceDefinition apply, provider diagnostics, and Resource Manager review/apply surfaces are stable; then start with draft-template review rather than autonomous apply. |
+| 26 | [Device registration and management](iot/device-registration-and-management.md) | Proposed | Medium-high; extends the existing Device Registry through one provider-neutral inventory and onboarding model. | Start with operator-initiated registration, stable external identifier bindings, and later enrollment reconciliation into the same device record. Keep update, deployment, and flashing execution deferred. |
 
 ## Deferred Strategy Notes
 
@@ -94,7 +95,7 @@ incremental implementation slice with near-term value.
 | [Resource graph import and code generation](../future/resource-graph-import-and-code-generation.md) | High adoption fit for Docker Compose and existing local app topologies. | Defer implementation; revisit after container apps, volumes, networking, and import/read-only UX are stable. |
 | [Shell composition](../future/shell-composition.md) | High strategic fit for the post-MVP extensible shell platform. | Use [CoreShell platform boundary](core/coreshell-platform.md) for active extraction slices; keep this future note for deferred persistence, marketplace, and user-personalization ideas. |
 | [Resource Manager project structure](../future/resource-manager-project-structure.md) | Medium-high structural fit once Resource Manager UI and CoreShell boundaries are proven. | Defer physical project/assembly restructuring until current UI and shell composition paths are stable. |
-| [IoT device provisioning](../future/iot-device-provisioning.md) | Plausible later fit for edge/device environments. | No action now; revisit after local and initial on-premise control-plane flows are credible. |
+| [Broader IoT device provisioning and management](../future/iot-device-provisioning.md) | Plausible later fit for edge/device environments. | Use the active [device registration and management proposal](iot/device-registration-and-management.md) for the scoped registration increment. Keep firmware/OS updates, application deployment, flashing, and broader fleet management deferred. |
 
 ## Feature Doc Migration Queue
 
