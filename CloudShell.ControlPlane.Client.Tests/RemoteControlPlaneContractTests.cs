@@ -707,36 +707,37 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
-    public async Task RemoteControlPlane_ReadsProviderProjectedLogSource()
+    public async Task RemoteControlPlane_ReadsProviderProjectedLogSourceThroughSession()
     {
         await using var app = await CreateAppAsync(includeProviderLogSource: true);
         var controlPlane = CreateClient(app);
 
         var source = await controlPlane.GetLogSourceAsync(ProviderDiagnosticsLogSourceId);
         var sources = await controlPlane.ListLogSourcesAsync(new LogQuery(SourceKind: LogSourceKind.Provider));
-        var entries = await controlPlane.ReadLogSourceAsync(ProviderDiagnosticsLogSourceId);
+        await using var session = await controlPlane.OpenLogSessionAsync(
+            new LogSessionOptions([ProviderDiagnosticsLogSourceId]));
+        Assert.NotNull(session);
+        var entries = await session.ReadAsync();
         var streamedEntries = new List<LogEntry>();
-        await foreach (var entry in controlPlane.StreamLogSourceAsync(
-            ProviderDiagnosticsLogSourceId,
-            new StreamLogOptions(InitialEntries: 1)))
+        await foreach (var entry in session.StreamAsync(1))
         {
-            streamedEntries.Add(entry);
+            streamedEntries.Add(entry.Entry);
         }
         using var httpClient = app.GetTestClient();
         var response = await httpClient.GetAsync(
-            $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(ProviderDiagnosticsLogSourceId)}/entries");
+            $"/api/control-plane/v1/log-sessions/entries?sourceId={Uri.EscapeDataString(ProviderDiagnosticsLogSourceId)}");
 
         Assert.NotNull(source);
         Assert.Equal(ProviderDiagnosticsLogSourceId, source.Id);
         Assert.Equal(LogSourceKind.Provider, source.SourceKind);
         Assert.True(source.SupportsStreaming);
         Assert.Contains(sources, candidate => candidate.Id == ProviderDiagnosticsLogSourceId);
-        Assert.Equal(ProviderDiagnosticsMessage, Assert.Single(entries).Message);
+        Assert.Equal(ProviderDiagnosticsMessage, Assert.Single(entries).Entry.Message);
         Assert.Equal(ProviderDiagnosticsMessage, Assert.Single(streamedEntries).Message);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var rawEntries = await response.Content.ReadFromJsonAsync<IReadOnlyList<LogEntryResponse>>(SerializerOptions);
+        var rawEntries = await response.Content.ReadFromJsonAsync<IReadOnlyList<LogSessionEntryResponse>>(SerializerOptions);
         Assert.NotNull(rawEntries);
-        Assert.Equal(ProviderDiagnosticsMessage, Assert.Single(rawEntries).Message);
+        Assert.Equal(ProviderDiagnosticsMessage, Assert.Single(rawEntries).Entry.Message);
     }
 
     [Fact]
@@ -784,18 +785,15 @@ public sealed class RemoteControlPlaneContractTests
         using var httpClient = app.GetTestClient();
         var sourceResponse = await httpClient.GetAsync(
             $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(apiLogSourceId)}");
-        var entriesResponse = await httpClient.GetAsync(
-            $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(apiLogSourceId)}/entries");
-        var streamResponse = await httpClient.GetAsync(
-            $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(apiLogSourceId)}/stream");
+        await using var deniedSession = await controlPlane.OpenLogSessionAsync(
+            new LogSessionOptions([apiLogSourceId]));
 
         Assert.DoesNotContain(allSources, candidate => candidate.Id == apiLogSourceId);
         Assert.Empty(apiSources);
         Assert.Contains(providerSources, candidate => candidate.Id == ProviderDiagnosticsLogSourceId);
         Assert.Null(source);
         Assert.Equal(HttpStatusCode.NotFound, sourceResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, entriesResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, streamResponse.StatusCode);
+        Assert.Null(deniedSession);
     }
 
     [Fact]
@@ -813,7 +811,9 @@ public sealed class RemoteControlPlaneContractTests
         var eventLogs = await controlPlane.ListLogSourcesAsync(
             new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
         var eventLog = Assert.Single(eventLogs, log => log.Name == "Activity");
-        var events = await controlPlane.ReadLogSourceAsync(eventLog.Id);
+        await using var logSession = await controlPlane.OpenLogSessionAsync(new LogSessionOptions([eventLog.Id]));
+        Assert.NotNull(logSession);
+        var events = (await logSession.ReadAsync()).Select(entry => entry.Entry).ToArray();
         var resourceEvents = await controlPlane.ListResourceEventsAsync(
             new ResourceEventQuery(
                 ResourceId: ContractImageResourceProvider.ResourceId,
@@ -852,12 +852,14 @@ public sealed class RemoteControlPlaneContractTests
             entry.Message.Contains("user", StringComparison.Ordinal));
 
         var logResponse = await app.GetTestClient().GetAsync(
-            $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(eventLog.Id)}/entries");
+            $"/api/control-plane/v1/log-sessions/entries?sourceId={Uri.EscapeDataString(eventLog.Id)}");
         Assert.Equal(HttpStatusCode.OK, logResponse.StatusCode);
         using var logDocument = JsonDocument.Parse(await logResponse.Content.ReadAsStringAsync());
-        var logEntry = Assert.Single(
+        var logSessionEntry = Assert.Single(
             logDocument.RootElement.EnumerateArray(),
-            entry => entry.GetProperty("eventId").GetString() == ResourceEventTypes.Events.Deployment.ImageUpdated);
+            item => item.GetProperty("entry").GetProperty("eventId").GetString() ==
+                ResourceEventTypes.Events.Deployment.ImageUpdated);
+        var logEntry = logSessionEntry.GetProperty("entry");
         Assert.Equal("Success", logEntry.GetProperty("severity").GetString());
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, logEntry.GetProperty("eventId").GetString());
         Assert.False(logEntry.TryGetProperty("level", out _));
@@ -1070,7 +1072,9 @@ public sealed class RemoteControlPlaneContractTests
         var eventLogs = await controlPlane.ListLogSourcesAsync(
             new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
         var eventLog = Assert.Single(eventLogs, log => log.Name == "Activity");
-        var events = await controlPlane.ReadLogSourceAsync(eventLog.Id);
+        await using var logSession = await controlPlane.OpenLogSessionAsync(new LogSessionOptions([eventLog.Id]));
+        Assert.NotNull(logSession);
+        var events = (await logSession.ReadAsync()).Select(entry => entry.Entry).ToArray();
 
         Assert.Equal("Updated contract:container-app to 3 replicas.", result.Message);
         var provider = app.Services.GetRequiredService<ContractImageResourceProvider>();
@@ -1187,8 +1191,8 @@ public sealed class RemoteControlPlaneContractTests
         Assert.True(logProperties.TryGetProperty("capabilities", out _));
         Assert.True(logProperties.TryGetProperty("availability", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}", out _));
-        Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/entries", out _));
-        Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/stream", out _));
+        Assert.False(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/entries", out _));
+        Assert.False(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/stream", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sessions/entries", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sessions/stream", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/replica-slot-states", out _));
@@ -2052,20 +2056,13 @@ public sealed class RemoteControlPlaneContractTests
         ];
 
         public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
-            string logSourceId,
+            LogSource source,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<ILogSourceSession?>(
-                string.Equals(logSourceId, ProviderDiagnosticsLogSourceId, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(logSourceId, ProviderRuntimeLogSourceId, StringComparison.OrdinalIgnoreCase)
-                    ? new ContractProviderLogSourceSession(logSourceId)
+                string.Equals(source.Id, ProviderDiagnosticsLogSourceId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(source.Id, ProviderRuntimeLogSourceId, StringComparison.OrdinalIgnoreCase)
+                    ? new ContractProviderLogSourceSession(source.Id)
                     : null);
-
-        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-            string logId,
-            int maxEntries = 200,
-            DateTimeOffset? before = null,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<LogEntry>>([]);
     }
 
     private sealed class ContractProviderLogSourceSession(string sourceId) : ILogSourceSession

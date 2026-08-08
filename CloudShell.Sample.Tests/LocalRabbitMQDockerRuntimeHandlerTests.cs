@@ -236,11 +236,13 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
             Options.Create(options));
 
         var source = Assert.Single(provider.GetLogSources());
-        var entries = await provider.ReadLogSourceAsync(source.Id, maxEntries: 20);
+        await using var session = await provider.OpenLogSourceAsync(source);
+        Assert.NotNull(session);
+        var entries = await session.ReadAsync(maxEntries: 20);
 
         Assert.Equal("Container logs", source.Name);
         Assert.Equal(ResourceLogSourceKind.Container, source.Kind);
-        Assert.Equal(LogSourceCapabilities.Read | LogSourceCapabilities.Stream, source.Capabilities);
+        Assert.Equal(LogSourceCapabilities.Read, source.Capabilities);
         Assert.Equal(projectedRabbitMQ.Id, source.ResourceId);
         Assert.True(provider.CanOpenLogSource(source));
         Assert.Collection(

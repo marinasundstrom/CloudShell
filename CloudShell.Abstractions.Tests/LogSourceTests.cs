@@ -32,12 +32,13 @@ public sealed class LogSourceTests
                 ResourceLogSourceKind.ProviderDefined)
         ];
 
-        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-            string logId,
-            int maxEntries = 200,
-            DateTimeOffset? before = null,
+        public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+            LogSource source,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<LogEntry>>([]);
+            ValueTask.FromResult<ILogSourceSession?>(
+                new DelegateLogSourceSession(
+                    source.Id,
+                    (_, _, _) => Task.FromResult<IReadOnlyList<LogEntry>>([])));
     }
 
 }

@@ -27,6 +27,19 @@ link to ADR entries when a change depends on a recorded decision.
   non-streaming sources in the initial history window, providing the unified
   all-resource console-log workflow expected from the local-development
   experience.
+- Consolidated all log consumers, providers, UI paths, and HTTP access around
+  `ILogSession`. Single-source reads now use one-source sessions; the legacy
+  direct manager/provider methods and source-specific entry/stream routes were
+  removed. The Control Plane coordinates authorized, bounded access while log
+  recording, storage, retention, and tail mechanics remain provider-owned.
+- Project-backed application log sessions now follow their provider-owned
+  bounded output buffers until cancellation instead of ending after the
+  initial snapshot. The Project Reference sample declares its JSON console
+  format so unified views render structured messages and fields instead of raw
+  JSON. Sources without a real live-follow implementation no longer advertise
+  streaming capability.
+- Normal stream cancellation during pause, navigation, browser disconnect, or
+  host shutdown no longer surfaces as a log-provider failure in the UI.
 
 ### 2026-07-27
 

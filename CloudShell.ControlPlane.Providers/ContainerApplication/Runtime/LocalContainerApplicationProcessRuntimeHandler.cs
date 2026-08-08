@@ -222,7 +222,7 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         }
     }
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+    public Task<IReadOnlyList<LogEntry>> ReadLogEntriesAsync(
         string logSourceId,
         int maxEntries = 200,
         DateTimeOffset? before = null,

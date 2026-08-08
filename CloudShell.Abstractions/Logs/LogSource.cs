@@ -35,6 +35,14 @@ public sealed record LogSource(
     ResourceLogSourcePurpose Purpose = ResourceLogSourcePurpose.Discovery,
     LogSourceAvailability Availability = LogSourceAvailability.Unknown)
 {
+    /// <summary>
+    /// Whether the source can return a bounded snapshot of currently available entries.
+    /// </summary>
+    public bool SupportsReading => Capabilities.HasFlag(LogSourceCapabilities.Read);
+
+    /// <summary>
+    /// Whether the source can additionally follow entries produced after streaming starts.
+    /// </summary>
     public bool SupportsStreaming => Capabilities.HasFlag(LogSourceCapabilities.Stream);
 }
 

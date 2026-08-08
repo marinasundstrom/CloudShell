@@ -1,5 +1,6 @@
 using CloudShell.AppHost.Launcher;
 using CloudShell.ControlPlane.Providers;
+using CloudShell.ResourceModel;
 
 var app = CloudShellDistributedApplication
     .CreateBuilder("project-reference", args)
@@ -26,6 +27,7 @@ app.DefineResources(resources =>
         .AddDotnetProject("project-reference-api", apiProjectPath)
         .WithDisplayName("Project Reference API")
         .WithHotReload(false)
+        .WithDefaultConsoleLogSource(ResourceLogSourceDefinitionValues.JsonConsole)
         .UseLaunchSettings(false)
         .WithServiceDiscovery()
         .WithHttpEndpoint(
@@ -51,6 +53,7 @@ app.DefineResources(resources =>
         .AddDotnetProject("project-reference-frontend", frontendProjectPath)
         .WithDisplayName("Project Reference Frontend")
         .WithHotReload(false)
+        .WithDefaultConsoleLogSource(ResourceLogSourceDefinitionValues.JsonConsole)
         .UseLaunchSettings(false)
         .WithReference(apiResource)
         .WithHttpEndpoint(

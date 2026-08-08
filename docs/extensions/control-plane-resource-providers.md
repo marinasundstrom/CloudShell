@@ -161,8 +161,9 @@ whether it can open a resolved `LogSource` and materialize an
 Resource providers should declare stable, provider-owned defaults on resources
 with `ResourceLogSource`. A source declaration is primarily a discovery
 contract: it tells the Control Plane which logs a resource produces or can
-expose so the platform can provide controlled access, persistence, query, and
-streaming services around them. The declaration records the kind, format,
+expose so the platform can provide controlled access, query, and streaming
+services around them. The provider or backing system owns recording, storage,
+and retention. The declaration records the kind, format,
 storage, capabilities, availability, origin, purpose, configuration metadata,
 location, and physical producer. The Control Plane projects those declarations
 plus provider-owned source projections into `LogSource` records. A single
@@ -211,30 +212,23 @@ public sealed class AcmeLogProvider : ILogProvider
                 LogSourceCapabilities.StructuredFields)
     ];
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logSourceId,
-        int maxEntries = 200,
-        DateTimeOffset? before = null,
+    public bool CanOpenLogSource(LogSource source) =>
+        source.Id.StartsWith("acme:", StringComparison.OrdinalIgnoreCase);
+
+    public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+        LogSource source,
         CancellationToken cancellationToken = default)
     {
-        // Read one bounded page. Use before to page back from the oldest visible entry.
-        return Task.FromResult<IReadOnlyList<LogEntry>>([]);
-    }
-
-    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
-        string logSourceId,
-        int initialEntries = 50,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        foreach (var entry in await ReadLogSourceAsync(logSourceId, initialEntries, cancellationToken: cancellationToken))
-        {
-            yield return entry;
-        }
-
-        await foreach (var entry in TailBackingSystemAsync(logSourceId, cancellationToken))
-        {
-            yield return entry;
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult<ILogSourceSession?>(
+            CanOpenLogSource(source)
+                ? new DelegateLogSourceSession(
+                    source.Id,
+                    (maxEntries, before, token) =>
+                        ReadBackingSystemAsync(source, maxEntries, before, token),
+                    (initialEntries, token) =>
+                        TailBackingSystemAsync(source, initialEntries, token))
+                : null);
     }
 }
 ```
@@ -272,10 +266,12 @@ new Resource(
 
 Streaming implementation guidance:
 
-- Keep `ReadLogSourceAsync` as the bounded snapshot API. It should return recent
-  entries and complete quickly. When `before` is supplied, return the newest
-  entries older than that timestamp so the view can page backward.
-- Override `StreamLogSourceAsync` only for sources that advertise
+- Implement `OpenLogSourceAsync(LogSource, ...)` as the provider dispatch
+  boundary. Return `null` when the provider cannot serve the resolved source.
+- Implement `ILogSourceSession.ReadAsync` as a bounded snapshot. It should
+  return recent entries and complete quickly. When `before` is supplied, return
+  the newest entries older than that timestamp so the view can page backward.
+- Implement `ILogSourceSession.StreamAsync` only for sources that advertise
   `LogSourceCapabilities.Stream`.
 - Honor cancellation promptly. The Logs view cancels the stream when users
   pause streaming, select another log, or leave the page.
@@ -284,21 +280,29 @@ Streaming implementation guidance:
 - Use `initialEntries` to optionally replay recent context before live events.
   Pass `0` through to the backing system when the caller wants only new
   entries.
-- The control-plane endpoint
-  `GET /api/cloudshell/log-sources/{logSourceId}/stream?initialEntries=50` streams
-  newline-delimited JSON (`application/x-ndjson`) for API clients.
+- The Control Plane session endpoint
+  `GET /api/control-plane/v1/log-sessions/stream?sourceId={logSourceId}&initialEntries=50`
+  streams newline-delimited source-addressed entries (`application/x-ndjson`).
 - The snapshot endpoint
-  `GET /api/cloudshell/log-sources/{logSourceId}/entries?maxEntries=100&before=...`
-  returns one bounded history page. Use it to load older entries incrementally
-  instead of loading complete logs.
+  `GET /api/control-plane/v1/log-sessions/entries?sourceId={logSourceId}&maxEntries=100&before=...`
+  returns one bounded history page. Repeat `sourceId` for a combined view.
+
+The provider owns log production, buffering, storage, rotation, retention, and
+the physical tail/query implementation. The Control Plane only catalogues and
+authorizes sources, opens their sessions, and performs bounded operation-scoped
+fan-in. A provider can therefore expose process output, a tailed file, a
+container runtime, or an external logging service without changing
+`ILogManager`. Advertise behavior through `LogSourceCapabilities`; add future
+provider-neutral capabilities to source/session contracts rather than adding
+provider-specific manager methods.
 
 ## Docker Built-in Provider
 
 The Docker provider is the reference implementation. Container log sources
-set `SupportsStreaming: true`; `ReadLogSourceAsync` calls Docker logs with
-`Follow = false` and a bounded `Tail`, while `StreamLogSourceAsync` optionally
-replays recent entries and then calls Docker logs with `Follow = true` and
-`Tail = "0"`. Docker stdout and stderr frames are read incrementally with
+advertise `LogSourceCapabilities.Stream`; their source sessions call Docker
+logs with `Follow = false` and a bounded `Tail` for reads, while streaming
+optionally replays recent entries and then calls Docker logs with `Follow =
+true` and `Tail = "0"`. Docker stdout and stderr frames are read incrementally with
 `MultiplexedStream.ReadOutputAsync`, converted into `LogEntry` values, and
 yielded as each newline is completed.
 

@@ -183,6 +183,13 @@ sessions. These routes are the integration surface for combined Resource
 Manager views, CLIs, and extensions; consumers should not open one HTTP stream
 per source and merge them outside the Control Plane.
 
+The same routes are used for one source by supplying one `sourceId`. The former
+`/log-sources/{logSourceId}/entries` and `/log-sources/{logSourceId}/stream`
+routes have been removed so sessions are the sole read and live-stream API.
+The Control Plane authorizes and coordinates each operation but does not ingest,
+record, retain, or own the selected logs; source providers and their backing
+systems own those concerns.
+
 The current API surface remains snapshot/list based while CloudShell proves
 basic monitoring support across resource providers. Future live telemetry and
 resource monitoring updates for split-hosted UIs should use Control

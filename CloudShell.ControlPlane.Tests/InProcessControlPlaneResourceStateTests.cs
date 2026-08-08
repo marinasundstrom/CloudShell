@@ -4399,20 +4399,25 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         var sources = await controlPlane.ListLogSourcesAsync();
         var hiddenSource = await controlPlane.GetLogSourceAsync("hidden-log");
-        var visibleEntries = await controlPlane.ReadLogSourceAsync("visible-log");
-        var hiddenEntries = await controlPlane.ReadLogSourceAsync("hidden-log");
-        var providerEntries = await controlPlane.ReadLogSourceAsync("provider-log");
-        var hiddenStreamEntries = await ReadEntriesAsync(controlPlane.StreamLogSourceAsync("hidden-log"));
+        await using var visibleSession = await controlPlane.OpenLogSessionAsync(
+            new LogSessionOptions(["visible-log"]));
+        await using var hiddenSession = await controlPlane.OpenLogSessionAsync(
+            new LogSessionOptions(["hidden-log"]));
+        await using var providerSession = await controlPlane.OpenLogSessionAsync(
+            new LogSessionOptions(["provider-log"]));
+        Assert.NotNull(visibleSession);
+        Assert.NotNull(providerSession);
+        var visibleEntries = await visibleSession.ReadAsync();
+        var providerEntries = await providerSession.ReadAsync();
 
         Assert.Collection(
             sources.OrderBy(source => source.Id, StringComparer.OrdinalIgnoreCase),
             source => Assert.Equal("provider-log", source.Id),
             source => Assert.Equal("visible-log", source.Id));
         Assert.Null(hiddenSource);
-        Assert.Equal("visible-log", Assert.Single(visibleEntries).Source);
-        Assert.Empty(hiddenEntries);
-        Assert.Equal("provider-log", Assert.Single(providerEntries).Source);
-        Assert.Empty(hiddenStreamEntries);
+        Assert.Equal("visible-log", Assert.Single(visibleEntries).Entry.Source);
+        Assert.Null(hiddenSession);
+        Assert.Equal("provider-log", Assert.Single(providerEntries).Entry.Source);
     }
 
     [Fact]
@@ -5794,21 +5799,10 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public IReadOnlyList<LogSource> GetLogSources() => [];
 
-        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-            string logSourceId,
-            int maxEntries = 200,
-            DateTimeOffset? before = null,
+        public ValueTask<ILogSession?> OpenLogSessionAsync(
+            IReadOnlyList<string> logSourceIds,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<LogEntry>>([]);
-
-        public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
-            string logSourceId,
-            int initialEntries = 50,
-            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            await Task.CompletedTask;
-            yield break;
-        }
+            ValueTask.FromResult<ILogSession?>(null);
     }
 
     private sealed class EmptyTraceStore : ITraceStore
@@ -5864,27 +5858,54 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public IReadOnlyList<LogSource> GetLogSources() => sources;
 
-        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-            string logSourceId,
+        public ValueTask<ILogSession?> OpenLogSessionAsync(
+            IReadOnlyList<string> logSourceIds,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult<ILogSession?>(
+                logSourceIds.Count > 0 && logSourceIds.All(id =>
+                    sources.Any(source => string.Equals(source.Id, id, StringComparison.OrdinalIgnoreCase)))
+                    ? new TestLogSession(logSourceIds)
+                    : null);
+        }
+    }
+
+    private sealed class TestLogSession(IReadOnlyList<string> sourceIds) : ILogSession
+    {
+        public string Id { get; } = Guid.NewGuid().ToString("N");
+
+        public IReadOnlyList<string> SourceIds { get; } = sourceIds.ToArray();
+
+        public LogSourceSessionStatus Status { get; private set; } = LogSourceSessionStatus.Active;
+
+        public Task<IReadOnlyList<LogSessionEntry>> ReadAsync(
             int maxEntries = 200,
             DateTimeOffset? before = null,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<LogEntry>>(
-                sources.Any(source => string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase))
-                    ? [new LogEntry(DateTimeOffset.UtcNow, $"{logSourceId} entry", Source: logSourceId)]
-                    : []);
+            Task.FromResult<IReadOnlyList<LogSessionEntry>>(
+                SourceIds.Take(maxEntries).Select(CreateEntry).ToArray());
 
-        public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
-            string logSourceId,
+        public async IAsyncEnumerable<LogSessionEntry> StreamAsync(
             int initialEntries = 50,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
-            if (sources.Any(source => string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase)))
+            foreach (var sourceId in SourceIds.Take(initialEntries))
             {
-                yield return new LogEntry(DateTimeOffset.UtcNow, $"{logSourceId} entry", Source: logSourceId);
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return CreateEntry(sourceId);
             }
         }
+
+        public ValueTask DisposeAsync()
+        {
+            Status = LogSourceSessionStatus.Closed;
+            return ValueTask.CompletedTask;
+        }
+
+        private static LogSessionEntry CreateEntry(string sourceId) =>
+            new(sourceId, new LogEntry(DateTimeOffset.UtcNow, $"{sourceId} entry", Source: sourceId));
     }
 
     private sealed class TestTraceStore(params TraceSpan[] spans) : ITraceStore

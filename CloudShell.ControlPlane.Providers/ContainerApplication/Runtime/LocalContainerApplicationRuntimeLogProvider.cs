@@ -25,19 +25,22 @@ public sealed class LocalContainerApplicationRuntimeLogProvider(
     public bool CanOpenLogSource(LogSource source) =>
         ResolveRuntimeContainer(source.Id) is not null;
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logSourceId,
-        int maxEntries = 200,
-        DateTimeOffset? before = null,
+    public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+        LogSource source,
         CancellationToken cancellationToken = default)
     {
-        var resource = ResolveRuntimeContainer(logSourceId);
+        cancellationToken.ThrowIfCancellationRequested();
+        var resource = ResolveRuntimeContainer(source.Id);
         if (resource is null)
         {
-            return Task.FromResult<IReadOnlyList<LogEntry>>([]);
+            return ValueTask.FromResult<ILogSourceSession?>(null);
         }
 
-        return ReadReplicaLogsAsync(resource, maxEntries, before, cancellationToken);
+        return ValueTask.FromResult<ILogSourceSession?>(
+            new DelegateLogSourceSession(
+                source.Id,
+                (maxEntries, before, readCancellation) =>
+                    ReadReplicaLogsAsync(resource, maxEntries, before, readCancellation)));
     }
 
     public static string CreateLogSourceId(ResourceManagerResource resource)

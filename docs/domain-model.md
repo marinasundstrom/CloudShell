@@ -1028,9 +1028,8 @@ In code:
 
 - `ILogManager` is the public domain abstraction.
 - `ILogStore` is the internal Control Plane implementation store. It exposes
-  source-addressed read and stream operations. It can also materialize a
-  disposable log-source session for Control Plane services that need to own
-  the read, poll, stream, or future transport lifecycle explicitly.
+  operation-scoped `ILogSession` creation over one or more source IDs. It does
+  not record or retain provider log data.
 - `ILogSourceCatalog` is the Control Plane listing/projection boundary. It
   merges resource `ResourceLogSource` declarations, contributed `LogSource`
   records, and provider-owned source projections into the log-source inventory
@@ -1043,6 +1042,9 @@ In code:
   a resolved `LogSource` and materializing the `ILogSourceSession` for that
   source. Providers may also contribute projected `LogSource` metadata
   directly.
+- `ILogSession` is the consumer-facing access contract for one or more sources.
+  Single-source and combined consumers use the same bounded-read and live-
+  stream shape, preventing parallel manager and HTTP APIs from drifting.
 - `ILogSourceSession` is the provider-owned runtime access context materialized
   when a source is read or streamed. It keeps source discovery separate from
   access status, file handles, process or container streams, remote cursors,
@@ -1051,16 +1053,17 @@ In code:
 - `ResourceLogSource` is the resource-model discovery declaration for a log
   source, similar to `ResourceHealthCheck` for health checks. Its primary
   purpose is to let the Control Plane discover logs that a resource produces
-  or can expose, then layer platform services such as controlled access,
-  persistence, query, and streaming over those sources. It records whether the
+  or can expose, then layer platform services such as controlled access, query,
+  and streaming over those sources. Log recording, storage, retention, and
+  rotation remain source/provider responsibilities. It records whether the
   source is provider default or custom, and can point at runtime sources such
   as stdout/stderr, provider streams, or files on an attached storage volume.
   It also announces source availability, because some sources can only be read
   while the resource or producer process is running.
 - `LogSource` is the Control Plane projection used for listing, authorization,
   reading, querying, streaming, parsing, and rendering. The Control Plane can
-  list projected log sources independently and decide which access,
-  persistence, and query services apply. Resource Manager, Observability,
+  list projected log sources independently and decide which access and query
+  services apply. Resource Manager, Observability,
   provider-specific overview pages, and the Logs view use projected sources for
   availability, counts, navigation, and source-addressed access.
 - `ResourceCapabilityIds.LogSources` advertises that a resource exposes or can

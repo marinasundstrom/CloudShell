@@ -21,6 +21,20 @@ streams with bounded buffering, and disposes the underlying readers with the
 consumer session. Each result is a `LogSessionEntry` envelope containing the
 stable source ID and the provider's `LogEntry`.
 
+Sessions are also the only public access path for a single source. The legacy
+direct read/stream manager methods and source-specific HTTP entry/stream routes
+are removed. `ILogProvider` opens a resolved `LogSource` as an
+`ILogSourceSession`; this permits process buffers, file tails, container
+runtimes, remote collectors, and future source implementations without adding
+provider-specific operations to `ILogManager`.
+
+The Control Plane owns cataloguing, authorization, session lifetime, and
+bounded fan-in only. It does not ingest, record, persist, rotate, or retain
+provider logs. The provider or external logging backend remains the log data
+plane and may share physical readers or perform aggregation itself. This keeps
+the default local implementation lightweight while allowing scalable backends
+behind the same API.
+
 A combined view is not registered as a synthetic `LogSource`, and the WebUI
 must not own one subscription per provider source. The HTTP API projects the
 same operation-scoped session as source-selected snapshot and NDJSON stream

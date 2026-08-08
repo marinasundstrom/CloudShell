@@ -123,10 +123,10 @@ contract. The MVP now uses an explicit source concept:
 
 - `ResourceLogSource`: resource-model discovery metadata that declares a log
   produced by or on behalf of a resource so the Control Plane can discover it
-  and provide platform services such as controlled access, persistence, query,
-  and streaming.
+  and provide platform services such as controlled access, query, and
+  streaming. Recording, storage, and retention remain source-owned.
 - `LogSource`: Control Plane projection of a log source that can be listed,
-  authorized, persisted, queried, read, streamed, and rendered.
+  authorized, queried, read, streamed, and rendered.
 - `ILogSourceContributor`: listing-only integration point for projected log
   source metadata supplied outside the resource model.
 - `ILogSourceCatalog`: Control Plane aggregation/projection boundary that
@@ -256,6 +256,14 @@ through a bounded channel. The remote adapter maps the same abstraction to the
 stream representing the operation-scoped session. This is the shared
 integration contract used by combined Resource Manager log views; it is not a
 synthetic persisted log source.
+
+Sessions are now the sole consumer access path, including for a single source.
+The Control Plane owns authorization, catalog resolution, bounded merging, and
+operation lifetime, but it does not record or retain provider logs. Providers
+own the backing mechanics and may expose buffered process output, file history
+and tailing, container runtime streams, or an external logging system through
+the same `ILogSourceSession` boundary. Capabilities advertise available
+behavior without constraining future source implementations.
 
 For example, a future `LogFileProvider` could keep one tracked reader per
 physical log file, maintain the file offset and tail status internally, and

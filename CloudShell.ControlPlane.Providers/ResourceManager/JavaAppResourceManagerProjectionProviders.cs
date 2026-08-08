@@ -226,16 +226,6 @@ public sealed class JavaAppResourceManagerLogProvider(
                 : null);
     }
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logSourceId,
-        int maxEntries = 200,
-        DateTimeOffset? before = null,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<IReadOnlyList<LogEntry>>([]);
-    }
-
     private static bool IsJavaAppLogSource(LogSource source) =>
         source.ResourceId?.StartsWith(
             $"{JavaAppResourceTypeProvider.ResourceTypeId}:",
@@ -266,23 +256,16 @@ public sealed class JavaAppResourceManagerLogSourceSession(
             ? []
             : outputReader
                 .ReadOutput(source.ResourceId, maxEntries, before)
-                .Select(ToLogEntry)
+                .Select(entry => ToLogEntry(entry, source.Format))
                 .ToArray();
 
         return Task.FromResult(entries);
     }
 
-    public async IAsyncEnumerable<LogEntry> StreamAsync(
+    public IAsyncEnumerable<LogEntry> StreamAsync(
         int initialEntries = 50,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var entries = await ReadAsync(initialEntries, cancellationToken: cancellationToken);
-        foreach (var entry in entries)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            yield return entry;
-        }
-    }
+        CancellationToken cancellationToken = default) =>
+        RuntimeLogSourceSessionFollow.StreamAsync(ReadAsync, initialEntries, cancellationToken);
 
     public ValueTask DisposeAsync()
     {
@@ -290,10 +273,11 @@ public sealed class JavaAppResourceManagerLogSourceSession(
         return ValueTask.CompletedTask;
     }
 
-    private static LogEntry ToLogEntry(JavaAppRuntimeOutputEntry entry) =>
-        new(
-            entry.Timestamp,
+    private static LogEntry ToLogEntry(JavaAppRuntimeOutputEntry entry, LogFormat format) =>
+        ContainerApplicationRuntimeLogParser.ParseProcessOutputLine(
             entry.Message,
+            entry.Stream,
             entry.Severity,
-            entry.Stream);
+            format,
+            entry.Timestamp);
 }

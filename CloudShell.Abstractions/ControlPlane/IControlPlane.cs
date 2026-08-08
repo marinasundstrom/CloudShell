@@ -222,16 +222,6 @@ public interface ILogManager
     ValueTask<ILogSession?> OpenLogSessionAsync(
         LogSessionOptions options,
         CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logSourceId,
-        ReadLogOptions? options = null,
-        CancellationToken cancellationToken = default);
-
-    IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
-        string logSourceId,
-        StreamLogOptions? options = null,
-        CancellationToken cancellationToken = default);
 }
 
 public interface IResourceEventManager
@@ -655,10 +645,3 @@ public sealed record ResourceActionCapability(
     string ActionId,
     bool CanExecute,
     string? Reason = null);
-
-public sealed record ReadLogOptions(
-    int MaxEntries = 200,
-    DateTimeOffset? Before = null);
-
-public sealed record StreamLogOptions(
-    int InitialEntries = 50);

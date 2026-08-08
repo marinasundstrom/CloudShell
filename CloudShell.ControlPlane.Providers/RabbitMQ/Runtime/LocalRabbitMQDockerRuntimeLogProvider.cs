@@ -34,33 +34,22 @@ public sealed class LocalRabbitMQDockerRuntimeLogProvider(
         source.ResourceId is not null &&
         ResolveRabbitMQResource(source.ResourceId) is not null;
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logSourceId,
-        int maxEntries = 200,
-        DateTimeOffset? before = null,
-        CancellationToken cancellationToken = default)
-    {
-        var resource = ResolveRabbitMQResource(logSourceId) ??
-            resourceManager
-                .GetResources()
-                .FirstOrDefault(resource =>
-                    TryGetDefinition(resource, out _) &&
-                    string.Equals(CreateLogSourceId(resource), logSourceId, StringComparison.OrdinalIgnoreCase));
-
-        return resource is null
-            ? Task.FromResult<IReadOnlyList<LogEntry>>([])
-            : ReadContainerLogsAsync(resource, maxEntries, before, cancellationToken);
-    }
-
     public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
         LogSource source,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        var resource = source.ResourceId is null
+            ? null
+            : ResolveRabbitMQResource(source.ResourceId);
+
         return ValueTask.FromResult<ILogSourceSession?>(
-            CanOpenLogSource(source)
-                ? new DelegatingRabbitMQDockerLogSourceSession(this, source)
+            resource is not null && CanOpenLogSource(source)
+                ? new DelegateLogSourceSession(
+                    source.Id,
+                    (maxEntries, before, token) =>
+                        ReadContainerLogsAsync(resource, maxEntries, before, token))
                 : null);
     }
 
@@ -74,7 +63,7 @@ public sealed class LocalRabbitMQDockerRuntimeLogProvider(
             LogSourceKind.Resource,
             Kind: ResourceLogSourceKind.Container,
             Format: LogFormat.PlainText,
-            Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+            Capabilities: LogSourceCapabilities.Read,
             ResourceId: resource.Id,
             ProducerResourceId: resource.Id,
             Description: "RabbitMQ broker container stdout and stderr.",
@@ -190,33 +179,4 @@ public sealed class LocalRabbitMQDockerRuntimeLogProvider(
             .ToArray();
     }
 
-    private sealed class DelegatingRabbitMQDockerLogSourceSession(
-        ILogProvider provider,
-        LogSource source) : ILogSourceSession
-    {
-        public string Id { get; } = Guid.NewGuid().ToString("N");
-
-        public string SourceId => source.Id;
-
-        public LogSourceSessionStatus Status { get; private set; } = LogSourceSessionStatus.Active;
-
-        public Task<IReadOnlyList<LogEntry>> ReadAsync(
-            int maxEntries = 200,
-            DateTimeOffset? before = null,
-            CancellationToken cancellationToken = default) =>
-            source.ResourceId is null
-                ? Task.FromResult<IReadOnlyList<LogEntry>>([])
-                : provider.ReadLogSourceAsync(source.ResourceId, maxEntries, before, cancellationToken);
-
-        public IAsyncEnumerable<LogEntry> StreamAsync(
-            int initialEntries = 50,
-            CancellationToken cancellationToken = default) =>
-            provider.StreamLogSourceAsync(source.ResourceId ?? source.Id, initialEntries, cancellationToken);
-
-        public ValueTask DisposeAsync()
-        {
-            Status = LogSourceSessionStatus.Closed;
-            return ValueTask.CompletedTask;
-        }
-    }
 }

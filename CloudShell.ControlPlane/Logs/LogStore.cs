@@ -26,48 +26,7 @@ public sealed class LogStore(
     public LogSource? GetLogSource(string logSourceId) =>
         CreateSourceCatalog().GetLogSource(logSourceId);
 
-    public async Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logSourceId,
-        int maxEntries = 200,
-        DateTimeOffset? before = null,
-        CancellationToken cancellationToken = default)
-    {
-        var source = GetLogSource(logSourceId);
-        if (source is null || !source.Capabilities.HasFlag(LogSourceCapabilities.Read))
-        {
-            return [];
-        }
-
-        await using var session = await OpenLogSourceSessionAsync(logSourceId, cancellationToken);
-        return session is null
-            ? []
-            : await session.ReadAsync(maxEntries, before, cancellationToken);
-    }
-
-    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
-        string logSourceId,
-        int initialEntries = 50,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var source = GetLogSource(logSourceId);
-        if (source is null || !source.SupportsStreaming)
-        {
-            yield break;
-        }
-
-        await using var session = await OpenLogSourceSessionAsync(logSourceId, cancellationToken);
-        if (session is null)
-        {
-            yield break;
-        }
-
-        await foreach (var entry in session.StreamAsync(initialEntries, cancellationToken))
-        {
-            yield return entry;
-        }
-    }
-
-    public async ValueTask<ILogSourceSession?> OpenLogSourceSessionAsync(
+    private async ValueTask<ILogSourceSession?> OpenLogSourceSessionAsync(
         string logSourceId,
         CancellationToken cancellationToken = default)
     {
@@ -115,10 +74,18 @@ public sealed class LogStore(
             foreach (var sourceId in sourceIds)
             {
                 var source = GetLogSource(sourceId);
-                var session = source is null
-                    ? null
-                    : await OpenLogSourceSessionAsync(sourceId, cancellationToken);
-                if (source is null || session is null)
+                if (source is null || !source.SupportsReading)
+                {
+                    foreach (var openedSource in opened)
+                    {
+                        await openedSource.Session.DisposeAsync();
+                    }
+
+                    return null;
+                }
+
+                var session = await OpenLogSourceSessionAsync(sourceId, cancellationToken);
+                if (session is null)
                 {
                     foreach (var openedSource in opened)
                     {

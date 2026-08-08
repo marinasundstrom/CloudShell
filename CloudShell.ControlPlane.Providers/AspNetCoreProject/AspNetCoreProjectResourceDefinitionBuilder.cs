@@ -37,10 +37,11 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
     public AspNetCoreProjectResourceDefinitionBuilder WithRuntimeMonitoring() =>
         this;
 
-    public AspNetCoreProjectResourceDefinitionBuilder WithDefaultConsoleLogSource() =>
+    public AspNetCoreProjectResourceDefinitionBuilder WithDefaultConsoleLogSource(
+        string format = ResourceLogSourceDefinitionValues.PlainText) =>
         SetObjectAttribute(
             ResourceLogSourceAttributeIds.LogSources,
-            ResourceLogSourceDefinitionSet.DefaultConsole());
+            ResourceLogSourceDefinitionSet.DefaultConsole(format));
 
     public AspNetCoreProjectResourceDefinitionBuilder AddEndpointRequest(
         string name,

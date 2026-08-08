@@ -1985,24 +1985,6 @@ public sealed class InProcessControlPlane(
             .ToArray();
     }
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logSourceId,
-        ReadLogOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureCanReadLogs();
-        if (GetReadableLogSource(logSourceId) is null)
-        {
-            return Task.FromResult<IReadOnlyList<LogEntry>>([]);
-        }
-
-        return logs.ReadLogSourceAsync(
-            logSourceId,
-            options?.MaxEntries ?? 200,
-            options?.Before,
-            cancellationToken);
-    }
-
     public ValueTask<ILogSession?> OpenLogSessionAsync(
         LogSessionOptions options,
         CancellationToken cancellationToken = default)
@@ -2022,20 +2004,6 @@ public sealed class InProcessControlPlane(
         }
 
         return logs.OpenLogSessionAsync(sourceIds, cancellationToken);
-    }
-
-    public IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
-        string logSourceId,
-        StreamLogOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureCanReadLogs();
-        if (GetReadableLogSource(logSourceId) is null)
-        {
-            return AsyncEnumerable.Empty<LogEntry>();
-        }
-
-        return logs.StreamLogSourceAsync(logSourceId, options?.InitialEntries ?? 50, cancellationToken);
     }
 
     public Task<IReadOnlyList<TraceSpan>> ListTraceSpansAsync(

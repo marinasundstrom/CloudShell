@@ -28,10 +28,17 @@ public sealed class LocalContainerApplicationProcessRuntimeLogProvider(
         GetLogSources()
             .Any(candidate => string.Equals(candidate.Id, source.Id, StringComparison.OrdinalIgnoreCase));
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logSourceId,
-        int maxEntries = 200,
-        DateTimeOffset? before = null,
-        CancellationToken cancellationToken = default) =>
-        bridge.ReadLogSourceAsync(logSourceId, maxEntries, before, cancellationToken);
+    public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+        LogSource source,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult<ILogSourceSession?>(
+            !CanOpenLogSource(source)
+                ? null
+                : new DelegateLogSourceSession(
+                    source.Id,
+                    (maxEntries, before, readCancellation) =>
+                        bridge.ReadLogEntriesAsync(source.Id, maxEntries, before, readCancellation)));
+    }
 }

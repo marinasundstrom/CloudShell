@@ -961,22 +961,13 @@ else if (ShowHeading)
         ReadError = null;
         try
         {
-            if (IsCombinedLog(log))
-            {
-                ActiveLogSession = await OpenCombinedLogSessionAsync();
-                Entries = ActiveLogSession is null
-                    ? []
-                    : (await ActiveLogSession.ReadAsync(InitialWindowEntries))
-                        .Select(WithMergedEntrySource)
-                        .ToArray();
-            }
-            else
-            {
-                Entries = await LogManager.ReadLogSourceAsync(
-                    log.Id,
-                    new ReadLogOptions(MaxEntries: InitialWindowEntries));
-            }
-            if (IsCombinedLog(log) && !log.SupportsStreaming && ActiveLogSession is { } readSession)
+            ActiveLogSession = await OpenLogSessionAsync(log);
+            Entries = ActiveLogSession is null
+                ? []
+                : (await ActiveLogSession.ReadAsync(InitialWindowEntries))
+                    .Select(entry => ToDisplayEntry(log, entry))
+                    .ToArray();
+            if (!log.SupportsStreaming && ActiveLogSession is { } readSession)
             {
                 ActiveLogSession = null;
                 await readSession.DisposeAsync();
@@ -1013,35 +1004,34 @@ else if (ShowHeading)
         }
     }
 
-    private async Task<IReadOnlyList<LogEntry>> ReadCombinedLogAsync(
+    private async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+        LogSource log,
         int maxEntries,
         DateTimeOffset? before = null)
     {
-        var sources = GetMergedLogSources();
-        if (sources.Count == 0)
-        {
-            return [];
-        }
-
-        await using var session = await LogManager.OpenLogSessionAsync(
-            new LogSessionOptions(sources.Select(source => source.Id).ToArray()));
+        await using var session = await OpenLogSessionAsync(log);
         return session is null
             ? []
             : (await session.ReadAsync(maxEntries, before))
-                .Select(WithMergedEntrySource)
+                .Select(entry => ToDisplayEntry(log, entry))
                 .DistinctBy(GetEntryKey)
                 .ToArray();
     }
 
-    private ValueTask<ILogSession?> OpenCombinedLogSessionAsync()
+    private ValueTask<ILogSession?> OpenLogSessionAsync(LogSource log)
     {
-        var sourceIds = GetMergedLogSources()
-            .Select(source => source.Id)
-            .ToArray();
+        var sourceIds = IsCombinedLog(log)
+            ? GetMergedLogSources().Select(source => source.Id).ToArray()
+            : [log.Id];
         return sourceIds.Length == 0
             ? ValueTask.FromResult<ILogSession?>(null)
             : LogManager.OpenLogSessionAsync(new LogSessionOptions(sourceIds));
     }
+
+    private LogEntry ToDisplayEntry(LogSource selected, LogSessionEntry sessionEntry) =>
+        IsCombinedLog(selected)
+            ? WithMergedEntrySource(sessionEntry)
+            : sessionEntry.Entry;
 
     private LogEntry WithMergedEntrySource(LogSessionEntry sessionEntry)
     {
@@ -1087,13 +1077,7 @@ else if (ShowHeading)
         try
         {
             var before = Entries.Min(entry => entry.Timestamp);
-            var olderEntries = IsCombinedLog(selected)
-                ? await ReadCombinedLogAsync(HistoryPageEntries, before)
-                : await LogManager.ReadLogSourceAsync(
-                    selected.Id,
-                    new ReadLogOptions(
-                        MaxEntries: HistoryPageEntries,
-                        Before: before));
+            var olderEntries = await ReadLogAsync(selected, HistoryPageEntries, before);
 
             CanLoadOlderEntries = olderEntries.Count >= HistoryPageEntries;
             Entries = olderEntries
@@ -1148,17 +1132,14 @@ else if (ShowHeading)
             return;
         }
 
-        var loadedSession = IsCombinedLog(log) ? ActiveLogSession : null;
+        var loadedSession = ActiveLogSession;
         ActiveLogSession = null;
         await StopStreamingAsync();
 
-        if (IsCombinedLog(log))
+        ActiveLogSession = loadedSession ?? await OpenLogSessionAsync(log);
+        if (ActiveLogSession is null)
         {
-            ActiveLogSession = loadedSession ?? await OpenCombinedLogSessionAsync();
-            if (ActiveLogSession is null)
-            {
-                return;
-            }
+            return;
         }
 
         ReadError = null;
@@ -1232,7 +1213,7 @@ else if (ShowHeading)
                 });
             }
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
         }
         catch (Exception exception)
@@ -1279,28 +1260,15 @@ else if (ShowHeading)
         LogSource log,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (IsCombinedLog(log))
+        var session = ActiveLogSession;
+        if (session is null)
         {
-            var session = ActiveLogSession;
-            if (session is null)
-            {
-                yield break;
-            }
-
-            await foreach (var entry in session.StreamAsync(0, cancellationToken))
-            {
-                yield return WithMergedEntrySource(entry);
-            }
-
             yield break;
         }
 
-        await foreach (var entry in LogManager.StreamLogSourceAsync(
-            log.Id,
-            new StreamLogOptions(InitialEntries: 0),
-            cancellationToken))
+        await foreach (var entry in session.StreamAsync(0, cancellationToken))
         {
-            yield return entry;
+            yield return ToDisplayEntry(log, entry);
         }
     }
 

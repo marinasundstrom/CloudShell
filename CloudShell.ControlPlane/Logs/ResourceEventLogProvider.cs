@@ -32,26 +32,24 @@ public sealed class ResourceEventLogProvider(
                 Origin: ResourceLogSourceOrigin.ProviderProjected))
             .ToArray();
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logId,
-        int maxEntries = 200,
-        DateTimeOffset? before = null,
+    public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+        LogSource source,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!TryGetResourceId(logId, out var resourceId))
-        {
-            return Task.FromResult<IReadOnlyList<LogEntry>>([]);
-        }
-
-        return Task.FromResult<IReadOnlyList<LogEntry>>(
-            events.GetEvents(new ResourceEventQuery(
-                    ResourceId: resourceId,
-                    Before: before,
-                    MaxEvents: maxEntries))
-                .OrderBy(resourceEvent => resourceEvent.Timestamp)
-                .Select(ToLogEntry)
-                .ToArray());
+        return ValueTask.FromResult<ILogSourceSession?>(
+            !TryGetResourceId(source.Id, out var resourceId)
+                ? null
+                : new DelegateLogSourceSession(
+                    source.Id,
+                    (maxEntries, before, _) => Task.FromResult<IReadOnlyList<LogEntry>>(
+                        events.GetEvents(new ResourceEventQuery(
+                                ResourceId: resourceId,
+                                Before: before,
+                                MaxEvents: maxEntries))
+                            .OrderBy(resourceEvent => resourceEvent.Timestamp)
+                            .Select(ToLogEntry)
+                            .ToArray())));
     }
 
     public static string GetLogId(string resourceId) => $"{resourceId}{LogIdSuffix}";

@@ -837,55 +837,6 @@ public sealed class RemoteControlPlane : IControlPlane
         .Select(response => response.ToResourceReplicaSlotState())
         .ToArray();
 
-    public async Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logSourceId,
-        ReadLogOptions? options = null,
-        CancellationToken cancellationToken = default) =>
-        (await GetRequiredAsync<IReadOnlyList<LogEntryResponse>>(
-            $"log-sources/{Escape(logSourceId)}/entries",
-            cancellationToken,
-            ("maxEntries", (options?.MaxEntries ?? 200).ToString()),
-            ("before", options?.Before?.ToString("O"))))
-        .Select(response => response.ToLogEntry())
-        .ToArray();
-
-    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
-        string logSourceId,
-        StreamLogOptions? options = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var response = await httpClient.GetAsync(
-            BuildUri(
-                $"log-sources/{Escape(logSourceId)}/stream",
-                ("initialEntries", (options?.InitialEntries ?? 50).ToString())),
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var reader = new StreamReader(stream);
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var line = await reader.ReadLineAsync(cancellationToken);
-            if (line is null)
-            {
-                yield break;
-            }
-
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
-            var entry = JsonSerializer.Deserialize<LogEntryResponse>(line, SerializerOptions);
-            if (entry is not null)
-            {
-                yield return entry.ToLogEntry();
-            }
-        }
-    }
-
     private async Task<IReadOnlyList<LogSessionEntry>> ReadLogSessionAsync(
         IReadOnlyList<string> sourceIds,
         int maxEntries,

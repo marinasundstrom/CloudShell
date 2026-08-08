@@ -17,8 +17,11 @@ public sealed record LogSessionOptions(
 /// Represents one consumer's access to one or more log sources.
 /// </summary>
 /// <remarks>
-/// This is a preview integration contract. Reconnect cursors, query pushdown,
-/// and partial-source failure diagnostics may extend the session shape.
+/// The manager coordinates access but does not record or retain log data.
+/// <see cref="ReadAsync"/> returns a bounded snapshot from readable sources;
+/// <see cref="StreamAsync"/> also follows sources that advertise streaming.
+/// Reconnect cursors, query pushdown, and partial-source failure diagnostics
+/// may extend the session shape.
 /// </remarks>
 public interface ILogSession : IAsyncDisposable
 {

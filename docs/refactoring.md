@@ -186,8 +186,8 @@ Resource model provider migration.
   resource declarations with contributed `LogSource` records.
 - [x] Remove legacy `LogDescriptor` discovery support from provider, store,
   manager, API, and remote-client contracts.
-- [x] Rename provider runtime log access methods to source-addressed
-  `ReadLogSourceAsync` and `StreamLogSourceAsync`.
+- [x] Replace direct provider/manager log reads and streams with explicit
+  `ILogSourceSession` and `ILogSession` access.
 - [x] Rename log selection routes and component parameters from `logId` to
   `logSourceId` so the UI contract matches the source-first log model.
 - [x] Extract application container-host resolution into

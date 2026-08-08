@@ -1069,9 +1069,12 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 CreateGraphReplicaResource(replica: 1),
                 CreateGraphReplicaResource(replica: 2)));
 
-        var entries = await provider.ReadLogSourceAsync(
-            LocalContainerApplicationRuntimeLogProvider.CreateLogSourceId(CreateGraphReplicaResource(replica: 2)),
-            maxEntries: 10);
+        var sourceId = LocalContainerApplicationRuntimeLogProvider.CreateLogSourceId(
+            CreateGraphReplicaResource(replica: 2));
+        var source = Assert.Single(provider.GetLogSources(), candidate => candidate.Id == sourceId);
+        await using var session = await provider.OpenLogSourceAsync(source);
+        Assert.NotNull(session);
+        var entries = await session.ReadAsync(maxEntries: 10);
 
         var command = Assert.Single(commandRunner.Commands);
         Assert.Equal("docker", command.FileName);
@@ -1111,9 +1114,12 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 CreateResourceManagerGraphAppResource(replicas: 1),
                 CreateGraphReplicaResource(replica: 1)));
 
-        var entries = await provider.ReadLogSourceAsync(
-            LocalContainerApplicationRuntimeLogProvider.CreateLogSourceId(CreateGraphReplicaResource(replica: 1)),
-            maxEntries: 10);
+        var sourceId = LocalContainerApplicationRuntimeLogProvider.CreateLogSourceId(
+            CreateGraphReplicaResource(replica: 1));
+        var source = Assert.Single(provider.GetLogSources(), candidate => candidate.Id == sourceId);
+        await using var session = await provider.OpenLogSourceAsync(source);
+        Assert.NotNull(session);
+        var entries = await session.ReadAsync(maxEntries: 10);
 
         var entry = Assert.Single(entries);
         Assert.Contains("Docker executable 'docker' is unavailable", entry.Message);

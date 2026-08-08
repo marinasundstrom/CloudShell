@@ -1216,7 +1216,10 @@ only when the active MVP tie-off queue or a supported sample exposes the need.
   across selected projected sources. Sessions preserve source identity, reuse
   provider-owned source sessions, bound fan-in buffering, and dispose readers
   when the consumer disconnects; the UI no longer owns parallel source reads
-  or subscriptions. Search/query pushdown, reconnect cursors, and durable
+  or subscriptions. Sessions are also the sole API for single-source access.
+  The Control Plane does not record or retain provider logs; each source owns
+  its buffering, file tail, runtime stream, or external backend. Search/query
+  pushdown, reconnect cursors, and durable
   cross-source history remain follow-up work. Use
   [Service telemetry and degradation](proposals/core/service-observability-and-degradation.md)
   to track the service-first local-development experience that correlates

@@ -34,7 +34,9 @@ can come from:
 
 The Control Plane merges source declarations and contributed sources through
 the log-source catalog. Consumers use `ILogManager`; providers implement
-`ILogProvider` and materialize `ILogSourceSession` values for reads or streams.
+`ILogProvider` and materialize `ILogSourceSession` values for bounded history
+reads, live streams, or both. A single-source consumer opens a session with one
+source ID; there is no separate source-read API.
 
 Consumers that need a common view over several sources open an `ILogSession`
 through `ILogManager.OpenLogSessionAsync(...)`. The session is an
@@ -51,6 +53,21 @@ implement one source at a time and may share physical readers behind their
 CloudShell UI consume the same `ILogSession` contract instead of creating
 parallel provider subscriptions themselves.
 
+The log manager does not collect, record, persist, rotate, or retain provider
+logs. Those responsibilities remain with the source owner or its backing log
+system. A source session may read buffered process output, page and tail a
+file, follow a container runtime, or delegate query and streaming to an
+external system such as Loki. This keeps the Control Plane on the authorization,
+catalog, and operation-scoped coordination path rather than making it a log
+data plane. Providers may share readers or move fan-in into their backing
+system without changing the consumer contract.
+
+`LogSourceCapabilities` describe what a source supports; they do not prescribe
+how it is implemented. New source kinds and capabilities should extend source
+metadata and provider sessions instead of adding provider-specific methods to
+`ILogManager`. Query pushdown, reconnect cursors, and partial-source diagnostics
+remain compatible future additions to the session model.
+
 `ResourceLogSource` is resource-model discovery metadata. `LogSource` is the
 Control Plane projection used for listing, authorization, reading, streaming,
 parsing, and rendering.
@@ -60,8 +77,6 @@ Current Control Plane routes:
 ```text
 GET /api/control-plane/v1/log-sources
 GET /api/control-plane/v1/log-sources/{logSourceId}
-GET /api/control-plane/v1/log-sources/{logSourceId}/entries
-GET /api/control-plane/v1/log-sources/{logSourceId}/stream
 GET /api/control-plane/v1/log-sessions/entries?sourceId={logSourceId}
 GET /api/control-plane/v1/log-sessions/stream?sourceId={logSourceId}
 ```
@@ -72,6 +87,10 @@ the source advertises streaming capability. The session routes accept repeated
 stream route uses NDJSON and remains open while any selected live-capable
 source is producing entries. Non-streaming sources participate in the initial
 history window but do not prevent the other selected sources from streaming.
+Providers must not advertise `Stream` for an implementation that only replays
+the current snapshot and completes. Polling a provider-owned bounded process
+buffer is a valid live-follow implementation; it remains a provider concern and
+must honor cancellation promptly.
 
 ## Resource Events And Activity
 

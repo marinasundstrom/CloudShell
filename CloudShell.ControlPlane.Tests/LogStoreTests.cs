@@ -72,7 +72,7 @@ public sealed class LogStoreTests
     }
 
     [Fact]
-    public async Task ReadLogSourceAsync_UsesProjectedLogSourceSession()
+    public async Task OpenLogSessionAsync_UsesProjectedLogSourceSession()
     {
         var provider = new TestLogProvider(
         [
@@ -93,16 +93,18 @@ public sealed class LogStoreTests
             new CloudShellExtensionRegistry(),
             new InMemoryCloudShellExtensionActivationStore());
 
-        var entries = await store.ReadLogSourceAsync("provider:diagnostics");
+        await using var session = await store.OpenLogSessionAsync(["provider:diagnostics"]);
+        Assert.NotNull(session);
+        var entries = await session.ReadAsync();
 
         var entry = Assert.Single(entries);
-        Assert.Equal(ProviderProjectedEntry.Message, entry.Message);
+        Assert.Equal(ProviderProjectedEntry.Message, entry.Entry.Message);
         Assert.NotNull(provider.OpenedSource);
         Assert.Equal("provider://diagnostics", provider.OpenedSource.Location);
     }
 
     [Fact]
-    public async Task ReadLogSourceAsync_ResolvesProviderForResourceDeclaredSource()
+    public async Task OpenLogSessionAsync_ResolvesProviderForResourceDeclaredSource()
     {
         var resource = CreateResource(
             "application:api",
@@ -123,9 +125,11 @@ public sealed class LogStoreTests
             new CloudShellExtensionRegistry(),
             new InMemoryCloudShellExtensionActivationStore());
 
-        var entries = await store.ReadLogSourceAsync("application:api:log-source:file");
+        await using var session = await store.OpenLogSessionAsync(["application:api:log-source:file"]);
+        Assert.NotNull(session);
+        var entries = await session.ReadAsync();
 
-        Assert.Equal(ProviderProjectedEntry.Message, Assert.Single(entries).Message);
+        Assert.Equal(ProviderProjectedEntry.Message, Assert.Single(entries).Entry.Message);
         Assert.NotNull(provider.OpenedSource);
         Assert.Equal("application:api", provider.OpenedSource.ResourceId);
         Assert.Equal(ResourceLogSourceKind.File, provider.OpenedSource.Kind);
@@ -133,7 +137,7 @@ public sealed class LogStoreTests
     }
 
     [Fact]
-    public async Task OpenLogSourceSessionAsync_ReturnsDisposableResolvedSession()
+    public async Task OpenLogSessionAsync_ReturnsDisposableResolvedSession()
     {
         var resource = CreateResource(
             "application:api",
@@ -154,12 +158,12 @@ public sealed class LogStoreTests
             new CloudShellExtensionRegistry(),
             new InMemoryCloudShellExtensionActivationStore());
 
-        var session = await store.OpenLogSourceSessionAsync("application:api:log-source:file");
+        var session = await store.OpenLogSessionAsync(["application:api:log-source:file"]);
 
         Assert.NotNull(session);
-        Assert.Equal("application:api:log-source:file", session.SourceId);
+        Assert.Equal(["application:api:log-source:file"], session.SourceIds);
         Assert.Equal(LogSourceSessionStatus.Active, session.Status);
-        Assert.Equal(ProviderProjectedEntry.Message, Assert.Single(await session.ReadAsync()).Message);
+        Assert.Equal(ProviderProjectedEntry.Message, Assert.Single(await session.ReadAsync()).Entry.Message);
         await session.DisposeAsync();
         Assert.Equal(LogSourceSessionStatus.Closed, session.Status);
     }
@@ -238,7 +242,9 @@ public sealed class LogStoreTests
             "operator"));
 
         var source = Assert.Single(provider.GetLogSources());
-        var entries = await provider.ReadLogSourceAsync(source.Id);
+        await using var session = await provider.OpenLogSourceAsync(source);
+        Assert.NotNull(session);
+        var entries = await session.ReadAsync();
 
         Assert.Equal(ResourceEventLogProvider.GetLogId(resource.Id), source.Id);
         Assert.Equal("Activity", source.Name);
@@ -294,20 +300,6 @@ public sealed class LogStoreTests
                     : null);
         }
 
-        public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
-            string logSourceId,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<ILogSourceSession?>(
-                sources.Any(source => string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase))
-                    ? new TestLogSourceSession(logSourceId)
-                    : null);
-
-        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-            string logId,
-            int maxEntries = 200,
-            DateTimeOffset? before = null,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<LogEntry>>([]);
     }
 
     private sealed class TestLogSourceSession(string sourceId) : ILogSourceSession
@@ -382,12 +374,6 @@ public sealed class LogStoreTests
             return ValueTask.FromResult<ILogSourceSession?>(new TestLogSourceSession(source.Id));
         }
 
-        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-            string logId,
-            int maxEntries = 200,
-            DateTimeOffset? before = null,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<LogEntry>>([]);
     }
 
     private sealed class TestResourceManagerStore(IReadOnlyList<Resource> resources) : IResourceManagerStore

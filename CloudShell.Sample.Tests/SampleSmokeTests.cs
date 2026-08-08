@@ -3402,12 +3402,12 @@ public sealed class SampleSmokeTests
                 var logSourceId = source.GetProperty("id").GetString() ??
                     throw new InvalidOperationException("The log source did not include an id.");
                 var body = await host.GetStringAsync(
-                    $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(logSourceId)}/entries?maxEntries=50");
+                    $"/api/control-plane/v1/log-sessions/entries?sourceId={Uri.EscapeDataString(logSourceId)}&maxEntries=50");
                 lastResponses[logSourceId] = body;
                 using var document = JsonDocument.Parse(body);
                 if (document.RootElement
                     .EnumerateArray()
-                    .Any(IsStructuredJsonConsoleLogEntry))
+                    .Any(item => IsStructuredJsonConsoleLogEntry(item.GetProperty("entry"))))
                 {
                     return;
                 }
@@ -4620,11 +4620,11 @@ public sealed class SampleSmokeTests
         do
         {
             lastBody = await host.GetStringAsync(
-                $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(logSourceId)}/entries?maxEntries=50");
+                $"/api/control-plane/v1/log-sessions/entries?sourceId={Uri.EscapeDataString(logSourceId)}&maxEntries=50");
             using var document = JsonDocument.Parse(lastBody);
             var entries = document.RootElement
                 .EnumerateArray()
-                .Select(entry => entry.GetProperty("message").GetString() ?? string.Empty)
+                .Select(item => item.GetProperty("entry").GetProperty("message").GetString() ?? string.Empty)
                 .Where(message => !string.IsNullOrWhiteSpace(message))
                 .ToArray();
             if (entries.Length > 0 &&
@@ -4655,12 +4655,12 @@ public sealed class SampleSmokeTests
             {
                 var logSourceId = $"{resourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs";
                 var body = await host.GetStringAsync(
-                    $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(logSourceId)}/entries?maxEntries=50");
+                    $"/api/control-plane/v1/log-sessions/entries?sourceId={Uri.EscapeDataString(logSourceId)}&maxEntries=50");
                 lastResponses[logSourceId] = body;
                 using var document = JsonDocument.Parse(body);
                 var entries = document.RootElement
                     .EnumerateArray()
-                    .Select(entry => entry.GetProperty("message").GetString() ?? string.Empty)
+                    .Select(item => item.GetProperty("entry").GetProperty("message").GetString() ?? string.Empty)
                     .Where(message => !string.IsNullOrWhiteSpace(message))
                     .ToArray();
                 if (entries.Length > 0 && entries.Any(containsEntry))
