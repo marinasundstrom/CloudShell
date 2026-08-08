@@ -237,17 +237,25 @@ the optimization policy behind it: a provider may open files, attach to
 process or container streams, acquire remote cursors, bind collector query
 windows, fan out one background reader to many consumers, and release those
 resources when the operation ends. Descriptor-backed providers are bridged into
-sessions during migration. API clients should continue to address stable source
-IDs. A future API can make session startup explicit and return read
-affordances for that session, such as a polling address, server-sent event
-stream, or WebSocket address, without exposing provider-specific handles.
-Client libraries, including the remote Control Plane client, should hide that
-transport choice and expose a `LogSession` abstraction with a method for
-querying a recent log span and an event or observable update stream for new
-entries.
+sessions during migration. API clients continue to address stable source IDs.
+The current API treats a snapshot request or open NDJSON response as the remote
+session lifetime, and the remote Control Plane client hides that transport
+behind `ILogSession`. A future explicitly persisted server session could add
+polling, server-sent event, or WebSocket affordances when reconnectable cursors
+or longer-lived shared subscriptions require server-side identity.
 Session disposal is part of the contract through `IAsyncDisposable`; callers
 that request a session are responsible for disposing it when their read,
 polling, or stream operation ends.
+
+The Control Plane now also exposes `ILogSession` as the consumer-facing fan-in
+over one or more selected source IDs. It owns the underlying
+`ILogSourceSession` instances, returns `LogSessionEntry` envelopes with stable
+source identity, merges bounded reads chronologically, and streams live entries
+through a bounded channel. The remote adapter maps the same abstraction to the
+`/log-sessions/entries` and `/log-sessions/stream` routes, with one NDJSON HTTP
+stream representing the operation-scoped session. This is the shared
+integration contract used by combined Resource Manager log views; it is not a
+synthetic persisted log source.
 
 For example, a future `LogFileProvider` could keep one tracked reader per
 physical log file, maintain the file offset and tail status internally, and
@@ -702,6 +710,9 @@ base log or event entry a blob store.
   request-serving Control Plane API process, claim source assignments through
   leases or work queues, persist normalized entries, and avoid duplicate reads
   when several Control Plane API replicas are running.
+- Add session reconnect cursors, search/query pushdown, partial-source failure
+  diagnostics, and explicit backpressure policy after provider and remote-client
+  usage proves the required shapes.
 - Keep resource event trace correlation focused on W3C `traceId`/`spanId`
   fields. Do not turn resource events into trace spans or log records.
 - Use the structured `LogEntry` metadata fields for provider logs only when a

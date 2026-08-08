@@ -529,6 +529,10 @@ public sealed record LogEntryResponse(
     string? ExceptionSummary,
     IReadOnlyDictionary<string, string>? Attributes);
 
+public sealed record LogSessionEntryResponse(
+    string SourceId,
+    LogEntryResponse Entry);
+
 public sealed record CloudShellUserSettingResponse(
     string Key,
     string Value,
@@ -1081,6 +1085,9 @@ internal static class CloudShellControlPlaneDtoMapper
             entry.SpanId,
             entry.ExceptionSummary,
             entry.Attributes);
+
+    public static LogSessionEntryResponse ToResponse(this LogSessionEntry entry) =>
+        new(entry.SourceId, entry.Entry.ToResponse());
 
     public static CloudShellUserSettingResponse ToResponse(this CloudShellUserSetting setting) =>
         new(setting.Key, setting.Value, setting.UpdatedAt);

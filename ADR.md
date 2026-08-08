@@ -9,6 +9,28 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-08-08
+
+### ADR-20260808-001: Combine logs through Control Plane-owned sessions
+
+Combined log views and integrations use an operation-scoped `ILogSession`
+opened through `ILogManager`. The Control Plane resolves and authorizes the
+selected catalogued sources, owns their provider-created
+`ILogSourceSession` instances, merges bounded reads, fans in live-capable
+streams with bounded buffering, and disposes the underlying readers with the
+consumer session. Each result is a `LogSessionEntry` envelope containing the
+stable source ID and the provider's `LogEntry`.
+
+A combined view is not registered as a synthetic `LogSource`, and the WebUI
+must not own one subscription per provider source. The HTTP API projects the
+same operation-scoped session as source-selected snapshot and NDJSON stream
+routes, so Resource Manager, extensions, CLIs, and remote clients share one
+integration contract. This provides Aspire-parity for all-resource console log
+following while preserving CloudShell's provider-neutral, authorized, split-
+host Control Plane architecture.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-07-11
 
 ### ADR-20260711-001: Treat uploaded workload inputs as provider-interpreted deployment artifacts

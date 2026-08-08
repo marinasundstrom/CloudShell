@@ -10,6 +10,24 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-08-08
+
+#### Added
+
+- Added Control Plane-owned multi-source log sessions with stable source-
+  addressed entries, chronological bounded reads, bounded live fan-in, and
+  deterministic disposal of provider source sessions. The Control Plane API
+  and remote client expose the same session through snapshot and NDJSON stream
+  routes. Decision: [ADR-20260808-001](ADR.md#adr-20260808-001).
+
+#### Changed
+
+- Combined shared and resource-scoped log views now follow all selected
+  stream-capable sources through one `ILogManager` session while retaining
+  non-streaming sources in the initial history window, providing the unified
+  all-resource console-log workflow expected from the local-development
+  experience.
+
 ### 2026-07-27
 
 #### Changed

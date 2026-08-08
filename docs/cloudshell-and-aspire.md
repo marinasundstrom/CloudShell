@@ -50,6 +50,15 @@ CloudShell adds value when the team needs more than app composition:
 CloudShell is therefore not just an app launcher. It is a resource shell and
 Control Plane that can use Aspire-like declarations as one entry point.
 
+Local-development parity includes a unified console-log experience. Aspire can
+show and follow console output from all resources in one chronological view;
+CloudShell provides the same user capability through Control Plane log
+sessions. CloudShell's implementation additionally composes catalogued sources
+from different providers, enforces Control Plane authorization, preserves a
+stable source ID on every entry, and exposes the same fan-in to remote clients
+and extensions. This is parity at the workflow level without making Aspire's
+AppHost or dashboard a CloudShell runtime dependency.
+
 CloudShell should also preserve Aspire's ecosystem direction without copying
 its implementation boundary. A developer should be able to use TypeScript or
 JavaScript as the launcher authoring language, start or attach to a .NET

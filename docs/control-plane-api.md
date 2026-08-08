@@ -167,6 +167,22 @@ transport or provider path produced the data.
 For the full signal taxonomy and log/event/trace/metric/monitoring/health
 boundaries, see [Observability](observability.md).
 
+Combined log reads and live follow use operation-scoped log sessions:
+
+```text
+GET /api/control-plane/v1/log-sessions/entries?sourceId={sourceId}
+GET /api/control-plane/v1/log-sessions/stream?sourceId={sourceId}
+```
+
+Clients repeat `sourceId` to select several catalogued sources. Entries carry
+both the stable source ID and the normal `LogEntry` payload; the stream is
+NDJSON. `ILogManager.OpenLogSessionAsync(...)` hides whether the consumer is
+in-process or remote. The HTTP request owns the remote session lifetime, and
+disconnecting disposes the Control Plane session and its provider-owned source
+sessions. These routes are the integration surface for combined Resource
+Manager views, CLIs, and extensions; consumers should not open one HTTP stream
+per source and merge them outside the Control Plane.
+
 The current API surface remains snapshot/list based while CloudShell proves
 basic monitoring support across resource providers. Future live telemetry and
 resource monitoring updates for split-hosted UIs should use Control

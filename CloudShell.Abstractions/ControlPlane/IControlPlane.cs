@@ -219,6 +219,10 @@ public interface ILogManager
         string logSourceId,
         CancellationToken cancellationToken = default);
 
+    ValueTask<ILogSession?> OpenLogSessionAsync(
+        LogSessionOptions options,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logSourceId,
         ReadLogOptions? options = null,

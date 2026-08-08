@@ -21,6 +21,11 @@ public interface ILogStore
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<ILogSourceSession?>(null);
 
+    ValueTask<ILogSession?> OpenLogSessionAsync(
+        IReadOnlyList<string> logSourceIds,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ILogSession?>(null);
+
     IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
         string logSourceId,
         int initialEntries = 50,

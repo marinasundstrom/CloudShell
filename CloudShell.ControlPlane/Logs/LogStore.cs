@@ -94,6 +94,56 @@ public sealed class LogStore(
         return null;
     }
 
+    public async ValueTask<ILogSession?> OpenLogSessionAsync(
+        IReadOnlyList<string> logSourceIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(logSourceIds);
+        var sourceIds = logSourceIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (sourceIds.Length == 0)
+        {
+            return null;
+        }
+
+        var opened = new List<CompositeLogSession.SourceSession>(sourceIds.Length);
+        try
+        {
+            foreach (var sourceId in sourceIds)
+            {
+                var source = GetLogSource(sourceId);
+                var session = source is null
+                    ? null
+                    : await OpenLogSourceSessionAsync(sourceId, cancellationToken);
+                if (source is null || session is null)
+                {
+                    foreach (var openedSource in opened)
+                    {
+                        await openedSource.Session.DisposeAsync();
+                    }
+
+                    return null;
+                }
+
+                opened.Add(new CompositeLogSession.SourceSession(source, session));
+            }
+
+            return new CompositeLogSession(opened);
+        }
+        catch
+        {
+            foreach (var openedSource in opened)
+            {
+                await openedSource.Session.DisposeAsync();
+            }
+
+            throw;
+        }
+    }
+
     private bool IsProviderActive(ILogProvider provider)
     {
         var extensionProviderTypes = extensionRegistry

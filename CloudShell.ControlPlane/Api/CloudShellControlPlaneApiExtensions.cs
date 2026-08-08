@@ -193,6 +193,13 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapGet("/log-sources/{logSourceId}/stream", StreamLogSourceEntries)
             .WithName("CloudShellControlPlane_StreamLogSourceEntries");
 
+        api.MapGet("/log-sessions/entries", ReadLogSessionEntries)
+            .WithName("CloudShellControlPlane_ReadLogSessionEntries")
+            .Produces<LogSessionEntryResponse[]>(StatusCodes.Status200OK);
+
+        api.MapGet("/log-sessions/stream", StreamLogSessionEntries)
+            .WithName("CloudShellControlPlane_StreamLogSessionEntries");
+
         api.MapGet("/resource-events", ListResourceEvents)
             .WithName("CloudShellControlPlane_ListResourceEvents")
             .Produces<ResourceEventResponse[]>(StatusCodes.Status200OK);
@@ -1545,6 +1552,83 @@ public static class CloudShellControlPlaneApiExtensions
                             cancellationToken: cancellationToken);
                         await stream.WriteAsync("\n"u8.ToArray(), cancellationToken);
                         await stream.FlushAsync(cancellationToken);
+                    }
+                },
+                "application/x-ndjson");
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ReadLogSessionEntries(
+        [FromQuery(Name = "sourceId")] string[] sourceIds,
+        int? maxEntries,
+        DateTimeOffset? before,
+        ILogManager logs,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var session = await logs.OpenLogSessionAsync(
+                new LogSessionOptions(sourceIds),
+                cancellationToken);
+            if (session is null)
+            {
+                return Problem(
+                    StatusCodes.Status404NotFound,
+                    "Log session unavailable",
+                    "Select at least one readable log source and verify that every source still exists.");
+            }
+
+            var entries = await session.ReadAsync(
+                Math.Clamp(maxEntries ?? 200, 1, 1000),
+                before,
+                cancellationToken);
+            return Results.Ok(entries.Select(entry => entry.ToResponse()).ToArray());
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> StreamLogSessionEntries(
+        [FromQuery(Name = "sourceId")] string[] sourceIds,
+        int? initialEntries,
+        ILogManager logs,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await logs.OpenLogSessionAsync(
+                new LogSessionOptions(sourceIds),
+                cancellationToken);
+            if (session is null)
+            {
+                return Problem(
+                    StatusCodes.Status404NotFound,
+                    "Log session unavailable",
+                    "Select at least one readable log source and verify that every source still exists.");
+            }
+
+            return Results.Stream(
+                async stream =>
+                {
+                    await using (session)
+                    {
+                        await foreach (var entry in session.StreamAsync(
+                            Math.Clamp(initialEntries ?? 50, 0, 1000),
+                            cancellationToken))
+                        {
+                            await JsonSerializer.SerializeAsync(
+                                stream,
+                                entry.ToResponse(),
+                                cancellationToken: cancellationToken);
+                            await stream.WriteAsync("\n"u8.ToArray(), cancellationToken);
+                            await stream.FlushAsync(cancellationToken);
+                        }
                     }
                 },
                 "application/x-ndjson");

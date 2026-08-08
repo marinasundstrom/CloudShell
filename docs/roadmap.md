@@ -1211,11 +1211,13 @@ only when the active MVP tie-off queue or a supported sample exposes the need.
   changing resource Telemetry navigation or scope selection.
   Control Plane API streaming for live telemetry/monitoring remains a later
   design question after basic provider monitoring support is established;
-  durable retention and aggregation remain future work. Merged log views now
-  support UI-level source filters over projected `LogSource` records for reads
-  and older-history queries; live merged streaming should wait for log sessions
-  to support provider-owned multi-source fan-in, shared readers, and disposal
-  semantics instead of faking it in the UI. Use
+  durable retention and aggregation remain future work. Merged log views use
+  Control Plane-owned `ILogSession` fan-in for bounded reads and live streaming
+  across selected projected sources. Sessions preserve source identity, reuse
+  provider-owned source sessions, bound fan-in buffering, and dispose readers
+  when the consumer disconnects; the UI no longer owns parallel source reads
+  or subscriptions. Search/query pushdown, reconnect cursors, and durable
+  cross-source history remain follow-up work. Use
   [Service telemetry and degradation](proposals/core/service-observability-and-degradation.md)
   to track the service-first local-development experience that correlates
   load, recent exceptions, structured logs, traces, health, resource

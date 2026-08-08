@@ -2003,6 +2003,27 @@ public sealed class InProcessControlPlane(
             cancellationToken);
     }
 
+    public ValueTask<ILogSession?> OpenLogSessionAsync(
+        LogSessionOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(options.SourceIds);
+        EnsureCanReadLogs();
+
+        var sourceIds = options.SourceIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (sourceIds.Length == 0 || sourceIds.Any(id => GetReadableLogSource(id) is null))
+        {
+            return ValueTask.FromResult<ILogSession?>(null);
+        }
+
+        return logs.OpenLogSessionAsync(sourceIds, cancellationToken);
+    }
+
     public IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
         string logSourceId,
         StreamLogOptions? options = null,

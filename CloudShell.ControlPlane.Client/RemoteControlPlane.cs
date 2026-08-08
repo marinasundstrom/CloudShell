@@ -688,6 +688,30 @@ public sealed class RemoteControlPlane : IControlPlane
         return response?.ToLogSource();
     }
 
+    public async ValueTask<ILogSession?> OpenLogSessionAsync(
+        LogSessionOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(options.SourceIds);
+        var sourceIds = options.SourceIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (sourceIds.Length == 0)
+        {
+            return null;
+        }
+
+        var availableSourceIds = (await ListLogSourcesAsync(cancellationToken: cancellationToken))
+            .Select(source => source.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return sourceIds.All(availableSourceIds.Contains)
+            ? new RemoteLogSession(this, sourceIds)
+            : null;
+    }
+
     public async Task<IReadOnlyList<ResourceEvent>> ListResourceEventsAsync(
         ResourceEventQuery? query = null,
         CancellationToken cancellationToken = default) =>
@@ -858,6 +882,66 @@ public sealed class RemoteControlPlane : IControlPlane
             if (entry is not null)
             {
                 yield return entry.ToLogEntry();
+            }
+        }
+    }
+
+    private async Task<IReadOnlyList<LogSessionEntry>> ReadLogSessionAsync(
+        IReadOnlyList<string> sourceIds,
+        int maxEntries,
+        DateTimeOffset? before,
+        CancellationToken cancellationToken)
+    {
+        var query = sourceIds
+            .Select(sourceId => (Name: "sourceId", Value: (string?)sourceId))
+            .Concat([
+                ("maxEntries", maxEntries.ToString(CultureInfo.InvariantCulture)),
+                ("before", before?.ToString("O"))
+            ])
+            .ToArray();
+        return (await GetRequiredAsync<IReadOnlyList<LogSessionEntryResponse>>(
+                "log-sessions/entries",
+                cancellationToken,
+                query))
+            .Select(response => response.ToLogSessionEntry())
+            .ToArray();
+    }
+
+    private async IAsyncEnumerable<LogSessionEntry> StreamLogSessionAsync(
+        IReadOnlyList<string> sourceIds,
+        int initialEntries,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var query = sourceIds
+            .Select(sourceId => (Name: "sourceId", Value: (string?)sourceId))
+            .Append(("initialEntries", initialEntries.ToString(CultureInfo.InvariantCulture)))
+            .ToArray();
+        var response = await httpClient.GetAsync(
+            BuildUri("log-sessions/stream", query),
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new StreamReader(stream);
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var line = await reader.ReadLineAsync(cancellationToken);
+            if (line is null)
+            {
+                yield break;
+            }
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var entry = JsonSerializer.Deserialize<LogSessionEntryResponse>(line, SerializerOptions);
+            if (entry is not null)
+            {
+                yield return entry.ToLogSessionEntry();
             }
         }
     }
@@ -1220,6 +1304,67 @@ public sealed class RemoteControlPlane : IControlPlane
 
     private static string Escape(string value) =>
         Uri.EscapeDataString(value);
+
+    private sealed class RemoteLogSession(
+        RemoteControlPlane controlPlane,
+        IReadOnlyList<string> sourceIds) : ILogSession
+    {
+        private readonly CancellationTokenSource lifetimeCancellation = new();
+        private int status = (int)LogSourceSessionStatus.Active;
+
+        public string Id { get; } = Guid.NewGuid().ToString("N");
+
+        public IReadOnlyList<string> SourceIds { get; } = sourceIds;
+
+        public LogSourceSessionStatus Status =>
+            (LogSourceSessionStatus)Volatile.Read(ref status);
+
+        public async Task<IReadOnlyList<LogSessionEntry>> ReadAsync(
+            int maxEntries = 200,
+            DateTimeOffset? before = null,
+            CancellationToken cancellationToken = default)
+        {
+            ObjectDisposedException.ThrowIf(Status == LogSourceSessionStatus.Closed, this);
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                lifetimeCancellation.Token,
+                cancellationToken);
+            return await controlPlane.ReadLogSessionAsync(
+                SourceIds,
+                maxEntries,
+                before,
+                linkedCancellation.Token);
+        }
+
+        public async IAsyncEnumerable<LogSessionEntry> StreamAsync(
+            int initialEntries = 50,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            ObjectDisposedException.ThrowIf(Status == LogSourceSessionStatus.Closed, this);
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                lifetimeCancellation.Token,
+                cancellationToken);
+            await foreach (var entry in controlPlane.StreamLogSessionAsync(
+                SourceIds,
+                initialEntries,
+                linkedCancellation.Token))
+            {
+                yield return entry;
+            }
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            if ((LogSourceSessionStatus)Interlocked.Exchange(
+                    ref status,
+                    (int)LogSourceSessionStatus.Closed) != LogSourceSessionStatus.Closed)
+            {
+                lifetimeCancellation.Cancel();
+                lifetimeCancellation.Dispose();
+            }
+
+            return ValueTask.CompletedTask;
+        }
+    }
 }
 
 file sealed record ResourceResponse(
@@ -1743,6 +1888,10 @@ file sealed record LogEntryResponse(
     string? ExceptionSummary,
     IReadOnlyDictionary<string, string>? Attributes);
 
+file sealed record LogSessionEntryResponse(
+    string SourceId,
+    LogEntryResponse Entry);
+
 file sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);
 
 file sealed record MetricIngestRequest(IReadOnlyList<MetricPoint> Points);
@@ -2224,6 +2373,9 @@ file static class RemoteControlPlaneMapper
             response.SpanId,
             response.ExceptionSummary,
             response.Attributes);
+
+    public static LogSessionEntry ToLogSessionEntry(this LogSessionEntryResponse response) =>
+        new(response.SourceId, response.Entry.ToLogEntry());
 
     public static ResourceEvent ToResourceEvent(this ResourceEventResponse response) =>
         new(

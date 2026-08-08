@@ -165,6 +165,47 @@ public sealed class LogStoreTests
     }
 
     [Fact]
+    public async Task OpenLogSessionAsync_MergesSourcesWithStableSourceIdentity()
+    {
+        var firstSource = new LogSource(
+            "application:first:logs",
+            "Console logs",
+            "Applications",
+            "first",
+            LogSourceKind.Resource,
+            Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream);
+        var secondSource = new LogSource(
+            "application:second:logs",
+            "Console logs",
+            "Applications",
+            "second",
+            LogSourceKind.Resource,
+            Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream);
+        var store = new LogStore(
+            [new TestLogProvider([firstSource, secondSource])],
+            new TestResourceManagerStore([]),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        await using var session = await store.OpenLogSessionAsync([firstSource.Id, secondSource.Id]);
+
+        Assert.NotNull(session);
+        Assert.Equal([firstSource.Id, secondSource.Id], session.SourceIds);
+        var entries = await session.ReadAsync();
+        Assert.Equal(2, entries.Count);
+        Assert.Contains(entries, entry => entry.SourceId == firstSource.Id);
+        Assert.Contains(entries, entry => entry.SourceId == secondSource.Id);
+        var streamedEntries = new List<LogSessionEntry>();
+        await foreach (var entry in session.StreamAsync(0))
+        {
+            streamedEntries.Add(entry);
+        }
+        Assert.Equal(2, streamedEntries.Count);
+        Assert.Contains(streamedEntries, entry => entry.SourceId == firstSource.Id);
+        Assert.Contains(streamedEntries, entry => entry.SourceId == secondSource.Id);
+    }
+
+    [Fact]
     public void GetLogSources_IncludesStandaloneSourceContributors()
     {
         var store = new LogStore(
@@ -287,14 +328,14 @@ public sealed class LogStoreTests
             int initialEntries = 50,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            if (initialEntries <= 0)
+            if (initialEntries > 0)
             {
-                yield break;
+                yield return ProviderProjectedEntry;
             }
 
             await Task.Yield();
             cancellationToken.ThrowIfCancellationRequested();
-            yield return ProviderProjectedEntry;
+            yield return ProviderProjectedEntry with { Message = "Live provider projected log entry" };
         }
 
         public ValueTask DisposeAsync()

@@ -36,6 +36,21 @@ The Control Plane merges source declarations and contributed sources through
 the log-source catalog. Consumers use `ILogManager`; providers implement
 `ILogProvider` and materialize `ILogSourceSession` values for reads or streams.
 
+Consumers that need a common view over several sources open an `ILogSession`
+through `ILogManager.OpenLogSessionAsync(...)`. The session is an
+operation-scoped fan-in boundary owned by the Control Plane: it opens the
+selected provider sessions once, merges bounded reads chronologically, fans in
+live-capable sources through one bounded stream, and disposes every underlying
+reader when the consumer disconnects. `LogSessionEntry` preserves the stable
+`SourceId` beside each `LogEntry`; consumers must not infer source identity from
+the display-oriented `LogEntry.Source` value.
+
+Sessions are the public integration model for combined logs. Providers still
+implement one source at a time and may share physical readers behind their
+`ILogSourceSession` implementations. Extensions, remote clients, CLIs, and the
+CloudShell UI consume the same `ILogSession` contract instead of creating
+parallel provider subscriptions themselves.
+
 `ResourceLogSource` is resource-model discovery metadata. `LogSource` is the
 Control Plane projection used for listing, authorization, reading, streaming,
 parsing, and rendering.
@@ -47,10 +62,16 @@ GET /api/control-plane/v1/log-sources
 GET /api/control-plane/v1/log-sources/{logSourceId}
 GET /api/control-plane/v1/log-sources/{logSourceId}/entries
 GET /api/control-plane/v1/log-sources/{logSourceId}/stream
+GET /api/control-plane/v1/log-sessions/entries?sourceId={logSourceId}
+GET /api/control-plane/v1/log-sessions/stream?sourceId={logSourceId}
 ```
 
 Source-addressed reads are bounded snapshots. Streaming is available only when
-the source advertises streaming capability.
+the source advertises streaming capability. The session routes accept repeated
+`sourceId` query parameters and return source-addressed entry envelopes. The
+stream route uses NDJSON and remains open while any selected live-capable
+source is producing entries. Non-streaming sources participate in the initial
+history window but do not prevent the other selected sources from streaming.
 
 ## Resource Events And Activity
 

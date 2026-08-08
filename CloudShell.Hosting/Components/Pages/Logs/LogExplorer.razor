@@ -361,6 +361,7 @@ else if (ShowHeading)
     private string? ReadError { get; set; }
     private CancellationTokenSource? StreamingCancellation { get; set; }
     private Task? StreamingTask { get; set; }
+    private ILogSession? ActiveLogSession { get; set; }
     private HashSet<string> DisabledStreamingLogIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private bool IsLoading { get; set; }
     private bool IsLoadingOlder { get; set; }
@@ -536,6 +537,10 @@ else if (ShowHeading)
             L["Telemetry"].Value,
             sourceName,
             LogSourceKind.Resource,
+            Capabilities: LogSourceCapabilities.Read |
+                (GetMergedLogSources().Any(log => log.SupportsStreaming)
+                    ? LogSourceCapabilities.Stream
+                    : LogSourceCapabilities.None),
             ResourceId: resourceId,
             Description: logs.Count == 1
                 ? L["Recent entries from the available operational log source."].Value
@@ -956,11 +961,26 @@ else if (ShowHeading)
         ReadError = null;
         try
         {
-            Entries = IsCombinedLog(log)
-                ? await ReadCombinedLogAsync(InitialWindowEntries)
-                : await LogManager.ReadLogSourceAsync(
+            if (IsCombinedLog(log))
+            {
+                ActiveLogSession = await OpenCombinedLogSessionAsync();
+                Entries = ActiveLogSession is null
+                    ? []
+                    : (await ActiveLogSession.ReadAsync(InitialWindowEntries))
+                        .Select(WithMergedEntrySource)
+                        .ToArray();
+            }
+            else
+            {
+                Entries = await LogManager.ReadLogSourceAsync(
                     log.Id,
                     new ReadLogOptions(MaxEntries: InitialWindowEntries));
+            }
+            if (IsCombinedLog(log) && !log.SupportsStreaming && ActiveLogSession is { } readSession)
+            {
+                ActiveLogSession = null;
+                await readSession.DisposeAsync();
+            }
             CanLoadOlderEntries = Entries.Count >= InitialWindowEntries;
             if (Entries.Count > 0)
             {
@@ -971,6 +991,11 @@ else if (ShowHeading)
         }
         catch (Exception exception)
         {
+            if (ActiveLogSession is { } failedSession)
+            {
+                ActiveLogSession = null;
+                await failedSession.DisposeAsync();
+            }
             Entries = [];
             CanLoadOlderEntries = false;
             ReadError = FormatLogReadFailure(exception, "load log entries");
@@ -998,23 +1023,39 @@ else if (ShowHeading)
             return [];
         }
 
-        var reads = await Task.WhenAll(
-            sources.Select(async log => new
-            {
-                Source = log,
-                Entries = await LogManager.ReadLogSourceAsync(
-                    log.Id,
-                    new ReadLogOptions(
-                        MaxEntries: maxEntries,
-                        Before: before))
-            }));
+        await using var session = await LogManager.OpenLogSessionAsync(
+            new LogSessionOptions(sources.Select(source => source.Id).ToArray()));
+        return session is null
+            ? []
+            : (await session.ReadAsync(maxEntries, before))
+                .Select(WithMergedEntrySource)
+                .DistinctBy(GetEntryKey)
+                .ToArray();
+    }
 
-        return reads
-            .SelectMany(read => read.Entries.Select(entry => WithMergedEntrySource(read.Source, entry)))
-            .DistinctBy(GetEntryKey)
-            .OrderBy(entry => entry.Timestamp)
-            .TakeLast(maxEntries)
+    private ValueTask<ILogSession?> OpenCombinedLogSessionAsync()
+    {
+        var sourceIds = GetMergedLogSources()
+            .Select(source => source.Id)
             .ToArray();
+        return sourceIds.Length == 0
+            ? ValueTask.FromResult<ILogSession?>(null)
+            : LogManager.OpenLogSessionAsync(new LogSessionOptions(sourceIds));
+    }
+
+    private LogEntry WithMergedEntrySource(LogSessionEntry sessionEntry)
+    {
+        var source = VisibleLogSources.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, sessionEntry.SourceId, StringComparison.OrdinalIgnoreCase));
+        if (source is not null)
+        {
+            return WithMergedEntrySource(source, sessionEntry.Entry);
+        }
+
+        return sessionEntry.Entry with
+        {
+            Source = $"{sessionEntry.SourceId} / {sessionEntry.Entry.Source}"
+        };
     }
 
     private LogEntry WithMergedEntrySource(LogSource source, LogEntry entry)
@@ -1107,7 +1148,18 @@ else if (ShowHeading)
             return;
         }
 
+        var loadedSession = IsCombinedLog(log) ? ActiveLogSession : null;
+        ActiveLogSession = null;
         await StopStreamingAsync();
+
+        if (IsCombinedLog(log))
+        {
+            ActiveLogSession = loadedSession ?? await OpenCombinedLogSessionAsync();
+            if (ActiveLogSession is null)
+            {
+                return;
+            }
+        }
 
         ReadError = null;
         var cancellation = new CancellationTokenSource();
@@ -1121,11 +1173,17 @@ else if (ShowHeading)
     private async Task StopStreamingAsync()
     {
         var cancellation = StreamingCancellation;
+        var session = ActiveLogSession;
+        ActiveLogSession = null;
         if (cancellation is null)
         {
             IsStreaming = false;
             StreamingLogId = null;
             StreamingTask = null;
+            if (session is not null)
+            {
+                await session.DisposeAsync();
+            }
             return;
         }
 
@@ -1134,17 +1192,17 @@ else if (ShowHeading)
         StreamingTask = null;
         StreamingLogId = null;
         IsStreaming = false;
-        await Task.CompletedTask;
+        if (session is not null)
+        {
+            await session.DisposeAsync();
+        }
     }
 
     private async Task StreamEntriesAsync(LogSource log, CancellationTokenSource cancellation)
     {
         try
         {
-            await foreach (var entry in LogManager.StreamLogSourceAsync(
-                log.Id,
-                new StreamLogOptions(InitialEntries: 0),
-                cancellation.Token))
+            await foreach (var entry in StreamSelectedLogAsync(log, cancellation.Token))
             {
                 var shouldFollowLatest = true;
                 await InvokeAsync(async () =>
@@ -1192,11 +1250,18 @@ else if (ShowHeading)
         {
             if (ReferenceEquals(StreamingCancellation, cancellation))
             {
+                var session = ActiveLogSession;
+                ActiveLogSession = null;
                 StreamingCancellation = null;
                 StreamingTask = null;
                 StreamingLogId = null;
                 IsStreaming = false;
                 cancellation.Dispose();
+
+                if (session is not null)
+                {
+                    await session.DisposeAsync();
+                }
 
                 if (!IsDisposed)
                 {
@@ -1207,6 +1272,35 @@ else if (ShowHeading)
             {
                 cancellation.Dispose();
             }
+        }
+    }
+
+    private async IAsyncEnumerable<LogEntry> StreamSelectedLogAsync(
+        LogSource log,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (IsCombinedLog(log))
+        {
+            var session = ActiveLogSession;
+            if (session is null)
+            {
+                yield break;
+            }
+
+            await foreach (var entry in session.StreamAsync(0, cancellationToken))
+            {
+                yield return WithMergedEntrySource(entry);
+            }
+
+            yield break;
+        }
+
+        await foreach (var entry in LogManager.StreamLogSourceAsync(
+            log.Id,
+            new StreamLogOptions(InitialEntries: 0),
+            cancellationToken))
+        {
+            yield return entry;
         }
     }
 
