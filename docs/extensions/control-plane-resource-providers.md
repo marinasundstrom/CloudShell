@@ -296,6 +296,17 @@ container runtime, or an external logging service without changing
 provider-neutral capabilities to source/session contracts rather than adding
 provider-specific manager methods.
 
+The built-in `FileLogProvider` is the reference implementation for declared
+file sources. Authors use `WithFileLogSource(...)` or an equivalent
+`ResourceLogSourceDefinition` with an absolute location. Control Plane hosts
+must opt in to readable directories through
+`CloudShell:Logs:Files:AllowedRoots`; an empty allowlist disables file access.
+The provider bounds snapshot bytes, streamed bytes per poll, entry counts, and
+line length, follows only complete UTF-8 lines, handles append and
+truncation/replacement, and rejects symlink/reparse traversal below an allowed
+root. Custom file providers must provide equivalent path authorization and
+bounded I/O, or advertise a narrower capability set.
+
 ## Docker Built-in Provider
 
 The Docker provider is the reference implementation. Container log sources

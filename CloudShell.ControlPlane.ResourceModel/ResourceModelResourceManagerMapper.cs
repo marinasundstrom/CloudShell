@@ -383,6 +383,7 @@ public static class ResourceModelResourceManagerMapper
             definition.Name,
             ParseEnum(definition.Kind, ResourceLogSourceKind.ProviderDefined),
             Format: ParseEnum(definition.Format, LogFormat.PlainText),
+            Storage: new LogStorage(ParseEnum(definition.Storage, LogStorageKind.ProviderDefined)),
             Capabilities: ToLogSourceCapabilities(definition.Capabilities),
             Location: definition.Location,
             ProducerResourceId: definition.ProducerResourceId,

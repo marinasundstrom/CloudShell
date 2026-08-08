@@ -35,6 +35,13 @@ plane and may share physical readers or perform aggregation itself. This keeps
 the default local implementation lightweight while allowing scalable backends
 behind the same API.
 
+The built-in file provider follows the same boundary: resources declare an
+absolute file source, the Control Plane host explicitly allowlists readable
+roots, and the provider performs bounded snapshot/tail I/O while rejecting
+paths outside policy and symlink/reparse traversal. File creation, writes,
+flushes, rotation, and retention remain owned by the producing resource or its
+logging framework.
+
 A combined view is not registered as a synthetic `LogSource`, and the WebUI
 must not own one subscription per provider source. The HTTP API projects the
 same operation-scoped session as source-selected snapshot and NDJSON stream

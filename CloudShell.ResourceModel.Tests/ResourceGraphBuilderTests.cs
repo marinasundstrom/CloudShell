@@ -10,6 +10,37 @@ namespace CloudShell.ResourceModel.Tests;
 public sealed class ResourceGraphBuilderTests
 {
     [Fact]
+    public void WithFileLogSource_AppendsResourceDeclaredFileSource()
+    {
+        var builder = new AspNetCoreProjectResourceDefinitionBuilder("api")
+            .WithDefaultConsoleLogSource()
+            .WithFileLogSource(
+                "application-file",
+                "Application file",
+                "/var/log/sample/application.log",
+                ResourceLogSourceDefinitionValues.JsonConsole);
+
+        var definition = builder.Build();
+        var sources = definition.ResourceAttributeValues
+            .GetObject<ResourceLogSourceDefinitionSet>(ResourceLogSourceAttributeIds.LogSources)?
+            .Sources;
+
+        Assert.NotNull(sources);
+        Assert.Collection(
+            sources,
+            source => Assert.Equal("console", source.Id),
+            source =>
+            {
+                Assert.Equal("application-file", source.Id);
+                Assert.Equal(ResourceLogSourceDefinitionValues.File, source.Kind);
+                Assert.Equal(ResourceLogSourceDefinitionValues.FileStorage, source.Storage);
+                Assert.Equal("/var/log/sample/application.log", source.Location);
+                Assert.Contains(ResourceLogSourceDefinitionValues.Stream, source.Capabilities!);
+                Assert.Contains(ResourceLogSourceDefinitionValues.StructuredFields, source.Capabilities!);
+            });
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_DefineResourcesGroupsResourceDeclarations()
     {
         var graph = new ResourceGraphBuilder()

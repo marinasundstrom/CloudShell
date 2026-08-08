@@ -1219,8 +1219,12 @@ only when the active MVP tie-off queue or a supported sample exposes the need.
   or subscriptions. Sessions are also the sole API for single-source access.
   The Control Plane does not record or retain provider logs; each source owns
   its buffering, file tail, runtime stream, or external backend. Search/query
-  pushdown, reconnect cursors, and durable
-  cross-source history remain follow-up work. Use
+  pushdown, reconnect cursors, and durable cross-source history remain
+  follow-up work.
+  The first built-in file source provider now supplies bounded UTF-8 snapshot
+  and live-follow behavior for explicitly declared, host-allowlisted paths;
+  rolling file patterns, archived-file history, non-UTF-8 encodings, and shared
+  physical readers remain later provider increments. Use
   [Service telemetry and degradation](proposals/core/service-observability-and-degradation.md)
   to track the service-first local-development experience that correlates
   load, recent exceptions, structured logs, traces, health, resource

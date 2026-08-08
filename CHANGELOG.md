@@ -19,6 +19,11 @@ link to ADR entries when a change depends on a recorded decision.
   deterministic disposal of provider source sessions. The Control Plane API
   and remote client expose the same session through snapshot and NDJSON stream
   routes. Decision: [ADR-20260808-001](ADR.md#adr-20260808-001).
+- Added an opt-in built-in file log provider for explicitly declared UTF-8
+  sources. It provides bounded recent reads and live append follow through the
+  existing session API, handles incomplete lines and file
+  truncation/replacement, parses JSON console records, and enforces host-
+  configured root allowlists with symlink/reparse traversal protection.
 
 #### Changed
 

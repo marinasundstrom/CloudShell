@@ -65,6 +65,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             builder.Configuration.GetSection(UsageRecordingOptions.SectionName));
         builder.Services.Configure<DeploymentArtifactOptions>(
             builder.Configuration.GetSection(DeploymentArtifactOptions.SectionName));
+        builder.Services.Configure<FileLogProviderOptions>(
+            builder.Configuration.GetSection(FileLogProviderOptions.SectionName));
 
         ConfigurePersistence(builder);
         builder.Services.AddCloudShellAuthentication(builder.Configuration);
@@ -92,6 +94,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Singleton<IResourceEventObserver, ResourceEventNotificationProjector>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<ILogProvider, ResourceEventLogProvider>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<ILogProvider, FileLogProvider>());
         builder.Services.AddSingleton<InMemoryTraceStore>();
         builder.Services.AddSingleton<InMemoryMetricStore>();
         builder.Services.AddSingleton<InMemoryUsageStore>();

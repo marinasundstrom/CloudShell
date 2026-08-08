@@ -265,12 +265,13 @@ and tailing, container runtime streams, or an external logging system through
 the same `ILogSourceSession` boundary. Capabilities advertise available
 behavior without constraining future source implementations.
 
-For example, a future `LogFileProvider` could keep one tracked reader per
-physical log file, maintain the file offset and tail status internally, and
-attach multiple `ILogSourceSession` consumers to that reader. Individual
-sessions would then represent access, authorization, cursor, and lifecycle for
-each consumer without forcing the provider to reread the same file for every
-connected UI tab, API client, or background integration.
+The built-in `FileLogProvider` now proves the provider boundary with bounded
+UTF-8 snapshots and append/truncation-aware live follow for explicitly
+declared, host-allowlisted paths. It creates one lightweight reader per source
+session and performs no recording or retention. Shared physical readers,
+rolling-file sets, reconnect cursors, and provider-side fan-out remain future
+optimizations if concurrent usage shows that reopening the bounded file window
+is material.
 
 `LogEntry` keeps the familiar text log shape of timestamp, message, severity,
 and source, but now also supports optional structured fields using common logging

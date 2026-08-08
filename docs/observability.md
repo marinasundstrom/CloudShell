@@ -92,6 +92,55 @@ the current snapshot and completes. Polling a provider-owned bounded process
 buffer is a valid live-follow implementation; it remains a provider concern and
 must honor cancellation promptly.
 
+### Built-in file sources
+
+The built-in `FileLogProvider` opens explicitly declared UTF-8 files through
+the same source-session contract. It reads a bounded byte window from the end
+of the file, returns only complete lines, follows appended lines, and resets its
+cursor when the file is truncated or replaced. Plain-text and JSON console
+formats use the common `LogEntryParser`; the process writing the file remains
+responsible for recording, flushing, rotation, and retention.
+
+File access is disabled until the Control Plane host configures one or more
+absolute allowed roots. A declared file must remain inside one of those roots,
+and the provider rejects symbolic-link or reparse-point traversal below the
+root. The path is revalidated for every read and follow poll.
+
+```json
+{
+  "CloudShell": {
+    "Logs": {
+      "Files": {
+        "AllowedRoots": ["/srv/cloudshell-apps/logs"],
+        "PollInterval": "00:00:00.250",
+        "MaxSnapshotBytes": 1048576,
+        "MaxLineLength": 65536
+      }
+    }
+  }
+}
+```
+
+Programmatic resource declarations add a source without changing the manager
+or UI API:
+
+```csharp
+resources
+    .AddDotnetProject("api", projectPath)
+    .WithFileLogSource(
+        "application-file",
+        "Application file",
+        "/srv/cloudshell-apps/logs/api/application.log",
+        ResourceLogSourceDefinitionValues.JsonConsole);
+```
+
+`WithFileLogSource` declares `File` storage plus `Read` and `Stream`
+capabilities, and JSON console sources also advertise structured fields. The
+provider will not open relative paths or paths outside host
+policy. File patterns, rolling-file history across archived files, non-UTF-8
+encodings, reconnect cursors, and shared physical tail readers remain separate
+provider increments.
+
 ## Resource Events And Activity
 
 Resource events are platform-owned activity records. They are not provider log
