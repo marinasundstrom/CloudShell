@@ -5,6 +5,7 @@
   <Project Path="CloudShell.Abstractions/CloudShell.Abstractions.csproj" />
   <Project Path="CloudShell.AppHost/CloudShell.AppHost.csproj" />
   <Project Path="CloudShell.Client/CloudShell.Client.csproj" />
+  <Project Path="CloudShell.Cli/CloudShell.Cli.csproj" />
   <Project Path="CloudShell.Components/CloudShell.Components.csproj" />
   <Project Path="CloudShell.Configuration.Client/CloudShell.Configuration.Client.csproj" />
   <Project Path="CloudShell.Configuration/CloudShell.Configuration.csproj" />
@@ -16,6 +17,7 @@
   <Project Path="CloudShell.DeviceRegistry.Client/CloudShell.DeviceRegistry.Client.csproj" />
   <Project Path="CloudShell.EventBroker.Client/CloudShell.EventBroker.Client.csproj" />
   <Project Path="CloudShell.Hosting/CloudShell.Hosting.csproj" />
+  <Project Path="CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj" />
   <Project Path="CloudShell.Persistence/CloudShell.Persistence.csproj" />
   <Project Path="CloudShell.Providers.DockerCompose/CloudShell.Providers.DockerCompose.csproj" />
   <Project Path="CloudShell.Providers.Traefik/CloudShell.Providers.Traefik.csproj" />

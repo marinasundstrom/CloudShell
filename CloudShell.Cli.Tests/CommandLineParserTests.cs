@@ -6,6 +6,48 @@ namespace CloudShell.Cli.Tests;
 public sealed class CommandLineParserTests
 {
     [Fact]
+    public void Parse_Run_UsesYamlAndForegroundDevelopmentHostDefaults()
+    {
+        var command = Assert.IsType<RunCommand>(
+            CommandLineParser.Parse(["run"]));
+
+        Assert.Equal("cloudshell.yaml", command.TemplatePath);
+        Assert.Equal(".cloudshell", command.DataDirectory);
+        Assert.Equal(new Uri("http://127.0.0.1:5112"), command.Url);
+        Assert.Null(command.HostProject);
+        Assert.Null(command.HostSettingsPath);
+        Assert.Equal(ResourceDefinitionApplyMode.CreateOrUpdate, command.Mode);
+    }
+
+    [Fact]
+    public void Parse_Run_ReadsTemplateAndHostOptions()
+    {
+        var command = Assert.IsType<RunCommand>(
+            CommandLineParser.Parse(
+            [
+                "run",
+                "app.yaml",
+                "--host-project",
+                "Host/Host.csproj",
+                "--data-dir",
+                ".state",
+                "--host-settings",
+                "hostsettings.json",
+                "--url",
+                "http://localhost:5200",
+                "--mode",
+                "create-only"
+            ]));
+
+        Assert.Equal("app.yaml", command.TemplatePath);
+        Assert.Equal("Host/Host.csproj", command.HostProject);
+        Assert.Equal(".state", command.DataDirectory);
+        Assert.Equal("hostsettings.json", command.HostSettingsPath);
+        Assert.Equal(new Uri("http://localhost:5200"), command.Url);
+        Assert.Equal(ResourceDefinitionApplyMode.CreateOnly, command.Mode);
+    }
+
+    [Fact]
     public void Parse_ControlPlaneStart_UsesDefaults()
     {
         var command = Assert.IsType<ControlPlaneStartCommand>(

@@ -7,6 +7,16 @@ internal abstract record CliCommand;
 
 internal sealed record HelpCommand : CliCommand;
 
+internal sealed record RunCommand(
+    string TemplatePath,
+    string? HostProject,
+    string DataDirectory,
+    string? HostSettingsPath,
+    Uri Url,
+    string? BearerToken,
+    int TimeoutSeconds,
+    ResourceDefinitionApplyMode Mode) : CliCommand;
+
 internal sealed record ControlPlaneStartCommand(
     string StateDirectory,
     string? HostProject,

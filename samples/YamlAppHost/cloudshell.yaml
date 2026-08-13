@@ -1,0 +1,21 @@
+name: yaml-app-host
+environment: local
+metadata:
+  cloudshell.source: yaml
+  cloudshell.sample: YamlAppHost
+resources:
+  - type: application.dotnet-app
+    name: yaml-sample-api
+    displayName: YAML Sample API
+    project:
+      path: ./App/CloudShell.YamlSampleApp.csproj
+      hotReload: false
+      useLaunchSettings: false
+      serviceDiscoveryName: yaml-sample-api
+    endpoints:
+      - name: http
+        protocol: http
+        host: localhost
+        port: 5265
+        targetPort: 5265
+        exposure: Local

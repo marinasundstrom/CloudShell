@@ -4,11 +4,17 @@
     <TargetFramework>net11.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CloudShell.AppHost\CloudShell.AppHost.csproj" />
     <ProjectReference Include="..\CloudShell.ControlPlane.Providers.UI\CloudShell.ControlPlane.Providers.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Data/**" />
+    <None Remove="Data/**" />
   </ItemGroup>
 
 </Project>

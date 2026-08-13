@@ -113,8 +113,8 @@ jobs:
           package_count=$(find artifacts/packages -maxdepth 1 -type f -name '*.nupkg' ! -name '*.snupkg' | wc -l | tr -d ' ')
           symbol_count=$(find artifacts/packages -maxdepth 1 -type f -name '*.snupkg' | wc -l | tr -d ' ')
 
-          if [[ "$package_count" -ne 26 ]]; then
-            echo "Expected 26 NuGet packages, found $package_count." >&2
+          if [[ "$package_count" -ne 27 ]]; then
+            echo "Expected 27 NuGet packages, found $package_count." >&2
             find artifacts/packages -maxdepth 1 -type f -print | sort
             exit 1
           fi
@@ -165,6 +165,20 @@ jobs:
             --source "$local_source" \
             --source https://api.nuget.org/v3/index.json
           dotnet build "$consumer_directory/CloudShell.PackageConsumer.csproj" --no-restore
+
+          tool_directory="$RUNNER_TEMP/cloudshell-tool"
+          dotnet tool install CloudShell.Cli \
+            --tool-path "$tool_directory" \
+            --version "$PACKAGE_VERSION" \
+            --add-source "$local_source"
+          "$tool_directory/cloudshell" --help
+          unzip -Z1 "$local_source/CloudShell.Cli.$PACKAGE_VERSION.nupkg" | grep -Fq \
+            'tools/net11.0/any/host/CloudShell.LocalDevelopmentHost.dll'
+          if unzip -Z1 "$local_source/CloudShell.Cli.$PACKAGE_VERSION.nupkg" | \
+              grep -Eq 'tools/net11.0/any/host/(Data/|.*bootstrap-credentials)'; then
+            echo "CloudShell.Cli contains development-host runtime data." >&2
+            exit 1
+          fi
 
       - name: Upload packages
         uses: actions/upload-artifact@v6
@@ -261,6 +275,25 @@ jobs:
 
           dotnet build "$consumer_project" --no-restore
 
+          tool_directory="$RUNNER_TEMP/cloudshell-myget-tool"
+          for attempt in {1..12}; do
+            if dotnet tool install CloudShell.Cli \
+              --tool-path "$tool_directory" \
+              --version "$PACKAGE_VERSION" \
+              --add-source https://www.myget.org/F/cloudshell/api/v3/index.json; then
+              break
+            fi
+
+            if [[ "$attempt" -eq 12 ]]; then
+              echo "CloudShell.Cli was not installable from MyGet after 12 attempts." >&2
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          "$tool_directory/cloudshell" --help
+
   publish-nuget:
     name: Publish to NuGet.org
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target == 'nuget.org' }}
@@ -348,3 +381,10 @@ jobs:
           done
 
           dotnet build "$consumer_project" --no-restore
+
+          tool_directory="$RUNNER_TEMP/cloudshell-nuget-tool"
+          dotnet tool install CloudShell.Cli \
+            --tool-path "$tool_directory" \
+            --version "$PACKAGE_VERSION" \
+            --add-source https://api.nuget.org/v3/index.json
+          "$tool_directory/cloudshell" --help

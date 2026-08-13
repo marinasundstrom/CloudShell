@@ -19,6 +19,47 @@ The first supported responsibilities are:
 The CLI does not become a second Control Plane. It launches or discovers a
 host, then uses the Control Plane API for resource operations.
 
+## YAML App Host MVP
+
+The first supported installed local-development path is:
+
+```bash
+dotnet tool install --global CloudShell.Cli \
+  --add-source https://www.myget.org/F/cloudshell/api/v3/index.json \
+  --version <preview-version>
+
+cd path/to/application
+cloudshell run
+```
+
+`cloudshell run` discovers `cloudshell.yaml` in the current directory. It
+starts the default `CloudShell.LocalDevelopmentHost` bundled in the same tool
+package, waits for readiness, obtains the installed Resource model schema,
+deserializes and applies the YAML template, and prints the CloudShell URL. The
+host inherits the terminal output streams and remains owned by the CLI process
+until Ctrl+C. This command does not create, reuse, or attach to a daemon.
+
+Pass one explicit template path when the file has another name or location:
+
+```bash
+cloudshell run ./development/resources.yaml
+```
+
+The template directory is the host working/content root. Relative resource
+paths therefore resolve from the YAML project directory. Host-owned data
+defaults to `.cloudshell` beside the template, and an adjacent
+`appsettings.json` is delegated to the development host when present. Use
+`--data-dir`, `--host-settings`, or `--url` to override those defaults. Use
+`--host-project` only when the project needs a custom host composition.
+When no host settings file exists, the loopback-only default run disables
+authentication for the zero-configuration MVP. Projects that enable
+authentication do so explicitly through adjacent host settings.
+
+The `CloudShell.Cli` tool and bundled development host share one NuGet package
+version. The package excludes host runtime data and generated credentials.
+See `samples/YamlAppHost` for a YAML file backed by a runnable ASP.NET Core
+project.
+
 ## Local Control Plane
 
 Start a local Control Plane host:
@@ -144,11 +185,11 @@ dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml
 YAML is the preferred authoring format. Use `.json` when a workflow needs the
 JSON `ResourceTemplate` projection used by the Control Plane API.
 
-For normal local application development, prefer a launcher app that declares
-the distributed application, starts or selects a CloudShell host profile, and
-then applies the generated template. `template apply` is the CLI operation
-that backs that flow and is also useful when a script, SDK, or automation flow
-needs to apply changes to an already-running Control Plane instance.
+For this MVP, prefer `cloudshell run` with a project-local YAML file. A future
+launcher app can declare the same distributed application in code while
+retaining the same foreground host and ResourceTemplate boundary. `template
+apply` remains the lower-level operation for scripts, SDKs, automation, and
+already-running Control Planes.
 Launcher apps should target `CloudShell.LocalDevelopmentHost` by default. Use a
 custom host project only when the Control Plane/UI process needs additional
 host-specific extensions or services.
@@ -179,9 +220,8 @@ CloudShell-owned persistence paths, local user settings, orchestration
 settings, platform resource files, and built-in service definition files use
 that directory as their base when the host supports the setting.
 
-The current `--start` path uses the CLI's recorded local process state. The
-launcher/profile split is the durable boundary; future CLI work can add a
-foreground host-runner mode without changing the ResourceTemplate interchange.
+The `--start` path uses the CLI's recorded local process state and remains
+separate from the foreground `cloudshell run` lifecycle.
 
 `--control-plane` is the first explicit target selector. Later, the CLI should
 support profile-backed target selection so commands can default to a named

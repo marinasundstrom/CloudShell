@@ -214,6 +214,9 @@ The implemented apply surfaces are:
   authored template paths back to canonical attribute IDs.
 - `CloudShell.Cli template apply`, which accepts `create-or-update`,
   `create-only`, and `update-existing` apply modes.
+- `CloudShell.Cli run`, which discovers `cloudshell.yaml`, launches the
+  same-version bundled local development host in the foreground, applies the
+  template, and owns the host lifetime until Ctrl+C.
 - launcher packages under `Launchers/`, including
   `Launchers/CSharp/CloudShell.AppHost.Launcher`, which builds a
   `ResourceTemplate` from a `ResourceGraphBuilder`, writes YAML or JSON, and

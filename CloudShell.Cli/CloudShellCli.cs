@@ -40,6 +40,9 @@ internal static class CloudShellCli
             case HelpCommand:
                 RenderHelp(console);
                 return 0;
+            case RunCommand run:
+                return await new ForegroundDevelopmentHostRunner()
+                    .RunAsync(run, console, cancellationToken);
             case HostNameAddCommand addHostName:
             {
                 var mappings = new HostNameMappings();

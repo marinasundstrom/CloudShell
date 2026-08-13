@@ -41,6 +41,7 @@
     <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.AppHost'">Composition helpers for hosting the CloudShell Control Plane and Resource Manager UI.</Description>
     <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.AppHost.Launcher'">C# launcher and resource graph authoring support for CloudShell local-development app hosts.</Description>
     <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Client'">Shared credentials and HTTP client infrastructure for CloudShell clients.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Cli'">CloudShell .NET tool with the matching local development host for YAML-based distributed application runs.</Description>
     <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Components'">Shared Fluent UI Blazor components for CloudShell hosting and extensions.</Description>
     <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Configuration'">Configuration contracts for CloudShell-managed application settings.</Description>
     <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Configuration.Client'">Runtime client and configuration-provider integration for CloudShell Configuration Store.</Description>

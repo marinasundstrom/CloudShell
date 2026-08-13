@@ -6,6 +6,7 @@ internal static class HelpText
 CloudShell CLI
 
 Usage:
+  cloudshell run [cloudshell.yaml] [--url <url>] [--data-dir <path>] [--host-settings <path>] [--host-project <path>]
   cloudshell control-plane start [--host-project <path>] [--data-dir <path>] [--host-settings <path>] [--url <url>] [--state-dir <path>] [--no-build] [--bearer-token <token>]
   cloudshell control-plane stop [--state-dir <path>]
   cloudshell control-plane status [--state-dir <path>] [--bearer-token <token>]
@@ -18,6 +19,7 @@ Usage:
   cloudshell host names remove <host-name> [--hosts-file <path>] [--dry-run]
 
 Commands:
+  run                    Run a ResourceTemplate with the foreground local development host.
   control-plane start    Start a local CloudShell Control Plane process and record daemon state.
   control-plane stop     Stop the recorded local Control Plane process.
   control-plane status   Show recorded process and API readiness.
@@ -31,7 +33,7 @@ Commands:
 Options:
   --control-plane        Control Plane base URL. Defaults to recorded daemon state.
   --bearer-token         Bearer token for Control Plane API calls. Defaults to CLOUDSHELL_CONTROL_PLANE_TOKEN, then the active CloudShell profile.
-  --host-project         CloudShell host project to run. Defaults to CloudShell.Host in the current repo.
+  --host-project         Custom CloudShell host project. Run uses its bundled development host by default.
   --data-dir             Directory for CloudShell host databases and local data files.
   --host-settings        JSON appsettings file to pass through to the launched host.
   --mode                 create-or-update, create-only, or update-existing. Default: create-or-update.

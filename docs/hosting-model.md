@@ -107,10 +107,27 @@ profile.
 
 See `samples/CloudShell.UiExtensionHost`.
 
+## YAML App Host And Host Profile
+
+The first installed local-development MVP uses `cloudshell run` with a
+project-local `cloudshell.yaml`. The CLI package carries the published
+`CloudShell.LocalDevelopmentHost` payload at the exact same version, starts it
+in the foreground with the YAML directory as its content root, applies the
+template after readiness, and owns the process tree until Ctrl+C. An adjacent
+`appsettings.json` configures the host profile, while `.cloudshell` beside the
+template is the default data root.
+Without adjacent host settings, the loopback-only MVP defaults authentication
+off. Authentication is an explicit project host-setting choice for this path.
+
+This shape requires neither a repository checkout nor a launcher project and
+does not use daemon state. Provider validation, lifecycle operations, logs,
+telemetry, persistence, and Resource Manager projection remain inside the
+launched host. See `samples/YamlAppHost`.
+
 ## Launcher App And Host Profile
 
-The preferred local-development authoring shape separates the application
-declaration from the CloudShell host process:
+The future launcher authoring shape preserves the same separation between the
+application declaration and the CloudShell host process:
 
 - A launcher app defines the distributed application with Resource Model
   builders, emits a `ResourceTemplate`, and either launches a CloudShell host

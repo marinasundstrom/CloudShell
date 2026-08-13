@@ -11,6 +11,36 @@ link to the decision so the dependency is visible.
 
 ## 2026-08-13
 
+### ADR-20260813-004: Ship the CLI and default development host as one foreground tool
+
+The first installed local-development experience is a file-based app host:
+`cloudshell run` discovers `cloudshell.yaml`, starts
+`CloudShell.LocalDevelopmentHost` in the foreground, waits for its Control
+Plane, applies the YAML `ResourceTemplate`, prints the host URL, and remains
+attached until the terminal process is interrupted. Host output stays on the
+invoking terminal, and termination is forwarded to the host process tree.
+
+`CloudShell.Cli` is a .NET tool package that contains the published default
+development-host payload. The CLI and host therefore have one package version
+and cannot drift independently in the normal installed path. A custom host
+project remains an explicit option for teams that compose their own providers,
+authentication, persistence, or UI extensions.
+
+The `run` lifecycle is project-local and has no daemon, attach, reuse, or
+background mode. Existing daemon commands remain separate operational and
+compatibility surfaces; they are not part of this MVP gesture. Language
+launchers can later replace YAML as the primary authoring convenience while
+preserving the same foreground host ownership and ResourceTemplate/Control
+Plane boundary.
+
+This changes the delivery order described by ADR-20260703-002 and the daemon-
+first distribution wording in ADR-20260701-003: YAML plus the installed
+foreground tool is the supported bridge until launcher packages provide the
+same default experience. It does not make the CLI a Control Plane or move
+provider validation out of the launched host.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260813-001: Dispatch container-host runtime commands through explicit provider adapters
 
 Container hosts are placement and control boundaries, not aliases for Docker

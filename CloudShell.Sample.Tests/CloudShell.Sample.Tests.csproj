@@ -42,6 +42,7 @@
     <ProjectReference Include="..\samples\SplitHosting\UI\CloudShell.SplitHosting.UI.csproj" />
     <ProjectReference Include="..\samples\ThirdPartyIdentity\CloudShell.ThirdPartyIdentity.csproj" />
     <ProjectReference Include="..\samples\ThirdPartyIdentity\Api\CloudShell.ThirdPartyIdentity.Api.csproj" />
+    <ProjectReference Include="..\samples\YamlAppHost\App\CloudShell.YamlSampleApp.csproj" />
     <ProjectReference Include="..\CloudShell.DeviceRegistry.Client\CloudShell.DeviceRegistry.Client.csproj" />
   </ItemGroup>
 

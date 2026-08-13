@@ -48,10 +48,46 @@ dotnet nuget add source \
 Prerelease versions must be selected explicitly when adding a package, for
 example `dotnet add package CloudShell.AppHost --version 0.1.0-preview.2`.
 
+## Getting Started
+
+The first CloudShell MVP experience uses the installed CLI, a project-local
+`cloudshell.yaml`, and the default development host bundled with the tool at
+the same version.
+
+Install an explicit preview from MyGet:
+
+```bash
+dotnet tool install --global CloudShell.Cli \
+  --add-source https://www.myget.org/F/cloudshell/api/v3/index.json \
+  --version <preview-version>
+```
+
+From a project directory containing `cloudshell.yaml`, run:
+
+```bash
+cloudshell run
+```
+
+CloudShell starts in the foreground, applies the YAML resource template, and
+prints the Resource Manager URL. Host output remains in that terminal until
+you press Ctrl+C. This MVP command does not use a daemon.
+
+Try the complete ASP.NET Core example in
+[`samples/YamlAppHost`](samples/YamlAppHost):
+
+```bash
+cd samples/YamlAppHost
+cloudshell run
+```
+
+Open the printed CloudShell URL, then start **YAML Sample API** in Resource
+Manager and open <http://localhost:5265>.
+
 ## Integration Paths
 
 | Path | Status |
 | --- | --- |
+| YAML app host through `cloudshell run` | Primary MVP path; foreground host lifecycle implemented. |
 | C# launchers and resource builders | Most complete authoring path today. |
 | JavaScript/TypeScript launchers | Active work; experimental until default run behavior, packaging, and samples are stable. |
 | Java launchers | Active work; experimental until default run behavior, packaging, and samples are stable. |
@@ -66,7 +102,7 @@ example `dotnet add package CloudShell.AppHost --version 0.1.0-preview.2`.
 | --- | --- | --- |
 | Resource Manager UI | You want to inspect resources, follow relationships, run actions, and diagnose local environments visually. | Implemented; first major shell experience. |
 | Launcher | You are developing an app and want the CloudShell graph to live with that project. | C# most complete; JavaScript/TypeScript, Java, Go, and Python experimental. |
-| CLI | You need automation, resource operations, template apply, local host-name mappings, or scripts/CI workflows. | Implemented; see [CloudShell CLI](docs/cli.md). |
+| CLI | You want to run `cloudshell.yaml` with the bundled development host, or need automation and resource operations. | Foreground YAML MVP implemented; see [CloudShell CLI](docs/cli.md). |
 | Daemon hosting | You want a persistent local CloudShell instance installed on the machine for tools, scripts, users, or launchers to attach to. | Implemented for local Control Plane process reuse. |
 | Custom or split host | You are building an internal platform, provider package, UI extension, or self-hosted environment. | Supported architecture; still stabilizing. |
 
@@ -181,6 +217,7 @@ represented through the same resource graph. For full launcher examples, see
 - `Launchers/`: language-specific app-host launcher packages that emit ResourceTemplates and ask the CLI or Control Plane API to apply them.
 - `CloudShell.Host`: development sample host that wires CloudShell UI, Control Plane, and local provider extensions together.
 - `CloudShell.LocalDevelopmentHost`: stable local Control Plane and UI host profile with the built-in provider presets for launcher-based samples.
+- `CloudShell.Cli`: installable .NET tool that carries the same-version default development host and runs YAML app hosts in the foreground.
 - `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
 - `CloudShell.Client`: shared SDK client credential primitives.
@@ -242,6 +279,7 @@ Useful routes:
 
 Local-development host and launcher samples are also available:
 
+- `samples/YamlAppHost`: declares an ASP.NET Core app in `cloudshell.yaml` and runs it with the installed `cloudshell` tool.
 - `CloudShell.LocalDevelopmentHost`: reusable Control Plane/UI host profile used by launcher-based samples.
 - `samples/CSharpAppHost`: declares a JavaScript app and Configuration Store resource from a C# launcher app, then applies the template through the CLI.
 - `samples/TypeScriptAppHost`: declares the same style of graph from TypeScript using the experimental `@cloudshell/local-development` package.

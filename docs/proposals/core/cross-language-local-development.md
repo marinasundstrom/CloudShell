@@ -11,9 +11,9 @@
   [Programmatic resources](../../programmatic-resources.md),
   [Resource templates](../../resource-templates.md), and
   [SDK clients](../../sdk-clients.md).
-- Remaining action: make `dotnet tool install -g CloudShell.Cli` enough to
-  start or reuse the default local-development host daemon, then keep launcher
-  packages aligned with that same host/profile and Control Plane API boundary.
+- Remaining action: harden the installed foreground YAML path and then make
+  launcher packages provide the same default lifecycle without changing the
+  host/profile and Control Plane API boundary.
 - Out of scope: full SDK parity across all languages, external-format import,
   deployment projection, and remote provider package installation.
 
@@ -91,28 +91,26 @@ command-line workflows. Language SDKs can invoke the CLI or use the same
 Control Plane API directly, but they should not reimplement
 host/process/profile behavior differently in every ecosystem.
 
-The default local-development path should not require a repository checkout,
+The default local-development path does not require a repository checkout,
 custom host project, or launcher package:
 
 ```bash
 dotnet tool install -g CloudShell.Cli
-cloudshell control-plane start
-cloudshell template apply ./cloudshell.template.yaml
-cloudshell ui open
+cloudshell run
 ```
 
-The installed CLI should carry or resolve a version-compatible
-`CloudShell.LocalDevelopmentHost` profile and run it as a daemon when the user
-selects the default local host. `--host-project` remains useful for repository
-development and custom host profiles, but it should not be part of the normal
-first-run experience.
+The installed CLI carries a version-compatible
+`CloudShell.LocalDevelopmentHost` payload in the same tool package and runs it
+in the foreground. `--host-project` remains useful for repository development
+and custom host profiles, but it is not part of the normal first-run
+experience. Daemon behavior remains a separate explicit operations path.
 
 The model uses three layers:
 
 | Layer | Owner | Responsibility |
 | --- | --- | --- |
 | Language SDK | TypeScript/JavaScript, Java, or another ecosystem package | Provides fluent graph builders, local command integration, generated API clients, and ergonomic references for that ecosystem. |
-| Host launcher | CloudShell CLI and optional language-specific launcher package | Starts or selects a known .NET CloudShell host profile, passes graph input and settings, watches readiness, and returns endpoint metadata to the SDK. The default local combined host profile is `CloudShell.LocalDevelopmentHost`; daemon startup belongs to the CLI, and foreground host-runner behavior can be added without changing the graph boundary. |
+| Host launcher | CloudShell CLI and optional language-specific launcher package | Starts a known .NET CloudShell host profile, passes graph input and settings, watches readiness, and returns endpoint metadata to the SDK. The default local combined host profile is `CloudShell.LocalDevelopmentHost`; `cloudshell run` owns it in the foreground without daemon state. |
 | Control Plane | CloudShell .NET host | Owns resource validation, provider setup, lifecycle actions, persistence, logs, traces, authorization, API projection, and Resource Manager UI. |
 
 The SDK authors resource intent as a `ResourceTemplate` or equivalent
@@ -121,9 +119,9 @@ to a local Control Plane host or applies it to an existing Control Plane through
 the API. Once the host is running, the SDK talks to the Control Plane API for
 status, action execution, logs, and generated endpoint metadata.
 
-The first practical distribution test is the installed CLI starting or reusing
-the default local-development host daemon without a source checkout. Launcher
-packages are the authoring convenience layer on top of that same path. A C#,
+The first practical distribution test is the installed CLI starting the
+same-version default local-development host in the foreground without a source
+checkout. Launcher packages are the authoring convenience layer on top of that same path. A C#,
 TypeScript, Java, or future launcher package can expose an app/graph root,
 resource builders, typed references, endpoint helpers, provider-specific
 extension helpers, and `template`/`apply`/`start`/`run` helpers. It still builds
@@ -168,22 +166,19 @@ developer experience needs special treatment.
 
 ## Launch modes
 
-### CLI-installed local daemon
+### CLI-installed foreground run
 
 The first supported local-development distribution path is:
 
-1. Install the CloudShell CLI as a .NET global tool from NuGet.
-2. Start or reuse the default local-development host daemon.
-3. Apply a YAML or JSON `ResourceTemplate`.
-4. Inspect resources, execute actions, and open Resource Manager through the
-   CLI.
+1. Install the CloudShell CLI as a .NET global tool.
+2. Run `cloudshell run` in a directory containing `cloudshell.yaml`.
+3. Keep the same terminal attached to the default local-development host.
+4. Stop the host and its child processes with Ctrl+C.
 
-The CLI-owned daemon state records process ID, Control Plane URL, selected host
-profile identity, selected data directory, and startup time. It must not record
-credentials or secret values. When the CLI starts the packaged default host,
-it forwards the selected URL, data directory, authentication settings, and
-other host settings through the same configuration channels used by custom
-host profiles.
+This path writes no daemon state and does not attach to or reuse another host.
+It forwards the selected URL, project-local data directory, adjacent host
+settings, and explicit overrides through the same configuration channels used
+by custom host profiles.
 
 This path is intentionally lower level than launcher authoring. It accepts
 templates generated by hand, CI, a future import tool, or any language SDK. A
@@ -195,13 +190,13 @@ CloudShell locally and apply a template.
 The common host shape for local development starts a combined Control Plane
 and CloudShell UI process. The default combined process is
 `CloudShell.LocalDevelopmentHost`, which carries the built-in resource types,
-Resource Manager UI integrations, and local runtime adapters. The CLI can
-start this profile directly as a daemon. A language SDK or launcher uses the
+Resource Manager UI integrations, and local runtime adapters. The CLI starts
+this profile directly in the foreground. A language SDK or launcher uses the
 same profile when it:
 
 1. Builds a ResourceDefinition graph.
-2. Starts or reuses `CloudShell.LocalDevelopmentHost`, or the configured custom
-   CloudShell host profile, through the CLI/launcher path.
+2. Starts `CloudShell.LocalDevelopmentHost`, or the configured custom
+   CloudShell host profile, through the foreground CLI/launcher path.
 3. Waits for the Control Plane readiness endpoint.
 4. Applies the graph as transient code-first declarations.
 5. Opens or reports the Resource Manager URL.
@@ -328,11 +323,9 @@ The CloudShell CLI launcher is responsible for process concerns:
 
 For the default local-development path, the CLI should be able to run the
 version-compatible `CloudShell.LocalDevelopmentHost` without requiring
-`--host-project`. Implementation options include bundling the host profile
-with the tool, resolving a companion host-profile artifact, or starting an
-internal host command from the installed tool. The product contract is the
-same in each case: the user installs the CLI, then the CLI can start the
-default local host daemon.
+`--host-project`. The implemented tool package bundles the published host
+profile, so the CLI and host always share one version. `cloudshell run` owns
+that host in the foreground and writes no daemon state.
 
 The launcher should not validate provider-specific resource semantics itself.
 It may validate launcher arguments and template envelope shape, then leave
@@ -382,12 +375,8 @@ not deployment to another environment.
 
 ## Open questions
 
-- Should the default local-development host be physically bundled into the
-  `CloudShell.Cli` tool package, resolved as a companion NuGet package, or run
-  through an internal CLI host command?
-- Which parts of the first `cloudshell` CLI daemon, template apply, resource,
-  and UI commands should become stable before language SDKs start depending on
-  them?
+- Which parts of `cloudshell run`, template apply, resource, and UI commands
+  should become stable before language SDKs start depending on them?
 - Should CloudShell add a supported Control Plane-only host profile next to
   `CloudShell.LocalDevelopmentHost`?
 - How should the launcher discover provider packages required by a graph?
@@ -421,34 +410,30 @@ documented in [Launchers](../../launchers-and-app-hosts.md),
 
 Remaining implementation work:
 
-1. Package the CloudShell CLI as a NuGet-distributed .NET global tool with a
-   default local-development host path that does not require a repository
-   checkout or `--host-project`.
-2. Add daemon tests for starting, reusing, stopping, and diagnosing the
-   packaged/default `CloudShell.LocalDevelopmentHost` path, including log
-   capture and version/profile compatibility failures.
-3. Update C#, TypeScript, and Java launcher packages so their default `start`
+1. Harden foreground packaged-host diagnostics, including version/profile
+   compatibility and early host-exit failures.
+2. Update C#, TypeScript, and Java launcher packages so their default `start`
    and `run` helpers prefer the installed CLI/default host profile while
    keeping explicit custom host-profile options.
-4. Add Control Plane diagnostics for source metadata and missing provider or
+3. Add Control Plane diagnostics for source metadata and missing provider or
    runtime adapter capabilities.
-5. Expand TypeScript builders only where current samples prove the need:
+4. Expand TypeScript builders only where current samples prove the need:
    container apps, secrets, SQL Server, richer endpoint references, and remote
    attach helpers.
-6. Decide whether generated Control Plane client bindings are required before
+5. Decide whether generated Control Plane client bindings are required before
    broader SDK hardening.
-7. Add CLI login/profile commands and OS secure-store-backed credential
+6. Add CLI login/profile commands and OS secure-store-backed credential
    material for the shared profile contract.
-8. Decide which SDK APIs are stable enough to document as public preview.
+7. Decide which SDK APIs are stable enough to document as public preview.
 
 ## Verification
 
 The first implementation should include:
 
-- packaging checks for the .NET global tool and packaged/default local host
-  startup path
-- CLI daemon tests for host startup, readiness failure, reuse, shutdown, and
-  stale state handling
+- packaging checks for the .NET global tool, bundled host payload, installed
+  command, and absence of packaged runtime data
+- foreground CLI tests for host command planning, startup, readiness failure,
+  template apply, terminal output inheritance, and shutdown forwarding
 - unit tests for TypeScript graph emission
 - launcher tests proving C#, TypeScript, and Java helpers converge on the same
   CLI/default-host behavior

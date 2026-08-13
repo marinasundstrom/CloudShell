@@ -45,6 +45,14 @@ method patterns directly.
 
 ## Default Developer Experience
 
+The current MVP reaches this experience through a project-local YAML file:
+`cloudshell run` reads `cloudshell.yaml` and owns the bundled development host
+in the foreground. This establishes the host lifecycle and ResourceTemplate
+boundary before language launcher packages become the default authoring
+convenience. See [CloudShell CLI](cli.md).
+
+Language launchers should converge on the same lifecycle once stabilized:
+
 The default launcher experience should match the way developers expect local
 distributed app hosts to behave:
 
@@ -142,11 +150,11 @@ a full production-style host, a split host, or a remote compatible Control
 Plane when it needs different providers, extensions, authentication,
 persistence, or environment-specific services.
 
-The CloudShell CLI, daemon workflows, and sample shell scripts are not the
-normal local launcher experience. They remain useful for advanced automation,
-hosted or remote Control Plane instances, daemon management, CI, diagnostics,
-and repository sample shortcuts. They should not be required when the goal is
-to run a launcher project locally.
+The foreground CLI/YAML flow is the current MVP bridge to the launcher
+experience. Daemon workflows and sample shell scripts remain separate advanced
+automation, hosted/remote, compatibility, CI, and repository shortcuts. Once a
+launcher owns this foreground lifecycle directly, invoking the CLI need not
+remain a requirement for running that launcher project.
 
 `template` or `toJson` is an explicit inspection/export path. It should not be
 the default behavior of a launcher project that a developer runs directly.

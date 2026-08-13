@@ -14,6 +14,15 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Added
 
+- Added the `CloudShell.Cli` .NET tool package with the matching published
+  `CloudShell.LocalDevelopmentHost` payload, plus a top-level
+  `cloudshell run [yaml]` command. The command defaults to `cloudshell.yaml`,
+  uses project-local data and adjacent host settings, applies the template
+  after readiness, inherits host terminal output, and owns foreground shutdown
+  without daemon state. A zero-settings loopback run defaults authentication
+  off, while adjacent host settings can opt in. Added `samples/YamlAppHost` with a YAML-declared
+  ASP.NET Core project. Decision:
+  [ADR-20260813-004](ADR.md#adr-20260813-004).
 - Added a NuGet package workflow and an explicit package solution. The workflow
   assigns one lockstep CI prerelease version, produces ordinary and symbol
   packages, verifies the expected artifact set, restores the public package
@@ -54,6 +63,9 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Changed
 
+- Package verification now includes the CLI tool package and checks that the
+  installed command runs and contains its development-host payload. Local host
+  runtime `Data` files are explicitly excluded from publish output.
 - Resource graph non-blocking snapshot tests now execute their synchronous
   probes on dedicated threads, avoiding false Linux CI timeouts caused by
   thread-pool scheduling pressure.

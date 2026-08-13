@@ -7,6 +7,7 @@ internal static class CommandLineParser
 {
     private const string DefaultStateDirectory = ".cloudshell";
     private const string DefaultControlPlaneUrl = "http://127.0.0.1:5097";
+    private const string DefaultDevelopmentHostUrl = "http://127.0.0.1:5112";
     private const int DefaultTimeoutSeconds = 60;
 
     public static CliCommand Parse(IReadOnlyList<string> args)
@@ -18,6 +19,7 @@ internal static class CommandLineParser
 
         return args[0] switch
         {
+            "run" => ParseRun(args.Skip(1).ToArray()),
             "control-plane" => ParseControlPlane(args.Skip(1).ToArray()),
             "host" => ParseHost(args.Skip(1).ToArray()),
             "resource" => ParseResource(args.Skip(1).ToArray()),
@@ -25,6 +27,28 @@ internal static class CommandLineParser
             "ui" => ParseUi(args.Skip(1).ToArray()),
             _ => throw new CliUsageException($"Unknown command group '{args[0]}'.")
         };
+    }
+
+    private static RunCommand ParseRun(IReadOnlyList<string> args)
+    {
+        var options = OptionReader.Read(args);
+        if (options.Positionals.Count > 1)
+        {
+            throw new CliUsageException("run accepts at most one resource template file path.");
+        }
+
+        var command = new RunCommand(
+            options.Positionals.Count == 0 ? "cloudshell.yaml" : options.Positionals[0],
+            options.ReadOptionalString("--host-project"),
+            options.ReadString("--data-dir", ".cloudshell"),
+            options.ReadOptionalString("--host-settings"),
+            options.ReadUri("--url", DefaultDevelopmentHostUrl),
+            options.ReadOptionalString("--bearer-token") ??
+                Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_TOKEN"),
+            options.ReadInt("--timeout-seconds", DefaultTimeoutSeconds),
+            ParseMode(options.ReadString("--mode", "create-or-update")));
+        options.ThrowIfUnreadOptions();
+        return command;
     }
 
     private static CliCommand ParseControlPlane(IReadOnlyList<string> args)

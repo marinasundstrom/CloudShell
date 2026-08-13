@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>cloudshell</AssemblyName>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>cloudshell</ToolCommandName>
+    <PackageId>CloudShell.Cli</PackageId>
+    <BundledDevelopmentHostPublishDirectory>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)', 'bundled-development-host', '$(Configuration)'))/</BundledDevelopmentHostPublishDirectory>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,5 +22,20 @@
   <ItemGroup>
     <PackageReference Include="Spectre.Console" Version="0.57.1" />
   </ItemGroup>
+
+  <Target Name="BundleDevelopmentHost"
+          BeforeTargets="PackTool">
+    <RemoveDir Directories="$(BundledDevelopmentHostPublishDirectory)" />
+    <RemoveDir Directories="$(PublishDir)host" />
+    <MSBuild Projects="$(MSBuildProjectDirectory)/../CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);PublishDir=$(BundledDevelopmentHostPublishDirectory);UseAppHost=false;Version=$(Version);PackageVersion=$(PackageVersion)" />
+    <ItemGroup>
+      <_BundledDevelopmentHostFile Include="$(BundledDevelopmentHostPublishDirectory)**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_BundledDevelopmentHostFile)"
+          DestinationFiles="@(_BundledDevelopmentHostFile->'$(PublishDir)host/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
