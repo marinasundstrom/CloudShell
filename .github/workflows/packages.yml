@@ -56,6 +56,11 @@ jobs:
             exit 1
           fi
 
+          if [[ "$PUBLISH_REQUESTED" == "true" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]; then
+            echo "Published package versions must use the form 0.1.0-preview.1." >&2
+            exit 1
+          fi
+
           echo "package-version=$version" >> "$GITHUB_OUTPUT"
           echo "Building CloudShell packages at version $version"
 
@@ -67,6 +72,8 @@ jobs:
           dotnet build CloudShell.Packages.slnx
           --configuration Release
           --no-restore
+          -p:Version=${{ steps.version.outputs.package-version }}
+          -p:PackageVersion=${{ steps.version.outputs.package-version }}
           -p:ContinuousIntegrationBuild=true
 
       - name: Pack
@@ -78,11 +85,14 @@ jobs:
           --output artifacts/packages
           --include-symbols
           -p:SymbolPackageFormat=snupkg
+          -p:Version=${{ steps.version.outputs.package-version }}
           -p:PackageVersion=${{ steps.version.outputs.package-version }}
           -p:ContinuousIntegrationBuild=true
 
       - name: Verify package artifacts
         shell: bash
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.package-version }}
         run: |
           set -euo pipefail
 
@@ -99,6 +109,20 @@ jobs:
             echo "Expected one symbol package per NuGet package; found $symbol_count symbols for $package_count packages." >&2
             exit 1
           fi
+
+          for package in artifacts/packages/*.nupkg; do
+            manifest=$(unzip -p "$package" '*.nuspec')
+
+            grep -Fq "<version>$PACKAGE_VERSION</version>" <<< "$manifest"
+            grep -Fq '<authors>Marina Sundström</authors>' <<< "$manifest"
+            grep -Fq '<description>' <<< "$manifest"
+            grep -Fq '<license type="expression">MIT</license>' <<< "$manifest"
+            grep -Fq '<projectUrl>https://github.com/marinasundstrom/CloudShell</projectUrl>' <<< "$manifest"
+            grep -Fq '<readme>README.md</readme>' <<< "$manifest"
+            grep -Fq '<repository type="git" url="https://github.com/marinasundstrom/CloudShell"' <<< "$manifest"
+            grep -Fq ' commit="' <<< "$manifest"
+            unzip -Z1 "$package" | grep -Fxq 'README.md'
+          done
 
       - name: Verify clean consumer restore
         shell: bash

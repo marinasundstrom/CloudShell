@@ -20,6 +20,12 @@ link to ADR entries when a change depends on a recorded decision.
   entry points from the local package output, and uploads the verified
   artifacts. A manually dispatched run can publish an explicit version through
   NuGet.org Trusted Publishing after all verification succeeds.
+- Added common preview package metadata, package-specific descriptions, a
+  package README, MIT license and repository links, deterministic build and
+  Source Link settings, symbol-package defaults, and package validation. The
+  package workflow now builds assemblies with the requested package version
+  and inspects every package manifest before allowing publication. Published
+  versions are restricted to the `x.y.z-preview.n` prerelease form.
 - Added first-class `AppleContainer` and `WslContainer` container-host kinds
   plus `UseAppleContainer()`, `UseWslContainer()`, and `UsePodman()` graph
   authoring helpers. Decision:

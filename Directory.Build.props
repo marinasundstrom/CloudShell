@@ -1,0 +1,61 @@
+<Project>
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix>preview.0</VersionSuffix>
+
+    <Authors>Marina Sundström</Authors>
+    <Company>CloudShell</Company>
+    <Product>CloudShell</Product>
+    <Copyright>Copyright © 2026 Marina Sundström</Copyright>
+    <PackageId>$(MSBuildProjectName)</PackageId>
+    <Title>$(MSBuildProjectName)</Title>
+    <PackageProjectUrl>https://github.com/marinasundstrom/CloudShell</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>https://github.com/marinasundstrom/CloudShell/blob/main/CHANGELOG.md</PackageReleaseNotes>
+    <PackageTags>cloudshell;self-hosted;control-plane;developer-tools;distributed-applications;dotnet</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/marinasundstrom/CloudShell</RepositoryUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.ResourceModel'">Portable CloudShell resource definitions, templates, graph authoring, and serialization contracts.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Abstractions'">Public CloudShell domain, hosting, provider, extension, and Resource Manager abstractions.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.AppHost'">Composition helpers for hosting the CloudShell Control Plane and Resource Manager UI.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.AppHost.Launcher'">C# launcher and resource graph authoring support for CloudShell local-development app hosts.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Client'">Shared credentials and HTTP client infrastructure for CloudShell clients.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Components'">Shared Fluent UI Blazor components for CloudShell hosting and extensions.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Configuration'">Configuration contracts for CloudShell-managed application settings.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Configuration.Client'">Runtime client and configuration-provider integration for CloudShell Configuration Store.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.ControlPlane'">CloudShell Control Plane services, APIs, authorization, orchestration, and operational management.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.ControlPlane.Client'">Remote client adapter for the CloudShell Control Plane API.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.ControlPlane.Providers'">Built-in CloudShell resource model providers and local runtime integrations.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.ControlPlane.Providers.UI'">Resource Manager UI integrations for built-in CloudShell providers.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.ControlPlane.ResourceModel'">Control Plane services for validating, applying, projecting, and operating CloudShell resource definitions.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.DeviceRegistry.Client'">Runtime client for CloudShell Device Registry enrollment, identity, heartbeat, and device state.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.EventBroker.Client'">Runtime client for CloudShell Event Broker publishing and retained event queries.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Hosting'">Blazor shell and Resource Manager hosting for CloudShell.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Persistence'">Entity Framework Core persistence for CloudShell Control Plane state.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Providers.DockerCompose'">Docker Compose provider integration for CloudShell.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Providers.Traefik'">Traefik load-balancer and routing provider integration for CloudShell.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.RabbitMQ.Client'">Identity-aware runtime client integration for CloudShell-managed RabbitMQ resources.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Secrets.Client'">Runtime client and configuration-provider integration for CloudShell Secrets Vault.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.SqlServer.Client'">Identity-aware runtime client integration for CloudShell-managed SQL Server resources.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CoreShell'">Extensible application shell contracts and services used by CloudShell.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CoreShell.Blazor'">Blazor integration for the CoreShell application shell.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CoreShell.Composition'">UI-agnostic composition graph contracts and services for extensible application shells.</Description>
+    <Description Condition="'$(MSBuildProjectName)' == 'CoreShell.Composition.Blazor'">Blazor rendering integration for CoreShell composition graphs.</Description>
+    <PackageDescription>$(Description)</PackageDescription>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)eng/nuget/README.md" Pack="true" PackagePath="README.md" Visible="false" />
+  </ItemGroup>
+</Project>
