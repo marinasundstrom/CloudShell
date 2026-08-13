@@ -167,29 +167,73 @@ var wsl = resources.AddContainerHost("wsl").UseWslContainer();
 var podman = resources.AddContainerHost("podman").UsePodman();
 ```
 
-These helpers author placement intent. Apple Container and WSL Container do
-not become operational merely because the host can be declared; their runtime
-provider must also be installed and ready.
+These helpers author placement intent. Apple Container has a built-in adapter
+for the currently supported acceptance subset, but it becomes operational only
+when the Apple `container` service is installed and running. WSL Container
+still requires its provider-native runtime adapter.
 
 ## Runtime Adapters
 
 Command-backed providers implement `IContainerHostCommandAdapter`. The adapter
 owns runtime identity, executable selection, provider-native argument shape,
-and process environment. Docker and Podman have built-in adapters for their
-currently supported command surfaces.
+output interpretation, and process environment. Docker and Podman have
+built-in adapters for their currently supported command surfaces. Apple
+Container has a built-in adapter for image-backed, single-replica container
+apps: create/remove, isolated network attachment, loopback port publication,
+state and label inspection, logs, and cleanup. The Apple adapter consumes the
+Apple CLI's JSON inspection shape rather than treating it as Docker output.
 
-There is no implicit Docker adapter for Apple Container, WSL Container,
-Kubernetes, process, custom, or other provider-native hosts. Selecting one of
-those hosts without its adapter produces an actionable unavailable reason
-before process dispatch. This prevents Docker-only flags, environment
-variables, output templates, and status assumptions from leaking across host
-families.
+There is no implicit Docker adapter for WSL Container, Kubernetes, process,
+custom, or other provider-native hosts. Selecting one of those hosts without
+its adapter produces an actionable unavailable reason before process dispatch.
+This prevents Docker-only flags, environment variables, output templates, and
+status assumptions from leaking across host families.
 
 Command adaptation is an incremental execution seam, not the final runtime
 contract. Providers should move lifecycle, image, networking, storage, logs,
 monitoring, and readiness behavior toward typed provider-owned runtime
 operations so they can report unsupported capabilities without parsing a
 different runtime as if it were Docker.
+
+## Networking And Host Integration
+
+The portable contract is application endpoint and connectivity intent, not a
+particular network command or DNS implementation. A host provider owns the
+translation to its native network operations and reports unsupported paths
+before lifecycle dispatch where possible.
+
+CloudShell owns:
+
+- isolated runtime networks and names that it creates for CloudShell workloads
+- requested loopback port publication and runtime endpoint discovery
+- CloudShell-owned ingress/service routing, reconciliation, and bounded cleanup
+- capability and readiness diagnostics for connectivity paths required by a
+  workload
+
+The machine administrator owns:
+
+- runtime installation and service enablement
+- privileged DNS, packet-filter, firewall, and machine-route configuration
+- exposure beyond the local machine and organization-wide network policy
+
+CloudShell application lifecycle operations must not elevate privileges or
+silently modify machine-wide network policy. Provider setup can explain the
+smallest required administrator action when an application requests a path
+that depends on it.
+
+The current Apple Container acceptance path publishes a container port on the
+IPv4 loopback interface and verifies host-to-container HTTP access. Apple also
+makes container IPs reachable from the host and isolates custom networks from
+one another. Its documented reverse path, from a container to a loopback-bound
+host service, requires an administrator-created local DNS mapping such as
+`host.container.internal`; CloudShell does not create that privileged mapping.
+Apple's custom networks also do not currently resolve peer containers by bare
+name. Multi-replica ingress and service-to-service communication must therefore
+use provider-reported runtime endpoints or an explicitly configured DNS
+capability rather than assuming Docker network aliases. See Apple's
+[networking](https://github.com/apple/container/blob/main/docs/networking.md)
+and [host integration](https://github.com/apple/container/blob/main/docs/host-integration.md)
+documentation.
 
 ## Runtime Boundaries
 
@@ -257,12 +301,17 @@ on the same resource model shape even if their fluent builder names differ.
 
 - The generic container-host provider is currently a supporting graph resource
   and descriptor bridge, not a full standalone host runtime implementation.
-- Docker and Podman are the concrete command-backed runtime paths. Remote
-  Docker host support remains partially implemented and tracked separately.
-- Apple Container and WSL Container can be authored and resolved as distinct
-  host families, but their provider-native runtime adapters, readiness checks,
-  lifecycle/state interpretation, logs, monitoring, networking, storage, and
-  integration smoke coverage remain to be implemented.
+- Docker, Podman, and the bounded Apple Container acceptance subset are the
+  concrete command-backed runtime paths. Remote Docker host support remains
+  partially implemented and tracked separately.
+- Apple Container image-backed single-replica lifecycle, state/label
+  inspection, logs, loopback publication, and cleanup have live integration
+  coverage. Proactive readiness diagnostics, builds, monitoring, storage,
+  multi-replica ingress, service discovery, and container-to-host service
+  access remain to be implemented as typed capabilities.
+- WSL Container can be authored and resolved as a distinct host family, but
+  its provider-native runtime adapter and integration coverage remain to be
+  implemented.
 - Rich host readiness diagnostics for provider-specific conditions, such as
   unsupported ingress, unavailable volume materialization, or runtime-specific
   credential brokers, still need more provider work.

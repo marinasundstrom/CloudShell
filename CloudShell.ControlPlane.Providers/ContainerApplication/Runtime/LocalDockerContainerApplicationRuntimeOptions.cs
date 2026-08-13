@@ -21,7 +21,6 @@ public sealed class LocalDockerContainerApplicationRuntimeOptions
         Action<LocalDockerContainerApplicationRuntimeDefinition>? configure = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
 
         var definition = LocalDockerContainerApplicationRuntimeDefinition.CreateDefault(resourceId, projectPath, NameScope);
         configure?.Invoke(definition);

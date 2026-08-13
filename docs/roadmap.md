@@ -543,10 +543,15 @@ Prioritize the remaining local-dev work in this order:
    DNS/name materialization gaps. Prioritize feedback loops that materially
    improve the supported local-dev experience, especially when a sample exposes
    a blocker or confusing failure.
-   Container-host work should now replace shared Docker-shaped runtime
-   operations with typed provider adapters, then add Apple Container and WSL
-   Container readiness and lifecycle slices without treating either runtime as
-   Docker-compatible.
+   The Apple Container single-replica acceptance slice now proves image-backed
+   lifecycle, loopback publication, state/label inspection, logs, and cleanup.
+   Container-host work should next replace the remaining shared Docker-shaped
+   runtime operations with typed provider adapters; add explicit networking
+   capabilities for host-to-container, container-to-host, and service-to-
+   service paths; then add multi-replica Apple networking/readiness and WSL
+   Container lifecycle slices without treating either runtime as Docker-
+   compatible. Keep ordinary lifecycle unprivileged: machine DNS, packet-
+   filter, firewall, and external routing remain administrator setup.
 6. **Configuration, secrets, and identity clarity.** The app experience should
    make runtime-impacting settings and secret references understandable:
    references must be visible without leaking secret values, identity grant

@@ -21,12 +21,26 @@ link to ADR entries when a change depends on a recorded decision.
 - Added an explicit `IContainerHostCommandAdapter` provider boundary with
   deterministic tests for provider-native adapter registration and argument
   adaptation.
+- Added a built-in Apple Container command adapter and shared live Apple
+  Container/Docker integration coverage that runs an image-backed CloudShell
+  container app, reaches its loopback-published HTTP endpoint, reads logs,
+  inspects state, stops the app, and verifies container/network cleanup.
+  Decision:
+  [ADR-20260813-001](ADR.md#adr-20260813-001).
 
 #### Changed
 
 - Container-host command planning now resolves explicit Docker and Podman
   adapters. Provider-native and unknown host kinds return an actionable
   missing-adapter diagnostic instead of silently executing Docker commands.
+- Clarified the networking responsibility boundary: CloudShell owns scoped
+  runtime networks, requested loopback publication, endpoint discovery,
+  routing reconciliation, diagnostics, and cleanup; administrators own
+  privileged host DNS, packet-filter, firewall, and external route policy.
+  Decision: [ADR-20260813-002](ADR.md#adr-20260813-002).
+- Container-app runtime configuration now permits an empty project path for
+  prebuilt image-backed applications, avoiding an unnecessary local project
+  materialization requirement.
 
 ### 2026-08-08
 

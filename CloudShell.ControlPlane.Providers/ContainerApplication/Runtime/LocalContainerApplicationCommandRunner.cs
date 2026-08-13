@@ -55,7 +55,12 @@ public sealed class ProcessLocalContainerApplicationCommandRunner(
         TimeSpan? timeout = null,
         string? workingDirectory = null)
     {
-        var startInfo = CreateStartInfo(fileName, arguments, throwOnError, out var unavailableResult);
+        var startInfo = CreateStartInfo(
+            fileName,
+            arguments,
+            throwOnError,
+            out var unavailableResult,
+            out var commandPlan);
         if (unavailableResult is not null)
         {
             return unavailableResult;
@@ -86,9 +91,10 @@ public sealed class ProcessLocalContainerApplicationCommandRunner(
             var outputTask = process.StandardOutput.ReadToEndAsync(waitCancellationToken);
             var errorTask = process.StandardError.ReadToEndAsync(waitCancellationToken);
             await process.WaitForExitAsync(waitCancellationToken).ConfigureAwait(false);
+            var output = await outputTask.ConfigureAwait(false);
             var result = new LocalContainerApplicationCommandResult(
                 process.ExitCode,
-                await outputTask.ConfigureAwait(false),
+                commandPlan?.AdaptOutput(arguments, output) ?? output,
                 await errorTask.ConfigureAwait(false));
             if (throwOnError && result.ExitCode != 0)
             {
@@ -134,27 +140,29 @@ public sealed class ProcessLocalContainerApplicationCommandRunner(
         string fileName,
         IReadOnlyList<string> arguments,
         bool throwOnError,
-        out LocalContainerApplicationCommandResult? unavailableResult)
+        out LocalContainerApplicationCommandResult? unavailableResult,
+        out ContainerHostCommandPlan? commandPlan)
     {
         unavailableResult = null;
+        commandPlan = null;
         if (IsContainerRuntimeCommand(fileName))
         {
-            var plan = containerHostCommandPlatform.CreatePlan();
-            if (!plan.IsAvailable)
+            commandPlan = containerHostCommandPlatform.CreatePlan();
+            if (!commandPlan.IsAvailable)
             {
                 if (throwOnError)
                 {
-                    throw new InvalidOperationException(plan.UnavailableReason);
+                    throw new InvalidOperationException(commandPlan.UnavailableReason);
                 }
 
                 unavailableResult = new LocalContainerApplicationCommandResult(
                     LocalContainerApplicationCommandResult.UnavailableExitCode,
                     string.Empty,
-                    plan.UnavailableReason ?? "Container runtime command is unavailable.");
+                    commandPlan.UnavailableReason ?? "Container runtime command is unavailable.");
                 return new ProcessStartInfo(fileName);
             }
 
-            return plan.CreateStartInfo(arguments);
+            return commandPlan.CreateStartInfo(arguments);
         }
 
         var startInfo = new ProcessStartInfo(fileName)

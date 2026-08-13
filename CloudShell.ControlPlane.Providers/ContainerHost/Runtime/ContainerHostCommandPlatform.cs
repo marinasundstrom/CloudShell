@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -20,6 +22,10 @@ public interface IContainerHostCommandAdapter
 
     IReadOnlyList<string> AdaptArguments(IReadOnlyList<string> arguments);
 
+    string AdaptOutput(
+        IReadOnlyList<string> arguments,
+        string output);
+
     void ConfigureEnvironment(
         ProcessStartInfo startInfo,
         ContainerHostDescriptor? host);
@@ -39,6 +45,7 @@ public sealed class ContainerHostCommandPlatform(
 
     private static readonly IContainerHostCommandAdapter[] DefaultCommandAdapters =
     [
+        new AppleContainerHostCommandAdapter(),
         new PodmanContainerHostCommandAdapter(),
         new DockerCompatibleContainerHostCommandAdapter()
     ];
@@ -139,6 +146,11 @@ public sealed record ContainerHostCommandPlan(
 
         return startInfo;
     }
+
+    public string AdaptOutput(
+        IReadOnlyList<string> arguments,
+        string output) =>
+        Adapter?.AdaptOutput(arguments, output) ?? output;
 }
 
 public sealed class DockerCompatibleContainerHostCommandAdapter : IContainerHostCommandAdapter
@@ -153,6 +165,8 @@ public sealed class DockerCompatibleContainerHostCommandAdapter : IContainerHost
         ContainerHostCommandPlatform.ResolveExecutable(host, "docker");
 
     public IReadOnlyList<string> AdaptArguments(IReadOnlyList<string> arguments) => arguments;
+
+    public string AdaptOutput(IReadOnlyList<string> arguments, string output) => output;
 
     public void ConfigureEnvironment(
         ProcessStartInfo startInfo,
@@ -177,6 +191,8 @@ public sealed class PodmanContainerHostCommandAdapter : IContainerHostCommandAda
 
     public IReadOnlyList<string> AdaptArguments(IReadOnlyList<string> arguments) => arguments;
 
+    public string AdaptOutput(IReadOnlyList<string> arguments, string output) => output;
+
     public void ConfigureEnvironment(
         ProcessStartInfo startInfo,
         ContainerHostDescriptor? host)
@@ -188,6 +204,161 @@ public sealed class PodmanContainerHostCommandAdapter : IContainerHostCommandAda
     }
 }
 
+public sealed partial class AppleContainerHostCommandAdapter : IContainerHostCommandAdapter
+{
+    public bool CanHandle(ContainerHostDescriptor? host) =>
+        host?.Kind == ContainerHostKind.AppleContainer;
+
+    public string RuntimeName => "Apple Container";
+
+    public string ResolveExecutable(ContainerHostDescriptor? host) =>
+        ContainerHostCommandPlatform.ResolveExecutable(host, "container");
+
+    public IReadOnlyList<string> AdaptArguments(IReadOnlyList<string> arguments)
+    {
+        if (IsDockerInspect(arguments))
+        {
+            return ["inspect", arguments[^1]];
+        }
+
+        if (arguments.Count >= 3 &&
+            string.Equals(arguments[0], "rm", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(arguments[1], "-f", StringComparison.OrdinalIgnoreCase))
+        {
+            return ["delete", "--force", .. arguments.Skip(2)];
+        }
+
+        if (arguments.Count >= 3 &&
+            string.Equals(arguments[0], "network", StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(arguments[1], "rm", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(arguments[1], "remove", StringComparison.OrdinalIgnoreCase)))
+        {
+            return ["network", "delete", .. arguments.Skip(2)];
+        }
+
+        if (arguments.Count > 0 &&
+            string.Equals(arguments[0], "run", StringComparison.OrdinalIgnoreCase))
+        {
+            return RemoveOptionWithValue(arguments, "--network-alias");
+        }
+
+        if (arguments.Count > 0 &&
+            string.Equals(arguments[0], "logs", StringComparison.OrdinalIgnoreCase))
+        {
+            return AdaptLogArguments(arguments);
+        }
+
+        return arguments;
+    }
+
+    public string AdaptOutput(
+        IReadOnlyList<string> arguments,
+        string output)
+    {
+        if (IsDockerInspect(arguments))
+        {
+            return AdaptInspectOutput(arguments[3], output);
+        }
+
+        return output;
+    }
+
+    public void ConfigureEnvironment(
+        ProcessStartInfo startInfo,
+        ContainerHostDescriptor? host)
+    {
+    }
+
+    private static bool IsDockerInspect(IReadOnlyList<string> arguments) =>
+        arguments.Count >= 5 &&
+        string.Equals(arguments[0], "container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(arguments[1], "inspect", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(arguments[2], "--format", StringComparison.OrdinalIgnoreCase);
+
+    private static IReadOnlyList<string> RemoveOptionWithValue(
+        IReadOnlyList<string> arguments,
+        string option)
+    {
+        var adapted = new List<string>(arguments.Count);
+        for (var index = 0; index < arguments.Count; index++)
+        {
+            if (string.Equals(arguments[index], option, StringComparison.OrdinalIgnoreCase))
+            {
+                index++;
+                continue;
+            }
+
+            adapted.Add(arguments[index]);
+        }
+
+        return adapted;
+    }
+
+    private static IReadOnlyList<string> AdaptLogArguments(IReadOnlyList<string> arguments)
+    {
+        var adapted = new List<string>(arguments.Count);
+        for (var index = 0; index < arguments.Count; index++)
+        {
+            switch (arguments[index])
+            {
+                case "--timestamps":
+                    continue;
+                case "--until":
+                    index++;
+                    continue;
+                case "--tail":
+                    adapted.Add("-n");
+                    break;
+                default:
+                    adapted.Add(arguments[index]);
+                    break;
+            }
+        }
+
+        return adapted;
+    }
+
+    private static string AdaptInspectOutput(string format, string output)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(output);
+            if (document.RootElement.ValueKind != JsonValueKind.Array ||
+                document.RootElement.GetArrayLength() == 0)
+            {
+                return output;
+            }
+
+            var container = document.RootElement[0];
+            if (string.Equals(format, "{{.State.Status}}", StringComparison.Ordinal))
+            {
+                return container.TryGetProperty("status", out var status) &&
+                    status.TryGetProperty("state", out var state)
+                        ? state.GetString() ?? string.Empty
+                        : string.Empty;
+            }
+
+            var labelMatch = DockerLabelFormat().Match(format);
+            if (labelMatch.Success &&
+                container.TryGetProperty("configuration", out var configuration) &&
+                configuration.TryGetProperty("labels", out var labels) &&
+                labels.TryGetProperty(labelMatch.Groups["name"].Value, out var value))
+            {
+                return value.GetString() ?? string.Empty;
+            }
+
+            return output;
+        }
+        catch (JsonException)
+        {
+            return output;
+        }
+    }
+
+    [GeneratedRegex("^\\{\\{ index \\.Config\\.Labels \\\"(?<name>[^\\\"]+)\\\" \\}\\}$")]
+    private static partial Regex DockerLabelFormat();
+}
+
 public static class ContainerHostCommandPlatformServiceCollectionExtensions
 {
     public static IServiceCollection AddContainerHostCommandPlatform(
@@ -196,6 +367,8 @@ public static class ContainerHostCommandPlatformServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.TryAddSingleton<IHostToolResolver, PathHostToolResolver>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IContainerHostCommandAdapter, AppleContainerHostCommandAdapter>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IContainerHostCommandAdapter, PodmanContainerHostCommandAdapter>());
         services.TryAddEnumerable(
