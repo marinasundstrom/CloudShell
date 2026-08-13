@@ -30,6 +30,24 @@ shell, with an operational experience inspired by the .NET Aspire Dashboard.
   <a href="images/runtime-graph.png"><img src="images/runtime-graph.png" width="45%" alt="Runtime graph" /></a>
 </p>
 
+## Preview Packages
+
+CloudShell preview packages are published to the public
+[CloudShell MyGet feed](https://www.myget.org/gallery/cloudshell). They target
+the .NET 11 preview SDK and are not yet published to NuGet.org as a supported
+stable release.
+
+Add the preview feed as a package source:
+
+```bash
+dotnet nuget add source \
+  https://www.myget.org/F/cloudshell/api/v3/index.json \
+  --name CloudShell
+```
+
+Prerelease versions must be selected explicitly when adding a package, for
+example `dotnet add package CloudShell.AppHost --version 0.1.0-preview.2`.
+
 ## Integration Paths
 
 | Path | Status |
