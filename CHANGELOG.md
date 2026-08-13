@@ -54,6 +54,9 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Changed
 
+- Unlisted the incomplete `0.1.0-preview.1` package set from NuGet.org search;
+  previews now publish to MyGet while NuGet.org publication requires a stable
+  `x.y.z` version.
 - Published CoreShell projects use the `CloudShell.CoreShell*` NuGet package
   ID prefix. Project names, assembly names, namespaces, and public APIs remain
   unchanged; the prefix avoids NuGet.org's similarity conflict with the

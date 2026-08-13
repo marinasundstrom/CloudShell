@@ -20,7 +20,6 @@ on:
           - artifact
           - myget
           - nuget.org
-          - unlist-nuget-preview1
 
 permissions:
   contents: read
@@ -28,7 +27,6 @@ permissions:
 jobs:
   pack:
     name: Pack and verify
-    if: ${{ inputs.publish_target != 'unlist-nuget-preview1' }}
     runs-on: ubuntu-latest
     outputs:
       package-version: ${{ steps.version.outputs.package-version }}
@@ -262,124 +260,6 @@ jobs:
           done
 
           dotnet build "$consumer_project" --no-restore
-
-  unlist-nuget-preview1:
-    name: Unlist incomplete NuGet.org preview.1
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target == 'unlist-nuget-preview1' }}
-    runs-on: ubuntu-latest
-    concurrency:
-      group: cloudshell-nuget-publish
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: NuGet login
-        id: login
-        uses: NuGet/login@v1
-        with:
-          user: marna.li
-
-      - name: Unlist published preview.1 packages
-        shell: bash
-        env:
-          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: |
-          set -euo pipefail
-
-          package_ids=(
-            CloudShell.Abstractions
-            CloudShell.AppHost
-            CloudShell.AppHost.Launcher
-            CloudShell.Client
-            CloudShell.Components
-            CloudShell.Configuration
-            CloudShell.Configuration.Client
-            CloudShell.ControlPlane
-            CloudShell.ControlPlane.Client
-            CloudShell.ControlPlane.Providers
-            CloudShell.ControlPlane.Providers.UI
-            CloudShell.ControlPlane.ResourceModel
-            CloudShell.DeviceRegistry.Client
-            CloudShell.EventBroker.Client
-            CloudShell.Hosting
-            CloudShell.Persistence
-            CloudShell.Providers.DockerCompose
-            CloudShell.Providers.Traefik
-            CloudShell.RabbitMQ.Client
-            CloudShell.ResourceModel
-            CloudShell.Secrets.Client
-            CloudShell.SqlServer.Client
-          )
-
-          if [[ "${#package_ids[@]}" -ne 22 ]]; then
-            echo "Expected exactly 22 package IDs to unlist." >&2
-            exit 1
-          fi
-
-          for package_id in "${package_ids[@]}"; do
-            dotnet nuget delete "$package_id" 0.1.0-preview.1 \
-              --api-key "$NUGET_API_KEY" \
-              --source https://api.nuget.org/v3/index.json \
-              --non-interactive
-          done
-
-      - name: Verify packages are unlisted
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          package_ids=(
-            cloudshell.abstractions
-            cloudshell.apphost
-            cloudshell.apphost.launcher
-            cloudshell.client
-            cloudshell.components
-            cloudshell.configuration
-            cloudshell.configuration.client
-            cloudshell.controlplane
-            cloudshell.controlplane.client
-            cloudshell.controlplane.providers
-            cloudshell.controlplane.providers.ui
-            cloudshell.controlplane.resourcemodel
-            cloudshell.deviceregistry.client
-            cloudshell.eventbroker.client
-            cloudshell.hosting
-            cloudshell.persistence
-            cloudshell.providers.dockercompose
-            cloudshell.providers.traefik
-            cloudshell.rabbitmq.client
-            cloudshell.resourcemodel
-            cloudshell.secrets.client
-            cloudshell.sqlserver.client
-          )
-
-          for attempt in {1..12}; do
-            listed_count=0
-
-            for package_id in "${package_ids[@]}"; do
-              listed=$(curl --compressed -fsS \
-                "https://api.nuget.org/v3/registration5-gz-semver2/$package_id/0.1.0-preview.1.json" \
-                | jq -r '.listed')
-
-              if [[ "$listed" != "false" ]]; then
-                ((listed_count+=1))
-              fi
-            done
-
-            if [[ "$listed_count" -eq 0 ]]; then
-              echo "All 22 preview.1 package versions are unlisted."
-              exit 0
-            fi
-
-            if [[ "$attempt" -eq 12 ]]; then
-              echo "$listed_count package versions remain listed after 12 attempts." >&2
-              exit 1
-            fi
-
-            sleep 5
-          done
 
   publish-nuget:
     name: Publish to NuGet.org
