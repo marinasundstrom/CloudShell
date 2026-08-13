@@ -138,6 +138,118 @@ public sealed class ContainerHostCommandPlatformTests
     }
 
     [Fact]
+    public void CreatePlan_RequiresExplicitAdapterForUnsupportedProviderNativeRuntime()
+    {
+        var host = new ContainerHostDescriptor(
+            "wsl:default",
+            "WSL Container",
+            ContainerHostKind.WslContainer,
+            "local://container-runtime");
+        var platform = new ContainerHostCommandPlatform(
+            [new StaticContainerHostProvider(host)],
+            new TestHostToolResolver("docker", "container", "wslc.exe"));
+
+        var plan = platform.CreatePlan();
+
+        Assert.False(plan.IsAvailable);
+        Assert.Empty(plan.Executable);
+        Assert.Contains("host kind 'WslContainer'", plan.UnavailableReason);
+        Assert.Contains(nameof(IContainerHostCommandAdapter), plan.UnavailableReason);
+    }
+
+    [Fact]
+    public void CreatePlan_UsesAppleContainerAdapterWithoutDockerEnvironment()
+    {
+        var host = new ContainerHostDescriptor(
+            "apple:default",
+            "Apple Container",
+            ContainerHostKind.AppleContainer,
+            "local://apple-container");
+        var platform = new ContainerHostCommandPlatform(
+            [new StaticContainerHostProvider(host)],
+            new TestHostToolResolver("container"));
+
+        var plan = platform.CreatePlan();
+        var startInfo = plan.CreateStartInfo(
+            ["container", "inspect", "--format", "{{.State.Status}}", "api"]);
+
+        Assert.True(plan.IsAvailable);
+        Assert.Equal("container", startInfo.FileName);
+        Assert.Equal(["inspect", "api"], startInfo.ArgumentList);
+        Assert.False(startInfo.Environment.ContainsKey("DOCKER_HOST"));
+        Assert.False(startInfo.Environment.ContainsKey("CONTAINER_HOST"));
+    }
+
+    [Fact]
+    public void AppleContainerAdapter_AdaptsLifecycleAndRunArguments()
+    {
+        var adapter = new AppleContainerHostCommandAdapter();
+
+        Assert.Equal(
+            ["delete", "--force", "api"],
+            adapter.AdaptArguments(["rm", "-f", "api"]));
+        Assert.Equal(
+            ["network", "delete", "cloudshell"],
+            adapter.AdaptArguments(["network", "rm", "cloudshell"]));
+        Assert.Equal(
+            ["inspect", "api"],
+            adapter.AdaptArguments(["container", "inspect", "api"]));
+        Assert.Equal(
+            ["run", "-d", "--name", "api", "--network", "cloudshell", "alpine"],
+            adapter.AdaptArguments(
+                ["run", "-d", "--name", "api", "--network", "cloudshell", "--network-alias", "api-1", "alpine"]));
+        Assert.Equal(
+            ["logs", "-n", "20", "api"],
+            adapter.AdaptArguments(
+                ["logs", "--timestamps", "--tail", "20", "--until", "2026-08-13T12:00:00Z", "api"]));
+    }
+
+    [Fact]
+    public void AppleContainerAdapter_AdaptsInspectOutput()
+    {
+        const string inspect =
+            """
+            [{"configuration":{"labels":{"cloudshell.replica-group-id":"group-1"}},"id":"api","status":{"state":"running"}}]
+            """;
+        var adapter = new AppleContainerHostCommandAdapter();
+
+        Assert.Equal(
+            "running",
+            adapter.AdaptOutput(
+                ["container", "inspect", "--format", "{{.State.Status}}", "api"],
+                inspect));
+        Assert.Equal(
+            "group-1",
+            adapter.AdaptOutput(
+                ["container", "inspect", "--format", "{{ index .Config.Labels \"cloudshell.replica-group-id\" }}", "api"],
+                inspect));
+
+    }
+
+    [Fact]
+    public void CreatePlan_UsesRegisteredProviderNativeAdapter()
+    {
+        var host = new ContainerHostDescriptor(
+            "wsl:default",
+            "WSL Containers",
+            ContainerHostKind.WslContainer,
+            "local://wsl-container");
+        var platform = new ContainerHostCommandPlatform(
+            [new StaticContainerHostProvider(host)],
+            new TestHostToolResolver("wslc.exe"),
+            [new TestWslContainerCommandAdapter()]);
+
+        var plan = platform.CreatePlan();
+        var startInfo = plan.CreateStartInfo(["ps"]);
+
+        Assert.True(plan.IsAvailable);
+        Assert.Equal("wslc.exe", startInfo.FileName);
+        Assert.Equal(["container", "list"], startInfo.ArgumentList);
+        Assert.False(startInfo.Environment.ContainsKey("DOCKER_HOST"));
+        Assert.False(startInfo.Environment.ContainsKey("CONTAINER_HOST"));
+    }
+
+    [Fact]
     public void DockerCommandRunner_ReturnsUnavailableResultWithoutStartingProcess()
     {
         var runner = new ProcessLocalDockerContainerCommandRunner(
@@ -240,5 +352,28 @@ public sealed class ContainerHostCommandPlatformTests
     private sealed class StaticContainerHostProvider(ContainerHostDescriptor host) : IContainerHostProvider
     {
         public ContainerHostDescriptor GetDefaultHost() => host;
+    }
+
+    private sealed class TestWslContainerCommandAdapter : IContainerHostCommandAdapter
+    {
+        public bool CanHandle(ContainerHostDescriptor? host) =>
+            host?.Kind == ContainerHostKind.WslContainer;
+
+        public string RuntimeName => "WSL Containers";
+
+        public string ResolveExecutable(ContainerHostDescriptor? host) => "wslc.exe";
+
+        public IReadOnlyList<string> AdaptArguments(IReadOnlyList<string> arguments) =>
+            arguments.SequenceEqual(["ps"], StringComparer.OrdinalIgnoreCase)
+                ? ["container", "list"]
+                : arguments;
+
+        public string AdaptOutput(IReadOnlyList<string> arguments, string output) => output;
+
+        public void ConfigureEnvironment(
+            System.Diagnostics.ProcessStartInfo startInfo,
+            ContainerHostDescriptor? host)
+        {
+        }
     }
 }

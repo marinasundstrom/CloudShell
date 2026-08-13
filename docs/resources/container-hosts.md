@@ -19,6 +19,12 @@ CloudShell keeps these concepts separate:
 | Container host | Placement boundary that can run container-backed runtime work. |
 | Runtime state | Provider-owned containers, helper services, generated config, container IDs, and transient status. |
 
+Docker, Podman, Apple Container, and WSL Container use OCI-compatible images.
+OCI compatibility supplies the portable image/artifact baseline; it does not
+define a shared host-management API. Container lifecycle commands, inspection
+and state output, builds, networking, volumes, logs, monitoring, and host
+readiness remain provider capabilities behind the container-host boundary.
+
 The generic graph-backed host type is `cloudshell.container-host`. Docker hosts
 can also project as `docker.host` when the Docker provider owns a concrete
 host resource. `docker.host` is Docker-specific; `cloudshell.container-host`
@@ -38,7 +44,7 @@ Current attributes:
 | Attribute | Meaning |
 | --- | --- |
 | `infrastructure.kind` | Defaults to `containerHost`. |
-| `container.host.kind` | Host family such as `Docker`, `Podman`, `DockerCompatible`, `Kubernetes`, `Process`, or `Custom`. |
+| `container.host.kind` | Host family such as `Docker`, `Podman`, `AppleContainer`, `WslContainer`, `DockerCompatible`, `Kubernetes`, `Process`, or `Custom`. |
 | `container.host.endpoint` | Non-secret endpoint display/connection value, defaulting to `unix:///var/run/docker.sock`. |
 | `container.registry` | Default registry, defaulting to `docker.io`. |
 | `container.host.default` | Boolean marker for default host selection. |
@@ -152,6 +158,108 @@ Use `AddContainerHost(...)` when a graph should declare an explicit generic
 host. Docker-specific host resources and remote Docker behavior remain
 provider-specific.
 
+Local runtime helpers set the host family and a non-secret local endpoint
+identity without implying Docker compatibility:
+
+```csharp
+var apple = resources.AddContainerHost("apple").UseAppleContainer();
+var wsl = resources.AddContainerHost("wsl").UseWslContainer();
+var podman = resources.AddContainerHost("podman").UsePodman();
+```
+
+These helpers author placement intent. Apple Container has a built-in adapter
+for the currently supported acceptance subset, but it becomes operational only
+when the Apple `container` service is installed and running. WSL Container
+still requires its provider-native runtime adapter.
+
+## Runtime Adapters
+
+Command-backed providers implement `IContainerHostCommandAdapter`. The adapter
+owns runtime identity, executable selection, provider-native argument shape,
+output interpretation, and process environment. Docker and Podman have
+built-in adapters for their currently supported command surfaces. Apple
+Container has a built-in adapter for image-backed, single-replica container
+apps: create/remove, isolated network attachment, loopback port publication,
+state and label inspection, logs, and cleanup. The Apple adapter consumes the
+Apple CLI's JSON inspection shape rather than treating it as Docker output.
+
+There is no implicit Docker adapter for WSL Container, Kubernetes, process,
+custom, or other provider-native hosts. Selecting one of those hosts without
+its adapter produces an actionable unavailable reason before process dispatch.
+This prevents Docker-only flags, environment variables, output templates, and
+status assumptions from leaking across host families.
+
+Command adaptation is an incremental execution seam, not the final runtime
+contract. Providers should move lifecycle, image, networking, storage, logs,
+monitoring, and readiness behavior toward typed provider-owned runtime
+operations so they can report unsupported capabilities without parsing a
+different runtime as if it were Docker.
+
+The first typed runtime surface is `IContainerHostRuntime`. It accepts
+owner-scoped runtime handles and typed specifications for:
+
+- network ensure/remove
+- container run/start/remove and in-container execution
+- environment variables, labels, mounts, arguments, and published ports
+- logs with bounded tail/before intent
+- inspection normalized into container state, labels, and named IPv4/IPv6
+  network attachments
+
+`CommandContainerHostRuntime` maps that surface through the selected Docker,
+Podman, or Apple command adapter. Managed containers receive
+`cloudshell.owner-resource-id`; typed inspection rejects a container with a
+different or missing owner label. This is an internal provider integration
+contract today, not a general-purpose user-facing container API.
+
+## Networking And Host Integration
+
+The portable contract is application endpoint and connectivity intent, not a
+particular network command or DNS implementation. A host provider owns the
+translation to its native network operations and reports unsupported paths
+before lifecycle dispatch where possible.
+
+CloudShell owns:
+
+- isolated runtime networks and names that it creates for CloudShell workloads
+- requested loopback port publication and runtime endpoint discovery
+- CloudShell-owned ingress/service routing, reconciliation, and bounded cleanup
+- capability and readiness diagnostics for connectivity paths required by a
+  workload
+
+The machine administrator owns:
+
+- runtime installation and service enablement
+- privileged DNS, packet-filter, firewall, and machine-route configuration
+- exposure beyond the local machine and organization-wide network policy
+
+CloudShell application lifecycle operations must not elevate privileges or
+silently modify machine-wide network policy. Provider setup can explain the
+smallest required administrator action when an application requests a path
+that depends on it.
+
+The current Apple Container acceptance path publishes a container port on the
+IPv4 loopback interface and verifies host-to-container HTTP access. Apple also
+makes container IPs reachable from the host and isolates custom networks from
+one another. Its documented reverse path, from a container to a loopback-bound
+host service, requires an administrator-created local DNS mapping such as
+`host.container.internal`; CloudShell does not create that privileged mapping.
+Apple's custom networks also do not currently resolve peer containers by bare
+name. Multi-replica ingress and service-to-service communication must therefore
+use provider-reported runtime endpoints or an explicitly configured DNS
+capability rather than assuming Docker network aliases. See Apple's
+[networking](https://github.com/apple/container/blob/main/docs/networking.md)
+and [host integration](https://github.com/apple/container/blob/main/docs/host-integration.md)
+documentation.
+
+Docker, Podman, and Apple live acceptance now also launch an isolated peer container,
+inspects the application's provider-reported private IPv4 attachment, and
+performs HTTP over that network. This proves the portable endpoint-observation
+path across all three host families. Podman uses the Docker-compatible typed
+mapping while retaining its own executable, host selection, and readiness
+boundary. On macOS, the Podman installer can place the CLI at
+`/opt/podman/bin/podman` without adding it to `PATH`; a host descriptor can use
+`cloudshell.executable` metadata to select that executable explicitly.
+
 ## Runtime Boundaries
 
 Container hosts select where provider-owned runtime work can be materialized.
@@ -188,11 +296,14 @@ A new host provider should define:
   and unavailable credentials
 - provider-owned runtime integration for materializing containers, helper
   services, logs, monitoring, cleanup, and storage mounts
+- OCI image/reference behavior where the provider advertises
+  `container.image`, without presenting OCI compatibility as management API
+  compatibility
 - Resource Manager projection that keeps host placement understandable without
   exposing secrets
 
-Do not require Docker-compatible operations for every host provider. A future
-Podman, Kubernetes, systemd, or appliance-backed host can satisfy the generic
+Do not require Docker-compatible operations for every host provider. Apple
+Container, WSL Container, Kubernetes, systemd, or an appliance-backed host can satisfy the generic
 placement contract while exposing provider-specific runtime behavior behind
 its own adapter.
 
@@ -215,10 +326,24 @@ on the same resource model shape even if their fluent builder names differ.
 
 - The generic container-host provider is currently a supporting graph resource
   and descriptor bridge, not a full standalone host runtime implementation.
-- Docker is the first concrete runtime path. Remote Docker host support remains
+- Docker, Podman, and the bounded Apple Container acceptance subset are the
+  concrete command-backed runtime paths. Remote Docker host support remains
   partially implemented and tracked separately.
+- Apple Container image-backed single-replica lifecycle, state/label/network
+  inspection, logs, loopback publication, isolated peer communication, and
+  cleanup have live integration coverage. Proactive readiness diagnostics,
+  builds, monitoring, storage, multi-replica ingress, stable service discovery,
+  and container-to-host service access remain to be implemented as typed
+  capabilities.
+- Podman shares the Docker-compatible typed runtime mapping and has live
+  coverage for image-backed lifecycle, state/label/network inspection, logs,
+  loopback publication, isolated peer communication, and cleanup against a
+  macOS Podman machine.
+- WSL Container can be authored and resolved as a distinct host family, but
+  its provider-native runtime adapter and integration coverage remain to be
+  implemented.
 - Rich host readiness diagnostics for provider-specific conditions, such as
   unsupported ingress, unavailable volume materialization, or runtime-specific
   credential brokers, still need more provider work.
-- Host-oriented naming is mostly in place, but some older container-host or
-  engine-oriented names remain in compatibility paths.
+- Host-oriented naming is mostly in place, but Docker-specific runtime class
+  names remain where the concrete implementation still owns Docker behavior.

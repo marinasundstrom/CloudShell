@@ -200,6 +200,11 @@ For MVP, cross-platform support is accepted when:
 35. Kept container-app log, monitoring, and materialization helpers on the
     shared command-runner path so Docker/Podman command planning applies
     consistently across lifecycle, status, logs, metrics, and repair checks.
+36. Added explicit container-host command adapters so Docker and Podman own
+    their command surfaces and provider-native hosts never fall back to Docker.
+37. Added first-class Apple Container and WSL Container host kinds and graph
+    authoring helpers, with deterministic missing-adapter diagnostics until
+    their runtime providers are installed.
 
 ### Active
 
@@ -210,8 +215,8 @@ For MVP, cross-platform support is accepted when:
 3. Continue the same testability pattern for remaining command factories and
    runtime prerequisites.
 4. Audit remaining direct process invocations and path construction in
-   provider-owned runtime code, starting with Docker, Podman, and executable
-   tool prerequisites.
+   provider-owned runtime code, starting with typed container runtime
+   operations and executable tool prerequisites.
 5. Continue replacing user-facing "Docker" wording in generic
    Docker-compatible runtime diagnostics where the selected runtime is Podman
    or a custom Docker-compatible executable.
@@ -232,16 +237,23 @@ For MVP, cross-platform support is accepted when:
    operations are portable, macOS-specific, Linux-specific, or Windows-specific.
 5. Add Resource Manager diagnostics for unsupported host/network/runtime
    operations before dispatch.
-6. Add a provider prerequisite-check pattern for Docker/Podman/runtime-backed
-   providers so missing host tools produce stable unavailable reasons before
-   command execution.
-7. Add container-app runtime tests for custom executable metadata in live
+6. Add Apple Container provider readiness for Apple silicon, macOS 26, the
+   `container` executable, and the `container system` service before lifecycle
+   dispatch.
+7. Add WSL Container provider readiness for Windows, WSL 2.9.3+, `wslc.exe`,
+   and required components before lifecycle dispatch; keep preview API/session
+   configuration provider-owned.
+8. Replace Docker-shaped status, label, logs, monitoring, network, and storage
+   command assumptions with typed runtime operations that Apple Container and
+   WSL Container adapters can implement independently.
+9. Add container-app runtime tests for custom executable metadata in live
    command-runner paths before promoting additional Docker integration tests
    into the CI smoke subset.
 
 ### Deferred
 
-1. Windows-native container provider behavior beyond Docker Desktop or WSL.
+1. Windows-native container provider behavior beyond Docker Desktop, Podman,
+   and WSL Container.
 2. OS secure-store integration for developer profiles.
 3. OS-native service installation for daemonized Control Plane hosts.
 4. Provider-backed DNS integration beyond local hosts-file/proxy behavior.

@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ContainerHostResourceDefinitionBuilder(string name) :
@@ -26,6 +28,31 @@ public sealed class ContainerHostResourceDefinitionBuilder(string name) :
         string registry = "docker.io")
     {
         WithHostKind("Docker");
+        WithEndpoint(endpoint);
+        WithRegistry(registry);
+        AsDefault();
+        return this;
+    }
+
+    public ContainerHostResourceDefinitionBuilder UsePodman(
+        string endpoint = "unix:///run/podman/podman.sock",
+        string registry = "docker.io") =>
+        UseLocalRuntime(ContainerHostKind.Podman, endpoint, registry);
+
+    public ContainerHostResourceDefinitionBuilder UseAppleContainer(
+        string registry = "docker.io") =>
+        UseLocalRuntime(ContainerHostKind.AppleContainer, "local://apple-container", registry);
+
+    public ContainerHostResourceDefinitionBuilder UseWslContainer(
+        string registry = "docker.io") =>
+        UseLocalRuntime(ContainerHostKind.WslContainer, "local://wsl-container", registry);
+
+    private ContainerHostResourceDefinitionBuilder UseLocalRuntime(
+        ContainerHostKind kind,
+        string endpoint,
+        string registry)
+    {
+        WithHostKind(kind.ToString());
         WithEndpoint(endpoint);
         WithRegistry(registry);
         AsDefault();

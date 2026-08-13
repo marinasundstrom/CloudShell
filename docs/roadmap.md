@@ -543,6 +543,19 @@ Prioritize the remaining local-dev work in this order:
    DNS/name materialization gaps. Prioritize feedback loops that materially
    improve the supported local-dev experience, especially when a sample exposes
    a blocker or confusing failure.
+   The Docker and Apple acceptance slices now prove image-backed lifecycle,
+   loopback publication, state/label/network inspection, logs, cleanup, and
+   isolated container-to-container communication through provider-reported
+   endpoints. A typed owner-scoped runtime boundary now owns common network,
+   container, execution, log, and inspection intent, and replica logs/slot
+   discovery use it. Container-host work should next migrate remaining
+   Docker-shaped app lifecycle, ingress, monitoring, build, SQL Server,
+   RabbitMQ, and storage paths; use typed observed endpoints for multi-replica
+   Apple ingress and add readiness diagnostics. Shared live Podman acceptance
+   now covers the same lifecycle and connectivity boundary on a macOS Podman
+   machine. WSLC stays deferred until a Windows test host is
+   available. Keep ordinary lifecycle unprivileged: machine DNS, packet-filter,
+   firewall, and external routing remain administrator setup.
 6. **Configuration, secrets, and identity clarity.** The app experience should
    make runtime-impacting settings and secret references understandable:
    references must be visible without leaking secret values, identity grant

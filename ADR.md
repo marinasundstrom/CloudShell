@@ -9,6 +9,98 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-08-13
+
+### ADR-20260813-001: Dispatch container-host runtime commands through explicit provider adapters
+
+Container hosts are placement and control boundaries, not aliases for Docker
+Engine. A `ContainerHostDescriptor` identifies the host family and its stable,
+non-secret connection facts. Provider-owned runtime integration must then
+select an explicit adapter for that host family before dispatching commands or
+API calls. CloudShell must not route an unknown or provider-native host through
+Docker merely because existing runtime consumers currently produce Docker CLI
+arguments.
+
+OCI compatibility is the portability baseline for images and related artifact
+metadata; it is not a common container-host management protocol. CloudShell
+can therefore keep image references and image-backed workload intent portable
+without assuming common lifecycle commands, inspection output, networking,
+volumes, build behavior, logging, or readiness semantics across host families.
+
+The shared command path therefore resolves `IContainerHostCommandAdapter`
+implementations. Docker and Podman have explicit adapters for their currently
+supported command surfaces. Apple Container has a built-in adapter for the
+image-backed, single-replica container-app acceptance path: lifecycle command
+shape, state/label inspection, logs, loopback port publication, and cleanup.
+WSL Container is a first-class `ContainerHostKind` and programmatic authoring
+target, but remains unavailable for runtime dispatch until its
+provider-specific adapter owns argument shape, output/state interpretation,
+readiness, and unsupported-operation diagnostics. Missing adapters are
+expected availability failures, not fallback conditions.
+
+This boundary is intentionally allowed to break pre-release command and
+provider APIs. Provider-native lifecycle, image, network, storage, logs, and
+monitoring behavior should converge on typed runtime operations rather than
+preserving Docker-shaped compatibility aliases. Host credentials, WSLC session
+configuration, Apple runtime service state, and other provider-native details
+remain provider-owned and must not leak into platform registration state.
+
+Related changes: [Changelog](CHANGELOG.md).
+
+### ADR-20260813-003: Use owner-scoped typed operations for common container-host behavior
+
+Common runtime behavior is expressed as typed container, network, port,
+mount, log, execution, and inspection operations before a provider maps it to
+its native interface. The typed contract is the shared semantic boundary;
+Docker-compatible command arguments are an internal adapter detail and are not
+the contract consumed by application, log, replica, or networking providers.
+
+Every managed runtime container carries the stable owning CloudShell resource
+ID and is addressed through an owner-scoped handle. Inspection verifies that
+identity before returning a managed observation. Network attachments are
+normalized to provider-reported IPv4/IPv6 endpoints so routing and service
+communication can use observed endpoints where provider DNS semantics differ.
+Docker and Podman may retain native network aliases as an optimization; Apple
+Container custom networks use inspected IP endpoints because bare-name DNS is
+not currently available there.
+
+This contract covers only behavior proved across Docker/Podman-compatible and
+Apple command surfaces. Provider-specific builds, statistics, privileged host
+integration, and richer networking remain focused capabilities rather than
+being forced into an artificial lowest common denominator.
+
+Related changes: [Changelog](CHANGELOG.md).
+
+### ADR-20260813-002: Keep portable endpoint intent separate from host-native networking
+
+Applications declare endpoint, exposure, and service-connectivity intent.
+Container-host providers translate that intent into their native network,
+publish, discovery, and inspection facilities. OCI image compatibility does
+not make those networking facilities portable, so shared application and
+orchestration contracts must not expose Docker network aliases, Apple vmnet
+details, WSL forwarding commands, or provider-specific DNS configuration.
+
+CloudShell owns network resources that it creates inside a selected container
+host, loopback port publication requested by an application, runtime endpoint
+discovery needed for CloudShell-owned routing, bounded reconciliation, cleanup,
+and actionable capability/readiness diagnostics. CloudShell must isolate and
+name those resources within its own scope and avoid changing machine-wide
+network policy implicitly.
+
+The machine administrator owns installing and enabling the runtime, privileged
+DNS or packet-filter integration, firewall policy, routes beyond the local
+machine, and organizational network policy. Provider setup may diagnose and
+document those prerequisites, but ordinary application lifecycle operations
+must not prompt for elevation or silently install privileged host networking.
+The first Apple Container acceptance path therefore uses an isolated
+CloudShell-created network plus an explicitly published loopback port. Reverse
+container-to-host access and multi-replica/service discovery remain capability
+slices because Apple Container currently requires administrator-created local
+DNS integration for host services and does not provide bare-name DNS on custom
+networks.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-08-08
 
 ### ADR-20260808-001: Combine logs through Control Plane-owned sessions

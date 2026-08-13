@@ -10,6 +10,52 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-08-13
+
+#### Added
+
+- Added first-class `AppleContainer` and `WslContainer` container-host kinds
+  plus `UseAppleContainer()`, `UseWslContainer()`, and `UsePodman()` graph
+  authoring helpers. Decision:
+  [ADR-20260813-001](ADR.md#adr-20260813-001).
+- Added an explicit `IContainerHostCommandAdapter` provider boundary with
+  deterministic tests for provider-native adapter registration and argument
+  adaptation.
+- Added a built-in Apple Container command adapter and shared live Apple
+  Container/Docker/Podman integration coverage that runs an image-backed CloudShell
+  container app, reaches its loopback-published HTTP endpoint, reads logs,
+  inspects state, stops the app, and verifies container/network cleanup.
+  Decision:
+  [ADR-20260813-001](ADR.md#adr-20260813-001).
+- Added an owner-scoped typed `IContainerHostRuntime` boundary for network
+  lifecycle, container lifecycle/specification, execution, logs, inspection,
+  labels, mounts, published ports, and provider-reported network attachments.
+  Docker/Podman-compatible and Apple inspection JSON normalize into the same
+  runtime observation. Decision:
+  [ADR-20260813-003](ADR.md#adr-20260813-003).
+- Extended live Docker, Podman, and Apple Container acceptance coverage with a second
+  isolated probe container that reaches the CloudShell app through its
+  provider-reported private IPv4 endpoint, proving container-to-container
+  communication without relying on common DNS behavior.
+
+#### Changed
+
+- Container-host command planning now resolves explicit Docker and Podman
+  adapters. Provider-native and unknown host kinds return an actionable
+  missing-adapter diagnostic instead of silently executing Docker commands.
+- Clarified the networking responsibility boundary: CloudShell owns scoped
+  runtime networks, requested loopback publication, endpoint discovery,
+  routing reconciliation, diagnostics, and cleanup; administrators own
+  privileged host DNS, packet-filter, firewall, and external route policy.
+  Decision: [ADR-20260813-002](ADR.md#adr-20260813-002).
+- Container-app runtime configuration now permits an empty project path for
+  prebuilt image-backed applications, avoiding an unnecessary local project
+  materialization requirement.
+- Container replica log and materialized-slot providers now consume typed
+  container-host operations instead of constructing Docker inspection/log
+  commands directly. Container-app replicas carry a stable CloudShell owner
+  label for owner-scoped inspection and future cleanup migration.
+
 ### 2026-08-08
 
 #### Added

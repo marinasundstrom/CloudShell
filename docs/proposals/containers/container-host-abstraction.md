@@ -124,6 +124,11 @@ target. It may be an authored `docker.host` resource, an implicit local
 docker-compatible container host projected from `UseDocker()`, a Podman host,
 a Kubernetes cluster, a systemd machine, or a vendor appliance API.
 
+OCI compatibility is an image and runtime-artifact portability baseline, not
+a shared host-management surface. Providers may accept the same OCI image
+while differing in lifecycle, build, networking, storage, inspection, logs,
+monitoring, and readiness behavior.
+
 The selected host is a stable reference in provider-owned configuration when a
 resource needs explicit placement. Existing fields named `ContainerHostId`
 should migrate toward `ContainerHostId` or `HostResourceId`.
@@ -188,6 +193,8 @@ public enum ContainerHostKind
 {
     Docker,
     Podman,
+    AppleContainer,
+    WslContainer,
     DockerCompatible,
     Kubernetes,
     Process,
@@ -482,6 +489,8 @@ not introduce a second out-of-band local management API for the shell.
   descriptor, not a platform registration.
 - Expected host-resolution failures should return diagnostics/action
   capability reasons, not unhandled exceptions.
+- Runtime command dispatch requires an explicit host-family adapter. Unknown
+  and provider-native hosts do not fall back to Docker command syntax.
 
 ## Remaining Tasks
 
@@ -499,8 +508,11 @@ not introduce a second out-of-band local management API for the shell.
   dispatch. Container-image and container-build workloads now request matching
   host capabilities. Host descriptors now carry non-secret credential readiness,
   and unavailable host credentials feed the same resolver diagnostics path.
-- Add a provider-owned Docker runtime implementation for owner-scoped
-  implementation containers.
+- The first owner-scoped typed runtime surface now covers common network,
+  container, execution, logs, and normalized inspection behavior across
+  Docker/Podman-compatible and Apple command adapters. Continue migrating
+  provider-owned implementation containers and the remaining specialized
+  runtime paths onto it.
 - Continue removing remaining engine naming from provider internals where it is
   not explicitly Docker Engine product terminology.
 - Host descriptor capabilities are available for resolver-required capability
@@ -513,3 +525,14 @@ not introduce a second out-of-band local management API for the shell.
   slice lands.
 - Update load-balancer container mode to use the runtime contract instead of
   modeling implementation containers as user-authored container apps.
+- Replace the remaining Docker-shaped command arguments and output parsing in
+  container-app lifecycle/ingress, SQL Server, RabbitMQ, monitoring, build, and
+  storage paths with typed provider-owned runtime operations. Replica logs and
+  materialized-slot inspection have migrated.
+- Apple Container and Podman image-backed lifecycle, inspection, logs, loopback
+  publication, isolated peer communication, and cleanup are live-tested.
+  Implement readiness diagnostics, multi-replica ingress over observed
+  endpoints, monitoring, build, and storage next.
+- Implement WSL Container readiness and runtime behavior against WSLC on
+  supported Windows/WSL hosts, keeping preview session and API details behind
+  the provider boundary.

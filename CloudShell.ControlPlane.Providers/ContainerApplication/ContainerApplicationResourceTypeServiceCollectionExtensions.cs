@@ -77,6 +77,7 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<
             ILocalContainerApplicationCommandRunner,
             ProcessLocalContainerApplicationCommandRunner>();
+        services.TryAddSingleton<IContainerHostRuntime, CommandContainerHostRuntime>();
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<ILogProvider, LocalContainerApplicationRuntimeLogProvider>());
         services.TryAddEnumerable(

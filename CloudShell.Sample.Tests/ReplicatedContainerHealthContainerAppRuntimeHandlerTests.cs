@@ -17,6 +17,181 @@ namespace CloudShell.Sample.Tests;
 public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
 {
     [Fact]
+    public void RuntimeOptions_AllowsConfigurationForPrebuiltImageWithoutProjectPath()
+    {
+        var options = new LocalDockerContainerApplicationRuntimeOptions();
+
+        options.AddApplication(
+            "application.container-app:worker",
+            string.Empty,
+            definition => definition.ContainerNetworkName = "cloudshell-worker");
+
+        var definition = Assert.Single(options.Applications).Value;
+        Assert.Empty(definition.ProjectPath);
+        Assert.Equal("cloudshell-worker", definition.ContainerNetworkName);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Runtime", "AppleContainer")]
+    public Task RuntimeBridge_AppleContainerHostRunsImageBackedContainerApp() =>
+        RunImageBackedContainerAppAsync(ContainerHostKind.AppleContainer);
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Runtime", "Docker")]
+    public Task RuntimeBridge_DockerContainerHostRunsImageBackedContainerApp() =>
+        RunImageBackedContainerAppAsync(ContainerHostKind.Docker);
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Runtime", "Podman")]
+    public Task RuntimeBridge_PodmanContainerHostRunsImageBackedContainerApp() =>
+        RunImageBackedContainerAppAsync(ContainerHostKind.Podman);
+
+    private static async Task RunImageBackedContainerAppAsync(ContainerHostKind hostKind)
+    {
+        var runtimeName = hostKind switch
+        {
+            ContainerHostKind.AppleContainer => "apple",
+            ContainerHostKind.Podman => "podman",
+            _ => "docker"
+        };
+        var suffix = Guid.NewGuid().ToString("N")[..10];
+        var resourceId = $"application.container-app:{runtimeName}-{suffix}";
+        var networkName = $"cloudshell-{runtimeName}-{suffix}";
+        var containerPrefix = $"cloudshell-{runtimeName}-{suffix}-replica-";
+        var probePort = GetAvailableTcpPort();
+        var host = new ContainerHostDescriptor(
+            $"{runtimeName}:{suffix}",
+            hostKind switch
+            {
+                ContainerHostKind.AppleContainer => "Apple Container",
+                ContainerHostKind.Podman => "Podman",
+                _ => "Docker"
+            },
+            hostKind,
+            hostKind == ContainerHostKind.AppleContainer
+                ? "local://apple-container"
+                : string.Empty,
+            IsDefault: true,
+            Metadata: hostKind == ContainerHostKind.Podman && File.Exists("/opt/podman/bin/podman")
+                ? new Dictionary<string, string>
+                {
+                    [ContainerHostCommandPlatform.ExecutableMetadataKey] = "/opt/podman/bin/podman"
+                }
+                : null);
+        var commandRunner = new ProcessLocalContainerApplicationCommandRunner(
+            new ContainerHostCommandPlatform(
+                [new StaticContainerHostProvider(host)],
+                new PathHostToolResolver()));
+        var containerRuntime = new CommandContainerHostRuntime(commandRunner);
+        if (!await IsContainerRuntimeReadyAsync(commandRunner, hostKind))
+        {
+            return;
+        }
+
+        var options = new LocalDockerContainerApplicationRuntimeOptions
+        {
+            NameScope = suffix
+        };
+        options.AddApplication(resourceId, string.Empty, definition =>
+        {
+            definition.ContainerNetworkName = networkName;
+            definition.ReplicaContainerNamePrefix = containerPrefix;
+            definition.ReplicaNetworkAliasPrefix = containerPrefix;
+            definition.ReplicaProbePortStart = probePort;
+            definition.ReplicaCleanupLimit = 1;
+            definition.StatusProbeTimeout = TimeSpan.FromSeconds(5);
+        });
+        var bridge = new LocalDockerContainerApplicationRuntimeBridge(
+            commandRunner,
+            Options.Create(options),
+            CreateConfiguration(replicaCleanupLimit: 1));
+        var resource = await CreateGraphAppResourceAsync(
+            name: $"{runtimeName}-{suffix}",
+            resourceId: resourceId,
+            image: "nginx:alpine",
+            replicas: 1,
+            endpointRequests:
+            [
+                new NetworkingEndpointRequestValue(
+                    "http",
+                    "http",
+                    TargetPort: 80,
+                    Host: "localhost",
+                    Port: Math.Max(1, probePort - 100),
+                    Exposure: "Local")
+            ]);
+        var replicaContainerName = $"{containerPrefix}1";
+        var probeContainerName = $"cloudshell-{runtimeName}-{suffix}-network-probe";
+        ContainerHostOperationResult? networkRemoval = null;
+
+        try
+        {
+            var startDiagnostics = await bridge.ExecuteLifecycleAsync(
+                resource,
+                ContainerApplicationResourceTypeProvider.Operations.Start);
+
+            Assert.Empty(startDiagnostics);
+            Assert.Equal(ContainerApplicationRuntimeStatus.Running, bridge.GetStatus(resource));
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+            var response = await WaitForHttpAsync(
+                client,
+                new Uri($"http://127.0.0.1:{probePort}/"),
+                TimeSpan.FromSeconds(30));
+            Assert.True(response.IsSuccessStatusCode);
+            var logs = await containerRuntime.ReadContainerLogsAsync(
+                new(resourceId, replicaContainerName, Tail: 50));
+            Assert.True(logs.Succeeded, logs.Error);
+            Assert.Contains("GET / HTTP", logs.Output);
+
+            var inspection = await containerRuntime.InspectContainerAsync(
+                new(resourceId, replicaContainerName));
+            var replica = Assert.IsType<ContainerHostContainerObservation>(inspection.Container);
+            Assert.Equal(ContainerHostContainerState.Running, replica.State);
+            var attachment = Assert.Contains(networkName, replica.Networks);
+            Assert.False(string.IsNullOrWhiteSpace(attachment.IPv4Address));
+
+            var networkProbe = await containerRuntime.RunContainerAsync(
+                new(
+                    resourceId,
+                    probeContainerName,
+                    "alpine:latest",
+                    NetworkName: networkName,
+                    Arguments:
+                    [
+                        "wget",
+                        "-qO-",
+                        $"http://{attachment.IPv4Address}:80/"
+                    ],
+                    Detach: false));
+            Assert.True(networkProbe.Succeeded, networkProbe.Error);
+            Assert.Contains("Welcome to nginx", networkProbe.Output);
+        }
+        finally
+        {
+            await containerRuntime.RemoveContainerAsync(new(resourceId, probeContainerName));
+            await bridge.ExecuteLifecycleAsync(
+                resource,
+                ContainerApplicationResourceTypeProvider.Operations.Stop);
+            networkRemoval = await containerRuntime.RemoveNetworkAsync(new(resourceId, networkName));
+        }
+
+        Assert.True(networkRemoval?.Succeeded, networkRemoval?.Error);
+        Assert.Equal(ContainerApplicationRuntimeStatus.Stopped, bridge.GetStatus(resource));
+        var removedContainer = await containerRuntime.InspectContainerAsync(
+            new(resourceId, replicaContainerName));
+        Assert.False(removedContainer.Found);
+        var removedNetwork = await commandRunner.RunAsync(
+            "docker",
+            ["network", "inspect", networkName],
+            CancellationToken.None,
+            throwOnError: false);
+        Assert.NotEqual(0, removedNetwork.ExitCode);
+    }
+
+    [Fact]
     public async Task RuntimeBridge_StartPublishesImageAndRunsGraphReplicaContainers()
     {
         var commandRunner = new RecordingCommandRunner();
@@ -1019,7 +1194,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public void RuntimeLogProvider_ProjectsReplicaLogSourcesFromGraphState()
     {
         var provider = new LocalContainerApplicationRuntimeLogProvider(
-            new RecordingCommandRunner(),
+            new CommandContainerHostRuntime(new RecordingCommandRunner()),
             new RecordingResourceManagerStore(
                 CreateResourceManagerGraphAppResource(replicas: 2),
                 CreateGraphReplicaResource(replica: 1),
@@ -1063,7 +1238,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             """,
             string.Empty));
         var provider = new LocalContainerApplicationRuntimeLogProvider(
-            commandRunner,
+            new CommandContainerHostRuntime(commandRunner),
             new RecordingResourceManagerStore(
                 CreateResourceManagerGraphAppResource(replicas: 2),
                 CreateGraphReplicaResource(replica: 1),
@@ -1109,7 +1284,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             string.Empty,
             "Docker executable 'docker' is unavailable."));
         var provider = new LocalContainerApplicationRuntimeLogProvider(
-            commandRunner,
+            new CommandContainerHostRuntime(commandRunner),
             new RecordingResourceManagerStore(
                 CreateResourceManagerGraphAppResource(replicas: 1),
                 CreateGraphReplicaResource(replica: 1)));
@@ -1221,7 +1396,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             string.Empty,
             "Docker executable 'docker' is unavailable."));
         var provider = new LocalDockerContainerApplicationReplicaSlotMaterializationProvider(
-            commandRunner,
+            new CommandContainerHostRuntime(commandRunner),
             Options.Create(CreateRuntimeOptions()));
         var resource = CreateResourceManagerGraphAppResource(replicas: 2);
         var graphResource = await CreateGraphAppResourceAsync(replicas: 2);
@@ -1235,8 +1410,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Empty(slots);
         Assert.Collection(
             commandRunner.Commands,
-            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-1"),
-            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-2"));
+            command => AssertDockerFullInspect(command, "cloudshell-replicated-health-api-replica-1"),
+            command => AssertDockerFullInspect(command, "cloudshell-replicated-health-api-replica-2"));
     }
 
     [Fact]
@@ -1436,6 +1611,87 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         return result.Resource;
     }
 
+    private static int GetAvailableTcpPort()
+    {
+        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            return ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    private static async Task<bool> IsContainerRuntimeReadyAsync(
+        ILocalContainerApplicationCommandRunner commandRunner,
+        ContainerHostKind hostKind)
+    {
+        var result = await commandRunner.RunAsync(
+            "docker",
+            hostKind switch
+            {
+                ContainerHostKind.AppleContainer => ["system", "status", "--format", "json"],
+                ContainerHostKind.Podman => ["info", "--format", "{{json .Version.Version}}"],
+                _ => ["info", "--format", "{{json .ServerVersion}}"]
+            },
+            CancellationToken.None,
+            throwOnError: false,
+            timeout: TimeSpan.FromSeconds(5));
+        if (result.ExitCode != 0)
+        {
+            return false;
+        }
+
+        if (hostKind is ContainerHostKind.Docker or ContainerHostKind.Podman)
+        {
+            return !string.IsNullOrWhiteSpace(result.Output);
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(result.Output);
+            return document.RootElement.TryGetProperty("status", out var status) &&
+                string.Equals(status.GetString(), "running", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static async Task<HttpResponseMessage> WaitForHttpAsync(
+        HttpClient client,
+        Uri endpoint,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        Exception? lastException = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                return await client.GetAsync(endpoint);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                lastException = exception;
+                await Task.Delay(TimeSpan.FromMilliseconds(250));
+            }
+        }
+
+        throw new TimeoutException(
+            $"Container app endpoint '{endpoint}' did not become ready within {timeout}.",
+            lastException);
+    }
+
+    private sealed class StaticContainerHostProvider(ContainerHostDescriptor host) : IContainerHostProvider
+    {
+        public ContainerHostDescriptor GetDefaultHost() => host;
+    }
+
     private static DelegatingContainerApplicationRuntimeHandler CreateHandler(
         ILocalDockerContainerApplicationRuntimeBridge bridge) =>
         new([new LocalDockerContainerApplicationRuntimeTarget(bridge)]);
@@ -1624,6 +1880,15 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal(
             ["container", "inspect", "--format", "{{.State.Status}}", containerName],
             command.Arguments);
+        Assert.False(command.ThrowOnError);
+    }
+
+    private static void AssertDockerFullInspect(
+        RecordingCommand command,
+        string containerName)
+    {
+        Assert.Equal("docker", command.FileName);
+        Assert.Equal(["container", "inspect", containerName], command.Arguments);
         Assert.False(command.ThrowOnError);
     }
 
