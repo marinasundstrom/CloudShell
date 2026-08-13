@@ -222,6 +222,13 @@ public sealed partial class AppleContainerHostCommandAdapter : IContainerHostCom
         }
 
         if (arguments.Count >= 3 &&
+            string.Equals(arguments[0], "container", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(arguments[1], "inspect", StringComparison.OrdinalIgnoreCase))
+        {
+            return ["inspect", .. arguments.Skip(2)];
+        }
+
+        if (arguments.Count >= 3 &&
             string.Equals(arguments[0], "rm", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(arguments[1], "-f", StringComparison.OrdinalIgnoreCase))
         {

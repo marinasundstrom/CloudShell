@@ -789,6 +789,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             "--network-alias",
             LocalDockerContainerApplicationRuntimeConventions.CreateReplicaNetworkAlias(definition, replica)
         };
+        arguments.Add("--label");
+        arguments.Add($"{ContainerHostRuntimeLabels.OwnerResourceId}={resource.EffectiveResourceId}");
         var replicaGroupId = replicaGroup?.Id ??
             LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaGroupId(resource);
         if (!string.IsNullOrWhiteSpace(replicaGroupId))

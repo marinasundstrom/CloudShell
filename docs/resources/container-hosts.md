@@ -195,6 +195,22 @@ monitoring, and readiness behavior toward typed provider-owned runtime
 operations so they can report unsupported capabilities without parsing a
 different runtime as if it were Docker.
 
+The first typed runtime surface is `IContainerHostRuntime`. It accepts
+owner-scoped runtime handles and typed specifications for:
+
+- network ensure/remove
+- container run/start/remove and in-container execution
+- environment variables, labels, mounts, arguments, and published ports
+- logs with bounded tail/before intent
+- inspection normalized into container state, labels, and named IPv4/IPv6
+  network attachments
+
+`CommandContainerHostRuntime` maps that surface through the selected Docker,
+Podman, or Apple command adapter. Managed containers receive
+`cloudshell.owner-resource-id`; typed inspection rejects a container with a
+different or missing owner label. This is an internal provider integration
+contract today, not a general-purpose user-facing container API.
+
 ## Networking And Host Integration
 
 The portable contract is application endpoint and connectivity intent, not a
@@ -234,6 +250,13 @@ capability rather than assuming Docker network aliases. See Apple's
 [networking](https://github.com/apple/container/blob/main/docs/networking.md)
 and [host integration](https://github.com/apple/container/blob/main/docs/host-integration.md)
 documentation.
+
+Docker and Apple live acceptance now also launches an isolated peer container,
+inspects the application's provider-reported private IPv4 attachment, and
+performs HTTP over that network. This proves the portable endpoint-observation
+path. Podman uses the Docker-compatible typed mapping and deterministic
+coverage, but was not live-tested in this environment because Podman is not
+installed.
 
 ## Runtime Boundaries
 
@@ -304,11 +327,15 @@ on the same resource model shape even if their fluent builder names differ.
 - Docker, Podman, and the bounded Apple Container acceptance subset are the
   concrete command-backed runtime paths. Remote Docker host support remains
   partially implemented and tracked separately.
-- Apple Container image-backed single-replica lifecycle, state/label
-  inspection, logs, loopback publication, and cleanup have live integration
-  coverage. Proactive readiness diagnostics, builds, monitoring, storage,
-  multi-replica ingress, service discovery, and container-to-host service
-  access remain to be implemented as typed capabilities.
+- Apple Container image-backed single-replica lifecycle, state/label/network
+  inspection, logs, loopback publication, isolated peer communication, and
+  cleanup have live integration coverage. Proactive readiness diagnostics,
+  builds, monitoring, storage, multi-replica ingress, stable service discovery,
+  and container-to-host service access remain to be implemented as typed
+  capabilities.
+- Podman shares the Docker-compatible typed runtime mapping and deterministic
+  contract coverage. Live Podman acceptance remains to be run on a host where
+  Podman is installed.
 - WSL Container can be authored and resolved as a distinct host family, but
   its provider-native runtime adapter and integration coverage remain to be
   implemented.

@@ -5,10 +5,9 @@ using ControlPlaneResource = CloudShell.Abstractions.ResourceManager.Resource;
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class LocalDockerContainerApplicationReplicaSlotMaterializationProvider(
-    ILocalContainerApplicationCommandRunner commandRunner,
+    IContainerHostRuntime containerHostRuntime,
     IOptions<LocalDockerContainerApplicationRuntimeOptions> options) : IResourceReplicaSlotMaterializationProvider
 {
-    private const string RunningStatus = "running";
     private readonly LocalDockerContainerApplicationRuntimeOptions options = options.Value;
 
     public bool CanGetMaterializedReplicaSlots(
@@ -37,24 +36,10 @@ public sealed class LocalDockerContainerApplicationReplicaSlotMaterializationPro
             var containerName = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(
                 definition,
                 slot.Ordinal);
-            var result = await commandRunner.RunAsync(
-                "docker",
-                [
-                    "container",
-                    "inspect",
-                    "--format",
-                    "{{.State.Status}}",
-                    containerName
-                ],
-                cancellationToken,
-                throwOnError: false);
-
-            if (result.ExitCode != 0)
-            {
-                continue;
-            }
-
-            if (string.Equals(result.Output.Trim(), RunningStatus, StringComparison.OrdinalIgnoreCase))
+            var result = await containerHostRuntime.InspectContainerAsync(
+                new(resource.Id, containerName),
+                cancellationToken);
+            if (result.Container?.State == ContainerHostContainerState.Running)
             {
                 slots.Add(slot.Ordinal);
             }

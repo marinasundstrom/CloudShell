@@ -27,6 +27,16 @@ link to ADR entries when a change depends on a recorded decision.
   inspects state, stops the app, and verifies container/network cleanup.
   Decision:
   [ADR-20260813-001](ADR.md#adr-20260813-001).
+- Added an owner-scoped typed `IContainerHostRuntime` boundary for network
+  lifecycle, container lifecycle/specification, execution, logs, inspection,
+  labels, mounts, published ports, and provider-reported network attachments.
+  Docker/Podman-compatible and Apple inspection JSON normalize into the same
+  runtime observation. Decision:
+  [ADR-20260813-003](ADR.md#adr-20260813-003).
+- Extended live Docker and Apple Container acceptance coverage with a second
+  isolated probe container that reaches the CloudShell app through its
+  provider-reported private IPv4 endpoint, proving container-to-container
+  communication without relying on common DNS behavior.
 
 #### Changed
 
@@ -41,6 +51,10 @@ link to ADR entries when a change depends on a recorded decision.
 - Container-app runtime configuration now permits an empty project path for
   prebuilt image-backed applications, avoiding an unnecessary local project
   materialization requirement.
+- Container replica log and materialized-slot providers now consume typed
+  container-host operations instead of constructing Docker inspection/log
+  commands directly. Container-app replicas carry a stable CloudShell owner
+  label for owner-scoped inspection and future cleanup migration.
 
 ### 2026-08-08
 

@@ -1,12 +1,11 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
-using System.Globalization;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class LocalContainerApplicationRuntimeLogProvider(
-    ILocalContainerApplicationCommandRunner commandRunner,
+    IContainerHostRuntime containerHostRuntime,
     IResourceManagerStore resourceManager) : ILogProvider
 {
     public string Id => "resource-model.container-app.local-runtime.logs";
@@ -82,31 +81,19 @@ public sealed class LocalContainerApplicationRuntimeLogProvider(
         DateTimeOffset? before,
         CancellationToken cancellationToken)
     {
-        var arguments = new List<string>
-        {
-            "logs",
-            "--timestamps",
-            "--tail",
-            Math.Max(1, maxEntries).ToString(CultureInfo.InvariantCulture)
-        };
-        if (before is not null)
-        {
-            arguments.Add("--until");
-            arguments.Add(before.Value.AddTicks(-1).UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
-        }
-
         var containerName = GetAttribute(resource, ResourceAttributeNames.RuntimeContainerName);
-        arguments.Add(containerName);
         var ownerResource = FirstNonEmpty(resource.OwnerResourceId, resource.ParentResourceId) is { } ownerResourceId
             ? resourceManager.GetResource(ownerResourceId)
             : null;
         var format = ResolveRuntimeLogFormat(ownerResource);
 
-        var result = await commandRunner.RunAsync(
-            "docker",
-            arguments,
-            cancellationToken,
-            throwOnError: false);
+        var result = await containerHostRuntime.ReadContainerLogsAsync(
+            new(
+                resource.OwnerResourceId ?? resource.ParentResourceId ?? resource.Id,
+                containerName,
+                Math.Max(1, maxEntries),
+                before?.AddTicks(-1)),
+            cancellationToken);
         var entries = ParseContainerLogOutput(result.Output, containerName, null, format)
             .Concat(ParseContainerLogOutput(
                 result.Error,

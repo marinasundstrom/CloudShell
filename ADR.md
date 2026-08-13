@@ -47,6 +47,30 @@ remain provider-owned and must not leak into platform registration state.
 
 Related changes: [Changelog](CHANGELOG.md).
 
+### ADR-20260813-003: Use owner-scoped typed operations for common container-host behavior
+
+Common runtime behavior is expressed as typed container, network, port,
+mount, log, execution, and inspection operations before a provider maps it to
+its native interface. The typed contract is the shared semantic boundary;
+Docker-compatible command arguments are an internal adapter detail and are not
+the contract consumed by application, log, replica, or networking providers.
+
+Every managed runtime container carries the stable owning CloudShell resource
+ID and is addressed through an owner-scoped handle. Inspection verifies that
+identity before returning a managed observation. Network attachments are
+normalized to provider-reported IPv4/IPv6 endpoints so routing and service
+communication can use observed endpoints where provider DNS semantics differ.
+Docker and Podman may retain native network aliases as an optimization; Apple
+Container custom networks use inspected IP endpoints because bare-name DNS is
+not currently available there.
+
+This contract covers only behavior proved across Docker/Podman-compatible and
+Apple command surfaces. Provider-specific builds, statistics, privileged host
+integration, and richer networking remain focused capabilities rather than
+being forced into an artificial lowest common denominator.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260813-002: Keep portable endpoint intent separate from host-native networking
 
 Applications declare endpoint, exposure, and service-connectivity intent.

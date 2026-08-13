@@ -192,6 +192,9 @@ public sealed class ContainerHostCommandPlatformTests
             ["network", "delete", "cloudshell"],
             adapter.AdaptArguments(["network", "rm", "cloudshell"]));
         Assert.Equal(
+            ["inspect", "api"],
+            adapter.AdaptArguments(["container", "inspect", "api"]));
+        Assert.Equal(
             ["run", "-d", "--name", "api", "--network", "cloudshell", "alpine"],
             adapter.AdaptArguments(
                 ["run", "-d", "--name", "api", "--network", "cloudshell", "--network-alias", "api-1", "alpine"]));
