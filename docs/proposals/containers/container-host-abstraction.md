@@ -529,13 +529,10 @@ not introduce a second out-of-band local management API for the shell.
   container-app lifecycle/ingress, SQL Server, RabbitMQ, monitoring, build, and
   storage paths with typed provider-owned runtime operations. Replica logs and
   materialized-slot inspection have migrated.
-- Apple Container image-backed lifecycle, inspection, logs, loopback
+- Apple Container and Podman image-backed lifecycle, inspection, logs, loopback
   publication, isolated peer communication, and cleanup are live-tested.
   Implement readiness diagnostics, multi-replica ingress over observed
   endpoints, monitoring, build, and storage next.
-- Run the shared live acceptance path against Podman on a Podman-equipped
-  host; current coverage verifies the Docker-compatible mapping
-  deterministically.
 - Implement WSL Container readiness and runtime behavior against WSLC on
   supported Windows/WSL hosts, keeping preview session and API details behind
   the provider boundary.

@@ -43,9 +43,20 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public Task RuntimeBridge_DockerContainerHostRunsImageBackedContainerApp() =>
         RunImageBackedContainerAppAsync(ContainerHostKind.Docker);
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Runtime", "Podman")]
+    public Task RuntimeBridge_PodmanContainerHostRunsImageBackedContainerApp() =>
+        RunImageBackedContainerAppAsync(ContainerHostKind.Podman);
+
     private static async Task RunImageBackedContainerAppAsync(ContainerHostKind hostKind)
     {
-        var runtimeName = hostKind == ContainerHostKind.AppleContainer ? "apple" : "docker";
+        var runtimeName = hostKind switch
+        {
+            ContainerHostKind.AppleContainer => "apple",
+            ContainerHostKind.Podman => "podman",
+            _ => "docker"
+        };
         var suffix = Guid.NewGuid().ToString("N")[..10];
         var resourceId = $"application.container-app:{runtimeName}-{suffix}";
         var networkName = $"cloudshell-{runtimeName}-{suffix}";
@@ -53,12 +64,23 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var probePort = GetAvailableTcpPort();
         var host = new ContainerHostDescriptor(
             $"{runtimeName}:{suffix}",
-            hostKind == ContainerHostKind.AppleContainer ? "Apple Container" : "Docker",
+            hostKind switch
+            {
+                ContainerHostKind.AppleContainer => "Apple Container",
+                ContainerHostKind.Podman => "Podman",
+                _ => "Docker"
+            },
             hostKind,
             hostKind == ContainerHostKind.AppleContainer
                 ? "local://apple-container"
                 : string.Empty,
-            IsDefault: true);
+            IsDefault: true,
+            Metadata: hostKind == ContainerHostKind.Podman && File.Exists("/opt/podman/bin/podman")
+                ? new Dictionary<string, string>
+                {
+                    [ContainerHostCommandPlatform.ExecutableMetadataKey] = "/opt/podman/bin/podman"
+                }
+                : null);
         var commandRunner = new ProcessLocalContainerApplicationCommandRunner(
             new ContainerHostCommandPlatform(
                 [new StaticContainerHostProvider(host)],
@@ -1609,9 +1631,12 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     {
         var result = await commandRunner.RunAsync(
             "docker",
-            hostKind == ContainerHostKind.AppleContainer
-                ? ["system", "status", "--format", "json"]
-                : ["info", "--format", "{{json .ServerVersion}}"],
+            hostKind switch
+            {
+                ContainerHostKind.AppleContainer => ["system", "status", "--format", "json"],
+                ContainerHostKind.Podman => ["info", "--format", "{{json .Version.Version}}"],
+                _ => ["info", "--format", "{{json .ServerVersion}}"]
+            },
             CancellationToken.None,
             throwOnError: false,
             timeout: TimeSpan.FromSeconds(5));
@@ -1620,7 +1645,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             return false;
         }
 
-        if (hostKind == ContainerHostKind.Docker)
+        if (hostKind is ContainerHostKind.Docker or ContainerHostKind.Podman)
         {
             return !string.IsNullOrWhiteSpace(result.Output);
         }

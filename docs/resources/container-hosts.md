@@ -251,12 +251,14 @@ capability rather than assuming Docker network aliases. See Apple's
 and [host integration](https://github.com/apple/container/blob/main/docs/host-integration.md)
 documentation.
 
-Docker and Apple live acceptance now also launches an isolated peer container,
+Docker, Podman, and Apple live acceptance now also launch an isolated peer container,
 inspects the application's provider-reported private IPv4 attachment, and
 performs HTTP over that network. This proves the portable endpoint-observation
-path. Podman uses the Docker-compatible typed mapping and deterministic
-coverage, but was not live-tested in this environment because Podman is not
-installed.
+path across all three host families. Podman uses the Docker-compatible typed
+mapping while retaining its own executable, host selection, and readiness
+boundary. On macOS, the Podman installer can place the CLI at
+`/opt/podman/bin/podman` without adding it to `PATH`; a host descriptor can use
+`cloudshell.executable` metadata to select that executable explicitly.
 
 ## Runtime Boundaries
 
@@ -333,9 +335,10 @@ on the same resource model shape even if their fluent builder names differ.
   builds, monitoring, storage, multi-replica ingress, stable service discovery,
   and container-to-host service access remain to be implemented as typed
   capabilities.
-- Podman shares the Docker-compatible typed runtime mapping and deterministic
-  contract coverage. Live Podman acceptance remains to be run on a host where
-  Podman is installed.
+- Podman shares the Docker-compatible typed runtime mapping and has live
+  coverage for image-backed lifecycle, state/label/network inspection, logs,
+  loopback publication, isolated peer communication, and cleanup against a
+  macOS Podman machine.
 - WSL Container can be authored and resolved as a distinct host family, but
   its provider-native runtime adapter and integration coverage remain to be
   implemented.

@@ -22,7 +22,7 @@ link to ADR entries when a change depends on a recorded decision.
   deterministic tests for provider-native adapter registration and argument
   adaptation.
 - Added a built-in Apple Container command adapter and shared live Apple
-  Container/Docker integration coverage that runs an image-backed CloudShell
+  Container/Docker/Podman integration coverage that runs an image-backed CloudShell
   container app, reaches its loopback-published HTTP endpoint, reads logs,
   inspects state, stops the app, and verifies container/network cleanup.
   Decision:
@@ -33,7 +33,7 @@ link to ADR entries when a change depends on a recorded decision.
   Docker/Podman-compatible and Apple inspection JSON normalize into the same
   runtime observation. Decision:
   [ADR-20260813-003](ADR.md#adr-20260813-003).
-- Extended live Docker and Apple Container acceptance coverage with a second
+- Extended live Docker, Podman, and Apple Container acceptance coverage with a second
   isolated probe container that reaches the CloudShell app through its
   provider-reported private IPv4 endpoint, proving container-to-container
   communication without relying on common DNS behavior.
