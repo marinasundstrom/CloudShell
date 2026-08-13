@@ -8,14 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Optional package version. Defaults to a CI prerelease version.
+        description: Optional preview package version. Defaults to a CI prerelease version.
         required: false
         type: string
-      publish:
-        description: Publish the verified packages to NuGet.org.
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -41,14 +36,8 @@ jobs:
         shell: bash
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
-          PUBLISH_REQUESTED: ${{ inputs.publish }}
         run: |
           set -euo pipefail
-
-          if [[ "$PUBLISH_REQUESTED" == "true" && -z "$REQUESTED_VERSION" ]]; then
-            echo "An explicit package version is required when publishing." >&2
-            exit 1
-          fi
 
           version="${REQUESTED_VERSION:-0.1.0-ci.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}}"
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
@@ -56,8 +45,8 @@ jobs:
             exit 1
           fi
 
-          if [[ "$PUBLISH_REQUESTED" == "true" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]; then
-            echo "Published package versions must use the form 0.1.0-preview.1." >&2
+          if [[ -n "$REQUESTED_VERSION" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]; then
+            echo "Requested preview versions must use the form 0.1.0-preview.1." >&2
             exit 1
           fi
 
@@ -159,42 +148,3 @@ jobs:
           path: artifacts/packages/*.*nupkg
           if-no-files-found: error
           retention-days: 14
-
-  publish:
-    name: Publish to NuGet.org
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
-    needs: pack
-    runs-on: ubuntu-latest
-    concurrency:
-      group: cloudshell-nuget-publish
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Download verified packages
-        uses: actions/download-artifact@v4
-        with:
-          name: cloudshell-nuget-${{ needs.pack.outputs.package-version }}
-          path: artifacts/packages
-
-      - name: NuGet login
-        id: login
-        uses: NuGet/login@v1
-        with:
-          user: marna.li
-
-      - name: Publish packages
-        shell: bash
-        env:
-          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: |
-          set -euo pipefail
-
-          for package in artifacts/packages/*.nupkg; do
-            dotnet nuget push "$package" \
-              --api-key "$NUGET_API_KEY" \
-              --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate
-          done

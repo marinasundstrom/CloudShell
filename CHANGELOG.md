@@ -18,8 +18,7 @@ link to ADR entries when a change depends on a recorded decision.
   assigns one lockstep CI prerelease version, produces ordinary and symbol
   packages, verifies the expected artifact set, restores the public package
   entry points from the local package output, and uploads the verified
-  artifacts. A manually dispatched run can publish an explicit version through
-  NuGet.org Trusted Publishing after all verification succeeds.
+  artifacts for review or subsequent publication to a dedicated preview feed.
 - Added common preview package metadata, package-specific descriptions, a
   package README, MIT license and repository links, deterministic build and
   Source Link settings, symbol-package defaults, and package validation. The
