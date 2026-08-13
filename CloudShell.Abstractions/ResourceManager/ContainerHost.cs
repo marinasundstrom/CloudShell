@@ -18,6 +18,8 @@ public enum ContainerHostKind
 {
     Docker,
     Podman,
+    AppleContainer,
+    WslContainer,
     DockerCompatible,
     Kubernetes,
     Process,

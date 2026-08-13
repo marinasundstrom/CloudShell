@@ -10,6 +10,24 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-08-13
+
+#### Added
+
+- Added first-class `AppleContainer` and `WslContainer` container-host kinds
+  plus `UseAppleContainer()`, `UseWslContainer()`, and `UsePodman()` graph
+  authoring helpers. Decision:
+  [ADR-20260813-001](ADR.md#adr-20260813-001).
+- Added an explicit `IContainerHostCommandAdapter` provider boundary with
+  deterministic tests for provider-native adapter registration and argument
+  adaptation.
+
+#### Changed
+
+- Container-host command planning now resolves explicit Docker and Podman
+  adapters. Provider-native and unknown host kinds return an actionable
+  missing-adapter diagnostic instead of silently executing Docker commands.
+
 ### 2026-08-08
 
 #### Added

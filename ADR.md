@@ -9,6 +9,42 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-08-13
+
+### ADR-20260813-001: Dispatch container-host runtime commands through explicit provider adapters
+
+Container hosts are placement and control boundaries, not aliases for Docker
+Engine. A `ContainerHostDescriptor` identifies the host family and its stable,
+non-secret connection facts. Provider-owned runtime integration must then
+select an explicit adapter for that host family before dispatching commands or
+API calls. CloudShell must not route an unknown or provider-native host through
+Docker merely because existing runtime consumers currently produce Docker CLI
+arguments.
+
+OCI compatibility is the portability baseline for images and related artifact
+metadata; it is not a common container-host management protocol. CloudShell
+can therefore keep image references and image-backed workload intent portable
+without assuming common lifecycle commands, inspection output, networking,
+volumes, build behavior, logging, or readiness semantics across host families.
+
+The shared command path therefore resolves `IContainerHostCommandAdapter`
+implementations. Docker and Podman have explicit adapters for their currently
+supported command surfaces. Apple Container and WSL Container are first-class
+`ContainerHostKind` values and programmatic authoring targets, but they remain
+unavailable for runtime dispatch until their provider-specific adapters own
+argument shape, output/state interpretation, readiness, and unsupported
+operation diagnostics. Missing adapters are expected availability failures,
+not fallback conditions.
+
+This boundary is intentionally allowed to break pre-release command and
+provider APIs. Provider-native lifecycle, image, network, storage, logs, and
+monitoring behavior should converge on typed runtime operations rather than
+preserving Docker-shaped compatibility aliases. Host credentials, WSLC session
+configuration, Apple runtime service state, and other provider-native details
+remain provider-owned and must not leak into platform registration state.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-08-08
 
 ### ADR-20260808-001: Combine logs through Control Plane-owned sessions

@@ -137,6 +137,53 @@ public sealed class ContainerHostCommandPlatformTests
         Assert.Equal("unix:///run/user/501/podman/podman.sock", startInfo.Environment["CONTAINER_HOST"]);
     }
 
+    [Theory]
+    [InlineData(ContainerHostKind.AppleContainer, "AppleContainer")]
+    [InlineData(ContainerHostKind.WslContainer, "WslContainer")]
+    public void CreatePlan_RequiresExplicitAdapterForProviderNativeRuntime(
+        ContainerHostKind kind,
+        string expectedKind)
+    {
+        var host = new ContainerHostDescriptor(
+            $"{expectedKind}:default",
+            expectedKind,
+            kind,
+            "local://container-runtime");
+        var platform = new ContainerHostCommandPlatform(
+            [new StaticContainerHostProvider(host)],
+            new TestHostToolResolver("docker", "container", "wslc.exe"));
+
+        var plan = platform.CreatePlan();
+
+        Assert.False(plan.IsAvailable);
+        Assert.Empty(plan.Executable);
+        Assert.Contains($"host kind '{expectedKind}'", plan.UnavailableReason);
+        Assert.Contains(nameof(IContainerHostCommandAdapter), plan.UnavailableReason);
+    }
+
+    [Fact]
+    public void CreatePlan_UsesRegisteredProviderNativeAdapter()
+    {
+        var host = new ContainerHostDescriptor(
+            "wsl:default",
+            "WSL Containers",
+            ContainerHostKind.WslContainer,
+            "local://wsl-container");
+        var platform = new ContainerHostCommandPlatform(
+            [new StaticContainerHostProvider(host)],
+            new TestHostToolResolver("wslc.exe"),
+            [new TestWslContainerCommandAdapter()]);
+
+        var plan = platform.CreatePlan();
+        var startInfo = plan.CreateStartInfo(["ps"]);
+
+        Assert.True(plan.IsAvailable);
+        Assert.Equal("wslc.exe", startInfo.FileName);
+        Assert.Equal(["container", "list"], startInfo.ArgumentList);
+        Assert.False(startInfo.Environment.ContainsKey("DOCKER_HOST"));
+        Assert.False(startInfo.Environment.ContainsKey("CONTAINER_HOST"));
+    }
+
     [Fact]
     public void DockerCommandRunner_ReturnsUnavailableResultWithoutStartingProcess()
     {
@@ -240,5 +287,26 @@ public sealed class ContainerHostCommandPlatformTests
     private sealed class StaticContainerHostProvider(ContainerHostDescriptor host) : IContainerHostProvider
     {
         public ContainerHostDescriptor GetDefaultHost() => host;
+    }
+
+    private sealed class TestWslContainerCommandAdapter : IContainerHostCommandAdapter
+    {
+        public bool CanHandle(ContainerHostDescriptor? host) =>
+            host?.Kind == ContainerHostKind.WslContainer;
+
+        public string RuntimeName => "WSL Containers";
+
+        public string ResolveExecutable(ContainerHostDescriptor? host) => "wslc.exe";
+
+        public IReadOnlyList<string> AdaptArguments(IReadOnlyList<string> arguments) =>
+            arguments.SequenceEqual(["ps"], StringComparer.OrdinalIgnoreCase)
+                ? ["container", "list"]
+                : arguments;
+
+        public void ConfigureEnvironment(
+            System.Diagnostics.ProcessStartInfo startInfo,
+            ContainerHostDescriptor? host)
+        {
+        }
     }
 }

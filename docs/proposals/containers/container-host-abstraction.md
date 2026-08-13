@@ -124,6 +124,11 @@ target. It may be an authored `docker.host` resource, an implicit local
 docker-compatible container host projected from `UseDocker()`, a Podman host,
 a Kubernetes cluster, a systemd machine, or a vendor appliance API.
 
+OCI compatibility is an image and runtime-artifact portability baseline, not
+a shared host-management surface. Providers may accept the same OCI image
+while differing in lifecycle, build, networking, storage, inspection, logs,
+monitoring, and readiness behavior.
+
 The selected host is a stable reference in provider-owned configuration when a
 resource needs explicit placement. Existing fields named `ContainerHostId`
 should migrate toward `ContainerHostId` or `HostResourceId`.
@@ -188,6 +193,8 @@ public enum ContainerHostKind
 {
     Docker,
     Podman,
+    AppleContainer,
+    WslContainer,
     DockerCompatible,
     Kubernetes,
     Process,
@@ -482,6 +489,8 @@ not introduce a second out-of-band local management API for the shell.
   descriptor, not a platform registration.
 - Expected host-resolution failures should return diagnostics/action
   capability reasons, not unhandled exceptions.
+- Runtime command dispatch requires an explicit host-family adapter. Unknown
+  and provider-native hosts do not fall back to Docker command syntax.
 
 ## Remaining Tasks
 
@@ -513,3 +522,11 @@ not introduce a second out-of-band local management API for the shell.
   slice lands.
 - Update load-balancer container mode to use the runtime contract instead of
   modeling implementation containers as user-authored container apps.
+- Replace Docker-shaped command arguments and output parsing in shared
+  container-app, SQL Server, RabbitMQ, logs, monitoring, network, and storage
+  paths with typed provider-owned runtime operations.
+- Implement Apple Container readiness and runtime behavior against the
+  `container` CLI on supported Apple silicon/macOS hosts.
+- Implement WSL Container readiness and runtime behavior against WSLC on
+  supported Windows/WSL hosts, keeping preview session and API details behind
+  the provider boundary.

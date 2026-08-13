@@ -543,6 +543,10 @@ Prioritize the remaining local-dev work in this order:
    DNS/name materialization gaps. Prioritize feedback loops that materially
    improve the supported local-dev experience, especially when a sample exposes
    a blocker or confusing failure.
+   Container-host work should now replace shared Docker-shaped runtime
+   operations with typed provider adapters, then add Apple Container and WSL
+   Container readiness and lifecycle slices without treating either runtime as
+   Docker-compatible.
 6. **Configuration, secrets, and identity clarity.** The app experience should
    make runtime-impacting settings and secret references understandable:
    references must be visible without leaking secret values, identity grant

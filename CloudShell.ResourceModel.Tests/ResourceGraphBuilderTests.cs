@@ -138,6 +138,39 @@ public sealed class ResourceGraphBuilderTests
             ContainerHostResourceTypeProvider.Attributes.IsDefault].BooleanValue);
     }
 
+    [Theory]
+    [InlineData(ContainerHostKind.Podman, "unix:///run/podman/podman.sock")]
+    [InlineData(ContainerHostKind.AppleContainer, "local://apple-container")]
+    [InlineData(ContainerHostKind.WslContainer, "local://wsl-container")]
+    public void ContainerHostBuilder_AuthorsProviderNeutralLocalRuntimes(
+        ContainerHostKind kind,
+        string expectedEndpoint)
+    {
+        var graph = new ResourceGraphBuilder();
+        var host = graph.AddContainerHost("local");
+        switch (kind)
+        {
+            case ContainerHostKind.Podman:
+                host.UsePodman();
+                break;
+            case ContainerHostKind.AppleContainer:
+                host.UseAppleContainer();
+                break;
+            case ContainerHostKind.WslContainer:
+                host.UseWslContainer();
+                break;
+        }
+
+        var definition = Assert.Single(graph.BuildGraph().Resources);
+
+        Assert.Equal(kind.ToString(), definition.ResourceAttributeValues[
+            ContainerHostResourceTypeProvider.Attributes.HostKind].StringValue);
+        Assert.Equal(expectedEndpoint, definition.ResourceAttributeValues[
+            ContainerHostResourceTypeProvider.Attributes.Endpoint].StringValue);
+        Assert.True(definition.ResourceAttributeValues[
+            ContainerHostResourceTypeProvider.Attributes.IsDefault].BooleanValue);
+    }
+
     [Fact]
     public void ResourceGraphBuilder_AddRejectsDuplicateResourceIds()
     {
