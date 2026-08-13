@@ -46,7 +46,9 @@ cloudshell run ./development/resources.yaml
 ```
 
 The template directory is the host working/content root. Relative resource
-paths therefore resolve from the YAML project directory. Host-owned data
+paths therefore resolve from the YAML project directory. The bundled host's
+published `wwwroot` remains its explicit web root so UI static assets are
+served independently of the project directory. Host-owned data
 defaults to `.cloudshell` beside the template, and an adjacent
 `appsettings.json` is delegated to the development host when present. Use
 `--data-dir`, `--host-settings`, or `--url` to override those defaults. Use

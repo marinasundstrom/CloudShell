@@ -63,6 +63,10 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Changed
 
+- The foreground CLI launcher now keeps the YAML project directory as the
+  development host content root while explicitly using the bundled host's
+  published `wwwroot`, ensuring the CloudShell UI serves its CSS and JavaScript
+  assets when started from an installed tool package.
 - Package verification now includes the CLI tool package and checks that the
   installed command runs and contains its development-host payload. Local host
   runtime `Data` files are explicitly excluded from publish output.

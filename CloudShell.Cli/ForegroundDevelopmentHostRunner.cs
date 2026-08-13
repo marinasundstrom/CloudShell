@@ -130,9 +130,19 @@ internal sealed class ForegroundDevelopmentHostRunner
         }
         else
         {
-            startInfo.ArgumentList.Add(ResolveDevelopmentHostAssembly(
+            var developmentHostAssembly = ResolveDevelopmentHostAssembly(
                 applicationBaseDirectory ?? AppContext.BaseDirectory,
-                workingDirectory));
+                workingDirectory);
+            startInfo.ArgumentList.Add(developmentHostAssembly);
+
+            var developmentHostWebRoot = Path.Combine(
+                Path.GetDirectoryName(developmentHostAssembly)!,
+                "wwwroot");
+            if (Directory.Exists(developmentHostWebRoot))
+            {
+                startInfo.ArgumentList.Add("--webroot");
+                startInfo.ArgumentList.Add(developmentHostWebRoot);
+            }
         }
 
         startInfo.ArgumentList.Add("--urls");
