@@ -1,4 +1,4 @@
-name: Build and publish NuGet packages
+name: Build and publish preview NuGet packages
 
 on:
   pull_request:
@@ -11,6 +11,15 @@ on:
         description: Optional preview package version. Defaults to a CI prerelease version.
         required: false
         type: string
+      publish_target:
+        description: Destination for the verified preview packages.
+        required: true
+        default: artifact
+        type: choice
+        options:
+          - artifact
+          - myget
+          - nuget.org
 
 permissions:
   contents: read
@@ -24,10 +33,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
@@ -36,8 +45,14 @@ jobs:
         shell: bash
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
+          PUBLISH_TARGET: ${{ inputs.publish_target }}
         run: |
           set -euo pipefail
+
+          if [[ -n "$PUBLISH_TARGET" && "$PUBLISH_TARGET" != "artifact" && -z "$REQUESTED_VERSION" ]]; then
+            echo "An explicit preview version is required when publishing." >&2
+            exit 1
+          fi
 
           version="${REQUESTED_VERSION:-0.1.0-ci.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}}"
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
@@ -142,9 +157,184 @@ jobs:
           dotnet build "$consumer_directory/CloudShell.PackageConsumer.csproj" --no-restore
 
       - name: Upload packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cloudshell-nuget-${{ steps.version.outputs.package-version }}
           path: artifacts/packages/*.*nupkg
           if-no-files-found: error
           retention-days: 14
+
+  publish-preview:
+    name: Publish to MyGet preview feed
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target == 'myget' }}
+    needs: pack
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloudshell-myget-preview-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Download verified packages
+        uses: actions/download-artifact@v5
+        with:
+          name: cloudshell-nuget-${{ needs.pack.outputs.package-version }}
+          path: artifacts/packages
+
+      - name: Publish packages
+        shell: bash
+        env:
+          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$MYGET_API_KEY" ]]; then
+            echo "The MYGET_API_KEY repository secret is not configured." >&2
+            exit 1
+          fi
+
+          for package in artifacts/packages/*.nupkg; do
+            dotnet nuget push "$package" \
+              --api-key "$MYGET_API_KEY" \
+              --source https://www.myget.org/F/cloudshell/api/v3/index.json \
+              --skip-duplicate
+          done
+
+      - name: Verify restore from preview feed
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ needs.pack.outputs.package-version }}
+        run: |
+          set -euo pipefail
+
+          consumer_directory="$RUNNER_TEMP/cloudshell-myget-consumer"
+          consumer_project="$consumer_directory/CloudShell.MyGetConsumer.csproj"
+
+          dotnet new classlib --name CloudShell.MyGetConsumer --output "$consumer_directory" --framework net11.0
+          dotnet add "$consumer_project" package CloudShell.AppHost.Launcher --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.AppHost --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.ControlPlane.Providers.UI --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.Providers.DockerCompose --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.Providers.Traefik --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.Configuration.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.Secrets.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.DeviceRegistry.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.EventBroker.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.RabbitMQ.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.SqlServer.Client --version "$PACKAGE_VERSION" --no-restore
+
+          for attempt in {1..12}; do
+            if dotnet restore "$consumer_project" \
+              --no-cache \
+              --force \
+              --source https://www.myget.org/F/cloudshell/api/v3/index.json \
+              --source https://api.nuget.org/v3/index.json; then
+              break
+            fi
+
+            if [[ "$attempt" -eq 12 ]]; then
+              echo "Packages were not restorable from MyGet after 12 attempts." >&2
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          dotnet build "$consumer_project" --no-restore
+
+  publish-nuget:
+    name: Publish to NuGet.org
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target == 'nuget.org' }}
+    needs: pack
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloudshell-nuget-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Download verified packages
+        uses: actions/download-artifact@v5
+        with:
+          name: cloudshell-nuget-${{ needs.pack.outputs.package-version }}
+          path: artifacts/packages
+
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: marna.li
+
+      - name: Publish packages
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          for package in artifacts/packages/*.nupkg; do
+            dotnet nuget push "$package" \
+              --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
+
+      - name: Verify restore from NuGet.org
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ needs.pack.outputs.package-version }}
+        run: |
+          set -euo pipefail
+
+          consumer_directory="$RUNNER_TEMP/cloudshell-nuget-consumer"
+          consumer_project="$consumer_directory/CloudShell.NuGetConsumer.csproj"
+
+          dotnet new classlib --name CloudShell.NuGetConsumer --output "$consumer_directory" --framework net11.0
+          dotnet add "$consumer_project" package CloudShell.AppHost.Launcher --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.AppHost --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.ControlPlane.Providers.UI --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.Providers.DockerCompose --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.Providers.Traefik --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.Configuration.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.Secrets.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.DeviceRegistry.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.EventBroker.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.RabbitMQ.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_project" package CloudShell.SqlServer.Client --version "$PACKAGE_VERSION" --no-restore
+
+          for attempt in {1..12}; do
+            if dotnet restore "$consumer_project" \
+              --no-cache \
+              --force \
+              --source https://api.nuget.org/v3/index.json; then
+              break
+            fi
+
+            if [[ "$attempt" -eq 12 ]]; then
+              echo "Packages were not restorable from NuGet.org after 12 attempts." >&2
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          dotnet build "$consumer_project" --no-restore

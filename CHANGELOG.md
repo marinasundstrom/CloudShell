@@ -18,7 +18,10 @@ link to ADR entries when a change depends on a recorded decision.
   assigns one lockstep CI prerelease version, produces ordinary and symbol
   packages, verifies the expected artifact set, restores the public package
   entry points from the local package output, and uploads the verified
-  artifacts for review or subsequent publication to a dedicated preview feed.
+  artifacts for review. A manually dispatched run can publish an explicit
+  preview version primarily to the public CloudShell MyGet feed, or explicitly
+  to NuGet.org through Trusted Publishing, and then verifies a clean consumer
+  restore from the selected feed.
 - Added common preview package metadata, package-specific descriptions, a
   package README, MIT license and repository links, deterministic build and
   Source Link settings, symbol-package defaults, and package validation. The
