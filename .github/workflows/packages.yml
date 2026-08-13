@@ -198,10 +198,3 @@ jobs:
               --source https://api.nuget.org/v3/index.json \
               --skip-duplicate
           done
-
-          for symbols in artifacts/packages/*.snupkg; do
-            dotnet nuget push "$symbols" \
-              --api-key "$NUGET_API_KEY" \
-              --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate
-          done

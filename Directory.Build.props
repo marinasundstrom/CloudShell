@@ -26,6 +26,16 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <!-- NuGet reserves similarity with existing package IDs. Prefix the
+         independently named CoreShell projects so the public package family
+         remains unambiguous and publishable under CloudShell. -->
+    <PackageId Condition="'$(MSBuildProjectName)' == 'CoreShell'">CloudShell.CoreShell</PackageId>
+    <PackageId Condition="'$(MSBuildProjectName)' == 'CoreShell.Blazor'">CloudShell.CoreShell.Blazor</PackageId>
+    <PackageId Condition="'$(MSBuildProjectName)' == 'CoreShell.Composition'">CloudShell.CoreShell.Composition</PackageId>
+    <PackageId Condition="'$(MSBuildProjectName)' == 'CoreShell.Composition.Blazor'">CloudShell.CoreShell.Composition.Blazor</PackageId>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.ResourceModel'">Portable CloudShell resource definitions, templates, graph authoring, and serialization contracts.</Description>
     <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.Abstractions'">Public CloudShell domain, hosting, provider, extension, and Resource Manager abstractions.</Description>
     <Description Condition="'$(MSBuildProjectName)' == 'CloudShell.AppHost'">Composition helpers for hosting the CloudShell Control Plane and Resource Manager UI.</Description>

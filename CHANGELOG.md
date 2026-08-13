@@ -52,6 +52,10 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Changed
 
+- Published CoreShell projects use the `CloudShell.CoreShell*` NuGet package
+  ID prefix. Project names, assembly names, namespaces, and public APIs remain
+  unchanged; the prefix avoids NuGet.org's similarity conflict with the
+  existing `Core.Shell` package.
 - Container-host command planning now resolves explicit Docker and Podman
   adapters. Provider-native and unknown host kinds return an actionable
   missing-adapter diagnostic instead of silently executing Docker commands.
