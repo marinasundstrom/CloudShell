@@ -1,0 +1,183 @@
+name: Build and publish NuGet packages
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Optional package version. Defaults to a CI prerelease version.
+        required: false
+        type: string
+      publish:
+        description: Publish the verified packages to NuGet.org.
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Pack and verify
+    runs-on: ubuntu-latest
+    outputs:
+      package-version: ${{ steps.version.outputs.package-version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Select package version
+        id: version
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          PUBLISH_REQUESTED: ${{ inputs.publish }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$PUBLISH_REQUESTED" == "true" && -z "$REQUESTED_VERSION" ]]; then
+            echo "An explicit package version is required when publishing." >&2
+            exit 1
+          fi
+
+          version="${REQUESTED_VERSION:-0.1.0-ci.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid NuGet package version: $version" >&2
+            exit 1
+          fi
+
+          echo "package-version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building CloudShell packages at version $version"
+
+      - name: Restore package projects
+        run: dotnet restore CloudShell.Packages.slnx
+
+      - name: Build package projects
+        run: >-
+          dotnet build CloudShell.Packages.slnx
+          --configuration Release
+          --no-restore
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Pack
+        run: >-
+          dotnet pack CloudShell.Packages.slnx
+          --configuration Release
+          --no-build
+          --no-restore
+          --output artifacts/packages
+          --include-symbols
+          -p:SymbolPackageFormat=snupkg
+          -p:PackageVersion=${{ steps.version.outputs.package-version }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Verify package artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          package_count=$(find artifacts/packages -maxdepth 1 -type f -name '*.nupkg' ! -name '*.snupkg' | wc -l | tr -d ' ')
+          symbol_count=$(find artifacts/packages -maxdepth 1 -type f -name '*.snupkg' | wc -l | tr -d ' ')
+
+          if [[ "$package_count" -ne 26 ]]; then
+            echo "Expected 26 NuGet packages, found $package_count." >&2
+            find artifacts/packages -maxdepth 1 -type f -print | sort
+            exit 1
+          fi
+
+          if [[ "$symbol_count" -ne "$package_count" ]]; then
+            echo "Expected one symbol package per NuGet package; found $symbol_count symbols for $package_count packages." >&2
+            exit 1
+          fi
+
+      - name: Verify clean consumer restore
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.package-version }}
+        run: |
+          set -euo pipefail
+
+          consumer_directory="$RUNNER_TEMP/cloudshell-package-consumer"
+          local_source="$GITHUB_WORKSPACE/artifacts/packages"
+
+          dotnet new classlib --name CloudShell.PackageConsumer --output "$consumer_directory" --framework net11.0
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.AppHost.Launcher --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.AppHost --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.ControlPlane.Providers.UI --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.Providers.DockerCompose --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.Providers.Traefik --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.Configuration.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.Secrets.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.DeviceRegistry.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.EventBroker.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.RabbitMQ.Client --version "$PACKAGE_VERSION" --no-restore
+          dotnet add "$consumer_directory/CloudShell.PackageConsumer.csproj" package CloudShell.SqlServer.Client --version "$PACKAGE_VERSION" --no-restore
+
+          dotnet restore "$consumer_directory/CloudShell.PackageConsumer.csproj" \
+            --source "$local_source" \
+            --source https://api.nuget.org/v3/index.json
+          dotnet build "$consumer_directory/CloudShell.PackageConsumer.csproj" --no-restore
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudshell-nuget-${{ steps.version.outputs.package-version }}
+          path: artifacts/packages/*.*nupkg
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish to NuGet.org
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+    needs: pack
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloudshell-nuget-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download verified packages
+        uses: actions/download-artifact@v4
+        with:
+          name: cloudshell-nuget-${{ needs.pack.outputs.package-version }}
+          path: artifacts/packages
+
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: marna.li
+
+      - name: Publish packages
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          for package in artifacts/packages/*.nupkg; do
+            dotnet nuget push "$package" \
+              --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
+
+          for symbols in artifacts/packages/*.snupkg; do
+            dotnet nuget push "$symbols" \
+              --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done

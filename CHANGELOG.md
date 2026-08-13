@@ -14,6 +14,12 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Added
 
+- Added a NuGet package workflow and an explicit package solution. The workflow
+  assigns one lockstep CI prerelease version, produces ordinary and symbol
+  packages, verifies the expected artifact set, restores the public package
+  entry points from the local package output, and uploads the verified
+  artifacts. A manually dispatched run can publish an explicit version through
+  NuGet.org Trusted Publishing after all verification succeeds.
 - Added first-class `AppleContainer` and `WslContainer` container-host kinds
   plus `UseAppleContainer()`, `UseWslContainer()`, and `UsePodman()` graph
   authoring helpers. Decision:

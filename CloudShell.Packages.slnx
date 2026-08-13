@@ -1,0 +1,30 @@
+<Solution>
+  <Folder Name="/Launchers/">
+    <Project Path="Launchers/CSharp/CloudShell.AppHost.Launcher/CloudShell.AppHost.Launcher.csproj" />
+  </Folder>
+  <Project Path="CloudShell.Abstractions/CloudShell.Abstractions.csproj" />
+  <Project Path="CloudShell.AppHost/CloudShell.AppHost.csproj" />
+  <Project Path="CloudShell.Client/CloudShell.Client.csproj" />
+  <Project Path="CloudShell.Components/CloudShell.Components.csproj" />
+  <Project Path="CloudShell.Configuration.Client/CloudShell.Configuration.Client.csproj" />
+  <Project Path="CloudShell.Configuration/CloudShell.Configuration.csproj" />
+  <Project Path="CloudShell.ControlPlane.Client/CloudShell.ControlPlane.Client.csproj" />
+  <Project Path="CloudShell.ControlPlane.Providers.UI/CloudShell.ControlPlane.Providers.UI.csproj" />
+  <Project Path="CloudShell.ControlPlane.Providers/CloudShell.ControlPlane.Providers.csproj" />
+  <Project Path="CloudShell.ControlPlane.ResourceModel/CloudShell.ControlPlane.ResourceModel.csproj" />
+  <Project Path="CloudShell.ControlPlane/CloudShell.ControlPlane.csproj" />
+  <Project Path="CloudShell.DeviceRegistry.Client/CloudShell.DeviceRegistry.Client.csproj" />
+  <Project Path="CloudShell.EventBroker.Client/CloudShell.EventBroker.Client.csproj" />
+  <Project Path="CloudShell.Hosting/CloudShell.Hosting.csproj" />
+  <Project Path="CloudShell.Persistence/CloudShell.Persistence.csproj" />
+  <Project Path="CloudShell.Providers.DockerCompose/CloudShell.Providers.DockerCompose.csproj" />
+  <Project Path="CloudShell.Providers.Traefik/CloudShell.Providers.Traefik.csproj" />
+  <Project Path="CloudShell.RabbitMQ.Client/CloudShell.RabbitMQ.Client.csproj" />
+  <Project Path="CloudShell.ResourceModel/CloudShell.ResourceModel.csproj" />
+  <Project Path="CloudShell.Secrets.Client/CloudShell.Secrets.Client.csproj" />
+  <Project Path="CloudShell.SqlServer.Client/CloudShell.SqlServer.Client.csproj" />
+  <Project Path="CoreShell.Blazor/CoreShell.Blazor.csproj" />
+  <Project Path="CoreShell.Composition.Blazor/CoreShell.Composition.Blazor.csproj" />
+  <Project Path="CoreShell.Composition/CoreShell.Composition.csproj" />
+  <Project Path="CoreShell/CoreShell.csproj" />
+</Solution>
