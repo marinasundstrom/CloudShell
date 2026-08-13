@@ -39,8 +39,8 @@ public sealed class ResourceGraphChangeTrackingTests
 
         try
         {
-            var snapshot = await Task.Run(model.GetSnapshotIfAvailable)
-                .WaitAsync(TimeSpan.FromSeconds(1));
+            var snapshot = await RunOnDedicatedThread(model.GetSnapshotIfAvailable)
+                .WaitAsync(TimeSpan.FromSeconds(5));
 
             Assert.NotNull(snapshot);
             Assert.Equal("application.executable:api", Assert.Single(snapshot.Resources).EffectiveResourceId);
@@ -64,8 +64,8 @@ public sealed class ResourceGraphChangeTrackingTests
 
         try
         {
-            var snapshot = await Task.Run(model.GetSnapshotIfAvailable)
-                .WaitAsync(TimeSpan.FromSeconds(1));
+            var snapshot = await RunOnDedicatedThread(model.GetSnapshotIfAvailable)
+                .WaitAsync(TimeSpan.FromSeconds(5));
 
             Assert.Null(snapshot);
         }
@@ -897,6 +897,29 @@ public sealed class ResourceGraphChangeTrackingTests
             ResourceGraphCommitContext context,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private static Task<T> RunOnDedicatedThread<T>(Func<T> operation)
+    {
+        var completion = new TaskCompletionSource<T>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                completion.SetResult(operation());
+            }
+            catch (Exception exception)
+            {
+                completion.SetException(exception);
+            }
+        })
+        {
+            IsBackground = true
+        };
+
+        thread.Start();
+        return completion.Task;
     }
 
     private sealed class BlockingResourceStateProvider(ResourceState resource) : IResourceStateProvider

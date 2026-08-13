@@ -54,6 +54,9 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Changed
 
+- Resource graph non-blocking snapshot tests now execute their synchronous
+  probes on dedicated threads, avoiding false Linux CI timeouts caused by
+  thread-pool scheduling pressure.
 - Unlisted the incomplete `0.1.0-preview.1` package set from NuGet.org search;
   previews now publish to MyGet while NuGet.org publication requires a stable
   `x.y.z` version.
