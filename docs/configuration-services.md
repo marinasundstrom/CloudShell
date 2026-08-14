@@ -135,69 +135,38 @@ versioning is not supported yet.
 
 ## Service Runtime
 
-Each configuration store owns a local service process. For a store such as
-`configuration:example`, the default process ID is:
-
-```text
-configuration-service-configuration-example
-```
-
-The current runtime implementation starts:
+Each Configuration Store and Secrets Vault resource owns a backing service
+instance. The provider can realize that instance as a source-backed process or
+as an image-backed container without changing the resource definition. Source
+builds use commands such as:
 
 ```bash
 dotnet run --project CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj --no-launch-profile --urls http://localhost:5138
 ```
 
-The actual URL is stored on the configuration store definition. If the user does
-not provide one, the provider generates a stable endpoint from
-`ServiceBasePort`, `ServiceHost`, and the resource ID. The default generated
-range starts from:
+The container adapter starts `cloudshell/configuration-store:<tag>` or
+`cloudshell/secrets-vault:<tag>` through `IContainerHostRuntime`, publishes the
+same resource endpoint, and mounts the generated provider definition read-only.
+The actual URL remains stored on the resource definition in both modes.
 
-```text
-http://localhost:5138
-```
-
-Configure service instance defaults in the host through
-`AddConfigurationProvider(...)`, including:
-
-```text
-ServiceBasePort
-ServiceHost
-ServiceUrlScheme
-ServiceProjectPath
-ServiceWorkingDirectory
-ServiceProcessIdPrefix
-```
-
-Secrets Vault runtime defaults can be configured through either
-`AddSecretsProvider(...)` or the compatibility `AddConfigurationProvider(...)`
-registration:
-
-```text
-SecretsServiceBasePort
-SecretsServiceProjectPath
-SecretsServiceWorkingDirectory
-SecretsServiceProcessIdPrefix
-SecretsVaultDefinitionsPath
-```
-
-The service process receives the provider-owned store file path and its own
-configuration resource ID through
+Both adapters receive the provider-owned definition path and resource ID through
 `CloudShell:ConfigurationStoreService:DefinitionsPath` and
-`CloudShell:ConfigurationStoreService:ResourceId`. That resource ID filter is
-what keeps each process scoped to one configuration service instance.
+`CloudShell:ConfigurationStoreService:ResourceId`, with equivalent Secrets
+Vault settings. That resource ID filter keeps each runtime scoped to one
+resource instance. Authentication and service-bearer environment variables are
+also built once and passed through either adapter.
 
-Configuration services expose their own resource log in the Logs view. The log
-uses the same local process runner as executable applications, so stdout,
-stderr, and lifecycle settings are available without modeling the service as an
-`application.executable` resource.
+`ConfigurationStoreRuntimeOptions` and `SecretsVaultRuntimeOptions` expose the
+runtime mode, service project path, container image, definitions directory,
+startup timeout, and service authentication inputs. `Process` is the source
+host default; the host bundled in `CloudShell.Cli` uses `Container`.
 
 The runtime is intentionally an implementation detail of the configuration
-resource type. Today it is a host-local process for development; a future
-configuration provider can replace that with a container image while keeping the
-resource model and logs attached to the configuration service resource.
+resource type. Other resources reference the store or vault resource ID, never
+the backing process or container ID. See
+[Built-in service runtime](built-in-service-runtime.md).
 
-## Future Container-Backed Instances
+## Runtime Evolution
 
 Configuration Store and Secrets Vault resources should continue to be modeled
 as resource instances, not as special Control Plane services. A
@@ -205,13 +174,9 @@ as resource instances, not as special Control Plane services. A
 resource is one vault. The service process or container that serves that
 instance is the resource's runtime realization.
 
-The current implementation already gives each instance an isolated host-local
-process and provider-owned state, which is sufficient for the local-development
-MVP. CloudShell should not prioritize replacing that working isolation before
-the app-centric MVP is stable. The future path is to let a provider materialize
-the same resource instance as a container-backed runtime when a host profile or
-environment requires stronger isolation, operational packaging, or more
-production-like lifecycle behavior.
+The current implementation supports isolated host-local processes and
+image-backed containers. A future provider can also materialize an external
+managed service or agent assignment while preserving the same boundary.
 
 That future shape should preserve the same user-facing resource model:
 

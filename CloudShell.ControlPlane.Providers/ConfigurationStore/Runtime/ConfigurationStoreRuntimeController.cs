@@ -2,6 +2,10 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ConfigurationStoreRuntimeOptions
 {
+    public BuiltInServiceRuntimeMode RuntimeMode { get; set; } = BuiltInServiceRuntimeMode.Process;
+
+    public string ContainerImage { get; set; } = "cloudshell/configuration-store:local";
+
     public string ServiceProjectPath { get; set; } =
         "CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj";
 
@@ -94,7 +98,7 @@ public sealed class ConfigurationStoreProcessRuntimeController(
                 DefinitionsDirectory = _options.DefinitionsDirectory,
                 EnvironmentVariables = CreateEnvironmentVariables(_options)
             },
-            CreateDefinition,
+            (resource, endpoint) => CreateDefinition(_options, resource, endpoint),
             "configuration.store",
             "Configuration Store",
             cancellationToken);
@@ -105,7 +109,8 @@ public sealed class ConfigurationStoreProcessRuntimeController(
     public void Dispose() =>
         _runtime.Dispose();
 
-    private object CreateDefinition(
+    internal static object CreateDefinition(
+        ConfigurationStoreRuntimeOptions options,
         Resource resource,
         string? endpoint) =>
         new
@@ -114,7 +119,7 @@ public sealed class ConfigurationStoreProcessRuntimeController(
             name = resource.Name,
             displayName = resource.State.DisplayName,
             endpoint,
-            settings = _options.Settings.Select(setting => new
+            settings = options.Settings.Select(setting => new
             {
                 setting.Name,
                 setting.Value
@@ -122,7 +127,7 @@ public sealed class ConfigurationStoreProcessRuntimeController(
             healthChecks = Array.Empty<object>()
         };
 
-    private static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
+    internal static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
         ConfigurationStoreRuntimeOptions options)
     {
         var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -193,6 +198,60 @@ public sealed class ConfigurationStoreProcessRuntimeController(
             variables[name] = value;
         }
     }
+}
+
+public sealed class ConfigurationStoreContainerRuntimeController(
+    IContainerHostRuntime containerHostRuntime,
+    ConfigurationStoreRuntimeOptions? options = null) :
+    IConfigurationStoreRuntimeController,
+    IConfigurationStoreRuntimeMonitor,
+    IDisposable,
+    IAsyncDisposable
+{
+    private readonly ConfigurationStoreRuntimeOptions _options =
+        options ?? new ConfigurationStoreRuntimeOptions();
+    private readonly ResourceWebAppContainerRuntime _runtime = new(containerHostRuntime);
+
+    public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
+        _runtime.GetStatus(resource);
+
+    public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+        Resource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default) =>
+        await _runtime.ExecuteAsync(
+            resource,
+            operationId,
+            ConfigurationStoreResourceTypeProvider.Attributes.Endpoint,
+            new ResourceWebAppContainerOptions(
+                _options.ContainerImage,
+                "configuration-store",
+                "CloudShell__ConfigurationStoreService__DefinitionsPath",
+                "CloudShell__ConfigurationStoreService__ResourceId",
+                "configuration-stores.json",
+                _options.StartupTimeout)
+            {
+                DefinitionsDirectory = _options.DefinitionsDirectory,
+                EnvironmentVariables = ConfigurationStoreProcessRuntimeController.CreateEnvironmentVariables(
+                    _options)
+            },
+            (resource, endpoint) => ConfigurationStoreProcessRuntimeController.CreateDefinition(
+                _options,
+                resource,
+                endpoint),
+            "configuration.store",
+            "Configuration Store",
+            cancellationToken);
+
+    public async ValueTask DisposeAsync() => await _runtime.DisposeAsync();
+
+    public void Dispose() => _runtime.DisposeAsync().AsTask().GetAwaiter().GetResult();
+
 }
 
 public sealed class NoopConfigurationStoreRuntimeController :

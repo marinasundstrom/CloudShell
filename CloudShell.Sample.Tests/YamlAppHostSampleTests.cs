@@ -48,6 +48,12 @@ public sealed class YamlAppHostSampleTests
             .GetSnapshotAsync();
         Assert.Contains(snapshot.Resources, resource =>
             resource.EffectiveResourceId == "application.dotnet-app:yaml-sample-api");
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == "configuration.store:yaml-sample-settings");
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == "secrets.vault:yaml-sample-secrets");
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == "iot.device-registry:yaml-sample-devices");
     }
 
     private static string FindRepositoryRoot()

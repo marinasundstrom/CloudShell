@@ -9,6 +9,32 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-08-14
+
+### ADR-20260814-001: Realize released built-in services from versioned container images
+
+Configuration Store, Secrets Vault, and Device Registry keep stable CloudShell
+resource types while their backing runtime becomes a host-profile decision.
+Source builds of `CloudShell.LocalDevelopmentHost` default to service processes
+so CloudShell contributors retain the direct edit/build/debug loop. The host
+bundled in the `CloudShell.Cli` tool defaults to OCI images because an installed
+tool does not carry or compile the service projects.
+
+Process and container adapters must consume the same provider-owned definition,
+resource ID, endpoint, authentication, seed, and enrollment configuration. The
+adapter changes how that configuration reaches the service: process arguments
+and environment plus a host path, or container environment, published ports,
+and a read-only definition mount. Runtime mode is not serialized into the
+resource template and does not create parallel resource types.
+
+Container lifecycle uses the owner-scoped typed `IContainerHostRuntime`
+boundary from ADR-20260813-003. Official images will be published with the same
+immutable version as the CLI/NuGet release; release workflows must not use
+`latest`. Registry publication and multi-architecture release verification are
+separate release-workflow slices after local image and lifecycle proof.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-08-13
 
 ### ADR-20260813-004: Ship the CLI and default development host as one foreground tool

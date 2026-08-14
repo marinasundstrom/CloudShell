@@ -72,6 +72,12 @@ CloudShell starts in the foreground, applies the YAML resource template, and
 prints the Resource Manager URL. Host output remains in that terminal until
 you press Ctrl+C. This MVP command does not use a daemon.
 
+The installed CLI host runs Configuration Store, Secrets Vault, and Device
+Registry resources from container images. Contributors running the host from
+this repository continue to use the service projects as local processes by
+default. See [Built-in service runtime](docs/built-in-service-runtime.md) for
+the mode switch and local image-build command.
+
 Try the complete ASP.NET Core example in
 [`samples/YamlAppHost`](samples/YamlAppHost):
 
@@ -279,7 +285,7 @@ Useful routes:
 
 Local-development host and launcher samples are also available:
 
-- `samples/YamlAppHost`: declares an ASP.NET Core app in `cloudshell.yaml` and runs it with the installed `cloudshell` tool.
+- `samples/YamlAppHost`: declares an ASP.NET Core app, Configuration Store, Secrets Vault, and Device Registry in `cloudshell.yaml` and runs them with the installed `cloudshell` tool.
 - `CloudShell.LocalDevelopmentHost`: reusable Control Plane/UI host profile used by launcher-based samples.
 - `samples/CSharpAppHost`: declares a JavaScript app and Configuration Store resource from a C# launcher app, then applies the template through the CLI.
 - `samples/TypeScriptAppHost`: declares the same style of graph from TypeScript using the experimental `@cloudshell/local-development` package.

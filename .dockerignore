@@ -1,0 +1,9 @@
+**/bin
+**/obj
+**/Data
+.git
+.github
+.idea
+.vs
+.vscode
+artifacts

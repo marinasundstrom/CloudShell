@@ -995,6 +995,24 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public void AddConfigurationStoreResourceType_SelectsContainerRuntime()
+    {
+        var services = new ServiceCollection();
+        services.AddConfigurationStoreResourceType(options =>
+        {
+            options.RuntimeMode = BuiltInServiceRuntimeMode.Container;
+            options.ContainerImage = "cloudshell/configuration-store:test";
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.IsType<ConfigurationStoreContainerRuntimeController>(
+            serviceProvider.GetRequiredService<IConfigurationStoreRuntimeController>());
+        Assert.Equal(
+            "cloudshell/configuration-store:test",
+            serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>().ContainerImage);
+    }
+
+    [Fact]
     public async Task ConfigurationStoreRuntimeSettingManager_UpdatesProviderOwnedRuntimeSettings()
     {
         var definitionsDirectory = Path.Combine(
@@ -2092,6 +2110,24 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public void AddSecretsVaultResourceType_SelectsContainerRuntime()
+    {
+        var services = new ServiceCollection();
+        services.AddSecretsVaultResourceType(options =>
+        {
+            options.RuntimeMode = BuiltInServiceRuntimeMode.Container;
+            options.ContainerImage = "cloudshell/secrets-vault:test";
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.IsType<SecretsVaultContainerRuntimeController>(
+            serviceProvider.GetRequiredService<ISecretsVaultRuntimeController>());
+        Assert.Equal(
+            "cloudshell/secrets-vault:test",
+            serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>().ContainerImage);
+    }
+
+    [Fact]
     public async Task SecretsVaultRuntimeSecretManager_UpdatesProviderOwnedRuntimeSecrets()
     {
         var definitionsDirectory = Path.Combine(
@@ -3084,6 +3120,24 @@ public sealed class ResourceProviderDispatcherTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             Attributes: attributes,
             Capabilities: capabilities));
+    }
+
+    [Fact]
+    public void AddDeviceRegistryResourceType_SelectsContainerRuntime()
+    {
+        var services = new ServiceCollection();
+        services.AddDeviceRegistryResourceType(options =>
+        {
+            options.RuntimeMode = BuiltInServiceRuntimeMode.Container;
+            options.ContainerImage = "cloudshell/device-registry:test";
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.IsType<DeviceRegistryContainerRuntimeController>(
+            serviceProvider.GetRequiredService<IDeviceRegistryRuntimeController>());
+        Assert.Equal(
+            "cloudshell/device-registry:test",
+            serviceProvider.GetRequiredService<DeviceRegistryRuntimeOptions>().ContainerImage);
     }
 
     private static ResourceProviderDispatcher CreateDispatcher(

@@ -8,7 +8,7 @@ desired/reported twin state.
 
 Device Registry is a service resource that owns device enrollment, trusted
 factory certificate references, device identity provisioning, registry-owned
-device metadata, and the lifecycle of the registry service process.
+device metadata, and the lifecycle of the registry service runtime.
 
 Device Registry is deliberately decoupled from communication infrastructure.
 It may consume or publish events through an [Event Broker](event-broker.md) in
@@ -57,12 +57,14 @@ var devices = builder
 
 `TrustCertificate(...)` records the certificate reference and adds a dependency
 on the vault resource. The registry can then be started through its lifecycle
-actions, using the same host-local process runtime pattern as Configuration
-Store and Secrets Vault.
+actions, using the same process/container runtime choice as Configuration Store
+and Secrets Vault.
 
 Lifecycle actions require a Device Registry runtime controller. The built-in
-provider registration supplies the local process runtime controller for normal
-hosts. If a custom or direct operation path is constructed without that
+provider registration selects its process or container controller from
+`DeviceRegistryRuntimeOptions.RuntimeMode`. Source hosts default to the process
+controller; the host bundled with `CloudShell.Cli` defaults to the container
+controller. If a custom or direct operation path is constructed without a
 controller, Resource Manager projects lifecycle actions as unavailable with a
 missing-controller reason, and direct provider-execution calls return the same
 readiness failure as a diagnostic instead of succeeding as a no-op.
@@ -239,6 +241,12 @@ The default service project is:
 CloudShell.DeviceRegistryService/CloudShell.DeviceRegistryService.csproj
 ```
 
+The default local image is:
+
+```text
+cloudshell/device-registry:local
+```
+
 The service receives:
 
 - a registry definition file path through
@@ -252,6 +260,9 @@ When `DevicesPath` is omitted, the service stores devices next to the registry
 definition file using a `.devices.json` sidecar. This is the MVP database
 boundary for registry-owned device metadata. A future provider can replace the
 store with a stronger database while keeping the resource model stable.
+Container mode publishes the HTTP endpoint to container port `8080`, publishes
+the optional MQTT port, and mounts the same generated definition directory
+read-only. See [Built-in service runtime](../built-in-service-runtime.md).
 
 ## Known Gaps
 

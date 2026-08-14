@@ -59,6 +59,12 @@ authentication do so explicitly through adjacent host settings.
 
 The `CloudShell.Cli` tool and bundled development host share one NuGet package
 version. The package excludes host runtime data and generated credentials.
+The bundled host selects container-backed Configuration Store, Secrets Vault,
+and Device Registry services, so an installed tool does not depend on the
+CloudShell service source projects. The corresponding images must be available
+to the configured container host. Source builds of
+`CloudShell.LocalDevelopmentHost` retain process-backed defaults. See
+[Built-in service runtime](built-in-service-runtime.md).
 See `samples/YamlAppHost` for a YAML file backed by a runnable ASP.NET Core
 project.
 

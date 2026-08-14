@@ -10,6 +10,30 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-08-14
+
+#### Added
+
+- Added locally buildable OCI images for Configuration Store, Secrets Vault,
+  and Device Registry plus a single build script that produces a same-tag
+  image set. All three images were locally built and health-smoke-tested.
+- Added container-backed runtime controllers for the three built-in service
+  resource types. They use owner-scoped typed container-host operations,
+  read-only generated-definition mounts, loopback port publication, shared
+  provider environment configuration, readiness checks, and cleanup
+  diagnostics. Decision: [ADR-20260814-001](ADR.md#adr-20260814-001).
+
+#### Changed
+
+- Source builds of `CloudShell.LocalDevelopmentHost` retain process-backed
+  built-in services, while the host bundled into `CloudShell.Cli` is compiled
+  with container-backed Configuration Store, Secrets Vault, and Device
+  Registry defaults. Host configuration can override the mode and image
+  references without changing a resource template.
+- Foreground CLI shutdown now gives the development host time to dispose its
+  provider runtimes before forcing process-tree termination, allowing owned
+  built-in service containers to be removed on Ctrl+C.
+
 ### 2026-08-13
 
 #### Added

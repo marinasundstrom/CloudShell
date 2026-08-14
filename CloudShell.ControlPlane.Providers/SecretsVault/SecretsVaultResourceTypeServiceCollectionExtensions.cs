@@ -34,6 +34,7 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddProviderExecutionDispatcher();
+        services.AddBuiltInServiceContainerRuntime();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -82,10 +83,11 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceModelGraphApplyReconciler, SecretsVaultSeedReconciler>());
         services.TryAddSingleton<SecretsVaultProcessRuntimeController>();
+        services.TryAddSingleton<SecretsVaultContainerRuntimeController>();
         services.TryAddSingleton<ISecretsVaultRuntimeController>(
-            serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProcessRuntimeController>());
+            serviceProvider => SelectRuntimeController(serviceProvider));
         services.TryAddSingleton<ISecretsVaultRuntimeMonitor>(
-            serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProcessRuntimeController>());
+            serviceProvider => SelectRuntimeMonitor(serviceProvider));
         services.TryAddSingleton<ISecretsVaultInspector, SecretsVaultRuntimeInspector>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<ICertificateReferenceCatalog, SecretsVaultCertificateReferenceCatalog>());
@@ -106,4 +108,20 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
         services.AddSingleton(options);
         return services.AddSecretsVaultResourceType();
     }
+
+    private static ISecretsVaultRuntimeController SelectRuntimeController(
+        IServiceProvider serviceProvider) =>
+        serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>().RuntimeMode switch
+        {
+            BuiltInServiceRuntimeMode.Process =>
+                serviceProvider.GetRequiredService<SecretsVaultProcessRuntimeController>(),
+            BuiltInServiceRuntimeMode.Container =>
+                serviceProvider.GetRequiredService<SecretsVaultContainerRuntimeController>(),
+            var mode => throw new InvalidOperationException(
+                $"Unsupported built-in service runtime mode '{mode}'.")
+        };
+
+    private static ISecretsVaultRuntimeMonitor SelectRuntimeMonitor(
+        IServiceProvider serviceProvider) =>
+        (ISecretsVaultRuntimeMonitor)SelectRuntimeController(serviceProvider);
 }

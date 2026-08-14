@@ -4,9 +4,38 @@ metadata:
   cloudshell.source: yaml
   cloudshell.sample: YamlAppHost
 resources:
+  - type: configuration.store
+    name: yaml-sample-settings
+    displayName: YAML Sample Settings
+    endpoint: http://localhost:5266
+    seed:
+      settings:
+        - name: Sample--Message
+          value: Hello from the YAML Configuration Store
+
+  - type: secrets.vault
+    name: yaml-sample-secrets
+    displayName: YAML Sample Secrets
+    endpoint: http://localhost:5267
+    seed:
+      secrets:
+        - name: Sample--ApiKey
+          value: local-development-yaml-secret
+          version: v1
+
+  - type: iot.device-registry
+    name: yaml-sample-devices
+    displayName: YAML Sample Device Registry
+    endpoint: http://localhost:5268
+    mqtt:
+      endpoint: mqtt://localhost:5269
+
   - type: application.dotnet-app
     name: yaml-sample-api
     displayName: YAML Sample API
+    dependsOn:
+      - resourceId: configuration.store:yaml-sample-settings
+      - resourceId: secrets.vault:yaml-sample-secrets
     project:
       path: ./App/CloudShell.YamlSampleApp.csproj
       hotReload: false

@@ -124,6 +124,14 @@ does not use daemon state. Provider validation, lifecycle operations, logs,
 telemetry, persistence, and Resource Manager projection remain inside the
 launched host. See `samples/YamlAppHost`.
 
+The bundled CLI host is compiled with container-backed Configuration Store,
+Secrets Vault, and Device Registry as its default because their service source
+projects are not part of the installed tool. Running
+`CloudShell.LocalDevelopmentHost` directly from this repository defaults those
+same resource types to process-backed services. Both modes consume the same
+resource definitions and provider configuration; see
+[Built-in service runtime](built-in-service-runtime.md).
+
 ## Launcher App And Host Profile
 
 The future launcher authoring shape preserves the same separation between the

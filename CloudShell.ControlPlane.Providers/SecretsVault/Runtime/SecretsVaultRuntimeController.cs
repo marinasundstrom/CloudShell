@@ -2,6 +2,10 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class SecretsVaultRuntimeOptions
 {
+    public BuiltInServiceRuntimeMode RuntimeMode { get; set; } = BuiltInServiceRuntimeMode.Process;
+
+    public string ContainerImage { get; set; } = "cloudshell/secrets-vault:local";
+
     public string ServiceProjectPath { get; set; } =
         "CloudShell.SecretsVaultService/CloudShell.SecretsVaultService.csproj";
 
@@ -96,7 +100,7 @@ public sealed class SecretsVaultProcessRuntimeController(
                 DefinitionsDirectory = _options.DefinitionsDirectory,
                 EnvironmentVariables = CreateEnvironmentVariables(_options)
             },
-            CreateDefinition,
+            (resource, endpoint) => CreateDefinition(_options, resource, endpoint),
             "secrets.vault",
             "Secrets Vault",
             cancellationToken);
@@ -107,7 +111,8 @@ public sealed class SecretsVaultProcessRuntimeController(
     public void Dispose() =>
         _runtime.Dispose();
 
-    private object CreateDefinition(
+    internal static object CreateDefinition(
+        SecretsVaultRuntimeOptions options,
         Resource resource,
         string? endpoint) =>
         new
@@ -116,13 +121,13 @@ public sealed class SecretsVaultProcessRuntimeController(
             name = resource.Name,
             displayName = resource.State.DisplayName,
             endpoint,
-            secrets = _options.Secrets.Select(secret => new
+            secrets = options.Secrets.Select(secret => new
             {
                 secret.Name,
                 secret.Value,
                 secret.Version
             }).ToArray(),
-            certificates = _options.Certificates.Select(certificate => new
+            certificates = options.Certificates.Select(certificate => new
             {
                 certificate.Name,
                 certificate.Value,
@@ -137,7 +142,7 @@ public sealed class SecretsVaultProcessRuntimeController(
             healthChecks = Array.Empty<object>()
         };
 
-    private static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
+    internal static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
         SecretsVaultRuntimeOptions options)
     {
         var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -171,6 +176,60 @@ public sealed class SecretsVaultProcessRuntimeController(
             variables[name] = value;
         }
     }
+}
+
+public sealed class SecretsVaultContainerRuntimeController(
+    IContainerHostRuntime containerHostRuntime,
+    SecretsVaultRuntimeOptions? options = null) :
+    ISecretsVaultRuntimeController,
+    ISecretsVaultRuntimeMonitor,
+    IDisposable,
+    IAsyncDisposable
+{
+    private readonly SecretsVaultRuntimeOptions _options =
+        options ?? new SecretsVaultRuntimeOptions();
+    private readonly ResourceWebAppContainerRuntime _runtime = new(containerHostRuntime);
+
+    public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
+        _runtime.GetStatus(resource);
+
+    public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+        Resource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default) =>
+        await _runtime.ExecuteAsync(
+            resource,
+            operationId,
+            SecretsVaultResourceTypeProvider.Attributes.Endpoint,
+            new ResourceWebAppContainerOptions(
+                _options.ContainerImage,
+                "secrets-vault",
+                "CloudShell__SecretsVaultService__DefinitionsPath",
+                "CloudShell__SecretsVaultService__ResourceId",
+                "secrets-vaults.json",
+                _options.StartupTimeout)
+            {
+                DefinitionsDirectory = _options.DefinitionsDirectory,
+                EnvironmentVariables = SecretsVaultProcessRuntimeController.CreateEnvironmentVariables(
+                    _options)
+            },
+            (resource, endpoint) => SecretsVaultProcessRuntimeController.CreateDefinition(
+                _options,
+                resource,
+                endpoint),
+            "secrets.vault",
+            "Secrets Vault",
+            cancellationToken);
+
+    public async ValueTask DisposeAsync() => await _runtime.DisposeAsync();
+
+    public void Dispose() => _runtime.DisposeAsync().AsTask().GetAwaiter().GetResult();
+
 }
 
 public sealed class NoopSecretsVaultRuntimeController :

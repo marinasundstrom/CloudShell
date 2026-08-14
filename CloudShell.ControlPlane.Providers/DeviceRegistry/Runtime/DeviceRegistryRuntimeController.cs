@@ -5,6 +5,10 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class DeviceRegistryRuntimeOptions
 {
+    public BuiltInServiceRuntimeMode RuntimeMode { get; set; } = BuiltInServiceRuntimeMode.Process;
+
+    public string ContainerImage { get; set; } = "cloudshell/device-registry:local";
+
     public string ServiceProjectPath { get; set; } =
         "CloudShell.DeviceRegistryService/CloudShell.DeviceRegistryService.csproj";
 
@@ -88,7 +92,7 @@ public sealed class DeviceRegistryProcessRuntimeController(
                 DefinitionsDirectory = _options.DefinitionsDirectory,
                 EnvironmentVariables = CreateEnvironmentVariables(_options, resource)
             },
-            CreateDefinition,
+            (resource, endpoint) => CreateDefinition(_options, resource, endpoint),
             "iot.deviceRegistry",
             "Device Registry",
             cancellationToken);
@@ -99,7 +103,8 @@ public sealed class DeviceRegistryProcessRuntimeController(
     public void Dispose() =>
         _runtime.Dispose();
 
-    private object CreateDefinition(
+    internal static object CreateDefinition(
+        DeviceRegistryRuntimeOptions options,
         Resource resource,
         string? endpoint) =>
         new
@@ -123,8 +128,8 @@ public sealed class DeviceRegistryProcessRuntimeController(
                     .GetObject<DeviceEnrollmentRequiredClaim[]>(
                         DeviceRegistryResourceTypeProvider.Attributes.RequiredClaims) ?? []
             },
-            enrollmentProfiles = GetEnrollmentProfiles(resource),
-            permissionGrants = GetLegacyPermissionGrants(resource)
+            enrollmentProfiles = GetEnrollmentProfiles(options, resource),
+            permissionGrants = GetLegacyPermissionGrants(options, resource)
                 .ToArray(),
             healthChecks = Array.Empty<object>()
         };
@@ -136,7 +141,9 @@ public sealed class DeviceRegistryProcessRuntimeController(
                 ? seconds
                 : null;
 
-    private IReadOnlyList<DeviceEnrollmentProfile> GetEnrollmentProfiles(Resource resource)
+    private static IReadOnlyList<DeviceEnrollmentProfile> GetEnrollmentProfiles(
+        DeviceRegistryRuntimeOptions options,
+        Resource resource)
     {
         var profiles = resource.Attributes.GetObject<DeviceEnrollmentProfile[]>(
             DeviceRegistryResourceTypeProvider.Attributes.EnrollmentProfiles);
@@ -145,7 +152,7 @@ public sealed class DeviceRegistryProcessRuntimeController(
             return profiles;
         }
 
-        var legacyGrants = GetLegacyPermissionGrants(resource)
+        var legacyGrants = GetLegacyPermissionGrants(options, resource)
             .Select(grant => new DeviceEnrollmentPermissionGrant(
                 grant.TargetResourceId,
                 grant.Permission))
@@ -173,8 +180,10 @@ public sealed class DeviceRegistryProcessRuntimeController(
         ];
     }
 
-    private IEnumerable<ResourcePermissionGrant> GetLegacyPermissionGrants(Resource resource) =>
-        _options.PermissionGrants
+    private static IEnumerable<ResourcePermissionGrant> GetLegacyPermissionGrants(
+        DeviceRegistryRuntimeOptions options,
+        Resource resource) =>
+        options.PermissionGrants
                 .Where(grant =>
                     grant.Principal.Kind == ResourcePrincipalKind.DeviceIdentity &&
                     string.Equals(
@@ -182,7 +191,7 @@ public sealed class DeviceRegistryProcessRuntimeController(
                         resource.EffectiveResourceId,
                         StringComparison.OrdinalIgnoreCase));
 
-    private static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
+    internal static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
         DeviceRegistryRuntimeOptions options,
         Resource resource)
     {
@@ -239,6 +248,72 @@ public sealed class DeviceRegistryProcessRuntimeController(
             variables[name] = value;
         }
     }
+}
+
+public sealed class DeviceRegistryContainerRuntimeController(
+    IContainerHostRuntime containerHostRuntime,
+    DeviceRegistryRuntimeOptions? options = null) :
+    IDeviceRegistryRuntimeController,
+    IDeviceRegistryRuntimeMonitor,
+    IDisposable,
+    IAsyncDisposable
+{
+    private readonly DeviceRegistryRuntimeOptions _options =
+        options ?? new DeviceRegistryRuntimeOptions();
+    private readonly ResourceWebAppContainerRuntime _runtime = new(containerHostRuntime);
+
+    public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
+        _runtime.GetStatus(resource);
+
+    public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+        Resource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default) =>
+        await _runtime.ExecuteAsync(
+            resource,
+            operationId,
+            DeviceRegistryResourceTypeProvider.Attributes.Endpoint,
+            new ResourceWebAppContainerOptions(
+                _options.ContainerImage,
+                "device-registry",
+                "CloudShell__DeviceRegistryService__DefinitionsPath",
+                "CloudShell__DeviceRegistryService__ResourceId",
+                "device-registries.json",
+                _options.StartupTimeout)
+            {
+                DefinitionsDirectory = _options.DefinitionsDirectory,
+                EnvironmentVariables = DeviceRegistryProcessRuntimeController.CreateEnvironmentVariables(
+                    _options,
+                    resource),
+                AdditionalPublishedPorts = CreateMqttPortBindings(resource)
+            },
+            (resource, endpoint) => DeviceRegistryProcessRuntimeController.CreateDefinition(
+                _options,
+                resource,
+                endpoint),
+            "iot.deviceRegistry",
+            "Device Registry",
+            cancellationToken);
+
+    public async ValueTask DisposeAsync() => await _runtime.DisposeAsync();
+
+    public void Dispose() => _runtime.DisposeAsync().AsTask().GetAwaiter().GetResult();
+
+    private static IReadOnlyList<ContainerHostPortBinding> CreateMqttPortBindings(Resource resource)
+    {
+        var endpoint = resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint);
+        return Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) &&
+            uri.Scheme == "mqtt" &&
+            !uri.IsDefaultPort
+                ? [new("127.0.0.1", uri.Port, uri.Port)]
+                : [];
+    }
+
 }
 
 public sealed class NoopDeviceRegistryRuntimeController :

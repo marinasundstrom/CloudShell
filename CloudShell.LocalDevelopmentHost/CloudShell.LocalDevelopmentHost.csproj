@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <CloudShellBuiltInServiceRuntime Condition="'$(CloudShellBuiltInServiceRuntime)' == ''">Process</CloudShellBuiltInServiceRuntime>
+    <DefineConstants Condition="'$(CloudShellBuiltInServiceRuntime)' == 'Container'">$(DefineConstants);CLOUDSHELL_BUILTIN_SERVICES_CONTAINER</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,5 +18,10 @@
     <Content Remove="Data/**" />
     <None Remove="Data/**" />
   </ItemGroup>
+
+  <Target Name="ValidateBuiltInServiceRuntime" BeforeTargets="CoreCompile">
+    <Error Condition="'$(CloudShellBuiltInServiceRuntime)' != 'Process' and '$(CloudShellBuiltInServiceRuntime)' != 'Container'"
+           Text="CloudShellBuiltInServiceRuntime must be Process or Container." />
+  </Target>
 
 </Project>

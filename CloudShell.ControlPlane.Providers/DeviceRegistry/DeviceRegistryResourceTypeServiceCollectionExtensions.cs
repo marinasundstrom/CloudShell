@@ -33,6 +33,7 @@ public static class DeviceRegistryResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddProviderExecutionDispatcher();
+        services.AddBuiltInServiceContainerRuntime();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -71,10 +72,11 @@ public static class DeviceRegistryResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<DeviceRegistryRuntimeOptions>();
         services.TryAddSingleton<IDeviceRegistryRuntimeDeviceManager, DeviceRegistryRuntimeDeviceManager>();
         services.TryAddSingleton<DeviceRegistryProcessRuntimeController>();
+        services.TryAddSingleton<DeviceRegistryContainerRuntimeController>();
         services.TryAddSingleton<IDeviceRegistryRuntimeController>(
-            serviceProvider => serviceProvider.GetRequiredService<DeviceRegistryProcessRuntimeController>());
+            serviceProvider => SelectRuntimeController(serviceProvider));
         services.TryAddSingleton<IDeviceRegistryRuntimeMonitor>(
-            serviceProvider => serviceProvider.GetRequiredService<DeviceRegistryProcessRuntimeController>());
+            serviceProvider => SelectRuntimeMonitor(serviceProvider));
 
         return services;
     }
@@ -92,4 +94,20 @@ public static class DeviceRegistryResourceTypeServiceCollectionExtensions
         services.AddSingleton(options);
         return services.AddDeviceRegistryResourceType();
     }
+
+    private static IDeviceRegistryRuntimeController SelectRuntimeController(
+        IServiceProvider serviceProvider) =>
+        serviceProvider.GetRequiredService<DeviceRegistryRuntimeOptions>().RuntimeMode switch
+        {
+            BuiltInServiceRuntimeMode.Process =>
+                serviceProvider.GetRequiredService<DeviceRegistryProcessRuntimeController>(),
+            BuiltInServiceRuntimeMode.Container =>
+                serviceProvider.GetRequiredService<DeviceRegistryContainerRuntimeController>(),
+            var mode => throw new InvalidOperationException(
+                $"Unsupported built-in service runtime mode '{mode}'.")
+        };
+
+    private static IDeviceRegistryRuntimeMonitor SelectRuntimeMonitor(
+        IServiceProvider serviceProvider) =>
+        (IDeviceRegistryRuntimeMonitor)SelectRuntimeController(serviceProvider);
 }

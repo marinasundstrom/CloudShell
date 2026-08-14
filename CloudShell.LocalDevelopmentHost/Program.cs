@@ -45,6 +45,8 @@ var serviceAuthenticationSigningKeyPem =
     builder.Configuration["Authentication:BuiltInAuthority:SigningKeyPem"];
 var hostRunApplicationResourceTypesEnabled =
     builder.Configuration.GetValue<bool>("ApplicationResources:HostRunResourceTypesEnabled");
+var builtInServiceRuntimeMode = builder.Configuration.GetValue<BuiltInServiceRuntimeMode?>(
+    "CloudShell:BuiltInServices:RuntimeMode") ?? GetDefaultBuiltInServiceRuntimeMode();
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
     configureBuiltInResourceModelProviders: options =>
@@ -57,6 +59,11 @@ AddLocalDevelopmentIdentityProvider(builder, cloudShell);
 cloudShell
     .UseConfigurationStoreResourceProvider(runtime =>
     {
+        runtime.RuntimeMode = builtInServiceRuntimeMode;
+        runtime.ContainerImage = ResolveBuiltInServiceImage(
+            builder.Configuration,
+            "ConfigurationStore",
+            runtime.ContainerImage);
         runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
         runtime.DefinitionsDirectory = Path.Combine(
@@ -68,6 +75,11 @@ cloudShell
     })
     .UseSecretsVaultResourceProvider(runtime =>
     {
+        runtime.RuntimeMode = builtInServiceRuntimeMode;
+        runtime.ContainerImage = ResolveBuiltInServiceImage(
+            builder.Configuration,
+            "SecretsVault",
+            runtime.ContainerImage);
         runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
         runtime.DefinitionsDirectory = Path.Combine(
@@ -79,6 +91,11 @@ cloudShell
     })
     .UseDeviceRegistryResourceProvider(runtime =>
     {
+        runtime.RuntimeMode = builtInServiceRuntimeMode;
+        runtime.ContainerImage = ResolveBuiltInServiceImage(
+            builder.Configuration,
+            "DeviceRegistry",
+            runtime.ContainerImage);
         runtime.ServiceProjectPath = deviceRegistryServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
         runtime.DefinitionsDirectory = Path.Combine(
@@ -142,6 +159,23 @@ app.MapCloudShellSqlServerCredentialApi();
 app.MapCloudShellUi<App>();
 
 app.Run();
+
+static BuiltInServiceRuntimeMode GetDefaultBuiltInServiceRuntimeMode()
+{
+#if CLOUDSHELL_BUILTIN_SERVICES_CONTAINER
+    return BuiltInServiceRuntimeMode.Container;
+#else
+    return BuiltInServiceRuntimeMode.Process;
+#endif
+}
+
+static string ResolveBuiltInServiceImage(
+    IConfiguration configuration,
+    string serviceName,
+    string defaultImage) =>
+    configuration[$"CloudShell:BuiltInServices:{serviceName}:Image"] is { Length: > 0 } image
+        ? image
+        : defaultImage;
 
 static string ResolveCloudShellDataDirectory(
     IConfiguration configuration,

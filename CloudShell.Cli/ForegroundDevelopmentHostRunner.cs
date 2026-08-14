@@ -8,6 +8,7 @@ using Spectre.Console;
 internal sealed class ForegroundDevelopmentHostRunner
 {
     internal const string DevelopmentHostAssemblyName = "CloudShell.LocalDevelopmentHost.dll";
+    internal static readonly TimeSpan GracefulShutdownTimeout = TimeSpan.FromSeconds(10);
 
     public async Task<int> RunAsync(
         RunCommand command,
@@ -300,6 +301,13 @@ internal sealed class ForegroundDevelopmentHostRunner
 
     private static async Task StopAsync(Process process)
     {
+        if (!process.HasExited)
+        {
+            await Task.WhenAny(
+                process.WaitForExitAsync(),
+                Task.Delay(GracefulShutdownTimeout));
+        }
+
         try
         {
             if (!process.HasExited)

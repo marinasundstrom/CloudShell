@@ -33,6 +33,7 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddProviderExecutionDispatcher();
+        services.AddBuiltInServiceContainerRuntime();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -81,10 +82,11 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceModelGraphApplyReconciler, ConfigurationStoreSeedReconciler>());
         services.TryAddSingleton<ConfigurationStoreProcessRuntimeController>();
+        services.TryAddSingleton<ConfigurationStoreContainerRuntimeController>();
         services.TryAddSingleton<IConfigurationStoreRuntimeController>(
-            serviceProvider => serviceProvider.GetRequiredService<ConfigurationStoreProcessRuntimeController>());
+            serviceProvider => SelectRuntimeController(serviceProvider));
         services.TryAddSingleton<IConfigurationStoreRuntimeMonitor>(
-            serviceProvider => serviceProvider.GetRequiredService<ConfigurationStoreProcessRuntimeController>());
+            serviceProvider => SelectRuntimeMonitor(serviceProvider));
         services.TryAddSingleton<
             IConfigurationStoreInspector,
             ConfigurationStoreRuntimeInspector>();
@@ -105,4 +107,20 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
         services.AddSingleton(options);
         return services.AddConfigurationStoreResourceType();
     }
+
+    private static IConfigurationStoreRuntimeController SelectRuntimeController(
+        IServiceProvider serviceProvider) =>
+        serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>().RuntimeMode switch
+        {
+            BuiltInServiceRuntimeMode.Process =>
+                serviceProvider.GetRequiredService<ConfigurationStoreProcessRuntimeController>(),
+            BuiltInServiceRuntimeMode.Container =>
+                serviceProvider.GetRequiredService<ConfigurationStoreContainerRuntimeController>(),
+            var mode => throw new InvalidOperationException(
+                $"Unsupported built-in service runtime mode '{mode}'.")
+        };
+
+    private static IConfigurationStoreRuntimeMonitor SelectRuntimeMonitor(
+        IServiceProvider serviceProvider) =>
+        (IConfigurationStoreRuntimeMonitor)SelectRuntimeController(serviceProvider);
 }

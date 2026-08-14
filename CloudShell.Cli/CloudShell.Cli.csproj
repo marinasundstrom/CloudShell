@@ -9,6 +9,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>cloudshell</ToolCommandName>
     <PackageId>CloudShell.Cli</PackageId>
+    <CloudShellBuiltInServiceRuntime Condition="'$(CloudShellBuiltInServiceRuntime)' == ''">Container</CloudShellBuiltInServiceRuntime>
     <BundledDevelopmentHostPublishDirectory>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)', 'bundled-development-host', '$(Configuration)'))/</BundledDevelopmentHostPublishDirectory>
   </PropertyGroup>
 
@@ -29,7 +30,7 @@
     <RemoveDir Directories="$(PublishDir)host" />
     <MSBuild Projects="$(MSBuildProjectDirectory)/../CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj"
              Targets="Publish"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);PublishDir=$(BundledDevelopmentHostPublishDirectory);UseAppHost=false;Version=$(Version);PackageVersion=$(PackageVersion)" />
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);PublishDir=$(BundledDevelopmentHostPublishDirectory);UseAppHost=false;Version=$(Version);PackageVersion=$(PackageVersion);CloudShellBuiltInServiceRuntime=$(CloudShellBuiltInServiceRuntime)" />
     <ItemGroup>
       <_BundledDevelopmentHostFile Include="$(BundledDevelopmentHostPublishDirectory)**/*" />
     </ItemGroup>
