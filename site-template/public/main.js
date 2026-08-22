@@ -40,6 +40,8 @@ const initializePrimaryNavigationLinks = () => {
   ]);
 
   const enhance = () => {
+    const relativeRoot = document.querySelector('meta[name="docfx:rel"]')?.content ?? '';
+
     document.querySelectorAll('#navbar .navbar-nav > .nav-item.dropdown').forEach((item) => {
       const toggle = item.querySelector(':scope > .dropdown-toggle');
       const label = toggle?.textContent?.replace(/\s+/g, ' ').trim();
@@ -48,7 +50,7 @@ const initializePrimaryNavigationLinks = () => {
 
       const link = document.createElement('a');
       link.className = 'nav-link cs-nav-parent-link';
-      link.href = href;
+      link.href = `${relativeRoot}${href}`;
       link.textContent = label;
 
       if (toggle.classList.contains('active')) {

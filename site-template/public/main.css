@@ -201,7 +201,9 @@ body:has(.cs-landing) .contribution {
 .cs-cta h2 { color: white; margin: .65rem 0 1rem; }
 .cs-cta > p:not(.cs-kicker) { color: #b7c2d5; font-size: 1.08rem; line-height: 1.7; }
 .cs-cta .cs-actions { margin-top: 2rem; }
-.cs-button-light { color: var(--cs-ink) !important; background: white; }
+.cs-button-light { color: #0b1020 !important; background: white; }
+.cs-button-light:hover,
+.cs-button-light:focus-visible { color: #07152e !important; background: #e8f1ff; }
 .cs-button-ghost { color: white !important; border: 1px solid rgba(255,255,255,.25); }
 
 [data-bs-theme="dark"] body {
