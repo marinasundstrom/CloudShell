@@ -2,7 +2,15 @@
   href: index.md
 - name: Applications
   href: applications.md
+  items:
+  - name: .NET apps
+    href: dotnet-apps.md
+  - name: Container apps
+    href: container-apps.md
 - name: Data and services
   href: data-services.md
+  items:
+  - name: RabbitMQ
+    href: rabbitmq.md
 - name: Platform
   href: platform.md

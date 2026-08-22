@@ -1,0 +1,48 @@
+name: Website verification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/pages.yml"
+      - ".github/workflows/website.yml"
+      - ".config/dotnet-tools.json"
+      - "images/**"
+      - "site-template/**"
+      - "website/**"
+      - "docfx.json"
+      - "global.json"
+  push:
+    branches:
+      - main
+      - codex/**
+    paths:
+      - ".github/workflows/pages.yml"
+      - ".github/workflows/website.yml"
+      - ".config/dotnet-tools.json"
+      - "images/**"
+      - "site-template/**"
+      - "website/**"
+      - "docfx.json"
+      - "global.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore documentation tools
+        run: dotnet tool restore
+
+      - name: Build website
+        run: dotnet docfx docfx.json

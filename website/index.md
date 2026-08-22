@@ -66,7 +66,7 @@ _disableToc: true
     </div>
   </section>
 
-  <section class="cs-section" aria-labelledby="resources-title">
+  <section class="cs-section cs-resources" aria-labelledby="resources-title">
     <div class="cs-section-heading">
       <div><p class="cs-kicker">Services and building blocks</p><h2 id="resources-title">Run the stack your application needs.</h2></div>
       <p>CloudShell presents workloads and infrastructure as resources with consistent identity, relationships, state, operations, and diagnostics.</p>

@@ -15,6 +15,14 @@ CloudShell models workloads and infrastructure through a common resource graph. 
 | Data and services | SQL Server, RabbitMQ, configuration, secrets, events, and device registry | [Data and service resources](data-services.md) |
 | Platform | Containers, storage, networking, DNS, load balancing, identities, and logical services | [Platform resources](platform.md) |
 
+## Featured resource types
+
+Start with the resources that best show how CloudShell connects declared intent to live operations:
+
+- [.NET apps](dotnet-apps.md) for fast project-based development with dependencies and request tracing.
+- [Container apps](container-apps.md) for packaged workloads, replica-aware runtime state, routing, and stronger deployment boundaries.
+- [RabbitMQ](rabbitmq.md) for application messaging, identity-based broker access, persistent storage, and trace propagation through publish and consume operations.
+
 ## User-authored and managed resources
 
 Most application and service resources are authored directly in YAML, templates, or launchers. Some lower-level resources are normally created by a host or provider to explain runtime state. For example, prefer a **Container app** for a managed workload; inspect its provider-created container resources only when you need lower-level diagnosis.

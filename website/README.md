@@ -1,6 +1,6 @@
 # CloudShell website maintenance
 
-The files in this directory are short, user-facing website content. They are deliberately separate from the project documentation in `docs/` and are published with DocFX by `.github/workflows/pages.yml`.
+The files in this directory are short, user-facing website content. They are deliberately separate from the project documentation in `docs/`. Pull requests and pushes validate the DocFX build through `.github/workflows/website.yml`; publishing is a separate, manual action through `.github/workflows/pages.yml`.
 
 ## Build and preview
 
@@ -11,6 +11,10 @@ python3 -m http.server 8097 --directory _site
 ```
 
 Open `http://127.0.0.1:8097`. Check the landing page in both light and dark modes before publishing.
+
+## Publish
+
+Run the **Publish website** workflow manually in GitHub Actions after the site changes have been reviewed. Repository pushes do not publish the website.
 
 ## Reproduce the showcase screenshots
 
@@ -38,3 +42,14 @@ The four carousel images are one coherent, high-resolution capture set. Replace 
 7. Rebuild the DocFX site. Verify the carousel controls, captions, image crops, accessible alternative text, and both site color modes.
 
 Screenshots must come from a fresh local run. Do not reuse historical images or include secrets, private endpoints, personal account information, or unrelated resources.
+
+## Reproduce resource guide screenshots
+
+Resource guide screenshots use the same English, light-theme product state as the carousel. Capture them at 2× pixel density and keep the important resource details visible without browser chrome.
+
+For `images/resource-rabbitmq.png`:
+
+1. From `samples/RabbitMQMessaging`, run `./cloudshell.sh run-no-auth`.
+2. Open the Resources view, start **RabbitMQ**, wait for its state to become **Running**, and select its table row.
+3. Dismiss notifications or refresh the view so no command result remains. Keep the resource list and RabbitMQ detail panel open together; the image should show the publishers, volume, broker state, and AMQP and management endpoints.
+4. Use a 1440 × 900 viewport and save a 2880 × 1800 PNG.

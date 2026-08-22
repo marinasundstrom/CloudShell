@@ -23,6 +23,11 @@ Use a language-specific resource for quick local iteration against source on the
 
 Container apps are the preferred application deployment shape for team-owned environments. A provider may create replica or low-level container resources underneath the application; the container app remains the stable resource you operate.
 
+## Featured resource guides
+
+- [.NET apps](dotnet-apps.md) — a project-aware local workflow with dependencies, endpoints, health, and distributed tracing.
+- [Container apps](container-apps.md) — a stable application boundary over revisions, replica groups, routing, and runtime-managed containers.
+
 ## Common capabilities
 
 Capabilities depend on the resource type, provider, and current state, but application resources can provide:

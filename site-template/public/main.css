@@ -36,6 +36,13 @@ body:has(.cs-landing) .content {
   margin: 0 !important;
 }
 
+body:has(.cs-landing) main.container-xxl {
+  width: 100%;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 body:has(.cs-landing) article {
   max-width: none;
   padding: 0;
@@ -60,12 +67,12 @@ body:has(.cs-landing) .contribution {
 .cs-landing .anchorjs-link { display: none !important; }
 
 .cs-hero {
-  min-height: 760px;
+  min-height: 720px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(420px, .82fr);
   align-items: center;
   gap: clamp(2rem, 5vw, 6rem);
-  padding: 6.5rem max(5vw, calc((100vw - 1320px) / 2)) 7rem;
+  padding: 6rem max(2rem, calc((100vw - 1256px) / 2));
   color: #f7f9ff;
   background:
     radial-gradient(circle at 78% 28%, rgba(79, 127, 255, .22), transparent 27%),
@@ -121,13 +128,13 @@ body:has(.cs-landing) .contribution {
 .cs-node-dot.teal { background: var(--cs-teal); }
 .cs-node-dot.blue { background: var(--cs-blue-bright); }
 
-.cs-section { max-width: 1320px; margin: 0 auto; padding: clamp(5rem, 9vw, 8.5rem) 2rem; }
-.cs-product { max-width: 1440px; }
+.cs-section { max-width: 1320px; margin: 0 auto; padding: clamp(4.5rem, 6vw, 6rem) 2rem; }
+.cs-product, .cs-resources { padding-bottom: 0; }
 .cs-section-heading { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .7fr); gap: 4rem; align-items: end; margin-bottom: 3.3rem; }
 .cs-section-heading h2, .cs-cta h2 { font-size: clamp(2.45rem, 4.3vw, 4.5rem); line-height: 1.04; letter-spacing: -.052em; margin: .55rem 0 0; }
 .cs-section-heading > p { color: var(--cs-muted); font-size: 1.05rem; line-height: 1.7; margin-bottom: .4rem; }
 
-.cs-carousel { border: 1px solid var(--cs-line); border-radius: 1.05rem; overflow: hidden; background: var(--cs-surface); box-shadow: 0 25px 70px var(--cs-shadow); }
+.cs-carousel { width: min(100%, 1040px); margin-inline: auto; border: 1px solid var(--cs-line); border-radius: 1.05rem; overflow: hidden; background: var(--cs-surface); box-shadow: 0 25px 70px var(--cs-shadow); }
 .cs-carousel-stage { position: relative; aspect-ratio: 16 / 8.6; overflow: hidden; background: var(--cs-carousel-stage); }
 .cs-slide { position: absolute; inset: 0; opacity: 0; transition: opacity .35s ease; margin: 0; pointer-events: none; }
 .cs-slide.is-active { opacity: 1; pointer-events: auto; }
@@ -145,7 +152,7 @@ body:has(.cs-landing) .contribution {
 .cs-carousel-dots button.is-active { width: 1.8rem; background: var(--cs-blue); }
 
 .cs-resource-grid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--cs-line); border-radius: 1rem; overflow: hidden; }
-.cs-resource-card { min-height: 330px; display: flex; flex-direction: column; padding: 1.7rem; border-right: 1px solid var(--cs-line); background: var(--cs-surface); }
+.cs-resource-card { min-height: 300px; display: flex; flex-direction: column; padding: 1.7rem; border-right: 1px solid var(--cs-line); background: var(--cs-surface); }
 .cs-resource-card:last-child { border-right: 0; }
 .cs-card-index { color: #8a93a5; font-size: .75rem; font-weight: 750; letter-spacing: .1em; }
 .cs-resource-card h3 { font-size: 1.45rem; letter-spacing: -.025em; margin: auto 0 .8rem; }
@@ -165,7 +172,7 @@ body:has(.cs-landing) .contribution {
 .cs-steps h3 { margin-bottom: .65rem; font-size: 1.35rem; }
 .cs-steps p { color: var(--cs-muted); line-height: 1.65; }
 
-.cs-cta { max-width: 1256px; margin: clamp(5rem, 9vw, 8rem) auto; padding: clamp(3rem, 7vw, 6.5rem); color: white; border-radius: 1.1rem; background: linear-gradient(135deg, #0a1023, #101b38 68%, #142a52); position: relative; overflow: hidden; }
+.cs-cta { max-width: 1256px; margin: clamp(4rem, 5vw, 5rem) auto; padding: clamp(3rem, 6vw, 5.5rem); color: white; border-radius: 1.1rem; background: linear-gradient(135deg, #0a1023, #101b38 68%, #142a52); position: relative; overflow: hidden; }
 .cs-cta::after { content: ""; position: absolute; width: 380px; height: 380px; right: -90px; top: -150px; border: 1px solid rgba(103,160,255,.36); border-radius: 50%; box-shadow: 0 0 0 60px rgba(67,119,222,.06), 0 0 0 120px rgba(67,119,222,.035); }
 .cs-cta > * { max-width: 760px; position: relative; z-index: 1; }
 .cs-cta .cs-kicker { color: #8cbcff; }
@@ -200,6 +207,21 @@ body:has(.cs-landing) .contribution {
 [data-bs-theme="dark"] .cs-carousel-dots button { background: #526078; }
 [data-bs-theme="dark"] .cs-carousel-dots button.is-active { background: #6fafff; }
 
+.cs-doc-shot {
+  margin: 2rem 0 2.5rem;
+  overflow: hidden;
+  border: 1px solid var(--bs-border-color);
+  border-radius: .85rem;
+  background: var(--bs-body-bg);
+  box-shadow: 0 18px 45px rgba(39,52,83,.1);
+}
+
+.cs-doc-shot a,
+.cs-doc-shot img { display: block; }
+.cs-doc-shot img { width: 100%; height: auto; }
+.cs-doc-shot figcaption { padding: .9rem 1.1rem 1rem; color: var(--bs-secondary-color); font-size: .9rem; line-height: 1.55; border-top: 1px solid var(--bs-border-color); }
+[data-bs-theme="dark"] .cs-doc-shot { box-shadow: 0 18px 45px rgba(0,0,0,.32); }
+
 @media (max-width: 980px) {
   .cs-hero { min-height: auto; grid-template-columns: 1fr; padding-top: 5rem; }
   .cs-hero-visual { width: min(100%, 600px); min-width: 0; margin: -1rem auto 0; }
@@ -217,14 +239,15 @@ body:has(.cs-landing) .contribution {
   .cs-hero { padding: 4.2rem 1.25rem 3.6rem; }
   .cs-hero h1 { font-size: clamp(3.1rem, 15vw, 4.3rem); }
   .cs-hero-visual { height: 390px; transform: scale(.86); transform-origin: top center; margin-bottom: -3rem; }
-  .cs-section { padding: 4.5rem 1.25rem; }
+  .cs-section { padding: 4rem 1.25rem; }
+  .cs-product, .cs-resources { padding-bottom: 0; }
   .cs-carousel-stage { aspect-ratio: 4 / 3; }
   .cs-slide img { object-fit: cover; object-position: left top; }
   .cs-carousel-caption { min-height: 190px; padding: 1.25rem; }
   .cs-resource-grid { grid-template-columns: 1fr; }
-  .cs-resource-card { min-height: 285px; border-right: 0; border-bottom: 1px solid var(--cs-line); }
+  .cs-resource-card { min-height: 260px; border-right: 0; border-bottom: 1px solid var(--cs-line); }
   .cs-resource-card:last-child { border-bottom: 0; }
-  .cs-cta { margin: 4.5rem 1.25rem; padding: 3rem 1.4rem; }
+  .cs-cta { margin: 3.5rem 1.25rem; padding: 3rem 1.4rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
