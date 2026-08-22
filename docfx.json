@@ -39,6 +39,7 @@
       "_appLogoPath": "assets/brand/cloudshell-placeholder.png",
       "_appFooter": "CloudShell is preview software and is not a committed product.",
       "_appFaviconPath": "assets/brand/cloudshell-placeholder.png",
+      "_googleAnalyticsTagId": "G-YXL7HLM3JM",
       "_enableSearch": true,
       "_gitContribute": {
         "repo": "https://github.com/marinasundstrom/CloudShell",
