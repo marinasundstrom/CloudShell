@@ -24,7 +24,7 @@ configuration provider. The development sample stores them in
 
 ## Programmatic Declarations
 
-Resources declared with `Resources` in the Control Plane host are
+Resources declared with `Resources` in the Control Plane application are
 startup configuration by default. They appear in Resource Manager without
 writing provider-owned configuration or core registration rows, so the
 checked-in code remains the source of truth.

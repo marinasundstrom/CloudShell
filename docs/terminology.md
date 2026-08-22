@@ -4,6 +4,50 @@ This document is the canonical vocabulary for CloudShell product and domain
 concepts. Other docs should link here when they introduce or depend on shared
 terms.
 
+## Control Plane Execution Terms
+
+These terms describe the target architecture in
+[Control Plane execution model](future/control-plane-execution-model.md).
+Current APIs may still use **host profile** for .NET composition and startup
+configuration while that direction is refined.
+
+### Host Application
+
+A **host application** is the source-level composition that selects CloudShell
+UI, the Control Plane, capabilities, providers, runtime adapters,
+authentication, persistence, and extensions.
+
+### Control Plane Distribution
+
+A **Control Plane distribution** is a runnable and distributable package that
+contains the Control Plane and its selected capabilities. It can contain only
+the Control Plane or combine it with the CloudShell UI.
+
+### Control Plane Instance
+
+A **Control Plane instance** is a running realization of a Control Plane
+distribution. It may be lifetime-bound to a CLI or Launcher, supervised by a
+CloudShell daemon, or managed by an external service or platform.
+
+### Control Plane Endpoint
+
+A **Control Plane endpoint** is the URL and Web API contract by which clients
+access a Control Plane instance. Once the URL and required credentials are
+known, clients do not need to know how the distribution is packaged or hosted.
+
+### CloudShell Daemon
+
+The **CloudShell daemon** is the planned system-service supervisor for resident
+Control Plane instances. It is not the Control Plane, and it is not merely a
+generic term for any detached process.
+
+### Programmatic Launcher
+
+A **programmatic Launcher** is a language-specific authoring application that
+produces a `ResourceTemplate`, optionally launches a Control Plane
+distribution, discovers its endpoint, and applies the template through the Web
+API. It does not implement the Control Plane or provider runtime behavior.
+
 ## Environment Models
 
 ### Host Environment

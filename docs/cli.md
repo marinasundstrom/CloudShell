@@ -7,7 +7,7 @@ operate the Control Plane through the same API used by remote clients.
 
 The first supported responsibilities are:
 
-- start, stop, and inspect a local Control Plane host process
+- start, stop, and inspect a local Control Plane instance
 - open an already-hosted CloudShell UI on a best-effort basis
 - list resources, inspect resource details, and execute resource actions
   through the Control Plane API
@@ -16,8 +16,21 @@ The first supported responsibilities are:
 - configure local hosts-file name mappings for development names
 - use identity when calling the Control Plane API
 
-The CLI does not become a second Control Plane. It launches or discovers a
-host, then uses the Control Plane API for resource operations.
+The CLI does not become a second Control Plane. It launches a distribution or
+discovers an existing endpoint, then uses the Control Plane API for resource
+operations.
+
+Architecturally, the CLI consumes a resource template, launches or locates a
+compatible Control Plane distribution, waits for its endpoint, and applies the
+template through the Web API. After discovery it needs only the endpoint and
+credentials. When it launches an application-scoped instance, it additionally
+retains the process or service handle needed to own that instance's lifetime.
+
+The same API operations apply to resident instances supervised by a future
+CloudShell daemon and to externally hosted instances. The current commands
+documented below do not yet constitute that target daemon architecture:
+recorded PID/state-file management is an implementation precursor. See
+[Control Plane execution model](future/control-plane-execution-model.md).
 
 ## YAML App Host MVP
 
@@ -70,7 +83,7 @@ project.
 
 ## Local Control Plane
 
-Start a local Control Plane host:
+Start a local Control Plane instance:
 
 ```bash
 dotnet run --project CloudShell.Cli -- control-plane start
@@ -116,7 +129,7 @@ dotnet run --project CloudShell.Cli -- ui open
 ```
 
 `ui open` is best effort. If `--url` is omitted, the CLI opens the recorded
-local Control Plane host URL, which works when that host also serves the UI.
+local Control Plane URL, which works when the distribution also serves the UI.
 Use an explicit URL when the UI is hosted elsewhere:
 
 ```bash
@@ -202,10 +215,10 @@ Launcher apps should target `CloudShell.LocalDevelopmentHost` by default. Use a
 custom host project only when the Control Plane/UI process needs additional
 host-specific extensions or services.
 
-Use `--start` when the CLI should launch the local Control Plane host before
-applying the template. The same daemon options used by `control-plane start`
-can be supplied when the default host project, URL, state directory, or build
-behavior does not fit:
+Use `--start` when the CLI should launch the local Control Plane distribution
+before applying the template. The same daemon options used by `control-plane
+start` can be supplied when the default host project, URL, state directory, or
+build behavior does not fit:
 
 ```bash
 dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml \

@@ -32,7 +32,7 @@ the domain shell that assembles CoreShell with the default presenters and
 predefined CloudShell integrations.
 
 CloudShell UI may run inside a host application by itself, or it may run in the
-same host process as the Control Plane for local development.
+same process as the Control Plane for local development.
 
 The hosting methods mirror that boundary. `AddCloudShellUi()`,
 `UseCloudShellUiAsync()`, and `MapCloudShellUi<TRootComponent>()` are UI-only
@@ -163,10 +163,10 @@ tool or runtime. This is a boundary-first strategy, not an immediate agent
 split: existing resource type providers, operation providers, and runtime
 handlers remain the right shape, but their execution contracts should become
 typed, observable, idempotent, and transport-neutral. For now, the execution
-implementation can stay inside the same Control Plane host and run through the
-same dependency-injection path. The important design constraint is that the
-Control Plane should call an execution boundary that could later be backed by
-a remote agent without changing resource definitions, operation providers, or
+implementation can stay inside the same Control Plane process and run through
+the same dependency-injection path. The important design constraint is that
+the Control Plane should call an execution boundary that could later be backed
+by a remote agent without changing resource definitions, operation providers, or
 Resource Manager semantics. The Control Plane remains authoritative for
 desired state, identity, policy, operation history, and diagnostics; a future
 agent can run the same provider-side operation shape on the machine where the
@@ -190,10 +190,10 @@ The preparation path is:
 
 ```text
 Current MVP
-    one Control Plane host, implicit default execution target
+    one Control Plane instance, implicit default execution target
 
 Execution-boundary MVP
-    one Control Plane host, typed execution requests and observed results
+    one Control Plane instance, typed execution requests and observed results
 
 Agent transition
     same execution requests can be routed to an agent instead of local DI
@@ -326,6 +326,18 @@ flowchart TD
 CloudShell separates the environment from the host applications and capability
 packages that compose it.
 
+The target execution architecture separates a Control Plane distribution, a
+running Control Plane instance, its API endpoint, and the process or service
+that owns its lifetime. A distribution can contain only the Control Plane or
+combine it with the CloudShell UI. The same distribution can run as an
+application-scoped process owned by a CLI or Launcher, as a resident service
+supervised by a CloudShell daemon, or under an external service manager.
+
+Once a client has the Control Plane URL and credentials, these hosting and
+packaging choices are intentionally hidden behind the Control Plane and
+Resource Manager APIs. See
+[Control Plane execution model](future/control-plane-execution-model.md).
+
 ### CloudShell environment
 
 A CloudShell environment is the managed local, team-owned, or on-premise
@@ -335,9 +347,9 @@ UI hosts.
 
 The environment model is deliberately shared between local development and
 on-premise hosting. A developer can run the platform locally as a combined
-CloudShell UI and Control Plane host while resources are still code-first, then
-the same resource model can be persisted into durable Control Plane state and
-operated by a standing CloudShell environment. CloudShell is therefore a
+CloudShell UI and Control Plane process while resources are still code-first,
+then the same resource model can be persisted into durable Control Plane state
+and operated by a standing CloudShell environment. CloudShell is therefore a
 hosting platform that doubles as a development tool, not a development
 dashboard that must later be replaced by a different operational model.
 
@@ -411,6 +423,14 @@ A CloudShell host application is the ASP.NET Core application owned by a
 product integrator or sample. It chooses deployment shape, configuration,
 authentication, persistence, and installed capabilities. A host application can
 run CloudShell UI, the Control Plane, or both.
+
+A runnable package that includes the Control Plane is a **Control Plane
+distribution**. It can contain the Control Plane alone or combine it with the
+CloudShell UI. Running that distribution creates a **Control Plane instance**
+that exposes a **Control Plane endpoint**. `CloudShell.LocalDevelopmentHost`
+is the standard development-oriented combined distribution. Custom host
+applications can produce other distributions for application-specific,
+team-owned, and on-premise environments.
 
 In split deployments, the UI host discovers resources through a remote Control
 Plane client instead of declaring resources or hosting providers locally. In
@@ -512,7 +532,7 @@ flowchart LR
         OtherUi["Other CloudShell UI integration"]
     end
 
-    subgraph ControlPlaneHost["Control Plane host"]
+    subgraph ControlPlaneHost["Control Plane"]
         ControlPlane["Control Plane service"]
         ResourceManagerBackend["Resource Manager backend services"]
         ProviderBackend["Resource provider integration"]
@@ -579,8 +599,8 @@ CloudShell supports several host shapes:
   shell.
 - Combined host: runs CloudShell UI and Control Plane together, primarily for
   local development and small self-hosted deployments.
-- Clustered Control Plane host: runs API replicas, controller roles, workers,
-  or provider adapters as one environment authority.
+- Clustered Control Plane deployment: runs API replicas, controller roles,
+  workers, or provider adapters as one environment authority.
 - Federated UI host: runs one CoreShell surface over multiple remote Control
   Plane authorities through explicit client configuration.
 

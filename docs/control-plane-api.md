@@ -115,10 +115,10 @@ GET  /api/control-plane/v1/resources/{resourceId}/artifacts/{artifactId}/revisio
 POST /api/control-plane/v1/resources/{resourceId}/artifacts/validate
 ```
 
-The first implementation treats the configured Control Plane host artifact
-store as the direct upload target. Future transfer modes may pull from other
-artifact sources into a supported host target, but the Control Plane remains
-the authority for artifact revisions. Resource type providers announce the
+The first implementation treats the artifact store configured for the Control
+Plane instance as the direct upload target. Future transfer modes may pull
+from other artifact sources into a supported runtime target, but the Control
+Plane remains the authority for artifact revisions. Resource type providers announce the
 supported artifact layouts for each resource type, and a resource definition
 chooses either local-source mode or application-artifact mode, not both.
 Artifact validation runs against a completed revision and returns the standard

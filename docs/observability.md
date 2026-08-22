@@ -101,10 +101,10 @@ cursor when the file is truncated or replaced. Plain-text and JSON console
 formats use the common `LogEntryParser`; the process writing the file remains
 responsible for recording, flushing, rotation, and retention.
 
-File access is disabled until the Control Plane host configures one or more
-absolute allowed roots. A declared file must remain inside one of those roots,
-and the provider rejects symbolic-link or reparse-point traversal below the
-root. The path is revalidated for every read and follow poll.
+File access is disabled until the Control Plane deployment configures one or
+more absolute allowed roots. A declared file must remain inside one of those
+roots, and the provider rejects symbolic-link or reparse-point traversal below
+the root. The path is revalidated for every read and follow poll.
 
 ```json
 {

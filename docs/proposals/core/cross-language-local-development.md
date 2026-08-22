@@ -11,6 +11,8 @@
   [Programmatic resources](../../programmatic-resources.md),
   [Resource templates](../../resource-templates.md), and
   [SDK clients](../../sdk-clients.md).
+- Related architectural direction:
+  [Control Plane execution model](../../future/control-plane-execution-model.md).
 - Remaining action: harden the installed foreground YAML path and then make
   launcher packages provide the same default lifecycle without changing the
   host/profile and Control Plane API boundary.
@@ -25,6 +27,13 @@ builder APIs where useful, exchange the graph through ResourceDefinition-based
 templates, and let the Control Plane own validation, lifecycle, projection,
 and operations. TypeScript/JavaScript, Java, Python, Go, and other ecosystems
 should use the same contracts rather than reimplementing CloudShell.
+
+This proposal does not define the final daemon architecture. Its foreground
+Launcher work is the application-scoped side of the broader Control Plane
+execution direction. A future on-premise hosting proposal should define the
+system-service daemon and resident instance-management contract without
+changing the `ResourceTemplate`, endpoint, or Control Plane API boundaries
+established here.
 
 The first implementation slices now include the CloudShell CLI,
 `CloudShell.AppHost.Launcher`, `CloudShell.LocalDevelopmentHost`,

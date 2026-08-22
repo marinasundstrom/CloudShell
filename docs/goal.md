@@ -45,8 +45,9 @@ Resource Manager workflows, provider integrations, and API-driven automation.
 - CloudShell should be ecosystem-neutral for users, applications, providers,
   and host bootstrapping even though the core implementation is C#/.NET.
   JavaScript, TypeScript, Java, C#, and other languages should be able to
-  define resource graphs, configure startup, launch the host, and drive the
-  Control Plane through supported SDKs, launchers, templates, and API clients.
+  define resource graphs, launch or locate a Control Plane distribution, and
+  drive its endpoint through supported SDKs, Launchers, templates, and API
+  clients.
 - CloudShell should be designed for multiple Control Plane topologies. A
   single UI should be able to target remote Control Planes, and future
   environments should be able to federate, cluster, or partition Control Plane
@@ -99,8 +100,8 @@ or self-hosted environments, while keeping a path to provider-backed
 implementations. It should also avoid giving the impression that CloudShell is
 only for .NET teams or .NET workloads. The CloudShell core can remain
 C#-based while other languages provide launcher entry points that define the
-graph, configure host startup, start or target the host, and operate the same
-Control Plane through consistent cross-platform tooling.
+graph, configure distribution startup, launch or select a Control Plane
+endpoint, and operate it through consistent cross-platform tooling.
 
 The platform can learn from existing cloud portals without inheriting their
 legacy boundaries. Familiar placement and affordances are useful, but

@@ -228,7 +228,7 @@ making authored paths such as `environmentVariables` resolve predictably to
 the provider-versioned canonical attribute ID used by validation and runtime
 handlers.
 
-Control Plane host setup also exposes `DefineResources(...)` and
+Control Plane application setup also exposes `DefineResources(...)` and
 `DefineInitialTemplate(...)` for in-memory graph declarations. Both callbacks
 use `ControlPlaneResourceGraphBuilder`, register Resource Manager declarations
 for the graph resources, and seed the in-memory Resource Model graph. Use

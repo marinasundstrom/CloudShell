@@ -29,6 +29,14 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Changed
 
+- Documented the target Control Plane execution architecture: the CLI receives
+  a resource template and Launchers produce one; either can launch a Control
+  Plane distribution, discover its endpoint, and apply the template through
+  the same Web API. Distributions may contain only the Control Plane or also
+  the UI, while instance hosting and lifetime remain separate concerns. Current
+  PID/state-file commands are explicitly identified as implementation
+  precursors rather than the completed daemon contract.
+  Decision: [ADR-20260822-002](ADR.md#adr-20260822-002).
 - The host bundled into `CloudShell.Cli` now embeds same-version GHCR image
   references at pack time. Source-host process defaults and resource template
   shapes remain unchanged.

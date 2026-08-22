@@ -90,8 +90,8 @@ interactive users, the Resource Manager UI integration is part of the expected
 product surface.
 
 For split hosting, register the capability package's Control Plane side in the
-Control Plane host and the package's UI side in the CloudShell UI host. UI
-integrations should consume their product area's public managers and client
+Control Plane application and the package's UI side in the CloudShell UI host.
+UI integrations should consume their product area's public managers and client
 adapters. For Resource Manager UI, that means Resource Manager/Control Plane
 abstractions such as `IControlPlane` or `IResourceManager`, which can be backed
 by an in-process implementation in a combined host or a remote adapter in a
@@ -211,9 +211,9 @@ builder.AddCloudShellUi(ui =>
 
 In the intended NuGet distribution flow, the host references the package and
 calls its registration method in the appropriate host application. Split
-hosting may require referencing the package in both the Control Plane host and
-the CloudShell UI host, or referencing separate provider/UI packages when the
-capability is split across assemblies.
+hosting may require referencing the package in both the Control Plane
+application and the CloudShell UI host, or referencing separate provider/UI
+packages when the capability is split across assemblies.
 
 ## Activation
 

@@ -14,6 +14,7 @@ implementation plan, and remaining tasks.
 
 | Direction | Strategy fit | Action |
 | --- | --- | --- |
+| [Control Plane execution model](control-plane-execution-model.md) | Strong long-term fit for using one Control Plane contract across application-scoped development and resident hosting-platform environments. | Preserve the distribution, endpoint, resource-template, and Control Plane API boundaries now; defer the system-service daemon and durable instance-management contract until on-premise hosting becomes active work. |
 | [Deployment projection](deployment-projection.md) | Strong long-term fit for portability from local development to on-premise and provider-backed environments. | Defer until ResourceDefinition apply, container app orchestration, networking, storage, identity, and on-premise target boundaries are stable enough to project. |
 | [CloudShell agents and clustering](agents-and-clustering.md) | Strong long-term fit for scaling CloudShell and CloudShell-managed services across hosts, regions, workers, and clustered Control Plane roles. | Defer clustered scheduling and remote agents; use the direction now only to avoid single-process assumptions in MVP platform, provider, logging, health, and orchestration contracts. |
 | [Resource graph import and code generation](resource-graph-import-and-code-generation.md) | Strong adoption fit because existing Docker Compose users need an onboarding path. | Defer active implementation; revisit when container apps, volumes, networking, and read-only/import UX are stable. |

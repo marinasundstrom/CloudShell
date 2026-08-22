@@ -37,6 +37,7 @@ Useful references:
 - [Deployment artifacts proposal](proposals/core/deployment-artifacts.md)
 - [Intent-first resource authoring proposal](proposals/core/intent-first-resource-authoring.md)
 - [Container applications proposal](proposals/containers/container-applications.md)
+- [Control Plane execution model future direction](future/control-plane-execution-model.md)
 - [Future directions](future/)
 
 ## Current Direction

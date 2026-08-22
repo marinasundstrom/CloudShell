@@ -28,6 +28,39 @@ capabilities it loads: the host chooses deployment shape and configuration;
 capability packages contribute resource behavior, UI support, services, and
 client helpers.
 
+## Architectural Direction
+
+The current hosting shapes below describe implemented .NET composition and
+local launch behavior. The target architecture distinguishes three concepts:
+
+- a **Control Plane distribution**, which may contain only the Control Plane
+  or combine it with the CloudShell UI
+- a **Control Plane instance**, which is a running realization of that
+  distribution
+- a **Control Plane endpoint**, which is the URL and Web API contract used by
+  the CLI, Launchers, UI, SDKs, and automation
+
+`CloudShell.LocalDevelopmentHost` is the standard development-oriented
+combined distribution. Custom host applications can produce Control
+Plane-only or combined distributions with different capabilities and defaults.
+
+The CLI receives a `ResourceTemplate`; a programmatic Launcher produces one.
+Both follow the same conceptual flow: launch or locate a compatible
+distribution, wait for the Control Plane endpoint, and apply the template
+through the Web API. Once the endpoint and credentials are known, the client
+does not need to know whether the distribution is an executable, service,
+container, remote deployment, or combined UI process. A client that performed
+the launch may retain a lifetime handle so it can stop or monitor that
+application-scoped instance.
+
+A Control Plane instance can therefore be lifetime-bound to a CLI or Launcher,
+run as a separate externally managed service, or run as a resident service
+supervised by a future CloudShell daemon. The daemon is the preferred durable
+system-service boundary for hosting-platform scenarios. Current recorded
+process state and daemon-style CLI commands are implementation precursors, not
+the completed daemon architecture. See
+[Control Plane execution model](future/control-plane-execution-model.md).
+
 CloudShell supports three registration shapes:
 
 - UI only: host the CloudShell shell and custom UI extensions.
@@ -94,7 +127,7 @@ endpoints are not registered unless the host adds them separately.
 
 UI-only hosts can install UI-only capability packages or the UI side of a
 broader capability package. The package's Control Plane providers and
-declarations must run in a Control Plane host when the UI needs resource data or
+declarations must run in the Control Plane service when the UI needs resource data or
 operations.
 
 UI-only hosts persist CloudShell environment preferences, such as theme and
@@ -422,7 +455,7 @@ app.MapCloudShellControlPlane();
 app.Run();
 ```
 
-The Control Plane host owns:
+The Control Plane owns:
 
 - Resource providers.
 - Resource declarations.
@@ -503,7 +536,7 @@ builder.Services.AddRemoteControlPlane(options =>
 });
 ```
 
-Declarative resources must be configured in the Control Plane host:
+Declarative resources must be configured in the Control Plane application:
 
 ```csharp
 var controlPlane = builder.AddCloudShellControlPlane(controlPlane =>
@@ -527,7 +560,7 @@ resources through its configured Control Plane adapter so one shared Control
 Plane remains the authority for checked-in configuration, persisted state,
 provider actions, and authorization.
 Install cross-cutting capability packages on both sides when they include both
-resource behavior and UI support: the Control Plane host receives the
+resource behavior and UI support: the Control Plane application receives the
 provider/runtime registrations, and the UI host receives the shell or Resource
 Manager integrations that talk to the remote Control Plane.
 The remote settings adapter is separate from `IControlPlane`. Set
@@ -566,7 +599,7 @@ configuration concern:
   to the Control Plane protected API resource on behalf of the signed-in user.
 - Configure the remote `IControlPlane` adapter to use that credential and attach
   the required authentication metadata to HTTP calls.
-- Configure the Control Plane host to validate credentials from the same
+- Configure the Control Plane instance to validate credentials from the same
   authority or trusted authentication abstraction.
 
 For OAuth-based deployments, the remote call should carry the token in the
@@ -674,7 +707,7 @@ to future targets such as Azure or AWS. Deployment should use the orchestrator
 deployment API once that API is available. Whether deployment is triggered from
 a CLI, Resource Manager UI, or another automation surface is a later decision.
 Until then, shared or on-premise environments should keep declarations in the
-Control Plane host that owns the environment, while UI hosts remain clients of
+Control Plane that owns the environment, while UI hosts remain clients of
 that Control Plane.
 
 See [Programmatic resources](programmatic-resources.md) for the declaration API.

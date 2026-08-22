@@ -2,24 +2,26 @@
 
 CloudShell resources can be declared in code as an alternative to the Add
 Resource UI or a serialized `ResourceTemplate`. Declarations are a Control
-Plane concern: install the resource types you need in the Control Plane host,
-then declare `ResourceDefinition` entries through the Resource model builder.
+Plane concern: install the resource types you need in the Control Plane
+application, then declare `ResourceDefinition` entries through the Resource
+model builder.
 This lets a host check in its baseline configuration instead of relying on
 every developer or operator to add the same resources by hand.
 
 For local development, the preferred authoring shape is now a launcher app that
-builds a `ResourceTemplate` and applies it to a CloudShell host profile. The
-launcher can start the local host profile or attach to an existing Control
-Plane by URL and credentials. The host profile composes the Control Plane,
-CloudShell UI, providers, and runtime adapters; the launcher remains a
-ResourceTemplate authoring and bootstrap client.
+builds a `ResourceTemplate` and applies it to a Control Plane endpoint. The
+Launcher can start the local distribution or attach to an existing Control
+Plane by URL and credentials. The selected distribution composes the Control
+Plane, providers, runtime adapters, and optionally the CloudShell UI; the
+Launcher remains a `ResourceTemplate` authoring and bootstrap client.
 
 Programmatic declarations are not intended to stay C#-only, and the C# hosting
 surface should not become a special integration path that other languages must
 copy outside the resource model. Treat C#, TypeScript/JavaScript, and future
 SDKs as language bindings over the same hosting-integration pattern: fluent
-builders produce ResourceDefinition-based graph shapes, a launcher or API call
-starts or targets a CloudShell host, and the Control Plane accepts the graph.
+builders produce ResourceDefinition-based graph shapes, a Launcher starts a
+distribution or selects an existing endpoint, and the Control Plane accepts
+the graph through its API.
 The language SDK may provide TypeScript, JavaScript, Java, Python, or other
 ecosystem-specific helpers, but the accepted resource graph, provider
 validation, lifecycle behavior, persistence, and Resource Manager projection
@@ -52,9 +54,9 @@ return (await app.RunAsync(new()
 `CloudShell.AppHost.Launcher` is the preferred C# launcher authoring path for
 new local-development samples when the application does not need to customize
 CloudShell itself. It reuses `ResourceGraphBuilder`, writes YAML or JSON
-templates, and owns the launcher flow that starts or targets a host and
-applies the graph. The app project references provider builder packages for
-the resources it declares; the launcher package itself does not reference
+templates, and owns the Launcher flow that starts a distribution or targets an
+endpoint and applies the graph. The app project references provider builder
+packages for the resources it declares; the Launcher package itself does not reference
 Control Plane services, UI hosting, or provider runtime services. Launcher
 apps should use
 `CloudShell.LocalDevelopmentHost` by default. It is the stable local host
@@ -942,12 +944,12 @@ resources:
 CloudShell does not create core registration rows for the declaration, and
 provider-specific configuration is kept in memory for the current process.
 
-In split deployments, keep this API in the Control Plane host. The UI host
+In split deployments, keep this API in the Control Plane service. The UI host
 should discover resources through the Control Plane API rather than declaring
 resources itself.
 
 Today, `Persist()` is an in-process declaration instruction applied by the
-Control Plane host during startup. A remote deployment flow is a separate
-orchestrator capability, not an extension of UI-host declaration logic.
+Control Plane application during startup. A remote deployment flow is a
+separate orchestrator capability, not an extension of UI-host declaration logic.
 
 See [Hosting model](hosting-model.md).

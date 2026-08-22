@@ -11,6 +11,37 @@ link to the decision so the dependency is visible.
 
 ## 2026-08-22
 
+### ADR-20260822-002: Separate Control Plane distribution, instance, endpoint, and execution ownership
+
+CloudShell's target architecture distinguishes a **Control Plane
+distribution**, a running **Control Plane instance**, and the **Control Plane
+endpoint** through which clients use its Web API. A distribution always
+contains the Control Plane and may optionally include the CloudShell UI. It may
+be packaged as an executable, service, container image, or another deployable
+form without changing the client contract.
+
+The CLI receives a `ResourceTemplate`; a programmatic Launcher produces one.
+Either can launch a compatible distribution, wait for its Control Plane
+endpoint, and apply the template through the Control Plane API. They may also
+apply to an already-running endpoint. Other than retaining a lifetime handle
+when they launch an application-scoped instance, clients do not need to know
+how the distribution is hosted.
+
+A Control Plane instance can run as a separate service, remain lifetime-bound
+to a CLI or Launcher, or run as a resident service supervised by a future
+CloudShell daemon. External service managers and remote deployments remain
+valid alternatives. These execution choices do not create parallel Control
+Plane, Resource Manager, or `ResourceTemplate` contracts.
+
+This is architectural direction, not a claim that the current recorded
+PID/state-file daemon commands implement the future system-service boundary.
+The daemon protocol, durable instance configuration, service installation,
+recovery, upgrade behavior, instance cardinality, and declaration-source
+ownership require later focused proposals. See
+[Control Plane execution model](docs/future/control-plane-execution-model.md).
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260822-001: Publish built-in service images to one GHCR repository before packages
 
 CloudShell publishes the Configuration Store, Secrets Vault, and Device

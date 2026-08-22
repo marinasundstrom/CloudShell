@@ -5,11 +5,19 @@ itself: Control Plane, Web UI, provider packages, runtime adapters,
 authentication, persistence, and environment-level services. The built-in local
 development host profile is `CloudShell.LocalDevelopmentHost`.
 
+In the target architecture, a runnable package containing the Control Plane is
+a **Control Plane distribution**. It can contain only the Control Plane or
+combine it with the UI. Running it creates a **Control Plane instance** that
+exposes a **Control Plane endpoint**. Existing Launcher APIs continue to use
+host-profile terminology for composition and startup settings, but clients
+should not treat "host" as the API-facing identity. See
+[Control Plane execution model](future/control-plane-execution-model.md).
+
 CloudShell uses **Launcher** as the feature name for language-specific
 authoring programs that define a local-development resource graph, emit a
-`ResourceTemplate`, and start or target a CloudShell host profile. A developer
-may experience this as creating a local development host in their preferred
-language, because running the launcher should bring up the local development
+`ResourceTemplate`, and launch a distribution or target a Control Plane
+endpoint. A developer may experience this as creating a local development host
+in their preferred language, because running the Launcher should bring up the local development
 host and apply the declared resources. Architecturally, the launcher is still
 the declaration and startup client. It is not the Control Plane, Web UI, or
 provider runtime host, and it should not reference Control Plane stores,
@@ -17,11 +25,19 @@ provider runtimes, or UI hosting packages.
 
 This naming keeps three responsibilities separate:
 
-- **Host profile**: runs CloudShell and installs providers/runtime adapters.
-- **Launcher**: declares resources, configures host startup, and applies the
-  resource graph for a target environment.
+- **Control Plane distribution**: packages the Control Plane, installed
+  providers/runtime adapters, and optionally the UI.
+- **Launcher**: declares resources, optionally launches a distribution, and
+  applies the resource graph through a Control Plane endpoint.
 - **Runtime service client**: runs inside an application workload and consumes
   CloudShell-managed services such as Configuration Store or Secrets Vault.
+
+It also keeps execution ownership explicit. A Launcher may own the process or
+service handle for an application-scoped Control Plane instance. It may instead
+apply to a daemon-supervised or remote endpoint; in that case it neither knows
+nor owns the distribution's hosting mechanism. The planned CloudShell daemon
+is a system-service supervisor for standing platform environments, not merely
+the background form of a Launcher run.
 
 ## Cross-Language Boundary
 
@@ -34,7 +50,7 @@ The stable cross-language boundary is the CloudShell Resource model:
 - endpoint requests
 - non-secret attributes
 - metadata
-- host launch and template apply behavior
+- distribution launch, endpoint discovery, and template apply behavior
 
 Language SDKs should feel natural in their own ecosystem while preserving that
 same model. C# can use extension methods over `ResourceGraphBuilder`.
@@ -61,7 +77,7 @@ distributed app hosts to behave:
 2. The launcher reads the resource declarations from the project.
 3. The launcher reads the launcher project's host appsettings and combines
    them with environment variables and explicit launcher options.
-4. The launcher starts the local development host in the foreground with that
+4. The Launcher starts the local development distribution in the foreground with that
    delegated host configuration.
 5. The launcher waits for the Control Plane to become ready.
 6. The launcher applies the declared ResourceTemplate to that host.
@@ -200,7 +216,8 @@ listed as known gaps in [Integration story](integration-story.md).
 
 `CloudShell.AppHost.Launcher` is the current C# launcher authoring package. It
 reuses Resource Model builders, emits a `ResourceTemplate`, and owns the
-developer gesture of starting or targeting a host and applying the graph. It
+developer gesture of launching a distribution or targeting an endpoint and
+applying the graph. It
 does not reference Control Plane stores, provider runtimes, or UI hosting
 packages.
 
@@ -225,8 +242,8 @@ languages:
 - `template` or `toJson`: emit the ResourceTemplate without applying it.
 - `apply`: apply the template to an already-running Control Plane.
 - `start`: start or reuse a daemon-style local host, then apply the template.
-- `run`: start the host in the foreground, apply the template, and keep the
-  host process tied to the launcher command lifetime.
+- `run`: launch the distribution in the foreground, apply the template, and
+  keep its process tied to the Launcher command lifetime.
 
 The API shape can be idiomatic to each language. C# can use records and async
 methods, TypeScript can use object-literal options and promises, and Java can
@@ -245,10 +262,10 @@ declaration API is shaped for the host language:
 
 - Running the launcher project with no explicit verb should follow the default
   developer experience above.
-- The launcher package should be able to launch the local development host and
-  apply the template itself. It may reuse shared libraries or Control Plane API
-  clients, but it should not require the CloudShell CLI or sample shell scripts
-  for the default local-development path.
+- The Launcher package should be able to launch the local development
+  distribution and apply the template itself. It may reuse shared libraries or
+  Control Plane API clients, but it should not require the CloudShell CLI or
+  sample shell scripts for the default local-development path.
 - The launcher should write the local development host address after the host
   is ready and the template has been applied. The output should make the next
   action obvious, for example `CloudShell host: http://127.0.0.1:5100`.

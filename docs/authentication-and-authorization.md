@@ -186,8 +186,8 @@ For OAuth-based deployments, that usually means attaching a bearer token:
 Authorization: Bearer <control-plane-access-token>
 ```
 
-The Control Plane host validates the credential against the same authority or
-trusted authentication abstraction and uses the resulting `ClaimsPrincipal`
+The Control Plane instance validates the credential against the same authority
+or trusted authentication abstraction and uses the resulting `ClaimsPrincipal`
 with the normal CloudShell authorization policies. The browser should not need
 to understand Control Plane credentials when the UI is server-side or
 BFF-hosted; the UI server acquires and attaches the authentication metadata on
@@ -298,7 +298,7 @@ use the same workload environment credential or active local profile credential
 as other service clients. Delegated current-user credentials with login,
 refresh, logout, and secure-store management are still directional.
 
-Enable the built-in token authority on the Control Plane host:
+Enable the built-in token authority for the Control Plane instance:
 
 ```json
 {
