@@ -4,7 +4,7 @@ public sealed class SecretsVaultRuntimeOptions
 {
     public BuiltInServiceRuntimeMode RuntimeMode { get; set; } = BuiltInServiceRuntimeMode.Process;
 
-    public string ContainerImage { get; set; } = "cloudshell/secrets-vault:local";
+    public string ContainerImage { get; set; } = "cloudshell:secrets-vault-local";
 
     public string ServiceProjectPath { get; set; } =
         "CloudShell.SecretsVaultService/CloudShell.SecretsVaultService.csproj";

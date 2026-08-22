@@ -18,6 +18,7 @@ on:
         type: choice
         options:
           - artifact
+          - ghcr
           - myget
           - nuget.org
 
@@ -49,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ ( "$PUBLISH_TARGET" == "myget" || "$PUBLISH_TARGET" == "nuget.org" ) && -z "$REQUESTED_VERSION" ]]; then
+          if [[ "$PUBLISH_TARGET" != "artifact" && -z "$REQUESTED_VERSION" ]]; then
             echo "An explicit version is required when publishing." >&2
             exit 1
           fi
@@ -60,8 +61,8 @@ jobs:
             exit 1
           fi
 
-          if [[ "$PUBLISH_TARGET" == "myget" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]; then
-            echo "MyGet preview versions must use the form 0.1.0-preview.1." >&2
+          if [[ ( "$PUBLISH_TARGET" == "ghcr" || "$PUBLISH_TARGET" == "myget" ) && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]; then
+            echo "GHCR and MyGet preview versions must use the form 0.1.0-preview.1." >&2
             exit 1
           fi
 
@@ -172,6 +173,13 @@ jobs:
             --version "$PACKAGE_VERSION" \
             --add-source "$local_source"
           "$tool_directory/cloudshell" --help
+          unzip -q "$local_source/CloudShell.Cli.$PACKAGE_VERSION.nupkg" \
+            'tools/net11.0/any/host/CloudShell.LocalDevelopmentHost.dll' \
+            -d "$consumer_directory"
+          host_assembly="$consumer_directory/tools/net11.0/any/host/CloudShell.LocalDevelopmentHost.dll"
+          for service in configuration-store secrets-vault device-registry; do
+            grep -aFq "ghcr.io/marinasundstrom/cloudshell:$service-$PACKAGE_VERSION" "$host_assembly"
+          done
           unzip -Z1 "$local_source/CloudShell.Cli.$PACKAGE_VERSION.nupkg" | grep -Fq \
             'tools/net11.0/any/host/CloudShell.LocalDevelopmentHost.dll'
           if unzip -Z1 "$local_source/CloudShell.Cli.$PACKAGE_VERSION.nupkg" | \
@@ -188,10 +196,68 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  publish-images:
+    name: Publish built-in service images to GHCR
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target != 'artifact' }}
+    needs: pack
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloudshell-ghcr-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build images
+        run: >-
+          eng/containers/build-built-in-services.sh
+          ${{ needs.pack.outputs.package-version }}
+          ghcr.io/marinasundstrom/cloudshell
+
+      - name: Push immutable image set
+        shell: bash
+        env:
+          IMAGE_REPOSITORY: ghcr.io/marinasundstrom/cloudshell
+          IMAGE_VERSION: ${{ needs.pack.outputs.package-version }}
+        run: |
+          set -euo pipefail
+
+          for service in configuration-store secrets-vault device-registry; do
+            docker push "$IMAGE_REPOSITORY:$service-$IMAGE_VERSION"
+          done
+
+      - name: Verify clean pulls from GHCR
+        shell: bash
+        env:
+          IMAGE_REPOSITORY: ghcr.io/marinasundstrom/cloudshell
+          IMAGE_VERSION: ${{ needs.pack.outputs.package-version }}
+        run: |
+          set -euo pipefail
+
+          for service in configuration-store secrets-vault device-registry; do
+            image="$IMAGE_REPOSITORY:$service-$IMAGE_VERSION"
+            docker image rm "$image"
+            docker pull "$image"
+            [[ "$(docker image inspect --format '{{index .RepoTags 0}}' "$image")" == "$image" ]]
+          done
+
   publish-preview:
     name: Publish to MyGet preview feed
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target == 'myget' }}
-    needs: pack
+    needs:
+      - pack
+      - publish-images
     runs-on: ubuntu-latest
     concurrency:
       group: cloudshell-myget-preview-publish
@@ -294,10 +360,22 @@ jobs:
 
           "$tool_directory/cloudshell" --help
 
+      - name: Verify released CLI pulls and runs a built-in service image
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ needs.pack.outputs.package-version }}
+        run: >-
+          eng/containers/verify-cli-built-in-service.sh
+          "$PACKAGE_VERSION"
+          https://www.myget.org/F/cloudshell/api/v3/index.json
+          ghcr.io/marinasundstrom/cloudshell
+
   publish-nuget:
     name: Publish to NuGet.org
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target == 'nuget.org' }}
-    needs: pack
+    needs:
+      - pack
+      - publish-images
     runs-on: ubuntu-latest
     concurrency:
       group: cloudshell-nuget-publish

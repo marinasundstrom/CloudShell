@@ -29,9 +29,9 @@ Host configuration can override that compiled default:
 
 ```text
 CloudShell__BuiltInServices__RuntimeMode=Container
-CloudShell__BuiltInServices__ConfigurationStore__Image=cloudshell/configuration-store:local
-CloudShell__BuiltInServices__SecretsVault__Image=cloudshell/secrets-vault:local
-CloudShell__BuiltInServices__DeviceRegistry__Image=cloudshell/device-registry:local
+CloudShell__BuiltInServices__ConfigurationStore__Image=cloudshell:configuration-store-local
+CloudShell__BuiltInServices__SecretsVault__Image=cloudshell:secrets-vault-local
+CloudShell__BuiltInServices__DeviceRegistry__Image=cloudshell:device-registry-local
 ```
 
 The mode is a host/provider choice, not a field in resource templates. A YAML
@@ -67,9 +67,9 @@ eng/containers/build-built-in-services.sh
 The default tags are:
 
 ```text
-cloudshell/configuration-store:local
-cloudshell/secrets-vault:local
-cloudshell/device-registry:local
+cloudshell:configuration-store-local
+cloudshell:secrets-vault-local
+cloudshell:device-registry-local
 ```
 
 Pass a tag as the first argument to build a versioned local set:
@@ -81,6 +81,59 @@ eng/containers/build-built-in-services.sh 0.1.0-preview.5
 The Dockerfiles accept `DOTNET_VERSION` as a build argument and default to
 `11.0-preview`.
 
+### Local Registry
+
+Start a development-only OCI registry on `localhost:5000`, build the image
+set, and push it to that registry:
+
+```bash
+eng/containers/publish-built-in-services-local.sh local
+```
+
+Set `CLOUDSHELL_LOCAL_REGISTRY_PORT` to use another loopback port. The script
+uses a fixed `cloudshell-local-registry` container, validates its published
+port before reuse, and prints the corresponding host image overrides.
+
+To prove that a locally packed CLI pulls from the local registry, pack it with
+the repository override and run the shared verification script:
+
+```bash
+dotnet pack CloudShell.Cli/CloudShell.Cli.csproj \
+  --configuration Release \
+  --output artifacts/local-packages \
+  -p:Version=0.1.0-local.1 \
+  -p:PackageVersion=0.1.0-local.1 \
+  -p:CloudShellBuiltInServiceImageRepository=localhost:5000/cloudshell
+
+eng/containers/publish-built-in-services-local.sh 0.1.0-local.1
+eng/containers/verify-cli-built-in-service.sh \
+  0.1.0-local.1 \
+  artifacts/local-packages \
+  localhost:5000/cloudshell
+```
+
+The verifier removes the exact Configuration Store image from the local Docker
+cache, installs the requested CLI version, starts the YAML sample, executes the
+Configuration Store `start` action, checks `/healthz`, and asserts that the
+owned container uses the expected registry reference.
+
+## Release Images
+
+The CLI host embeds one immutable image reference per built-in service:
+
+```text
+ghcr.io/marinasundstrom/cloudshell:configuration-store-<version>
+ghcr.io/marinasundstrom/cloudshell:secrets-vault-<version>
+ghcr.io/marinasundstrom/cloudshell:device-registry-<version>
+```
+
+An explicit preview publication builds and verifies the NuGet artifacts first,
+publishes all three same-version images to GHCR, verifies clean registry pulls,
+and only then publishes the packages to MyGet. The installed CLI is finally
+smoke-tested against the published Configuration Store image. NuGet.org remains
+the stable release channel; MyGet is the development-build feed. Docker Hub can
+later mirror the same repository and tags without changing the CLI contract.
+
 ## Container Lifecycle
 
 The container adapter uses the shared owner-scoped `IContainerHostRuntime`
@@ -91,7 +144,6 @@ operations. Failed startup removes the attempted container and returns a
 provider diagnostic.
 
 The current container-backed monitor does not yet project container metrics
-through the process-specific monitoring contract. Image publication, registry
-naming, immutable version tags, multi-architecture manifests, supply-chain
-metadata, and lockstep publication with the NuGet preview remain release
-workflow work.
+through the process-specific monitoring contract. Multi-architecture
+manifests, supply-chain metadata, and an optional Docker Hub mirror remain
+release workflow work.

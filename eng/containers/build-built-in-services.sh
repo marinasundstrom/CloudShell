@@ -3,6 +3,7 @@ set -euo pipefail
 
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 image_tag=${1:-local}
+image_repository=${2:-cloudshell}
 dotnet_version=${DOTNET_VERSION:-11.0-preview}
 
 services=(
@@ -16,7 +17,8 @@ for service in "${services[@]}"; do
   project_directory=${service#*:}
   docker build \
     --build-arg "DOTNET_VERSION=${dotnet_version}" \
+    --build-arg "IMAGE_VERSION=${image_tag}" \
     --file "${repository_root}/${project_directory}/Dockerfile" \
-    --tag "cloudshell/${image_name}:${image_tag}" \
+    --tag "${image_repository}:${image_name}-${image_tag}" \
     "${repository_root}"
 done

@@ -85,7 +85,7 @@ app-development loop before broader platform expansion.
 
 | Priority | Focus | Why now | Action |
 | --- | --- | --- | --- |
-| 1 | Release-backed built-in services | The installed CLI cannot rely on Configuration Store, Secrets Vault, or Device Registry source projects. | Finish container-backed lifecycle verification, publish immutable same-version images, and make the CLI preview consume that image set while source-host development remains process-backed. |
+| 1 | Release-backed built-in services | The installed CLI cannot rely on Configuration Store, Secrets Vault, or Device Registry source projects. | Keep the GHCR-before-package release gate and released-CLI container smoke proof green; add multi-architecture images, supply-chain metadata, and an optional Docker Hub mirror while source-host development remains process-backed. |
 | 2 | Supported sample reliability | Application Topology and the switch-readiness samples are the strongest proof that the model works end to end. | Keep smoke coverage green, run the broad proof regularly, and turn only concrete sample confusion into work. |
 | 3 | App-centric Resource Manager experience | The product value is whether a developer can understand and operate the app from Resource Manager. | Keep endpoints, names, storage, identity, settings/secrets, logs, traces, monitoring, activity, and actions in the app context. |
 | 4 | Readiness and capability reasons | Supported actions should fail early with clear reasons. | Tighten host, credential, route, port, storage, identity, grant, and provider-readiness diagnostics for paths already exposed. |

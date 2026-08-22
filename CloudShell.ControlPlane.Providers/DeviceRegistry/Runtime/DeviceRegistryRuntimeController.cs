@@ -7,7 +7,7 @@ public sealed class DeviceRegistryRuntimeOptions
 {
     public BuiltInServiceRuntimeMode RuntimeMode { get; set; } = BuiltInServiceRuntimeMode.Process;
 
-    public string ContainerImage { get; set; } = "cloudshell/device-registry:local";
+    public string ContainerImage { get; set; } = "cloudshell:device-registry-local";
 
     public string ServiceProjectPath { get; set; } =
         "CloudShell.DeviceRegistryService/CloudShell.DeviceRegistryService.csproj";

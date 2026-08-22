@@ -9,6 +9,7 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using System.Reflection;
 using System.Security.Cryptography;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -63,7 +64,9 @@ cloudShell
         runtime.ContainerImage = ResolveBuiltInServiceImage(
             builder.Configuration,
             "ConfigurationStore",
-            runtime.ContainerImage);
+            GetCompiledBuiltInServiceImage(
+                "CloudShell.ConfigurationStoreImage",
+                runtime.ContainerImage));
         runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
         runtime.DefinitionsDirectory = Path.Combine(
@@ -79,7 +82,9 @@ cloudShell
         runtime.ContainerImage = ResolveBuiltInServiceImage(
             builder.Configuration,
             "SecretsVault",
-            runtime.ContainerImage);
+            GetCompiledBuiltInServiceImage(
+                "CloudShell.SecretsVaultImage",
+                runtime.ContainerImage));
         runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
         runtime.DefinitionsDirectory = Path.Combine(
@@ -95,7 +100,9 @@ cloudShell
         runtime.ContainerImage = ResolveBuiltInServiceImage(
             builder.Configuration,
             "DeviceRegistry",
-            runtime.ContainerImage);
+            GetCompiledBuiltInServiceImage(
+                "CloudShell.DeviceRegistryImage",
+                runtime.ContainerImage));
         runtime.ServiceProjectPath = deviceRegistryServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
         runtime.DefinitionsDirectory = Path.Combine(
@@ -176,6 +183,19 @@ static string ResolveBuiltInServiceImage(
     configuration[$"CloudShell:BuiltInServices:{serviceName}:Image"] is { Length: > 0 } image
         ? image
         : defaultImage;
+
+static string GetCompiledBuiltInServiceImage(
+    string metadataKey,
+    string fallbackImage) =>
+    Assembly.GetExecutingAssembly()
+        .GetCustomAttributes<AssemblyMetadataAttribute>()
+        .FirstOrDefault(attribute => string.Equals(
+            attribute.Key,
+            metadataKey,
+            StringComparison.Ordinal))
+        ?.Value is { Length: > 0 } image
+            ? image
+            : fallbackImage;
 
 static string ResolveCloudShellDataDirectory(
     IConfiguration configuration,

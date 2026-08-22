@@ -4,7 +4,7 @@ public sealed class ConfigurationStoreRuntimeOptions
 {
     public BuiltInServiceRuntimeMode RuntimeMode { get; set; } = BuiltInServiceRuntimeMode.Process;
 
-    public string ContainerImage { get; set; } = "cloudshell/configuration-store:local";
+    public string ContainerImage { get; set; } = "cloudshell:configuration-store-local";
 
     public string ServiceProjectPath { get; set; } =
         "CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj";

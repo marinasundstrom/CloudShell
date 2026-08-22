@@ -9,6 +9,32 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-08-22
+
+### ADR-20260822-001: Publish built-in service images to one GHCR repository before packages
+
+CloudShell publishes the Configuration Store, Secrets Vault, and Device
+Registry images to the single `ghcr.io/marinasundstrom/cloudshell` repository.
+Immutable tags combine the service and release version, for example
+`configuration-store-0.1.0-preview.5`. The CLI's bundled host embeds all three
+exact references at pack time, so a CLI package and its runtime services cannot
+silently select different versions. `latest` is not published or consumed.
+
+For an explicit preview publication, verified NuGet artifacts are the release
+input, GHCR image publication and clean-pull verification must complete before
+MyGet publication, and the installed MyGet CLI must start an affected resource
+with the expected GHCR image. NuGet.org is the stable release channel; MyGet is
+the development-build feed. The existing `marinasundstrom/cloudshell` Docker
+Hub repository is reserved as a possible mirror of the same tags rather than a
+second primary release source.
+
+Local development may use the same service-qualified tag convention in the
+local Docker image store or a loopback OCI registry. Host configuration can
+override the embedded references, but resource templates remain independent of
+the selected registry and runtime realization.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-08-14
 
 ### ADR-20260814-001: Realize released built-in services from versioned container images

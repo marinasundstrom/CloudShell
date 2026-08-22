@@ -1,5 +1,8 @@
 # CloudShell
 
+[![MyGet preview](https://img.shields.io/myget/cloudshell/vpre/CloudShell.Cli?label=MyGet%20preview)](https://www.myget.org/gallery/cloudshell)
+[![CloudShell docs](https://img.shields.io/badge/docs-CloudShell-1769e0)](https://marinasundstrom.github.io/CloudShell/)
+
 > **Disclaimer:** Project is in an early phase. This is not a committed product.
 
 CloudShell is a language-neutral, resource-oriented control plane for modeling,
@@ -30,12 +33,13 @@ shell, with an operational experience inspired by the .NET Aspire Dashboard.
   <a href="images/runtime-graph.png"><img src="images/runtime-graph.png" width="45%" alt="Runtime graph" /></a>
 </p>
 
-## Preview Packages
+## Package Channels
 
-CloudShell preview packages are published to the public
-[CloudShell MyGet feed](https://www.myget.org/gallery/cloudshell). They target
-the .NET 11 preview SDK and are not yet published to NuGet.org as a supported
-stable release.
+[NuGet.org](https://www.nuget.org/) is the release channel for CloudShell.
+During development, preview builds are published to the public
+[CloudShell MyGet feed](https://www.myget.org/gallery/cloudshell). The current
+development builds target the .NET 11 preview SDK and must be selected with an
+explicit prerelease version.
 
 Add the preview feed as a package source:
 
@@ -45,8 +49,20 @@ dotnet nuget add source \
   --name CloudShell
 ```
 
+The main package entry points are:
+
+| Package | Use |
+| --- | --- |
+| `CloudShell.Cli` | Install the `cloudshell` .NET tool and matching YAML development host. |
+| `CloudShell.ResourceModel` | Author and serialize portable resource definitions and templates. |
+| `CloudShell.AppHost.Launcher` | Build a C# launcher/AppHost that targets the standard development host. |
+| `CloudShell.AppHost` | Compose a custom CloudShell Control Plane and Resource Manager host. |
+| `CloudShell.Configuration.Client` | Read settings from a CloudShell Configuration Store. |
+| `CloudShell.Secrets.Client` | Read secrets from a CloudShell Secrets Vault. |
+| `CloudShell.DeviceRegistry.Client` | Enroll and operate clients against a CloudShell Device Registry. |
+
 Prerelease versions must be selected explicitly when adding a package, for
-example `dotnet add package CloudShell.AppHost --version 0.1.0-preview.2`.
+example `dotnet add package CloudShell.AppHost --version <preview-version>`.
 
 ## Getting Started
 
@@ -73,10 +89,22 @@ prints the Resource Manager URL. Host output remains in that terminal until
 you press Ctrl+C. This MVP command does not use a daemon.
 
 The installed CLI host runs Configuration Store, Secrets Vault, and Device
-Registry resources from container images. Contributors running the host from
-this repository continue to use the service projects as local processes by
-default. See [Built-in service runtime](docs/built-in-service-runtime.md) for
-the mode switch and local image-build command.
+Registry resources from matching versioned images in
+`ghcr.io/marinasundstrom/cloudshell`. Docker pulls an image when the selected
+resource is first started. Contributors running the host from this repository
+continue to use the service projects as local processes by default. See
+[Built-in service runtime](docs/built-in-service-runtime.md) for the mode
+switch, local image build, and local registry workflow.
+
+To build and publish the three services to a development registry on
+`localhost:5000`:
+
+```bash
+eng/containers/publish-built-in-services-local.sh local
+```
+
+The command prints the three host configuration overrides needed to run a
+container-backed development host against that local registry.
 
 Try the complete ASP.NET Core example in
 [`samples/YamlAppHost`](samples/YamlAppHost):

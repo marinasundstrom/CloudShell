@@ -19,6 +19,18 @@
     <None Remove="Data/**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyMetadata Include="CloudShell.ConfigurationStoreImage"
+                      Value="$(CloudShellConfigurationStoreImage)"
+                      Condition="'$(CloudShellConfigurationStoreImage)' != ''" />
+    <AssemblyMetadata Include="CloudShell.SecretsVaultImage"
+                      Value="$(CloudShellSecretsVaultImage)"
+                      Condition="'$(CloudShellSecretsVaultImage)' != ''" />
+    <AssemblyMetadata Include="CloudShell.DeviceRegistryImage"
+                      Value="$(CloudShellDeviceRegistryImage)"
+                      Condition="'$(CloudShellDeviceRegistryImage)' != ''" />
+  </ItemGroup>
+
   <Target Name="ValidateBuiltInServiceRuntime" BeforeTargets="CoreCompile">
     <Error Condition="'$(CloudShellBuiltInServiceRuntime)' != 'Process' and '$(CloudShellBuiltInServiceRuntime)' != 'Container'"
            Text="CloudShellBuiltInServiceRuntime must be Process or Container." />

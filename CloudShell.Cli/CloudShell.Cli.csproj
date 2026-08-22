@@ -10,6 +10,7 @@
     <ToolCommandName>cloudshell</ToolCommandName>
     <PackageId>CloudShell.Cli</PackageId>
     <CloudShellBuiltInServiceRuntime Condition="'$(CloudShellBuiltInServiceRuntime)' == ''">Container</CloudShellBuiltInServiceRuntime>
+    <CloudShellBuiltInServiceImageRepository Condition="'$(CloudShellBuiltInServiceImageRepository)' == ''">ghcr.io/marinasundstrom/cloudshell</CloudShellBuiltInServiceImageRepository>
     <BundledDevelopmentHostPublishDirectory>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)', 'bundled-development-host', '$(Configuration)'))/</BundledDevelopmentHostPublishDirectory>
   </PropertyGroup>
 
@@ -26,11 +27,19 @@
 
   <Target Name="BundleDevelopmentHost"
           BeforeTargets="PackTool">
+    <PropertyGroup>
+      <_CloudShellConfigurationStoreImage Condition="'$(CloudShellConfigurationStoreImage)' == ''">$(CloudShellBuiltInServiceImageRepository):configuration-store-$(PackageVersion)</_CloudShellConfigurationStoreImage>
+      <_CloudShellConfigurationStoreImage Condition="'$(CloudShellConfigurationStoreImage)' != ''">$(CloudShellConfigurationStoreImage)</_CloudShellConfigurationStoreImage>
+      <_CloudShellSecretsVaultImage Condition="'$(CloudShellSecretsVaultImage)' == ''">$(CloudShellBuiltInServiceImageRepository):secrets-vault-$(PackageVersion)</_CloudShellSecretsVaultImage>
+      <_CloudShellSecretsVaultImage Condition="'$(CloudShellSecretsVaultImage)' != ''">$(CloudShellSecretsVaultImage)</_CloudShellSecretsVaultImage>
+      <_CloudShellDeviceRegistryImage Condition="'$(CloudShellDeviceRegistryImage)' == ''">$(CloudShellBuiltInServiceImageRepository):device-registry-$(PackageVersion)</_CloudShellDeviceRegistryImage>
+      <_CloudShellDeviceRegistryImage Condition="'$(CloudShellDeviceRegistryImage)' != ''">$(CloudShellDeviceRegistryImage)</_CloudShellDeviceRegistryImage>
+    </PropertyGroup>
     <RemoveDir Directories="$(BundledDevelopmentHostPublishDirectory)" />
     <RemoveDir Directories="$(PublishDir)host" />
     <MSBuild Projects="$(MSBuildProjectDirectory)/../CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj"
              Targets="Publish"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);PublishDir=$(BundledDevelopmentHostPublishDirectory);UseAppHost=false;Version=$(Version);PackageVersion=$(PackageVersion);CloudShellBuiltInServiceRuntime=$(CloudShellBuiltInServiceRuntime)" />
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);PublishDir=$(BundledDevelopmentHostPublishDirectory);UseAppHost=false;Version=$(Version);PackageVersion=$(PackageVersion);CloudShellBuiltInServiceRuntime=$(CloudShellBuiltInServiceRuntime);CloudShellConfigurationStoreImage=$(_CloudShellConfigurationStoreImage);CloudShellSecretsVaultImage=$(_CloudShellSecretsVaultImage);CloudShellDeviceRegistryImage=$(_CloudShellDeviceRegistryImage)" />
     <ItemGroup>
       <_BundledDevelopmentHostFile Include="$(BundledDevelopmentHostPublishDirectory)**/*" />
     </ItemGroup>

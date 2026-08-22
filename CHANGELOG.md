@@ -10,6 +10,32 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-08-22
+
+#### Added
+
+- Added a GHCR-first built-in service release job that publishes immutable,
+  service-qualified Configuration Store, Secrets Vault, and Device Registry
+  image tags before MyGet or NuGet.org package publication, then verifies clean
+  pulls from the registry. Decision:
+  [ADR-20260822-001](ADR.md#adr-20260822-001).
+- Added a reusable released-CLI acceptance script that clears the expected
+  Configuration Store image from the local cache, installs an exact CLI
+  version, starts the YAML host, executes the resource start action, checks
+  health, and verifies the owned container's image reference.
+- Added a development-only local registry helper that runs an OCI registry on
+  loopback, builds all three built-in services, publishes service-qualified
+  tags, validates registry reuse, and prints the required host overrides.
+
+#### Changed
+
+- The host bundled into `CloudShell.Cli` now embeds same-version GHCR image
+  references at pack time. Source-host process defaults and resource template
+  shapes remain unchanged.
+- Clarified NuGet.org as the release channel and MyGet as the development-build
+  feed, added a MyGet CLI preview badge, and documented the essential package
+  entry points without listing the complete internal package graph.
+
 ### 2026-08-14
 
 #### Added
