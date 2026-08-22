@@ -1,6 +1,6 @@
 ---
 title: CloudShell Preview
-description: Model, run, inspect, and operate distributed applications in local and self-hosted environments with the CloudShell CLI.
+description: Build, develop, and host distributed applications with a resource-oriented control plane and an integrated developer workflow.
 _layout: landing
 _disableContribution: true
 _disableToc: true
@@ -9,9 +9,9 @@ _disableToc: true
 <div class="cs-landing">
   <section class="cs-hero" aria-labelledby="hero-title">
     <div class="cs-hero-copy">
-      <p class="cs-eyebrow"><span></span> Preview · Self-hosted · Resource-oriented</p>
-      <h1 id="hero-title">Your application environment,<br><em>in one clear view.</em></h1>
-      <p class="cs-lead">CloudShell is a language-neutral control plane for modeling, running, inspecting, and operating distributed applications—locally or on infrastructure your team owns.</p>
+      <p class="cs-eyebrow"><span></span> Preview · Distributed applications · Built for hosting</p>
+      <h1 id="hero-title">Build distributed applications.<br><em>Host the whole system.</em></h1>
+      <p class="cs-lead">CloudShell is a tool for building, developing, and hosting distributed applications. Its resource-oriented control plane was designed for hosting from the start, with an integrated development workflow for running and diagnosing the same application model close to the code.</p>
       <div class="cs-actions">
         <a class="cs-button cs-button-primary" href="get-started.md">Get started with the CLI <span aria-hidden="true">→</span></a>
         <a class="cs-button cs-button-secondary" href="https://github.com/marinasundstrom/CloudShell">View on GitHub</a>
@@ -81,20 +81,20 @@ _disableToc: true
 
   <section class="cs-section cs-flow" aria-labelledby="flow-title">
     <div class="cs-section-heading">
-      <div><p class="cs-kicker">One model, several entry points</p><h2 id="flow-title">Start near the code. Grow into a platform.</h2></div>
-      <p>The same domain-shaped resource graph moves between developer workflows, Resource Manager, automation, and self-hosted environments.</p>
+      <div><p class="cs-kicker">One application model</p><h2 id="flow-title">Develop close to the code. Host without changing the story.</h2></div>
+      <p>The same domain-shaped resource graph connects the developer workflow, Resource Manager, automation, and a standing self-hosted environment.</p>
     </div>
     <ol class="cs-steps">
-      <li><span>01</span><div><h3>Declare</h3><p>Describe the environment with YAML, code-first launchers, templates, or the Control Plane API.</p></div></li>
-      <li><span>02</span><div><h3>Run</h3><p>Providers turn resource intent into local processes, containers, managed services, and platform state.</p></div></li>
-      <li><span>03</span><div><h3>Operate</h3><p>Inspect the graph, use endpoints and actions, and correlate health with telemetry in Resource Manager.</p></div></li>
+      <li><span>01</span><div><h3>Build</h3><p>Describe the distributed application with YAML, code-first launchers, resource templates, or the Control Plane API.</p></div></li>
+      <li><span>02</span><div><h3>Develop</h3><p>Run the graph close to the code with integrated configuration, endpoints, health, logs, traces, and lifecycle actions.</p></div></li>
+      <li><span>03</span><div><h3>Host and operate</h3><p>Apply the same resource model to a standing environment whose providers own runtime state, policy, and operations.</p></div></li>
     </ol>
   </section>
 
   <section class="cs-cta" aria-labelledby="cta-title">
-    <p class="cs-kicker">Cloud-like primitives, without a public cloud account</p>
-    <h2 id="cta-title">Build a clearer local environment.</h2>
-    <p>Explore the architecture, try the YAML app host, or help shape CloudShell while the project is young.</p>
+    <p class="cs-kicker">Development and hosting, designed together</p>
+    <h2 id="cta-title">Build and host your first environment.</h2>
+    <p>Start with the integrated development flow, inspect the full application graph, and explore how CloudShell carries that model into a hosted environment.</p>
     <div class="cs-actions"><a class="cs-button cs-button-light" href="get-started.md">Get started <span aria-hidden="true">→</span></a><a class="cs-button cs-button-ghost" href="https://github.com/marinasundstrom/CloudShell">Contribute on GitHub</a></div>
   </section>
 </div>

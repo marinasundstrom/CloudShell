@@ -5,7 +5,7 @@ description: Understand environments, resources, providers, the Control Plane, R
 
 # CloudShell concepts
 
-CloudShell gives local and self-hosted environments a cloud-like management model without requiring a public cloud account. These are the few concepts you need to begin.
+CloudShell is a tool for building, developing, and hosting distributed applications. It was designed around a hosted, cloud-like management model from the start, while providing an integrated local workflow for application developers. These are the few concepts you need to begin.
 
 ## Environment
 

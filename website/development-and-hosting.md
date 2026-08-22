@@ -1,11 +1,15 @@
 ---
 title: Development and hosting
-description: Understand how the same CloudShell resource model supports a local developer environment and a standing self-hosted environment.
+description: Understand how CloudShell connects an integrated development workflow to a hosting model designed for distributed applications.
 ---
 
-# CloudShell for development and hosting
+# Build, develop, and host distributed applications
 
-CloudShell uses one resource model in two operating contexts. A developer can run the platform beside source code for a fast inner loop; a team can run a standing CloudShell environment on infrastructure it owns. The resource vocabulary stays familiar, but the trust and operational boundaries change.
+CloudShell was designed for hosting distributed applications from the start. Its Control Plane, provider boundaries, persistent resource identity, and independently deployable Resource Manager are hosting concerns—not additions to a local development dashboard.
+
+The development workflow is equally important. Developers need a well-integrated way to define an application, run it beside the source, connect its services, inspect its resource graph, and diagnose requests across process boundaries. CloudShell uses the same resource model for that workflow and for the standing environment that hosts the application.
+
+The two contexts share an application story, but their trust and operational boundaries change.
 
 | | Local development | Shared or self-hosted environment |
 | --- | --- | --- |
@@ -16,11 +20,17 @@ CloudShell uses one resource model in two operating contexts. A developer can ru
 | Authentication | May be disabled on loopback for a trusted local session | Required, with authorization enforced by the Control Plane |
 | Placement | Usually the developer machine and local Docker | Operator-selected hosts, networks, and providers |
 
-## Development: run close to the code
+## Hosting is the architectural foundation
+
+A hosted CloudShell environment has an authoritative Control Plane that can remain available after a CLI, launcher, or developer session exits. Providers materialize accepted resource definitions on configured runtimes. Resource Manager and API clients connect to the Control Plane rather than owning the resource lifecycle themselves.
+
+This foundation is what lets CloudShell grow from a developer-owned process into a team-owned environment with durable state, authorization, provider policy, networking, storage, identities, and operational ownership.
+
+## Development: integrate with the code
 
 The current first-run experience is `cloudshell run` with a project-local `cloudshell.yaml`. The CLI starts the bundled local host, applies the template, and keeps the environment tied to the terminal session.
 
-Language-specific resources—JavaScript, Java, Go, Python, .NET, and executable apps—can point at trusted local source. This enables short edit-and-run cycles while still providing resource relationships, endpoints, lifecycle, logs, health, and telemetry.
+Language-specific resources—JavaScript, Java, Go, Python, .NET, and executable apps—can point at trusted local source. This enables short edit-and-run cycles while still providing resource relationships, configuration, endpoints, lifecycle, logs, health, and telemetry. The goal is not merely to start several processes; it is to give application code and tools a coherent integration surface for the complete distributed application.
 
 ## Hosting: narrow the trust boundary
 

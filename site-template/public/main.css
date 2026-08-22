@@ -34,6 +34,22 @@ header img#logo {
   flex: 0 0 2rem;
 }
 
+header #navbar .navbar-nav > .dropdown {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+header #navbar .cs-nav-parent-link {
+  padding-right: .2rem;
+}
+
+header #navbar .cs-nav-menu-toggle {
+  min-width: 1.35rem;
+  padding-left: .2rem;
+  padding-right: .55rem;
+}
+
 body:has(.cs-landing) main > .container-xxl,
 body:has(.cs-landing) main > .container-fluid,
 body:has(.cs-landing) .content {
@@ -239,6 +255,13 @@ body:has(.cs-landing) .contribution {
   .cs-steps li, .cs-steps li + li { padding: 1.5rem 0; border-left: 0; border-bottom: 1px solid var(--cs-soft-line); }
   .cs-carousel-caption { grid-template-columns: 1fr auto; }
   .cs-carousel-caption > p { grid-column: 1 / -1; grid-row: 2; }
+}
+
+@media (max-width: 767.98px) {
+  header #navbar .navbar-nav > .dropdown > .dropdown-menu {
+    flex: 0 0 100%;
+    width: 100%;
+  }
 }
 
 @media (max-width: 640px) {

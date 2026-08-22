@@ -33,6 +33,48 @@ const initializeCarousel = () => {
   show(0);
 };
 
+const initializePrimaryNavigationLinks = () => {
+  const destinations = new Map([
+    ['Get started', 'get-started.html'],
+    ['Concepts', 'concepts.html']
+  ]);
+
+  const enhance = () => {
+    document.querySelectorAll('#navbar .navbar-nav > .nav-item.dropdown').forEach((item) => {
+      const toggle = item.querySelector(':scope > .dropdown-toggle');
+      const label = toggle?.textContent?.replace(/\s+/g, ' ').trim();
+      const href = destinations.get(label);
+      if (!toggle || !href || item.querySelector(':scope > .cs-nav-parent-link')) return;
+
+      const link = document.createElement('a');
+      link.className = 'nav-link cs-nav-parent-link';
+      link.href = href;
+      link.textContent = label;
+
+      if (toggle.classList.contains('active')) {
+        link.classList.add('active');
+        toggle.classList.remove('active');
+      }
+
+      if (new URL(link.href, window.location.href).pathname === window.location.pathname) {
+        link.classList.add('active');
+        link.setAttribute('aria-current', 'page');
+      }
+
+      toggle.classList.add('cs-nav-menu-toggle');
+      toggle.setAttribute('aria-label', `Open ${label} menu`);
+      toggle.innerHTML = `<span class="visually-hidden">Open ${label} menu</span>`;
+      item.insertBefore(link, toggle);
+    });
+  };
+
+  const navbar = document.querySelector('#navbar');
+  if (!navbar) return;
+
+  enhance();
+  new MutationObserver(enhance).observe(navbar, { childList: true, subtree: true });
+};
+
 export default {
   defaultTheme: 'light',
   iconLinks: [
@@ -42,5 +84,8 @@ export default {
       title: 'CloudShell on GitHub'
     }
   ],
-  start: initializeCarousel
+  start: () => {
+    initializePrimaryNavigationLinks();
+    initializeCarousel();
+  }
 };

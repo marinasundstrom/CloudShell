@@ -7,7 +7,7 @@ description: Compare CloudShell's self-hosted control-plane model with Aspire's 
 
 CloudShell and [Aspire](https://learn.microsoft.com/dotnet/aspire/get-started/aspire-overview) both describe distributed applications as graphs of resources. Both can start application processes and containers, connect services, surface endpoints, and collect logs and traces. The difference is their center of gravity.
 
-Aspire is a code-first orchestration, observability, and deployment toolchain organized around an application and its AppHost. CloudShell is working toward an independently hosted, resource-oriented control plane: an environment remains available so people and tools can inspect, operate, and govern its resources after the authoring process exits.
+Aspire is a code-first orchestration, observability, and deployment toolchain organized around an application and its AppHost. CloudShell was designed for hosting distributed applications from the start, around an independently hosted, resource-oriented control plane: an environment remains available so people and tools can inspect, operate, and govern its resources after the authoring process exits. Its development flow connects source code and developer tools to that hosting model rather than defining a separate product boundary.
 
 CloudShell is in preview. This comparison describes its intended architecture and the capabilities implemented so far; it is not a claim of current feature parity with Aspire or a public cloud platform.
 
