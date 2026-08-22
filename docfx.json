@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "build": {
+    "content": [
+      {
+        "src": "website",
+        "files": [
+          "**/*.md",
+          "**/toc.yml"
+        ],
+        "dest": "."
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "images/**",
+          "CloudShell.Hosting/wwwroot/favicon.png"
+        ]
+      }
+    ],
+    "output": "_site",
+    "template": [
+      "default",
+      "modern",
+      "site-template"
+    ],
+    "globalMetadata": {
+      "_appName": "CloudShell",
+      "_appTitle": "CloudShell",
+      "_appLogoPath": "CloudShell.Hosting/wwwroot/favicon.png",
+      "_appFooter": "CloudShell is preview software and is not a committed product.",
+      "_appFaviconPath": "CloudShell.Hosting/wwwroot/favicon.png",
+      "_enableSearch": true,
+      "_gitContribute": {
+        "repo": "https://github.com/marinasundstrom/CloudShell",
+        "branch": "main"
+      }
+    },
+    "sitemap": {
+      "baseUrl": "https://marinasundstrom.github.io/CloudShell",
+      "priority": 0.5,
+      "changefreq": "weekly"
+    }
+  }
+}

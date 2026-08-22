@@ -1,0 +1,13 @@
+- name: Overview
+  href: index.md
+- name: Get started
+  href: get-started.md
+- name: Concepts
+  href: concepts.md
+- name: Resources
+  href: resources/
+  topicHref: resources/index.md
+- name: Telemetry
+  href: observability.md
+- name: GitHub
+  href: https://github.com/marinasundstrom/CloudShell
