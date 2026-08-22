@@ -38,29 +38,29 @@ _disableToc: true
     </div>
     <div class="cs-carousel" data-carousel aria-roledescription="carousel" aria-label="CloudShell product highlights">
       <div class="cs-carousel-stage" aria-live="polite">
-        <figure class="cs-slide is-active" data-carousel-slide data-title="Telemetry" data-copy="Follow logs, traces, metrics, dependencies, and service flow from one observability workspace.">
-          <img src="../images/telemetry.jpg" alt="CloudShell telemetry workspace overview" loading="eager">
+        <figure class="cs-slide is-active" data-carousel-slide data-title="Resource inventory" data-copy="Filter the environment, check health, open endpoints, and run lifecycle actions from a shared inventory.">
+          <img src="../images/showcase-resources.png" alt="CloudShell resource inventory showing two healthy, running application resources" loading="eager">
         </figure>
-        <figure class="cs-slide" data-carousel-slide data-title="Resource Manager" data-copy="Filter the environment, check health, open endpoints, and run resource actions from a shared inventory.">
-          <img src="../images/resources.png" alt="CloudShell Resource Manager inventory" loading="lazy">
+        <figure class="cs-slide" data-carousel-slide data-title="Request trace" data-copy="Break one request into its frontend and API spans, timings, operations, and failure path.">
+          <img src="../images/showcase-traces.png" alt="CloudShell trace detail showing an eight-span frontend-to-API request with a failed attempt and successful fallback" loading="lazy">
         </figure>
-        <figure class="cs-slide" data-carousel-slide data-title="Resource graph" data-copy="Understand applications, infrastructure, endpoints, and dependencies as one provider-neutral graph.">
-          <img src="../images/resource-graph.png" alt="CloudShell application resource graph" loading="lazy">
+        <figure class="cs-slide" data-carousel-slide data-title="Runtime environment" data-copy="Move from declared resources into the active revision, replica group, routes, and individual container instances.">
+          <img src="../images/showcase-runtime-environment.png" alt="CloudShell environment map showing a container app, its replica group, and three running replicas" loading="lazy">
         </figure>
-        <figure class="cs-slide" data-carousel-slide data-title="Runtime graph" data-copy="Reveal replicas and runtime-managed resources when you need to move from intent into diagnosis.">
-          <img src="../images/runtime-graph.png" alt="CloudShell expanded runtime graph" loading="lazy">
+        <figure class="cs-slide" data-carousel-slide data-title="Resource graph" data-copy="Understand application services, infrastructure, and declared dependencies as one provider-neutral graph.">
+          <img src="../images/showcase-resource-graph.png" alt="CloudShell resource graph showing the SignalR frontend and its API dependency" loading="lazy">
         </figure>
         <button class="cs-carousel-arrow cs-carousel-prev" type="button" data-carousel-prev aria-label="Previous highlight">←</button>
         <button class="cs-carousel-arrow cs-carousel-next" type="button" data-carousel-next aria-label="Next highlight">→</button>
       </div>
       <div class="cs-carousel-caption">
-        <div><p class="cs-kicker" data-carousel-count>01 / 04</p><h3 data-carousel-title>Telemetry</h3></div>
-        <p data-carousel-copy>Follow logs, traces, metrics, dependencies, and service flow from one observability workspace.</p>
+        <div><p class="cs-kicker" data-carousel-count>01 / 04</p><h3 data-carousel-title>Resource inventory</h3></div>
+        <p data-carousel-copy>Filter the environment, check health, open endpoints, and run lifecycle actions from a shared inventory.</p>
         <div class="cs-carousel-dots" role="tablist" aria-label="Choose a product highlight">
-          <button class="is-active" type="button" role="tab" aria-selected="true" aria-label="Show Telemetry" data-carousel-dot></button>
-          <button type="button" role="tab" aria-selected="false" aria-label="Show Resource Manager" data-carousel-dot></button>
-          <button type="button" role="tab" aria-selected="false" aria-label="Show Resource graph" data-carousel-dot></button>
-          <button type="button" role="tab" aria-selected="false" aria-label="Show Runtime graph" data-carousel-dot></button>
+          <button class="is-active" type="button" role="tab" aria-selected="true" aria-label="Show resource inventory" data-carousel-dot></button>
+          <button type="button" role="tab" aria-selected="false" aria-label="Show request trace" data-carousel-dot></button>
+          <button type="button" role="tab" aria-selected="false" aria-label="Show runtime environment" data-carousel-dot></button>
+          <button type="button" role="tab" aria-selected="false" aria-label="Show resource graph" data-carousel-dot></button>
         </div>
       </div>
     </div>

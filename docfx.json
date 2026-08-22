@@ -8,14 +8,22 @@
           "**/*.md",
           "**/toc.yml"
         ],
+        "exclude": [
+          "README.md"
+        ],
         "dest": "."
       }
     ],
     "resource": [
       {
         "files": [
-          "images/**",
-          "CloudShell.Hosting/wwwroot/favicon.png"
+          "images/**"
+        ]
+      },
+      {
+        "src": "website",
+        "files": [
+          "assets/**/*.png"
         ]
       }
     ],
@@ -28,9 +36,9 @@
     "globalMetadata": {
       "_appName": "CloudShell",
       "_appTitle": "CloudShell",
-      "_appLogoPath": "CloudShell.Hosting/wwwroot/favicon.png",
+      "_appLogoPath": "assets/brand/cloudshell-placeholder.png",
       "_appFooter": "CloudShell is preview software and is not a committed product.",
-      "_appFaviconPath": "CloudShell.Hosting/wwwroot/favicon.png",
+      "_appFaviconPath": "assets/brand/cloudshell-placeholder.png",
       "_enableSearch": true,
       "_gitContribute": {
         "repo": "https://github.com/marinasundstrom/CloudShell",

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title description">
+  <title id="title">CloudShell</title>
+  <desc id="description">CS initials on a blue, violet, and teal gradient tile.</desc>
+  <defs>
+    <linearGradient id="cloudshell-gradient" x1="14" y1="8" x2="84" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1769e0"/>
+      <stop offset="0.56" stop-color="#7956f6"/>
+      <stop offset="1" stop-color="#0e9688"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#cloudshell-gradient)" d="M23 5h50c10 0 18 8 18 18v50c0 10-8 18-18 18H23C13 91 5 83 5 73V23C5 13 13 5 23 5Z"/>
+  <path fill="none" stroke="#fff" stroke-opacity="0.16" stroke-width="1.5" d="M24 6h48c10 0 18 8 18 18v48c0 10-8 18-18 18H24C14 90 6 82 6 72V24C6 14 14 6 24 6Z"/>
+  <text x="48" y="62" fill="#fff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="40" font-weight="800" letter-spacing="-3" text-anchor="middle">CS</text>
+</svg>

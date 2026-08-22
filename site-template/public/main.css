@@ -8,11 +8,24 @@
   --cs-teal: #0e9688;
   --cs-night: #080d1d;
   --cs-panel: #11182b;
+  --cs-page: #fbfcff;
+  --cs-surface: #fff;
+  --cs-soft: #f0f3f8;
+  --cs-soft-line: #cfd6e2;
+  --cs-carousel-stage: #eef2f8;
+  --cs-shadow: rgba(39,52,83,.12);
 }
 
 body {
   --bs-link-color-rgb: 23, 105, 224;
   --bs-link-hover-color-rgb: 10, 79, 177;
+}
+
+header img#logo {
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  flex: 0 0 2rem;
 }
 
 body:has(.cs-landing) main > .container-xxl,
@@ -36,7 +49,7 @@ body:has(.cs-landing) .contribution {
 
 .cs-landing {
   color: var(--cs-ink);
-  background: #fbfcff;
+  background: var(--cs-page);
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   overflow: hidden;
 }
@@ -44,6 +57,7 @@ body:has(.cs-landing) .contribution {
 .cs-landing *, .cs-landing *::before, .cs-landing *::after { box-sizing: border-box; }
 .cs-landing h1, .cs-landing h2, .cs-landing h3, .cs-landing p { margin-top: 0; }
 .cs-landing a { text-decoration: none; }
+.cs-landing .anchorjs-link { display: none !important; }
 
 .cs-hero {
   min-height: 760px;
@@ -113,8 +127,8 @@ body:has(.cs-landing) .contribution {
 .cs-section-heading h2, .cs-cta h2 { font-size: clamp(2.45rem, 4.3vw, 4.5rem); line-height: 1.04; letter-spacing: -.052em; margin: .55rem 0 0; }
 .cs-section-heading > p { color: var(--cs-muted); font-size: 1.05rem; line-height: 1.7; margin-bottom: .4rem; }
 
-.cs-carousel { border: 1px solid #d9deea; border-radius: 1.05rem; overflow: hidden; background: white; box-shadow: 0 25px 70px rgba(39,52,83,.12); }
-.cs-carousel-stage { position: relative; aspect-ratio: 16 / 8.6; overflow: hidden; background: #eef2f8; }
+.cs-carousel { border: 1px solid var(--cs-line); border-radius: 1.05rem; overflow: hidden; background: var(--cs-surface); box-shadow: 0 25px 70px var(--cs-shadow); }
+.cs-carousel-stage { position: relative; aspect-ratio: 16 / 8.6; overflow: hidden; background: var(--cs-carousel-stage); }
 .cs-slide { position: absolute; inset: 0; opacity: 0; transition: opacity .35s ease; margin: 0; pointer-events: none; }
 .cs-slide.is-active { opacity: 1; pointer-events: auto; }
 .cs-slide img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
@@ -131,7 +145,7 @@ body:has(.cs-landing) .contribution {
 .cs-carousel-dots button.is-active { width: 1.8rem; background: var(--cs-blue); }
 
 .cs-resource-grid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--cs-line); border-radius: 1rem; overflow: hidden; }
-.cs-resource-card { min-height: 330px; display: flex; flex-direction: column; padding: 1.7rem; border-right: 1px solid var(--cs-line); background: #fff; }
+.cs-resource-card { min-height: 330px; display: flex; flex-direction: column; padding: 1.7rem; border-right: 1px solid var(--cs-line); background: var(--cs-surface); }
 .cs-resource-card:last-child { border-right: 0; }
 .cs-card-index { color: #8a93a5; font-size: .75rem; font-weight: 750; letter-spacing: .1em; }
 .cs-resource-card h3 { font-size: 1.45rem; letter-spacing: -.025em; margin: auto 0 .8rem; }
@@ -143,10 +157,10 @@ body:has(.cs-landing) .contribution {
 .cs-resource-card-accent a { color: white; }
 .cs-resource-card-accent a:hover { color: white; }
 
-.cs-flow { max-width: none; padding-left: max(2rem, calc((100vw - 1256px) / 2)); padding-right: max(2rem, calc((100vw - 1256px) / 2)); background: #f0f3f8; }
-.cs-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 0; margin: 0; list-style: none; border-top: 1px solid #cfd6e2; }
+.cs-flow { max-width: none; padding-left: max(2rem, calc((100vw - 1256px) / 2)); padding-right: max(2rem, calc((100vw - 1256px) / 2)); background: var(--cs-soft); }
+.cs-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 0; margin: 0; list-style: none; border-top: 1px solid var(--cs-soft-line); }
 .cs-steps li { display: flex; gap: 1.4rem; padding: 2rem 2.2rem 0 0; }
-.cs-steps li + li { padding-left: 2.2rem; border-left: 1px solid #cfd6e2; }
+.cs-steps li + li { padding-left: 2.2rem; border-left: 1px solid var(--cs-soft-line); }
 .cs-steps > li > span { color: var(--cs-blue); font-size: .75rem; font-weight: 800; letter-spacing: .08em; }
 .cs-steps h3 { margin-bottom: .65rem; font-size: 1.35rem; }
 .cs-steps p { color: var(--cs-muted); line-height: 1.65; }
@@ -161,6 +175,31 @@ body:has(.cs-landing) .contribution {
 .cs-button-light { color: var(--cs-ink) !important; background: white; }
 .cs-button-ghost { color: white !important; border: 1px solid rgba(255,255,255,.25); }
 
+[data-bs-theme="dark"] body {
+  --bs-link-color-rgb: 111, 174, 255;
+  --bs-link-hover-color-rgb: 151, 199, 255;
+}
+
+[data-bs-theme="dark"] .cs-landing {
+  --cs-ink: #f2f5fb;
+  --cs-muted: #aeb8ca;
+  --cs-line: #28344c;
+  --cs-page: #080d1d;
+  --cs-surface: #11182b;
+  --cs-soft: #0d1426;
+  --cs-soft-line: #2b3852;
+  --cs-carousel-stage: #0b1222;
+  --cs-shadow: rgba(0,0,0,.38);
+}
+
+[data-bs-theme="dark"] .cs-kicker { color: #96a4bb; }
+[data-bs-theme="dark"] .cs-resource-card a { color: #eaf2ff; }
+[data-bs-theme="dark"] .cs-resource-card a:hover { color: #8cbcff; }
+[data-bs-theme="dark"] .cs-resource-card-accent a,
+[data-bs-theme="dark"] .cs-resource-card-accent a:hover { color: #fff; }
+[data-bs-theme="dark"] .cs-carousel-dots button { background: #526078; }
+[data-bs-theme="dark"] .cs-carousel-dots button.is-active { background: #6fafff; }
+
 @media (max-width: 980px) {
   .cs-hero { min-height: auto; grid-template-columns: 1fr; padding-top: 5rem; }
   .cs-hero-visual { width: min(100%, 600px); min-width: 0; margin: -1rem auto 0; }
@@ -169,7 +208,7 @@ body:has(.cs-landing) .contribution {
   .cs-resource-card:nth-child(2) { border-right: 0; }
   .cs-resource-card:nth-child(-n+2) { border-bottom: 1px solid var(--cs-line); }
   .cs-steps { grid-template-columns: 1fr; }
-  .cs-steps li, .cs-steps li + li { padding: 1.5rem 0; border-left: 0; border-bottom: 1px solid #cfd6e2; }
+  .cs-steps li, .cs-steps li + li { padding: 1.5rem 0; border-left: 0; border-bottom: 1px solid var(--cs-soft-line); }
   .cs-carousel-caption { grid-template-columns: 1fr auto; }
   .cs-carousel-caption > p { grid-column: 1 / -1; grid-row: 2; }
 }
