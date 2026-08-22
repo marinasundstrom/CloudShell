@@ -46,7 +46,7 @@ jobs:
         shell: bash
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
-          PUBLISH_TARGET: ${{ inputs.publish_target }}
+          PUBLISH_TARGET: ${{ inputs.publish_target || 'artifact' }}
         run: |
           set -euo pipefail
 
