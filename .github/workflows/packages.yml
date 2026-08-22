@@ -180,10 +180,10 @@ jobs:
           for service in configuration-store secrets-vault device-registry; do
             grep -aFq "ghcr.io/marinasundstrom/cloudshell:$service-$PACKAGE_VERSION" "$host_assembly"
           done
-          unzip -Z1 "$local_source/CloudShell.Cli.$PACKAGE_VERSION.nupkg" | grep -Fq \
-            'tools/net11.0/any/host/CloudShell.LocalDevelopmentHost.dll'
-          if unzip -Z1 "$local_source/CloudShell.Cli.$PACKAGE_VERSION.nupkg" | \
-              grep -Eq 'tools/net11.0/any/host/(Data/|.*bootstrap-credentials)'; then
+          package_entries="$RUNNER_TEMP/cloudshell-cli-package-entries.txt"
+          unzip -Z1 "$local_source/CloudShell.Cli.$PACKAGE_VERSION.nupkg" > "$package_entries"
+          grep -Fxq 'tools/net11.0/any/host/CloudShell.LocalDevelopmentHost.dll' "$package_entries"
+          if grep -Eq 'tools/net11.0/any/host/(Data/|.*bootstrap-credentials)' "$package_entries"; then
             echo "CloudShell.Cli contains development-host runtime data." >&2
             exit 1
           fi
