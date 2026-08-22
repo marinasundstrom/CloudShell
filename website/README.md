@@ -45,11 +45,36 @@ Screenshots must come from a fresh local run. Do not reuse historical images or 
 
 ## Reproduce resource guide screenshots
 
-Resource guide screenshots use the same English, light-theme product state as the carousel. Capture them at 2× pixel density and keep the important resource details visible without browser chrome.
+Resource guide images are feature crops, not full application screenshots. Each crop should retain enough CloudShell context to identify the surface while making the resource-specific capability the dominant subject.
 
-For `images/resource-rabbitmq.png`:
+### Shared capture contract
 
-1. From `samples/RabbitMQMessaging`, run `./cloudshell.sh run-no-auth`.
-2. Open the Resources view, start **RabbitMQ**, wait for its state to become **Running**, and select its table row.
-3. Dismiss notifications or refresh the view so no command result remains. Keep the resource list and RabbitMQ detail panel open together; the image should show the publishers, volume, broker state, and AMQP and management endpoints.
-4. Use a 1440 × 900 viewport and save a 2880 × 1800 PNG.
+1. Use a fresh local sample run with English, the light product theme, and no browser chrome in the capture.
+2. Wait until resource state, health, topology, and timestamps are stable. Dismiss notifications and command-result banners.
+3. Capture at 2× pixel density when the browser supports it. Crop on whole CSS-pixel boundaries so the preferred output dimensions are exactly twice the crop dimensions. Store every final website asset as PNG.
+4. When capture tooling only provides 1× output, crop first and perform one documented 2× PNG conversion. Never chain resizes or recompress an existing website asset.
+5. Compare the result with the existing file before replacing it. Keep approximately the same subject, scale, aspect ratio, and surrounding context when the UI layout changes.
+6. Rebuild the DocFX site and inspect the image at its rendered page width in light and dark site themes.
+
+Crop coordinates below use `x, y, width, height` from the top-left of the source viewport in CSS pixels.
+
+| Output | Sample and state | Route | Source viewport | Feature crop | Output size |
+| --- | --- | --- | --- | --- | --- |
+| `images/resource-rabbitmq-graph.png` | RabbitMQ Messaging; start RabbitMQ plus both publishers; graph shows 4 resources, 3 dependencies, and running status for the broker and publishers | `/resources/graph` | 1440 × 900 | graph canvas around RabbitMQ, .NET Publisher, Java Publisher, and RabbitMQ Data; `420, 235, 800, 535` | 1600 × 1070 |
+| `images/resource-rabbitmq-topology.png` | RabbitMQ Messaging; both publishers running; topology reports the sample virtual host, 2 queues, 8 exchanges, and 4 bindings | `/resources/application.rabbitmq%3Arabbitmq/topology` | 1440 × 900 | RabbitMQ title, resource-view navigation, topology summary, and both sample queue rows; `225, 80, 1200, 790` | 2400 × 1580 |
+| `images/resource-container-app-replicas.png` | SignalR Container App; start SignalR API and wait for one active replica group with 3 of 3 replicas running | `/environment` | 1440 × 900 | Zoom the map out once, bring the **Environment map** heading into view, then crop the card containing the container app, replica group, routing binding, and replicas 1–3; `240, 302, 780, 598` | 1560 × 1196 |
+| `images/resource-dotnet-trace.png` | Application Topology; request `/upstream/fallback` and select the resulting eight-span trace | `/telemetry/traces` | 1280 × 720 | trace source, request summary, span waterfall, and selected-span details; `190, 130, 1050, 560` | 2100 × 1120 |
+
+### Sample commands
+
+For the RabbitMQ images:
+
+```bash
+cd samples/RabbitMQMessaging
+./cloudshell.sh run-no-auth
+./cloudshell.sh start-apps
+```
+
+For the container replica image, run the SignalR sample as described in the carousel procedure, start **SignalR API**, and wait until the Environment summary reports 7 resources, 1 deployment record, 1 replica group, and 0 replica issues. If the map composition changes, use its zoom controls to keep all three replica nodes visible before capturing.
+
+The .NET trace crop is derived from the same stable trace state used by `images/showcase-traces.png`. Update both files in the same session so service names, durations, trace ID, and timestamps remain consistent.

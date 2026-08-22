@@ -19,7 +19,7 @@ A .NET app resource turns a local project into an operable part of the environme
 - **Distributed tracing.** Follow one request across .NET services and inspect the contribution of every server, client, and internal span.
 
 <figure class="cs-doc-shot">
-  <a href="../../images/showcase-traces.png"><img src="../../images/showcase-traces.png" alt="CloudShell trace detail for a .NET frontend request spanning a frontend and API, including a failed attempt and successful fallback"></a>
+  <a href="../../images/resource-dotnet-trace.png"><img src="../../images/resource-dotnet-trace.png" alt="CloudShell trace breakdown for a .NET frontend request spanning a frontend and API, including a failed attempt and successful fallback"></a>
   <figcaption>A single request is broken into eight frontend and API spans, including the failed call and the successful fallback path.</figcaption>
 </figure>
 

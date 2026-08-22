@@ -21,6 +21,12 @@ body {
   --bs-link-hover-color-rgb: 10, 79, 177;
 }
 
+header .navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .625rem;
+}
+
 header img#logo {
   width: 2rem;
   height: 2rem;

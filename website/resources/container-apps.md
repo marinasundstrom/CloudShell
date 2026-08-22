@@ -19,8 +19,8 @@ Container apps give a containerized workload a stable application identity. You 
 - **Correlated operations.** Move from resource state into logs, traces, metrics, activity, and related resources while preserving context.
 
 <figure class="cs-doc-shot">
-  <a href="../../images/showcase-runtime-environment.png"><img src="../../images/showcase-runtime-environment.png" alt="CloudShell environment map showing a container app, its replica group, routing, and three running replicas"></a>
-  <figcaption>The environment map connects declared application intent to the active replica group and its runtime-managed containers.</figcaption>
+  <a href="../../images/resource-container-app-replicas.png"><img src="../../images/resource-container-app-replicas.png" alt="CloudShell environment map focused on a container app, its replica group, routing binding, and three running replicas"></a>
+  <figcaption>The focused environment map connects the declared SignalR API to its active replica group, routing binding, and three runtime-managed containers.</figcaption>
 </figure>
 
 ## Declared app and runtime resources

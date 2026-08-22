@@ -5,22 +5,24 @@ description: Run a local RabbitMQ broker with managed endpoints, storage, access
 
 # RabbitMQ
 
-The RabbitMQ resource provides a broker boundary that applications can depend on without embedding host-specific connection details in the application graph. CloudShell manages the local broker lifecycle and projects its AMQP and management endpoints through the same Resource Manager experience as the workloads that use it.
+The RabbitMQ resource provides a broker boundary that applications can depend on without embedding host-specific connection details in the application graph. CloudShell brings broker lifecycle, relationships, endpoints, storage, access, and selected broker signals into the same Resource Manager experience as the workloads that use it.
 
 > [!NOTE]
-> RabbitMQ support is in preview and currently targets local, container-backed development environments.
+> RabbitMQ support is in preview and currently targets local, container-backed development environments. CloudShell provides an integrated operational view; it is not a replacement for the full RabbitMQ Management experience.
 
 ## What you get
 
-- **Broker lifecycle and health.** Start and stop the broker, inspect current state, and keep it grouped with the applications that depend on it.
+- **A connected resource graph.** See which applications depend on the broker and which storage resource persists its data.
+- **Broker lifecycle and state.** Start and stop the broker, inspect current state, and keep it grouped with the applications that depend on it.
 - **Named endpoints.** Expose AMQP and the RabbitMQ management UI as distinct resource-owned endpoints.
 - **Persistent storage intent.** Attach a CloudShell volume without making the host path or Docker volume the stable application contract.
 - **Identity-based access.** Grant configure, publish, and consume permissions to workload identities while keeping broker-native credentials out of the resource graph.
+- **Focused broker signals.** Inspect an observed topology summary, queues, exchanges, bindings, and broker counters without leaving the resource context.
 - **Messaging traces.** Propagate trace context through message headers and correlate HTTP publishers, RabbitMQ publish operations, and consumers in one trace.
 
 <figure class="cs-doc-shot">
-  <a href="../../images/resource-rabbitmq.png"><img src="../../images/resource-rabbitmq.png" alt="CloudShell RabbitMQ resource view showing broker state, endpoints, relationships, and operations"></a>
-  <figcaption>The broker stays a first-class resource with its own state and endpoints while publisher applications reference it through declared dependencies and permissions.</figcaption>
+  <a href="../../images/resource-rabbitmq-graph.png"><img src="../../images/resource-rabbitmq-graph.png" alt="CloudShell resource graph focused on a running RabbitMQ broker, its .NET and Java publishers, and persistent volume"></a>
+  <figcaption>RabbitMQ remains a first-class resource between two running publisher applications and its persistent data volume.</figcaption>
 </figure>
 
 ## Applications depend on the broker resource
@@ -28,6 +30,17 @@ The RabbitMQ resource provides a broker boundary that applications can depend on
 Applications reference the RabbitMQ resource and request an allowed operation. The provider owns the runtime-specific user and virtual-host reconciliation needed by RabbitMQ itself. This keeps portable application intent—who may publish or consume—separate from broker-native account management.
 
 The broker can expose multiple endpoints. Applications normally use AMQP, while operators can open the management UI from the resource without treating that UI address as the workload connection contract.
+
+## Inspect broker topology in context
+
+CloudShell can project a focused, observed view of broker-native topology into the RabbitMQ resource. The sample view summarizes its virtual host and shows the queues used by the .NET and Java publishers alongside exchange and binding counts.
+
+<figure class="cs-doc-shot">
+  <a href="../../images/resource-rabbitmq-topology.png"><img src="../../images/resource-rabbitmq-topology.png" alt="CloudShell RabbitMQ topology view showing virtual-host totals and the queues used by .NET and Java publisher applications"></a>
+  <figcaption>The topology view surfaces the broker facts that help explain the application environment while preserving a link to RabbitMQ Management for deeper administration.</figcaption>
+</figure>
+
+This is deliberately an integrated diagnostic surface rather than a complete broker console. It keeps common operational facts beside resource relationships, access, logs, activity, and endpoints; RabbitMQ Management remains the authoritative tool for the full set of broker-native operations.
 
 ## Explore the complete messaging path
 
