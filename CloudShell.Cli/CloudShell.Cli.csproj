@@ -39,6 +39,7 @@
     <RemoveDir Directories="$(PublishDir)host" />
     <MSBuild Projects="$(MSBuildProjectDirectory)/../CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj"
              Targets="Publish"
+             RemoveProperties="NoBuild"
              Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);PublishDir=$(BundledDevelopmentHostPublishDirectory);UseAppHost=false;Version=$(Version);PackageVersion=$(PackageVersion);CloudShellBuiltInServiceRuntime=$(CloudShellBuiltInServiceRuntime);CloudShellConfigurationStoreImage=$(_CloudShellConfigurationStoreImage);CloudShellSecretsVaultImage=$(_CloudShellSecretsVaultImage);CloudShellDeviceRegistryImage=$(_CloudShellDeviceRegistryImage)" />
     <ItemGroup>
       <_BundledDevelopmentHostFile Include="$(BundledDevelopmentHostPublishDirectory)**/*" />
