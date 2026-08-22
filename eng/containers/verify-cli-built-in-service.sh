@@ -65,13 +65,18 @@ tool="${tool_directory}/cloudshell"
 host_pid=$!
 
 for attempt in {1..60}; do
-  if "$tool" resource list \
+  if "$tool" resource show "$resource_id" \
       --control-plane http://127.0.0.1:5112 >/dev/null 2>&1; then
     break
   fi
+  if ! kill -0 "$host_pid" 2>/dev/null; then
+    cat "$host_log"
+    echo "Released CloudShell CLI host exited before registering ${resource_id}." >&2
+    exit 1
+  fi
   if [[ "$attempt" -eq 60 ]]; then
     cat "$host_log"
-    echo "Released CloudShell CLI host did not become ready." >&2
+    echo "Released CloudShell CLI host did not register ${resource_id}." >&2
     exit 1
   fi
   sleep 2
