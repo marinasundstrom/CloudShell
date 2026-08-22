@@ -49,7 +49,7 @@ body:has(.cs-landing) main.container-xxl {
   margin: 0 !important;
 }
 
-body:has(.cs-landing) article {
+body:has(.cs-landing) .content > article {
   max-width: none;
   padding: 0;
 }

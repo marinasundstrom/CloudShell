@@ -23,6 +23,25 @@ A .NET app resource turns a local project into an operable part of the environme
   <figcaption>A single request is broken into eight frontend and API spans, including the failed call and the successful fallback path.</figcaption>
 </figure>
 
+## Minimal resource template
+
+```yaml
+resources:
+  - type: application.dotnet-app
+    name: api
+    project:
+      path: ./src/Api/Api.csproj
+      hotReload: true
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 5080
+        port: 5080
+        exposure: Local
+```
+
+The project path is resolved on the CloudShell host. Use this source-based mode only for a trusted local-development environment.
+
 ## A local-development resource
 
 The resource represents the application, not merely its process. Other resources can depend on it by identity and endpoint name, and the UI can keep diagnostics attached to that same identity across restarts.

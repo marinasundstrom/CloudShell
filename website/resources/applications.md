@@ -25,8 +25,13 @@ Container apps are the preferred application deployment shape for team-owned env
 
 ## Featured resource guides
 
-- [.NET apps](dotnet-apps.md) — a project-aware local workflow with dependencies, endpoints, health, and distributed tracing.
-- [Container apps](container-apps.md) — a stable application boundary over revisions, replica groups, routing, and runtime-managed containers.
+- [Executable apps](executable-apps.md) — host-local commands, tools, workers, emulators, and scripts.
+- [.NET apps](dotnet-apps.md) — project-aware local development with distributed tracing.
+- [JavaScript apps](javascript-apps.md) — Node.js, TypeScript, JavaScript, and Bun projects.
+- [Java apps](java-apps.md) — JARs, main classes, JVM arguments, and service relationships.
+- [Go apps](go-apps.md) — local Go packages or prebuilt binaries.
+- [Python apps](python-apps.md) — Python scripts, modules, APIs, and workers.
+- [Container apps](container-apps.md) — a stable application boundary over replicas and runtime-managed containers.
 
 ## Common capabilities
 

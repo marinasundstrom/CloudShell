@@ -62,6 +62,7 @@ Crop coordinates below use `x, y, width, height` from the top-left of the source
 | --- | --- | --- | --- | --- | --- |
 | `images/resource-rabbitmq-graph.png` | RabbitMQ Messaging; start RabbitMQ plus both publishers; graph shows 4 resources, 3 dependencies, and running status for the broker and publishers | `/resources/graph` | 1440 × 900 | graph canvas around RabbitMQ, .NET Publisher, Java Publisher, and RabbitMQ Data; `420, 235, 800, 535` | 1600 × 1070 |
 | `images/resource-rabbitmq-topology.png` | RabbitMQ Messaging; both publishers running; topology reports the sample virtual host, 2 queues, 8 exchanges, and 4 bindings | `/resources/application.rabbitmq%3Arabbitmq/topology` | 1440 × 900 | RabbitMQ title, resource-view navigation, topology summary, and both sample queue rows; `225, 80, 1200, 790` | 2400 × 1580 |
+| `images/resource-sql-server-databases.png` | Application Topology; start SQL Server and open its Databases view with the declared `application_topology` database visible | `/resources/application.sql-server%3Aapplication-topology-sql-server/databases` | 1280 × 720 | SQL Server title and running state, resource navigation, Databases summary, provisioning intent, and database state; `230, 35, 1040, 530` | 2080 × 1060 |
 | `images/resource-container-app-replicas.png` | SignalR Container App; start SignalR API and wait for one active replica group with 3 of 3 replicas running | `/environment` | 1440 × 900 | Zoom the map out once, bring the **Environment map** heading into view, then crop the card containing the container app, replica group, routing binding, and replicas 1–3; `240, 302, 780, 598` | 1560 × 1196 |
 | `images/resource-dotnet-trace.png` | Application Topology; request `/upstream/fallback` and select the resulting eight-span trace | `/telemetry/traces` | 1280 × 720 | trace source, request summary, span waterfall, and selected-span details; `190, 130, 1050, 560` | 2100 × 1120 |
 
@@ -76,5 +77,13 @@ cd samples/RabbitMQMessaging
 ```
 
 For the container replica image, run the SignalR sample as described in the carousel procedure, start **SignalR API**, and wait until the Environment summary reports 7 resources, 1 deployment record, 1 replica group, and 0 replica issues. If the map composition changes, use its zoom controls to keep all three replica nodes visible before capturing.
+
+For the SQL Server image:
+
+```bash
+dotnet run --project samples/ApplicationTopology/Host -- --urls http://127.0.0.1:5104
+```
+
+Start **SQL Server**, wait for its state to become **Running**, open **Databases**, and dismiss or wait out transient notifications before capturing. The declared database remains useful even when provider observation reports no additional state.
 
 The .NET trace crop is derived from the same stable trace state used by `images/showcase-traces.png`. Update both files in the same session so service names, durations, trace ID, and timestamps remain consistent.

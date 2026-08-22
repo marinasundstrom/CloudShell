@@ -3,13 +3,25 @@
 - name: Applications
   href: applications.md
   items:
+  - name: Executable apps
+    href: executable-apps.md
   - name: .NET apps
     href: dotnet-apps.md
+  - name: JavaScript apps
+    href: javascript-apps.md
+  - name: Java apps
+    href: java-apps.md
+  - name: Go apps
+    href: go-apps.md
+  - name: Python apps
+    href: python-apps.md
   - name: Container apps
     href: container-apps.md
 - name: Data and services
   href: data-services.md
   items:
+  - name: SQL Server
+    href: sql-server.md
   - name: RabbitMQ
     href: rabbitmq.md
 - name: Platform

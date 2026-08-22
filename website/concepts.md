@@ -36,3 +36,5 @@ Resource Manager is the browser UI for the environment. Use it to filter resourc
 ## Preview boundaries
 
 CloudShell is early preview software. The local CLI and YAML app-host workflow are the primary entry point today. C# launchers are the most complete code-first authoring path; launchers for other languages and hosted topologies are still evolving. Do not treat current APIs, packages, or resource shapes as stable compatibility commitments.
+
+Continue with [development and hosting](development-and-hosting.md), the [CloudShell and Aspire comparison](cloudshell-and-aspire.md), [resource templates](resource-templates.md), or [launchers](launchers.md).

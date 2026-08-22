@@ -2,8 +2,20 @@
   href: index.md
 - name: Get started
   href: get-started.md
+  items:
+  - name: Build your first app
+    href: tutorials/first-app.md
 - name: Concepts
   href: concepts.md
+  items:
+  - name: Development and hosting
+    href: development-and-hosting.md
+  - name: CloudShell and Aspire
+    href: cloudshell-and-aspire.md
+  - name: Resource templates
+    href: resource-templates.md
+  - name: Launchers
+    href: launchers.md
 - name: Resources
   href: resources/
   topicHref: resources/index.md

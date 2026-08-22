@@ -23,6 +23,24 @@ Container apps give a containerized workload a stable application identity. You 
   <figcaption>The focused environment map connects the declared SignalR API to its active replica group, routing binding, and three runtime-managed containers.</figcaption>
 </figure>
 
+## Minimal resource template
+
+```yaml
+resources:
+  - type: application.container-app
+    name: api
+    image: ghcr.io/example/api:dev
+    replicas: 3
+    endpoints:
+      - name: http
+        protocol: http
+        targetPort: 8080
+        port: 5080
+        exposure: Local
+```
+
+The container app remains the stable resource. The selected provider resolves the image, placement, replica group, containers, and routing needed to realize it.
+
 ## Declared app and runtime resources
 
 The container app is normally user-authored. Replica groups, replicas, routing bindings, and low-level containers are provider-created or runtime-managed resources. They remain available for diagnosis, but applications should depend on the container app rather than a particular replica.

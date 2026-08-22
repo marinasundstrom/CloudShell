@@ -26,6 +26,7 @@ Resource definitions may describe that a setting, secret, certificate, database,
 
 SQL Server and RabbitMQ are currently local container-backed services. Configuration Store, Secrets Vault, and Device Registry are built-in CloudShell services whose runtime is an implementation detail of the resource. External managed-service providers and richer management surfaces can be added later without changing the core idea: applications depend on a stable resource, not on its local process or container identity.
 
-## Featured resource guide
+## Featured resource guides
 
+- [SQL Server](sql-server.md) — TDS connectivity, persistent storage, database resources, identity access, and diagnostics.
 - [RabbitMQ](rabbitmq.md) — broker lifecycle, AMQP and management endpoints, persistent storage, identity-based access, and cross-service messaging traces.

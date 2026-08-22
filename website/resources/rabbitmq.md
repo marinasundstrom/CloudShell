@@ -25,6 +25,30 @@ The RabbitMQ resource provides a broker boundary that applications can depend on
   <figcaption>RabbitMQ remains a first-class resource between two running publisher applications and its persistent data volume.</figcaption>
 </figure>
 
+## Minimal resource template
+
+```yaml
+resources:
+  - type: application.rabbitmq
+    name: rabbitmq
+    version: "3"
+    rabbitmq:
+      managementUi: true
+    endpoints:
+      - name: amqp
+        protocol: tcp
+        targetPort: 5672
+        port: 5672
+        exposure: Local
+      - name: management
+        protocol: http
+        targetPort: 15672
+        port: 15672
+        exposure: Local
+```
+
+Add a `cloudshell.volume` and mount it at `/var/lib/rabbitmq` when broker state should survive container replacement.
+
 ## Applications depend on the broker resource
 
 Applications reference the RabbitMQ resource and request an allowed operation. The provider owns the runtime-specific user and virtual-host reconciliation needed by RabbitMQ itself. This keeps portable application intent—who may publish or consume—separate from broker-native account management.

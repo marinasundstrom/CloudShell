@@ -11,7 +11,7 @@ CloudShell is currently available as a **preview**. The supported first-run path
 
 - A current .NET SDK compatible with the preview package
 - Docker for container-backed resources and built-in services
-- A local application you want to describe and run
+- A local application and its normal language runtime; the example below uses Node.js and npm
 
 ## 1. Install the preview CLI
 
@@ -27,31 +27,27 @@ CloudShell uses explicit preview versions so an early project does not update un
 
 ## 2. Add `cloudshell.yaml`
 
-Create a resource template beside your application. This small example runs an ASP.NET Core project and gives it a configuration service:
+Create a resource template beside your application. This small example runs a JavaScript service; CloudShell uses the same template model for Java, Go, Python, .NET, executable, and container workloads:
 
 ```yaml
 name: hello-cloudshell
 environment: local
 
 resources:
-  - type: configuration.store
-    name: app-settings
-    displayName: Application settings
-    endpoint: http://localhost:5266
-
-  - type: application.dotnet-app
+  - type: application.javascript-app
     name: api
     displayName: Sample API
-    dependsOn:
-      - resourceId: configuration.store:app-settings
     project:
-      path: ./Api/Api.csproj
+      path: ./app
+    runtime: node
+    packageManager: npm
+    script: dev
     endpoints:
       - name: http
         protocol: http
         host: localhost
-        port: 5265
-        targetPort: 5265
+        port: 5173
+        targetPort: 5173
         exposure: Local
 ```
 
@@ -79,7 +75,10 @@ Open the printed URL to:
 
 ## Next steps
 
+- Follow [Build your first CloudShell app](tutorials/first-app.md) for a complete JavaScript walkthrough.
 - Learn the [core concepts](concepts.md).
+- Understand [development and shared hosting](development-and-hosting.md).
+- Learn how [resource templates](resource-templates.md) and [launchers](launchers.md) author the same graph.
 - Browse the [resource catalog](resources/index.md).
 - See how [telemetry and observability](observability.md) fit together.
 - Try the complete [`samples/YamlAppHost`](https://github.com/marinasundstrom/CloudShell/tree/main/samples/YamlAppHost) example.
