@@ -246,9 +246,37 @@ body:has(.cs-landing) .contribution {
 .cs-doc-shot figcaption { padding: .9rem 1.1rem 1rem; color: var(--bs-secondary-color); font-size: .9rem; line-height: 1.55; border-top: 1px solid var(--bs-border-color); }
 [data-bs-theme="dark"] .cs-doc-shot { box-shadow: 0 18px 45px rgba(0,0,0,.32); }
 
-@media (max-width: 980px) {
-  .cs-hero { min-height: auto; grid-template-columns: 1fr; padding-top: 5rem; }
-  .cs-hero-visual { width: min(100%, 600px); min-width: 0; margin: -1rem auto 0; }
+@media (max-width: 1200px) {
+  .cs-hero {
+    min-height: auto;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, .72fr);
+    gap: clamp(2rem, 4vw, 4rem);
+    padding-top: clamp(3rem, 6vw, 4.5rem);
+    padding-bottom: clamp(3.5rem, 7vw, 5rem);
+  }
+  .cs-hero h1 { font-size: clamp(3.5rem, 5.7vw, 4.6rem); }
+  .cs-hero-visual {
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+  }
+  .cs-hero-visual .cs-orbit { display: none; }
+  .cs-hero-visual .cs-node {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    min-height: 82px;
+    padding: 1rem;
+  }
+  .cs-hero-visual .cs-node-main {
+    grid-column: 1 / -1;
+    min-height: 94px;
+    padding: 1.15rem;
+  }
+  .cs-hero-visual .cs-node-telemetry { grid-column: 1 / -1; }
   .cs-section-heading { grid-template-columns: 1fr; gap: 1.2rem; }
   .cs-resource-grid { grid-template-columns: repeat(2, 1fr); }
   .cs-resource-card:nth-child(2) { border-right: 0; }
@@ -259,6 +287,33 @@ body:has(.cs-landing) .contribution {
   .cs-carousel-caption > p { grid-column: 1 / -1; grid-row: 2; }
 }
 
+@media (max-width: 900px) {
+  body:has(.cs-landing) header,
+  body:has(.cs-landing) header nav#autocollapse { height: auto; }
+  body:has(.cs-landing) header .container-xxl { flex-wrap: wrap !important; }
+  body:has(.cs-landing) header .d-md-none { display: block !important; }
+  body:has(.cs-landing) header .navbar-expand-md .navbar-collapse {
+    flex-basis: 100%;
+    display: none !important;
+  }
+  body:has(.cs-landing) header .navbar-expand-md .navbar-collapse.show { display: flex !important; }
+  body:has(.cs-landing) header #navbar {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: .75rem 0 1rem;
+  }
+  body:has(.cs-landing) header #navbar .search { width: 100%; max-width: none; order: 0; margin-bottom: .65rem; }
+  body:has(.cs-landing) header #navbar .navbar-nav { width: 100%; flex-direction: column; order: 1; }
+  body:has(.cs-landing) header #navbar .navbar-nav > .nav-item { width: 100%; }
+  body:has(.cs-landing) header #navbar .icons { justify-content: flex-start; order: 2; margin-top: .45rem; }
+  .cs-hero { grid-template-columns: 1fr; }
+  .cs-hero-copy { max-width: 900px; }
+  .cs-hero h1 { font-size: clamp(3.5rem, 8vw, 5.2rem); }
+  .cs-hero-visual { width: min(100%, 560px); margin: 0 auto; }
+}
+
 @media (max-width: 767.98px) {
   header #navbar .navbar-nav > .dropdown > .dropdown-menu {
     flex: 0 0 100%;
@@ -267,9 +322,35 @@ body:has(.cs-landing) .contribution {
 }
 
 @media (max-width: 640px) {
-  .cs-hero { padding: 4.2rem 1.25rem 3.6rem; }
-  .cs-hero h1 { font-size: clamp(3.1rem, 15vw, 4.3rem); }
-  .cs-hero-visual { height: 390px; transform: scale(.86); transform-origin: top center; margin-bottom: -3rem; }
+  .cs-hero { gap: 2.5rem; padding: 2.75rem 1.25rem 3.6rem; }
+  .cs-eyebrow { align-items: flex-start; margin-bottom: 1.35rem; line-height: 1.55; }
+  .cs-eyebrow span { flex: 0 0 .55rem; margin-top: .32rem; }
+  .cs-hero h1 { font-size: clamp(3rem, 15vw, 4.15rem); margin-bottom: 1.5rem; }
+  .cs-lead { font-size: 1.02rem; line-height: 1.62; }
+  .cs-actions { align-items: stretch; }
+  .cs-actions .cs-button { width: 100%; }
+  .cs-hero-visual { grid-template-columns: 1fr; gap: .55rem; }
+  .cs-hero-visual .cs-node-main,
+  .cs-hero-visual .cs-node-telemetry { grid-column: auto; }
+  .cs-hero-visual .cs-node {
+    min-height: 64px;
+    padding: .72rem .8rem;
+  }
+  .cs-hero-visual .cs-node-main { min-height: 72px; padding: .8rem; }
+  .cs-hero-visual .cs-node strong,
+  .cs-hero-visual .cs-node small { margin-left: 2rem; }
+  .cs-hero-visual .cs-node-main strong,
+  .cs-hero-visual .cs-node-main small { margin-left: 2.45rem; }
+  .cs-hero-visual .cs-node strong { font-size: .86rem; }
+  .cs-hero-visual .cs-node small { font-size: .76rem; margin-top: .12rem; }
+  .cs-hero-visual .cs-logo { width: 1.9rem; height: 1.9rem; font-size: .64rem; }
+  .cs-hero-visual .cs-node-dot {
+    top: .9rem;
+    left: .85rem;
+    width: 1rem;
+    height: 1rem;
+    box-shadow: 0 0 0 4px rgba(255,255,255,.04);
+  }
   .cs-section { padding: 4rem 1.25rem; }
   .cs-product, .cs-resources { padding-bottom: 0; }
   .cs-carousel-stage { aspect-ratio: 4 / 3; }

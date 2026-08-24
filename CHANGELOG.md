@@ -10,6 +10,16 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-08-24
+
+#### Changed
+
+- Made the public landing-page hero responsive across desktop, tablet, and
+  phone widths. Tablet layouts now replace the fixed overlapping resource
+  diagram with a compact card grid, phone layouts scale the cards and their
+  contents together, and the site navigation collapses before it wraps on
+  portrait tablets.
+
 ### 2026-08-22
 
 #### Added
