@@ -298,6 +298,13 @@ application artifact layout, upload, validation, revision, apply, or restore
 operations. A store must also be configured for uploads. The physical store
 location is host configuration, not user-authored resource state.
 
+The local Docker container-app runtime publishes a single-replica HTTP app
+directly on its declared host endpoint. Apps with multiple replicas instead
+receive per-replica probe ports and a local ingress on the declared endpoint.
+Every replica joins the shared CloudShell Docker network with both its unique
+replica alias and the logical resource name, so dependent container apps can
+use the resource name for service discovery regardless of replica count.
+
 Local path ResourceDefinition apply remains a third, separate host setting:
 `ResourceManager:AllowLocalPathResourceDefinitions`. Hosted defaults keep it
 disabled. `CloudShell.LocalDevelopmentHost` enables it, along with

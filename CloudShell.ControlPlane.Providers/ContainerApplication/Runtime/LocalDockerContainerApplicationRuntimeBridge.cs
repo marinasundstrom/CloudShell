@@ -789,6 +789,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             "--network-alias",
             LocalDockerContainerApplicationRuntimeConventions.CreateReplicaNetworkAlias(definition, replica)
         };
+        arguments.Add("--network-alias");
+        arguments.Add(resource.Name);
         arguments.Add("--label");
         arguments.Add($"{ContainerHostRuntimeLabels.OwnerResourceId}={resource.EffectiveResourceId}");
         var replicaGroupId = replicaGroup?.Id ??
@@ -809,9 +811,16 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
 
         if (TryResolveHttpEndpoint(resource, [], out var endpoint))
         {
+            var hostPort = replicaCount == 1
+                ? endpoint.Port!.Value
+                : LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaProbePort(
+                    definition,
+                    configuration,
+                    replica,
+                    endpoint.Port!.Value);
             arguments.Add("-p");
             arguments.Add(
-                $"127.0.0.1:{LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaProbePort(definition, configuration, replica, endpoint.Port!.Value).ToString(CultureInfo.InvariantCulture)}:{(endpoint.TargetPort ?? endpoint.Port.Value).ToString(CultureInfo.InvariantCulture)}");
+                $"127.0.0.1:{hostPort.ToString(CultureInfo.InvariantCulture)}:{(endpoint.TargetPort ?? endpoint.Port.Value).ToString(CultureInfo.InvariantCulture)}");
         }
 
         arguments.Add("-e");

@@ -138,7 +138,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
             var response = await WaitForHttpAsync(
                 client,
-                new Uri($"http://127.0.0.1:{probePort}/"),
+                new Uri($"http://127.0.0.1:{Math.Max(1, probePort - 100)}/"),
                 TimeSpan.FromSeconds(30));
             Assert.True(response.IsSuccessStatusCode);
             var logs = await containerRuntime.ReadContainerLogsAsync(
@@ -312,6 +312,40 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 Assert.Contains(LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(definition, 1), command.Arguments);
                 Assert.Contains("redis:7.2-alpine", command.Arguments);
             });
+    }
+
+    [Fact]
+    public async Task RuntimeBridge_StartSingleReplicaPublishesDeclaredEndpointAndServiceAlias()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        var bridge = CreateRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(replicaCleanupLimit: 1),
+            options: new LocalDockerContainerApplicationRuntimeOptions());
+        var resource = await CreateGraphAppResourceAsync(
+            name: "catalog-api",
+            resourceId: "application.container-app:catalog-api",
+            image: "nginx:alpine",
+            replicas: 1,
+            endpointPort: 5092);
+
+        var diagnostics = await bridge.ExecuteLifecycleAsync(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.Start);
+
+        Assert.Empty(diagnostics);
+        var run = Assert.Single(commandRunner.Commands, command =>
+            command.FileName == "docker" &&
+            command.Arguments.Count > 0 &&
+            command.Arguments[0] == "run");
+        Assert.Contains("127.0.0.1:5092:8080", run.Arguments);
+        Assert.DoesNotContain("127.0.0.1:5192:8080", run.Arguments);
+        var aliases = run.Arguments
+            .Select((argument, index) => (argument, index))
+            .Where(candidate => candidate.argument == "--network-alias")
+            .Select(candidate => run.Arguments[candidate.index + 1])
+            .ToArray();
+        Assert.Contains("catalog-api", aliases);
     }
 
     [Fact]

@@ -21,6 +21,12 @@ link to ADR entries when a change depends on a recorded decision.
   Raven SDK installation and walkthrough README. A future MyServiceBus-specific
   CloudShell extension remains intentionally deferred.
 
+#### Changed
+
+- Fixed local Docker container apps so single-replica HTTP workloads publish
+  their declared endpoint directly and all replicas receive a stable logical
+  resource-name network alias for container-to-container service discovery.
+
 ### 2026-08-24
 
 #### Changed
