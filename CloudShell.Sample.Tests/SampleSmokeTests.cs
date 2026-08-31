@@ -270,6 +270,11 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
+            "samples/MyServiceBusRabbitMQ/AppHost/CloudShell.MyServiceBusRabbitMQ.AppHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
             "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
             resourceHostPaths
         };
@@ -338,6 +343,19 @@ public sealed class SampleSmokeTests
                 "configuration.store:csharp-app-settings",
                 "secrets.vault:csharp-app-secrets",
                 "application.javascript-app:csharp-declared-frontend"
+            }
+        };
+        yield return new object[]
+        {
+            "samples/MyServiceBusRabbitMQ/AppHost/CloudShell.MyServiceBusRabbitMQ.AppHost.csproj",
+            new[]
+            {
+                "application.rabbitmq:myservicebus-rabbitmq",
+                "application.container-app:myservicebus-postgres",
+                "application.container-app:myservicebus-monitoring",
+                "application.container-app:myservicebus-dashboard",
+                "application.container-app:myservicebus-order-intake",
+                "application.container-app:myservicebus-fulfillment"
             }
         };
     }
@@ -4174,6 +4192,11 @@ public sealed class SampleSmokeTests
             return "RabbitMQMessaging";
         }
 
+        if (projectPath.Contains("/MyServiceBusRabbitMQ/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "MyServiceBusRabbitMQ";
+        }
+
         if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
         {
             return "ReplicatedContainerHealth";
@@ -4272,6 +4295,7 @@ public sealed class SampleSmokeTests
                 "application:rabbitmq-dotnet",
                 "application:rabbitmq-java"
             ],
+            "MyServiceBusRabbitMQ" => [],
             "ReplicatedContainerHealth" =>
             [
                 "application:api"
@@ -6329,6 +6353,19 @@ public sealed class SampleSmokeTests
                     "application.rabbitmq:rabbitmq",
                     "application.dotnet-app:rabbitmq-dotnet",
                     "application.java-app:rabbitmq-java"
+                ];
+            }
+
+            if (projectPath.Contains("/MyServiceBusRabbitMQ/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "application.rabbitmq:myservicebus-rabbitmq",
+                    "application.container-app:myservicebus-postgres",
+                    "application.container-app:myservicebus-monitoring",
+                    "application.container-app:myservicebus-dashboard",
+                    "application.container-app:myservicebus-order-intake",
+                    "application.container-app:myservicebus-fulfillment"
                 ];
             }
 

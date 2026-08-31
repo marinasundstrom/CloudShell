@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <MyServiceBusVersion>0.1.0-preview.7</MyServiceBusVersion>
+  </PropertyGroup>
+</Project>

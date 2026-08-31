@@ -1,0 +1,12 @@
+<Project Sdk="Raven.Sdk.Web/0.1.6">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <AssemblyName>OrderFulfillment.OrderIntake</AssemblyName>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Sundstrom.MyServiceBus.Monitoring" Version="$(MyServiceBusVersion)" />
+    <PackageReference Include="Sundstrom.MyServiceBus.PostgreSql" Version="$(MyServiceBusVersion)" />
+    <PackageReference Include="Sundstrom.MyServiceBus.RabbitMq" Version="$(MyServiceBusVersion)" />
+  </ItemGroup>
+</Project>

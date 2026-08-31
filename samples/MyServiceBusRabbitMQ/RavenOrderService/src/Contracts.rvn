@@ -1,0 +1,8 @@
+namespace TestApp
+
+record OrderActivity(
+    EventId: string,
+    OrderId: string,
+    Kind: string,
+    Origin: string,
+    OccurredAtUtc: string)

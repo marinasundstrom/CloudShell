@@ -47,6 +47,7 @@ target `CloudShell.LocalDevelopmentHost`.
 | `PythonAppHost` | Python launcher authoring for a Python app, Configuration Store, and Secrets Vault. | Experimental launcher sample. |
 | `PythonContainerApp` | Python launcher authoring for a Dockerfile-backed container app that reads Configuration Store and Secrets Vault through the Python runtime SDK. | Experimental launcher sample. |
 | `RabbitMQMessaging` | C# launcher authoring for a RabbitMQ broker with .NET and Java app resources exchanging fan-out events. | Preferred broker-backed app topology sample. |
+| `MyServiceBusRabbitMQ` | Raven/.NET and Java order-fulfillment container apps using MyServiceBus, RabbitMQ, PostgreSQL transactional outboxes, replicas, monitoring, and the MyServiceBus dashboard. | Cross-language messaging and outbox showcase. |
 
 ## Host composition samples
 
@@ -97,6 +98,7 @@ opening a broader platform capability.
 | --- | --- | --- |
 | `ProjectReference` | ASP.NET Core project-to-project service discovery, logs, health, and traces. | Uses a C# launcher AppHost against `CloudShell.LocalDevelopmentHost`; old application-provider project records are no longer declared. |
 | `RabbitMQMessaging` | RabbitMQ broker-backed communication between .NET and Java app resources. | Uses a C# launcher AppHost against `CloudShell.LocalDevelopmentHost`; the shared local host owns RabbitMQ Docker materialization while the workload apps use their native RabbitMQ clients. |
+| `MyServiceBusRabbitMQ` | Cross-language MyServiceBus order fulfillment with Raven consumer functions, Java consumers, transactional outboxes, replicas, and monitoring. | Uses a C# launcher AppHost; all workloads and supporting services are container apps or provider-backed container services. A MyServiceBus-specific CloudShell extension is explicitly deferred. |
 | `SettingsAndSecrets` | Resource model Configuration Store and Secrets Vault consumed by an ASP.NET Core project. | Switched to the Resource model provider path; old application/configuration/secrets provider records are no longer declared. |
 | `ThirdPartyIdentity` | Keycloak-backed identity setup and protected Configuration Store access. | Switched to the Resource model provider path; Keycloak setup and API identity environment remain sample-local runtime seams. |
 | `ApplicationTopology` | Multi-resource app topology across storage, SQL, configuration, secrets, identity, DNS, and project resources. | Switched to the Resource model provider path; SQL Docker, SQL credential brokering, identity credential environment, configuration, and secrets runtime behavior now use provider-owned adapters. |

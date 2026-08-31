@@ -1,0 +1,109 @@
+namespace OrderFulfillment.OrderIntake
+
+import Microsoft.Extensions.DependencyInjection.*
+import MyServiceBus.*
+import MyServiceBus.Monitoring.*
+import MyServiceBus.Persistence.*
+import MyServiceBus.Persistence.PostgreSql.*
+import Npgsql.*
+import TestApp.*
+import OrderFulfillment.OrderIntake.*
+
+async func Main(args: string[]) -> Task {
+    const serviceName = "order-intake"
+
+    let builder = WebApplication.CreateBuilder(args)
+    let connectionString = "Host=${Env("POSTGRES_HOST", "localhost")};Port=5432;Database=myservicebus;Username=postgres"
+    let rabbitMqPortText = Env("RABBITMQ_PORT", "5672")
+    let Ok(rabbitMqPort) = int.Parse(rabbitMqPortText) else {
+        throw InvalidOperationException("RABBITMQ_PORT must be a valid TCP port")
+    }
+    use dataSource = NpgsqlDataSource.Create(connectionString)
+
+    builder.Services.AddSingleton<NpgsqlDataSource>(dataSource)
+    builder.Services.AddServiceBus(func (bus) => {
+        bus.UseBusOutbox()
+        bus.AddConsumers(typeof(OrderActivity).Assembly)
+        bus.UsingRabbitMq(func (context, rabbit) => {
+            rabbit.Host(
+                Env("RABBITMQ_HOST", "localhost"),
+                rabbitMqPort,
+                func (host: IRabbitMqHostConfigurator) => {
+                    host.Username(Env("RABBITMQ_USER", "myservicebus"))
+                    host.Password(Env("RABBITMQ_PASSWORD", "local-development-only"))
+                })
+            rabbit.ConfigureEndpoints(context)
+        })
+    })
+    builder.Services.AddServiceBusMonitoring(func (options) => {
+        options.ServiceAddress = Uri(Env("MONITORING_SERVICE_URL", "http://localhost:5310"))
+        options.ApplicationName = "Order Intake"
+        options.InstanceId = Env("HOSTNAME", Environment.MachineName)
+        options.Labels["group"] = "order-fulfillment"
+        options.Labels["language"] = "raven"
+    })
+    builder.Services.AddPostgreSqlOutboxDelivery(serviceName, func (options) => {
+        options.OwnerId = "raven-${Env("HOSTNAME", Environment.MachineName)}-${Environment.ProcessId}"
+        options.PollInterval = TimeSpan.FromMilliseconds(250)
+    })
+
+    use app = builder.Build()
+    await PostgreSqlSchema.EnsureCreatedAsync(dataSource)
+    await EnsureApplicationSchema(dataSource)
+
+    app.MapPost("/orders", async func (
+        request: PlaceOrderRequest,
+        publishEndpoint: IPublishEndpoint,
+        outboxSession: OutboxSession,
+        cancellationToken: CancellationToken) {
+        let orderId = request.OrderId ?? Guid.NewGuid().ToString()
+        let activity = OrderActivity(
+            Guid.NewGuid().ToString(),
+            orderId,
+            "OrderPlaced",
+            "raven",
+            DateTimeOffset.UtcNow.ToString("O"))
+
+        use connection = await dataSource.OpenConnectionAsync(cancellationToken)
+        use transaction = await connection.BeginTransactionAsync(cancellationToken)
+        use command = NpgsqlCommand(
+            "INSERT INTO order_fulfillment_event (event_id, order_id, kind, origin, occurred_at_utc) VALUES ($1, $2, $3, $4, $5)",
+            connection,
+            transaction)
+        command.Parameters.AddWithValue(activity.EventId)
+        command.Parameters.AddWithValue(activity.OrderId)
+        command.Parameters.AddWithValue(activity.Kind)
+        command.Parameters.AddWithValue(activity.Origin)
+        command.Parameters.AddWithValue(DateTimeOffset.Parse(activity.OccurredAtUtc))
+        _ = await command.ExecuteNonQueryAsync(cancellationToken)
+
+        use registration = outboxSession.UsePostgreSql(connection, transaction, serviceName)
+        await publishEndpoint.Publish(activity, cancellationToken: cancellationToken)
+        await transaction.CommitAsync(cancellationToken)
+
+        return Results.Accepted(value: activity)
+    })
+    app.MapGet("/received", func () => GetReceivedActivities())
+    app.MapGet("/health/live", func () => Results.Ok(HealthResponse("live", "Raven")))
+    app.Run()
+}
+
+func Env(name: string, fallback: string) -> string {
+    Environment.GetEnvironmentVariable(name) ?? fallback
+}
+
+async func EnsureApplicationSchema(dataSource: NpgsqlDataSource) -> Task {
+    use command = dataSource.CreateCommand("""
+        CREATE TABLE IF NOT EXISTS order_fulfillment_event (
+            event_id text PRIMARY KEY,
+            order_id text NOT NULL,
+            kind text NOT NULL,
+            origin text NOT NULL,
+            occurred_at_utc timestamptz NOT NULL
+        );
+        """)
+    _ = await command.ExecuteNonQueryAsync()
+}
+
+record class PlaceOrderRequest(val OrderId: string?)
+record class HealthResponse(val Status: string, val Language: string)

@@ -1,0 +1,5 @@
+.cloudshell/
+Data/
+**/bin/
+**/obj/
+**/target/

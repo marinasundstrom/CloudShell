@@ -1,0 +1,24 @@
+namespace OrderFulfillment.OrderIntake
+
+import System.Collections.Concurrent.*
+import MyServiceBus.*
+import TestApp.*
+
+static class ActivityStore {
+    static val Received: ConcurrentQueue<OrderActivity> = ConcurrentQueue<OrderActivity>()
+}
+
+[Consumer("order-intake-activity")]
+public func ObserveFulfillmentActivity(
+    activity: OrderActivity,
+    context: ConsumeContext<OrderActivity>,
+    cancellationToken: CancellationToken) -> Task {
+    ActivityStore.Received.Enqueue(activity)
+    Console.WriteLine(
+        "Raven consumer function observed ${activity.Kind} for order ${activity.OrderId} from ${activity.Origin}")
+    return Task.CompletedTask
+}
+
+public func GetReceivedActivities() -> OrderActivity[] {
+    ActivityStore.Received.ToArray()
+}

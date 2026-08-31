@@ -10,6 +10,17 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-08-31
+
+#### Added
+
+- Added a container-hosted MyServiceBus and RabbitMQ order-fulfillment sample
+  with a Raven/.NET service using a namespace-level consumer function, a Java
+  service, PostgreSQL transactional outboxes, replicated workloads, the
+  published MyServiceBus monitoring collector and dashboard, and a complete
+  Raven SDK installation and walkthrough README. A future MyServiceBus-specific
+  CloudShell extension remains intentionally deferred.
+
 ### 2026-08-24
 
 #### Changed

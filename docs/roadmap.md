@@ -580,6 +580,10 @@ broad IAM administration, deployment history, autoscaling, advanced service
 resources, shell-composition implementation, provider-backed DNS propagation,
 network-level service registries, external deployment projection,
 external-format import/code generation, and initial on-premise hosting.
+Keep a MyServiceBus-specific Resource Manager or shell extension deferred as
+well; the `MyServiceBusRabbitMQ` sample should first prove that ordinary
+application, broker, database, replica, health, log, and endpoint resources are
+a sufficient integration boundary.
 
 Active MVP tie-off queue:
 

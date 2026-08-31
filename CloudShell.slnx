@@ -138,6 +138,10 @@
   <Folder Name="/samples/RabbitMQMessaging/DotNetApi/">
     <Project Path="samples/RabbitMQMessaging/DotNetApi/CloudShell.RabbitMQMessaging.DotNetApi.csproj" />
   </Folder>
+  <Folder Name="/samples/MyServiceBusRabbitMQ/" />
+  <Folder Name="/samples/MyServiceBusRabbitMQ/AppHost/">
+    <Project Path="samples/MyServiceBusRabbitMQ/AppHost/CloudShell.MyServiceBusRabbitMQ.AppHost.csproj" />
+  </Folder>
   <Folder Name="/samples/ResourceIdentityCredential/">
     <Project Path="samples/ResourceIdentityCredential/CloudShell.ResourceIdentityCredential.csproj" />
   </Folder>
