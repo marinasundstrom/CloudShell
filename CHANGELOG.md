@@ -23,6 +23,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Changed
 
+- Projected single-replica container-app health checks through the declared
+  endpoint instead of an unused replica-offset probe port.
 - Reconciled orchestrator service routing after replica repair so recovered
   replicated container apps recreate their stable ingress without requiring a
   full application restart.

@@ -546,6 +546,29 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeProvider_ProjectsSingleReplicaAtDeclaredEndpoint()
+    {
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 1,
+            endpointPort: 5092,
+            includeHealthChecks: true);
+        var graph = new ResourceGraphModel(new InMemoryResourceStateProvider([resource.State]));
+        _ = graph.GetSnapshot();
+        var runtime = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
+        var provider = new LocalDockerContainerApplicationRuntimeResourceProvider(
+            graph,
+            CreateResourceResolver(),
+            runtime,
+            CreateConfiguration());
+
+        var replica = Assert.Single(provider.GetResources());
+        var mapping = Assert.Single(replica.ResourceEndpointNetworkMappings);
+
+        Assert.Equal("http://localhost:5092", mapping.Address);
+        Assert.Equal("1", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
+    }
+
+    [Fact]
     public async Task RuntimeProvider_UsesCachedGraphSnapshotWhenGraphRefreshIsBusy()
     {
         var resource = await CreateGraphAppResourceAsync(

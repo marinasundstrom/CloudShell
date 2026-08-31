@@ -89,11 +89,13 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
             runtimeRevisionId);
         var protocol = NormalizeProtocol(endpoint.Protocol);
         var targetPort = endpoint.TargetPort ?? endpoint.Port ?? 8080;
-        var probePort = LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaProbePort(
-            definition,
-            configuration,
-            replica,
-            endpoint.Port ?? targetPort);
+        var probePort = replicaCount == 1
+            ? endpoint.Port ?? targetPort
+            : LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaProbePort(
+                definition,
+                configuration,
+                replica,
+                endpoint.Port ?? targetPort);
 
         return new ResourceManagerResource(
             resourceId,
