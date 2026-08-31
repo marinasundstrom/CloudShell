@@ -20,10 +20,9 @@ surfaces:
   observations. **MyServiceBus Dashboard** visualizes the two applications,
   their replicas, endpoints, traffic, failures, and outbox activity.
 
-The sample is pinned to `0.1.0-preview.7`, the currently published baseline.
-The next MyServiceBus preview is expected to provide an enhanced dashboard;
-the dashboard remains an independently versioned container here so the sample
-can adopt that release without changing its CloudShell resource model.
+The sample is pinned to `0.1.0-preview.8`, including the enhanced MyServiceBus
+dashboard. The dashboard remains an independently versioned container so later
+releases can be adopted without changing the CloudShell resource model.
 
 The Raven and Java HTTP commands each commit an application event and the
 final serialized MyServiceBus envelope in one PostgreSQL transaction. Their
@@ -33,7 +32,7 @@ logical services use separate outbox partitions (`order-intake` and
 that service's partition.
 
 The Raven contract uses the `TestApp` namespace because MyServiceBus preview
-7's cross-language compatibility profile maps Java contracts to the shared
+8's cross-language compatibility profile maps Java contracts to the shared
 `TestApp:<type-name>` wire identity. That gives both implementations the same
 RabbitMQ exchange and message URN even though the Java source lives in the
 `OrderFulfillment.Contracts` package. The Raven source keeps the compact

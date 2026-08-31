@@ -9,7 +9,7 @@ var app = CloudShellDistributedApplication
 var sampleRoot = app.ResolvePath("..");
 var rabbitMqDataPath = app.ResolvePath("..", "Data", "rabbitmq");
 var postgresDataPath = app.ResolvePath("..", "Data", "postgres");
-const string myServiceBusVersion = "0.1.0-preview.7";
+const string myServiceBusVersion = "0.1.0-preview.8";
 
 app.DefineResources(resources =>
 {

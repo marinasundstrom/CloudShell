@@ -23,6 +23,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 #### Changed
 
+- Upgraded the MyServiceBus RabbitMQ sample's .NET packages, Java artifacts,
+  monitoring collector, and enhanced dashboard to `0.1.0-preview.8`.
 - Fixed local Docker container apps so single-replica HTTP workloads publish
   their declared endpoint directly and all replicas receive a stable logical
   resource-name network alias for container-to-container service discovery.

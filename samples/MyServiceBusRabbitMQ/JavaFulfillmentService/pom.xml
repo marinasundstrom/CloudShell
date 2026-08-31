@@ -9,7 +9,7 @@
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <myservicebus.version>0.1.0-preview.7</myservicebus.version>
+    <myservicebus.version>0.1.0-preview.8</myservicebus.version>
   </properties>
 
   <dependencies>
