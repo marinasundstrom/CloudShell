@@ -925,6 +925,12 @@ public sealed class ResourceOrchestrationService(
                 new ResourceOrchestratorServiceInstanceContext(resourceContext, service, occupant, replicaGroup),
                 ResourceAction.Start,
                 cancellationToken);
+            await ReconcileReplicaGroupRoutingAsync(
+                provider,
+                resourceContext,
+                service,
+                replicaGroup,
+                cancellationToken);
             AppendReplicaManagementEvent(
                 resourceContext.Resource,
                 ResourceEventTypes.Events.ReplicaManagement.RestartSucceeded,
@@ -980,6 +986,12 @@ public sealed class ResourceOrchestrationService(
                 new ResourceOrchestratorServiceInstanceContext(resourceContext, service, occupant, replicaGroup),
                 ResourceAction.Start,
                 cancellationToken);
+            await ReconcileReplicaGroupRoutingAsync(
+                provider,
+                resourceContext,
+                service,
+                replicaGroup,
+                cancellationToken);
             AppendReplicaManagementEvent(
                 resourceContext.Resource,
                 ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized,
@@ -1000,6 +1012,58 @@ public sealed class ResourceOrchestrationService(
 
         return ResourceProcedureResult.Completed(
             $"Replaced replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} occupant '{occupant.Name}'.");
+    }
+
+    private async Task ReconcileReplicaGroupRoutingAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        CancellationToken cancellationToken)
+    {
+        if (service.ServicePorts.Count == 0)
+        {
+            return;
+        }
+
+        await provider.ReconcileOrchestratorServiceRoutingAsync(
+            new ResourceOrchestratorServiceProcedureContext(
+                resourceContext,
+                service,
+                replicaGroup,
+                ResolveRoutingBindings(resourceContext.Resource, service, replicaGroup)),
+            cancellationToken);
+    }
+
+    private IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> ResolveRoutingBindings(
+        Resource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup)
+    {
+        var activeDeployment = deploymentStore?
+            .List(new ResourceOrchestratorDeploymentQuery(
+                SourceResourceId: resource.Id,
+                MaxRecords: 1_000))
+            .Where(record =>
+                record.Status == ResourceOrchestratorDeploymentStatus.Active &&
+                string.Equals(record.ServiceId, service.Name, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(record.ReplicaGroup?.Id, replicaGroup.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
+            .FirstOrDefault();
+        if (activeDeployment is null)
+        {
+            return [];
+        }
+
+        var serviceDefinition = activeDeployment.Deployment.Spec.DeploymentDefinition
+            .DeploymentServices
+            .FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, service.Name, StringComparison.OrdinalIgnoreCase));
+        return serviceDefinition?
+            .RoutingBindingDefinitions
+            .Where(binding =>
+                string.Equals(binding.ReplicaGroupName, replicaGroup.Id, StringComparison.OrdinalIgnoreCase))
+            .ToArray() ?? [];
     }
 
     private static ResourceOrchestratorServiceInstance RequireReplicaSlotOccupant(

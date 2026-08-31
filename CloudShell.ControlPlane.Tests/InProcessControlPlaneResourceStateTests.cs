@@ -2159,7 +2159,8 @@ public sealed class InProcessControlPlaneResourceStateTests
                 "api",
                 Image: "example/api:latest",
                 Replicas: 2,
-                ReplicasEnabled: true)));
+                ReplicasEnabled: true),
+            Ports: [new ServicePort("http", 8080, 5092, "http")]));
         var host = CreateControlPlaneHost(
             [parent, replica1, replica2],
             provider,
@@ -2195,6 +2196,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Contains(
             "start:cloudshell-application-api-replica-2",
             provider.ExecutedInstanceActions);
+        var routingContext = Assert.Single(provider.ReconciledRoutingContexts);
+        Assert.Equal("cloudshell-application-api-replicas", routingContext.ReplicaGroup?.Id);
         Assert.Empty(provider.PreparedActions);
         var repairedState = Assert.Single(await host.ControlPlane.ListReplicaSlotStatesAsync(
             new ResourceReplicaSlotStateQuery(
@@ -2289,7 +2292,8 @@ public sealed class InProcessControlPlaneResourceStateTests
                 "api",
                 Image: "example/api:latest",
                 Replicas: 2,
-                ReplicasEnabled: true));
+                ReplicasEnabled: true),
+            Ports: [new ServicePort("http", 8080, 5092, "http")]);
         var deployment = new ResourceOrchestratorDeployment(
             "cloudshell-application-api-deployment",
             "default",
@@ -2327,6 +2331,9 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Contains(
             "start:cloudshell-application-api-replica-2",
             provider.ExecutedInstanceActions);
+        var routingContext = Assert.Single(provider.ReconciledRoutingContexts);
+        var routingBinding = Assert.Single(routingContext.ServiceRoutingBindings);
+        Assert.Equal(replicaGroup.Id, routingBinding.ReplicaGroupName);
         var repairedState = Assert.Single(await host.ControlPlane.ListReplicaSlotStatesAsync(
             new ResourceReplicaSlotStateQuery(
                 ResourceId: parent.Id,
@@ -5053,6 +5060,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public List<string> ExecutedInstanceActions { get; } = [];
 
+        public List<ResourceOrchestratorServiceProcedureContext> ReconciledRoutingContexts { get; } = [];
+
         public Func<ResourceOrchestratorServiceInstanceContext, ResourceAction, CancellationToken, Task>? OnExecuteInstanceAsync { get; set; }
 
         public IReadOnlyList<Resource> GetResources() => [];
@@ -5084,6 +5093,14 @@ public sealed class InProcessControlPlaneResourceStateTests
             CancellationToken cancellationToken = default)
         {
             PreparedActions.Add(action.Id);
+            return Task.CompletedTask;
+        }
+
+        public Task ReconcileOrchestratorServiceRoutingAsync(
+            ResourceOrchestratorServiceProcedureContext context,
+            CancellationToken cancellationToken = default)
+        {
+            ReconciledRoutingContexts.Add(context);
             return Task.CompletedTask;
         }
 
