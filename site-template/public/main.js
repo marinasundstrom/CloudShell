@@ -1,3 +1,5 @@
+import ravenLanguage from './raven-language.js';
+
 const initializeCarousel = () => {
   const carousel = document.querySelector('[data-carousel]');
   if (!carousel) return;
@@ -78,6 +80,7 @@ const initializePrimaryNavigationLinks = () => {
 };
 
 export default {
+  configureHljs: hljs => hljs.registerLanguage('raven', ravenLanguage),
   defaultTheme: 'light',
   iconLinks: [
     {

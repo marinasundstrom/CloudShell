@@ -10,6 +10,10 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-10-26
+
+- Update Raven code highlighting for whole backtick and `@`-escaped identifiers, including function names and references; verify grammar-only rendering.
+
 ### 2026-08-31
 
 #### Added

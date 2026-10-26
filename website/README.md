@@ -87,3 +87,13 @@ dotnet run --project samples/ApplicationTopology/Host -- --urls http://127.0.0.1
 Start **SQL Server**, wait for its state to become **Running**, open **Databases**, and dismiss or wait out transient notifications before capturing. The declared database remains useful even when provider observation reports no additional state.
 
 The .NET trace crop is derived from the same stable trace state used by `images/showcase-traces.png`. Update both files in the same session so service names, durations, trace ID, and timestamps remain consistent.
+
+## Raven highlighting
+
+The DocFX template registers `raven`, `rvn`, and `rav` code fences using
+`site-template/public/raven-language.js`, vendored from Raven's shared browser
+lexer. Refresh it alongside Raven grammar changes; retain `Raven-LICENSE.txt`.
+Both backtick names and `@`-escaped keywords render as whole identifiers.
+
+Validate the registered lexer after a site build with
+`node site-template/test-highlighting.mjs`.
