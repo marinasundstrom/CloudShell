@@ -100,3 +100,12 @@
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
+
+/* Descriptive trailing columns must not inherit the compact action-column layout. */
+.resource-table ::deep th.text-cell,
+.resource-table ::deep td.text-cell {
+    width: auto;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

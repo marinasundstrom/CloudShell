@@ -10,6 +10,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Added persistent labels and responsive field alignment to configuration settings and secrets; kept certificate commands together in a wrapping action row. Restored populated Device Registry enrollment policy views through an explicit provider projection without exposing unrelated collections.
+
 - Made the local Keycloak sample initialize both development realms through container loopback and bind its published HTTP port to localhost, avoiding Docker Desktop HTTPS-required failures.
 - Restored the resource workspace read-only notice and hid creation links in read-only mode. Kept API error responses out of UI status-page re-execution so missing-resource POSTs retain their HTTP status instead of reporting an unrelated antiforgery error.
 

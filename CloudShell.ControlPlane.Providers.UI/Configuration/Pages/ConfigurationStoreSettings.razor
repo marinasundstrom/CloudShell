@@ -44,12 +44,16 @@ else
                 @foreach (var setting in Settings)
                 {
                     <div class="environment-row configuration-entry-row configuration-setting-runtime-row">
-                        <FluentTextField AriaLabel="Configuration setting name"
-                                         Placeholder="Name"
-                                         @bind-Value="setting.Name" />
-                        <FluentTextField AriaLabel="Configuration setting value"
-                                         Placeholder="Value"
-                                         @bind-Value="setting.Value" />
+                        <div class="configuration-field">
+                            <FluentTextField Label="Name" AriaLabel="Configuration setting name"
+                                             Placeholder="Name"
+                                             @bind-Value="setting.Name" />
+                        </div>
+                        <div class="configuration-field">
+                            <FluentTextField Label="Value" AriaLabel="Configuration setting value"
+                                             Placeholder="Value"
+                                             @bind-Value="setting.Value" />
+                        </div>
                         <FluentButton Appearance="Appearance.Neutral"
                                       IconStart="new Icons.Regular.Size20.Delete()"
                                       OnClick="() => RemoveSetting(setting)">

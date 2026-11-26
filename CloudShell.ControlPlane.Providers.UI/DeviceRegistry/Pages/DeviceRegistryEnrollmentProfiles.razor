@@ -57,7 +57,7 @@ else
                         <th>Kind</th>
                         <th>Subjects</th>
                         <th>Required claims</th>
-                        <th>Grants</th>
+                        <th class="text-cell">Grants</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -70,7 +70,7 @@ else
                             <td>@FormatProfileKind(profile.Kind)</td>
                             <td>@FormatPolicySubjects(profile.Policy)</td>
                             <td>@FormatRequiredClaims(profile.Policy.RequiredClaims)</td>
-                            <td>@FormatGrants(profile.PermissionGrants)</td>
+                            <td class="text-cell">@FormatGrants(profile.PermissionGrants)</td>
                         </tr>
                     }
                 </tbody>

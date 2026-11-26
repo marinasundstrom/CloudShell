@@ -2578,11 +2578,39 @@ h3 {
 }
 
 .configuration-entry-row {
+    align-items: end;
     grid-template-columns: minmax(10rem, .9fr) minmax(14rem, 1.4fr) auto;
 }
 
 .configuration-secret-row {
-    grid-template-columns: minmax(9rem, .9fr) minmax(8rem, .75fr) minmax(12rem, 1.2fr) minmax(7rem, .7fr) auto;
+    align-items: end;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+}
+
+.configuration-field {
+    min-width: 0;
+}
+
+.configuration-secret-current {
+    display: grid;
+    gap: .5rem;
+    min-width: 0;
+}
+.configuration-secret-current > span:first-child {
+    font-size: var(--type-ramp-base-font-size);
+    color: var(--cloudshell-text);
+}
+
+.secrets-vault-certificate-editor .certificate-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: .65rem;
+    margin-block: .65rem;
+}
+.secrets-vault-certificate-editor .certificate-actions input[type="file"] {
+    flex: 1 1 14rem;
+    width: auto;
 }
 
 .configuration-entry-row fluent-text-field,

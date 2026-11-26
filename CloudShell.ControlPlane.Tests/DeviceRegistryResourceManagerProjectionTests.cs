@@ -86,9 +86,48 @@ public sealed class DeviceRegistryResourceManagerProjectionTests
         Assert.Contains(monitoring.Metrics, metric => metric.Name == "resource.process.count");
     }
 
+    [Fact]
+    public void BuiltInProjections_ProjectEnrollmentPolicyWithoutUnrelatedCollections()
+    {
+        var services = new ServiceCollection();
+        services.AddBuiltInProviderResourceManagerProjections();
+        using var provider = services.BuildServiceProvider();
+        var profile = new DeviceEnrollmentProfile
+        {
+            Name = "factory",
+            Policy = new() { SubjectPrefixes = ["device/"] },
+            PermissionGrants = [new("configuration.store:settings", "read")]
+        };
+        var resource = ResolveDeviceRegistry("http://localhost:7150", extraAttributes: new()
+        {
+            [DeviceRegistryResourceTypeProvider.Attributes.EnrollmentProfiles] = ResourceAttributeValue.FromObject(new[] { profile }),
+            [DeviceRegistryResourceTypeProvider.Attributes.AllowedSubjectPrefixes] = ResourceAttributeValue.FromObject(new[] { "device/" }),
+            [DeviceRegistryResourceTypeProvider.Attributes.RequiredClaims] = ResourceAttributeValue.FromObject(new[] { new DeviceEnrollmentRequiredClaim("manufacturer", "cloudshell") }),
+            [DeviceRegistryResourceTypeProvider.Attributes.TrustedCertificates] = ResourceAttributeValue.FromObject(new[] { new ResourceCertificateReference("secrets.vault:factory", "factory-ca") }),
+            ["private.collection"] = ResourceAttributeValue.FromObject(new[] { "not-for-ui" })
+        });
+        var attributes = provider.GetServices<IResourceModelResourceManagerAttributeProvider>()
+            .Select(projection => projection.GetAttributes(resource))
+            .Where(values => values is not null)
+            .SelectMany(values => values!)
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
+        var projected = ResourceModelResourceManagerMapper.ToResourceManagerResource(resource,
+            new ResourceModelResourceManagerProjectionOptions(AttributeResolver: _ => attributes));
+
+        Assert.Equal(4, attributes.Count);
+        var profiles = System.Text.Json.JsonSerializer.Deserialize<DeviceEnrollmentProfile[]>(
+            projected.ResourceAttributes[DeviceRegistryResourceTypeProvider.Attributes.EnrollmentProfiles.ToString()]);
+        Assert.Equal("factory", Assert.Single(profiles!).Name);
+        Assert.Equal("device/", Assert.Single(profiles![0].Policy.SubjectPrefixes));
+        Assert.Contains("factory-ca", projected.ResourceAttributes[DeviceRegistryResourceTypeProvider.Attributes.TrustedCertificates.ToString()]);
+        Assert.Contains("manufacturer", projected.ResourceAttributes[DeviceRegistryResourceTypeProvider.Attributes.RequiredClaims.ToString()]);
+        Assert.DoesNotContain("private.collection", projected.ResourceAttributes.Keys);
+    }
+
     private static ResourceModelResource ResolveDeviceRegistry(
         string endpoint,
-        string? mqttEndpoint = null)
+        string? mqttEndpoint = null,
+        Dictionary<ResourceAttributeId, ResourceAttributeValue>? extraAttributes = null)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
         {
@@ -97,6 +136,11 @@ public sealed class DeviceRegistryResourceManagerProjectionTests
         if (!string.IsNullOrWhiteSpace(mqttEndpoint))
         {
             attributes[DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint] = mqttEndpoint;
+        }
+
+        foreach (var attribute in extraAttributes ?? [])
+        {
+            attributes[attribute.Key] = attribute.Value;
         }
 
         var state = new CloudShell.ResourceModel.ResourceState(

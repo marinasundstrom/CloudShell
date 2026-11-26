@@ -231,7 +231,10 @@ General section:
 - **Enrollment profiles** shows the base enrollment policy, trusted
   certificate references, individual/group profile matching criteria, and the
   resource permission grants a matching device identity receives. Profile
-  editing is intentionally deferred.
+  editing is intentionally deferred. `DeviceRegistryResourceManagerAttributeProvider`
+  explicitly projects these four policy collections into the Resource Manager
+  attributes used by the UI and remote API clients. General collection attributes
+  remain excluded; enrollment tokens and issued credentials are not projected.
 
 ## Runtime Boundary
 

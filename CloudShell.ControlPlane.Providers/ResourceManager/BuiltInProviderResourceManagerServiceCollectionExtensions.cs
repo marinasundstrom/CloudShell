@@ -228,6 +228,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerAttributeProvider,
+                DeviceRegistryResourceManagerAttributeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerAttributeProvider,
                 ConfigurationStoreResourceManagerAttributeProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
