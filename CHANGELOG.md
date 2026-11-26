@@ -10,6 +10,9 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Migrated device inventory/twin operations, event streams, and container deployment, revisions, scaling and monitoring to resource operations panes. Retained setup editors in Configuration.
+- Removed misleading hover backgrounds/pointers from read-only resource, usage and metric tables; kept feedback on actionable controls. Aligned device presence indicators and made certificate fields responsive with persistent labels and themed upload controls.
+
 - Kept the resource configuration page mounted while switching views, avoiding menu flicker and transient resource-not-found content.
 
 - Flattened embedded provider sections and RabbitMQ chart surfaces to avoid nested cards, aligned widget summary spacing, and added shared SQL database state indicators.

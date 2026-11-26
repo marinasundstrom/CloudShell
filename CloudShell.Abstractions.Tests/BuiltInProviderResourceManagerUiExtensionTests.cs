@@ -74,6 +74,25 @@ public sealed class BuiltInProviderResourceManagerUiExtensionTests
         Assert.Contains(type.ResourceTabs, tab => tab.Id == ResourcePredefinedViewIds.Configuration && !tab.IsOperational);
     }
 
+    [Theory]
+    [InlineData("iot.device-registry", "enrolled-devices", "enrollment-profiles")]
+    [InlineData("event.broker", "streams", null)]
+    [InlineData("application.container-app", "deployment", "configuration")]
+    [InlineData("application.container-app", "revisions", "configuration")]
+    [InlineData("application.container-app", "scale-replicas", "configuration")]
+    [InlineData("application.container-app", "monitoring", "configuration")]
+    public void OperationalProviderViewsLeaveConfigurationSettingsAvailable(string typeId, string paneId, string? configurationId)
+    {
+        var type = CreateCatalog().ResourceTypes.Single(type => type.Id == typeId);
+        var pane = Assert.Single(type.ResourceTabs, tab => tab.ViewId == paneId);
+        Assert.True(pane.IsOperational);
+        Assert.True(pane.OwnsLayout);
+        Assert.False(pane.ShowsApplyButton);
+        Assert.NotNull(pane.Icon);
+        if (configurationId is not null)
+            Assert.Contains(type.ResourceTabs, tab => tab.ViewId == configurationId && !tab.IsOperational);
+    }
+
     private static ShellCatalog CreateCatalog()
     {
         var services = new ServiceCollection();

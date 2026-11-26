@@ -109,6 +109,10 @@ workflows:
   Provider sections and charts embedded in an existing card remain flat: no
   additional panel background, border, or shadow. Use spacing and headings
   to organize them; retain inset surfaces only for distinct supporting items.
+- Hover feedback belongs to actionable links, buttons, and navigation items.
+  Read-only table rows do not change background or use a pointer cursor merely
+  because they contain a link or action button; those controls own their hover
+  and keyboard-focus feedback. Selection remains distinct from hover.
 - Selection uses a restrained accent tint plus an edge marker, rather than
   another outlined box. Icon tiles use `--cloudshell-accent-subtle`; reserve
   semantic colors for resource state, health, warnings, and errors.

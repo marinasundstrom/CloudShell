@@ -287,7 +287,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "certificates")
-            .AddResourceConfigurationView<DeviceRegistryPages.DeviceRegistryDevices>(
+            .AddResourceOperationsPane<DeviceRegistryPages.DeviceRegistryDevices>(
                 DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "enrolled-devices"),
                 "Devices",
@@ -301,7 +301,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 30,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "identity")
-            .AddResourceConfigurationView<EventBrokerPages.EventBrokerStreams>(
+            .AddResourceOperationsPane<EventBrokerPages.EventBrokerStreams>(
                 EventBrokerResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "streams"),
                 "Streams",
@@ -461,33 +461,34 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceConfigurationView<ContainerAppPages.ApplicationDeployment>(
+            .AddResourceOperationsPane<ContainerAppPages.ApplicationDeployment>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
                 "Deployment",
                 20,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "deployment")
-            .AddResourceConfigurationView<ContainerAppPages.ApplicationRevisions>(
+            .AddResourceOperationsPane<ContainerAppPages.ApplicationRevisions>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "revisions"),
                 "Revisions",
                 25,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "runtime")
-            .AddResourceConfigurationView<ContainerAppPages.ContainerApplicationScaling>(
+            .AddResourceOperationsPane<ContainerAppPages.ContainerApplicationScaling>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"),
                 "Scale and replicas",
                 30,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "scale")
-            .AddResourceConfigurationView<ContainerAppPages.ApplicationMonitoring>(
+            .AddResourceOperationsPane<ContainerAppPages.ApplicationMonitoring>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Monitoring,
                 "Monitoring",
                 45,
-                groupTitle: ResourceTabGroupTitles.Management)
+                groupTitle: ResourceTabGroupTitles.Management,
+                icon: "metrics")
             .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,

@@ -243,7 +243,11 @@ its `isOperational` flag maps to the same contribution model. Standard operation
 view IDs retain their existing automatic classification.
 
 RabbitMQ Broker, Broker status and Topology, and SQL Server Databases are operations
-panes. Configuration, Environment and Storage remain configuration views. Operational
+panes. Device Registry Devices (including identity operations and twin editing), Event
+Broker Streams, and Container Application Deployment, Revisions, Scale and replicas,
+and Monitoring also use operations panes. Their existing routes and provider manager
+contracts are preserved. Enrollment profiles, secrets, certificates, Configuration,
+Environment and Storage remain configuration views. Operational
 commands belong in the relevant resource-specific operations pane; configuration
 tabs own setup and editing, while dashboard widgets summarize and link to panes.
 These UI commands invoke existing authorized domain actions rather than defining
