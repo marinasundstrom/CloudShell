@@ -103,8 +103,15 @@
                     <ResourceKindIcon Resource="Selected" Class="resource-kind-icon resource-title-icon" />
                 }
                 <div class="operations-identity-text">
-                    <span class="scope-label">@(Selected is null ? L[ResourceId is null ? "System" : "Resource"].Value : Selected.Kind)</span>
+                    @if (Selected is null)
+                    {
+                        <span class="scope-label">@L[ResourceId is null ? "System" : "Resource"]</span>
+                    }
                     <h1>@(Selected is null ? L[ResourceId is null ? "CloudShell" : Loading ? "Loading resource" : "Resource unavailable"].Value : Display.GetResourceLabel(Selected))</h1>
+                    @if (Selected is not null)
+                    {
+                        <p class="resource-type-subtitle">@Selected.Kind</p>
+                    }
                 </div>
             </div>
             <div class="operations-tools">

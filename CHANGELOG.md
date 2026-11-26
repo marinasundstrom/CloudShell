@@ -12,6 +12,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Tightened the shared resource heading and restored resource-kind subtitle typography beneath the resource name.
+
 - Preserve configuration mode and supported operational tabs when switching resources.
 
 - Consolidated resource identity in the shared operations header, retaining lifecycle, logs, delete, close, and apply commands inside configuration.
