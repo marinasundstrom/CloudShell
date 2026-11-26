@@ -117,6 +117,10 @@
     padding: 1.1rem;
 }
 
+.shell-content:has(.operations-workspace) {
+    padding: 0;
+}
+
 #blazor-error-ui {
     background: var(--cloudshell-warning-fill);
     bottom: 0;

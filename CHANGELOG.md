@@ -12,6 +12,9 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Removed outer padding for the resource operations workspace while retaining
+  page gutters for Settings and other standalone pages.
+
 - Replaced the default resource inventory/preview with a compact operations
   workspace: full-width inventory first, persistent compact resource list on
   selection, and system/resource dashboards with adjacent operational panes.
