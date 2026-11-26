@@ -110,7 +110,7 @@
                     <h1>@(Selected is null ? L[ResourceId is null ? "CloudShell" : Loading ? "Loading resource" : "Resource unavailable"].Value : Display.GetResourceLabel(Selected))</h1>
                     @if (Selected is not null)
                     {
-                        <p class="resource-type-subtitle">@Selected.Kind</p>
+                        <p class="resource-type-subtitle">@ResourceTypeLabel(Selected)</p>
                     }
                 </div>
             </div>
@@ -154,7 +154,7 @@
             </div>
         }
         @if (ActionMessage is not null) { <p class="operation-confirmation" role="status">@ActionMessage</p> }
-        <div class="operations-content">
+        <div class="operations-content" @key="(ResourceId, Pane, CustomPaneId)">
             @if (InventoryOnly) { }
             else if (ResourceId is not null && Selected is null)
             {
@@ -242,6 +242,8 @@
     private bool IsConfiguration => Pane is not ("dashboard" or "logs" or "traces" or "metrics" or "health" or "monitoring" or "activity" or "usage") && !ProviderPanes.Any(t => t.Id.Identifier == Pane);
     private IEnumerable<CoreShellBlazorSection> CustomPanes => Sections.Where(s => OperationsContributions.Applies(s.Section.Attributes, Context));
     private bool MatchesFilter(Resource resource) => string.IsNullOrWhiteSpace(Filter) || Display.GetResourceLabel(resource).Contains(Filter.Trim(), StringComparison.OrdinalIgnoreCase) || resource.Kind.Contains(Filter.Trim(), StringComparison.OrdinalIgnoreCase);
+    private string ResourceTypeLabel(Resource resource) =>
+        Catalog.ResourceTypes.FirstOrDefault(type => string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))?.DisplayName ?? resource.Kind;
     private string ConfigurationHref(Resource resource) =>
         Catalog.ResourceTypes.FirstOrDefault(t => t.Id == resource.EffectiveTypeId)?.UpdateComponentType is not null
             ? ResourceManagerRoutes.ResourceDetails(resource.Id, ResourcePredefinedViewIds.Configuration)

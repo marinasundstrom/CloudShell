@@ -60,3 +60,16 @@ Validation: both preview hosts build successfully with hot reload disabled;
 five Hosting tests pass. Full-solution validation remains blocked by stale
 .NET preview hot-reload assets in ReplicatedContainerHealth and SignalRContainerApp
 samples (scoped CSS endpoint / missing generated-file errors).
+
+### Provider settings and phone-width follow-up
+
+Reviewed Configuration Store overview, failed-start callout, and editable
+settings in both themes. At 420px the settings rows overflowed; they now reuse
+the responsive configuration-entry grid. Resource headings now use provider
+display names, and phone-width toolbars wrap beneath resource identity.
+Pane changes reset the content scroller so commands are visible on entry.
+
+Verified the corrected editor at 420px in both themes with no horizontal overflow.
+Switching panes resets scroll to zero. An unsaved configuration edit still blocks
+navigation when the discard prompt is canceled and permits it only when confirmed;
+the test draft was discarded without applying it. Both affected hosts build.

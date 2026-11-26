@@ -77,3 +77,8 @@
 .operations-identity-text { display:flex; flex-direction:column; gap:.15rem; min-width:0; }
 .operations-identity h1 { margin:0; line-height:1.25; overflow-wrap:anywhere; }
 .resource-type-subtitle { margin:0; font-size:.875rem; line-height:1.25; color:var(--cloudshell-text-muted); }
+
+@media(max-width:480px) {
+    .operations-heading { flex-direction:column; align-items:stretch; }
+    .operations-tools { justify-content:flex-start; }
+}

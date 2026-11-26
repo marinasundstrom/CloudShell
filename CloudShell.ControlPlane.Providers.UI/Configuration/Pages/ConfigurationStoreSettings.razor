@@ -43,7 +43,7 @@ else
             <ChildContent>
                 @foreach (var setting in Settings)
                 {
-                    <div class="environment-row configuration-setting-row configuration-setting-runtime-row">
+                    <div class="environment-row configuration-entry-row configuration-setting-runtime-row">
                         <FluentTextField AriaLabel="Configuration setting name"
                                          Placeholder="Name"
                                          @bind-Value="setting.Name" />

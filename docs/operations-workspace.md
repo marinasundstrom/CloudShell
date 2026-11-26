@@ -225,3 +225,8 @@ shows a misleading “No matching resources” message.
 The shared operations header owns the resource icon, kind, and display name across panes. Configuration retains its command bar (including lifecycle, logs, delete, close, and apply), without repeating the resource heading.
 
 Switching resources preserves configuration mode or an operational provider tab when the target supports it; otherwise the workspace returns to the target dashboard. Logs, traces, metrics, and time-range query filters continue across resource scopes.
+
+Resource headings use the registered resource type's display name, falling back
+to the resource kind when no type contribution is available. Navigating to a
+different resource or pane resets the content scroller; background refreshes
+preserve the current reading position.
