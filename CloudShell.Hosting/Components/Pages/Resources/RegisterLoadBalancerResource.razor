@@ -2,13 +2,31 @@
 @inject IResourceManager ResourceManager
 @inject IEnumerable<ICertificateReferenceCatalog> CertificateCatalogs
 @inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
 
-<div class="type-registration">
-    <FormPanel>
+<ResourceRegistrationWizard TDraft="RegistrationDraft" @ref="Wizard" Steps="WizardSteps" @bind-Draft="Draft" Error="@ErrorMessage" OnCreate="Register" />
+
+@code {
+    private ResourceRegistrationWizard<RegistrationDraft> Wizard = default!;
+    private RegistrationDraft Draft { get; set; } = new();
+    private string? ValidateBasics() => string.IsNullOrWhiteSpace(ResourceId) ? "Name is required." : Draft.Group.Validate();
+    private IReadOnlyList<ResourceRegistrationWizardStep> WizardSteps =>
+    [
+        new("Basics", Step0, ValidateBasics),
+        new("Provider", Step1),
+        new("Entrypoints", Step2, () => BuildEntrypoints().Count == 0 ? "Select at least one entrypoint." : null),
+        new("Routes", Step3, ValidateRoutesStep),
+        new("Review", Step4),
+    ];
+    private RenderFragment Step0 => @<FormPanel>
         <ResourceIdentityFields ResourceIdInputId="load-balancer-resource-id"
                                 ResourceIdPlaceholder="public"
                                 @bind-ResourceId="ResourceId" />
-
+        <ResourceRegistrationGroupSelect Draft="Draft.Group" AllowNewGroup="@(Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))" Id="load-balancer-group"
+                             ResourceGroups="ResourceGroups"
+                             @bind-Value="SelectedGroupId" />
+    </FormPanel>;
+    private RenderFragment Step1 => @<FormPanel>
         <label for="load-balancer-provider">Provider</label>
         <FluentSelect TOption="string"
                       Id="load-balancer-provider"
@@ -28,11 +46,8 @@
                 <FluentOption TOption="string" Value="@host.Id">@ResourceDisplayLabels.GetQualifiedLabel(host)</FluentOption>
             }
         </FluentSelect>
-
-        <ResourceGroupSelect Id="load-balancer-group"
-                             ResourceGroups="ResourceGroups"
-                             @bind-Value="SelectedGroupId" />
-
+    </FormPanel>;
+    private RenderFragment Step2 => @<FormPanel>
         <ResourceEditorSection Title="Entrypoints">
             <FluentCheckbox @bind-Value="ExposeHttp">
                 HTTP
@@ -73,7 +88,8 @@
                 <FluentNumberField TValue="int" Id="load-balancer-tcp-port" Min="1" @bind-Value="TcpPort" />
             }
         </ResourceEditorSection>
-
+    </FormPanel>;
+    private RenderFragment Step3 => @<FormPanel>
         <ResourceEditorSection Title="HTTP route">
             <FluentCheckbox @bind-Value="CreateHttpRoute">
                 Add HTTP route
@@ -157,18 +173,43 @@
                 <FluentNumberField TValue="int?" Id="load-balancer-tcp-target-port" Min="1" @bind-Value="TcpTargetPort" />
             }
         </ResourceEditorSection>
+    </FormPanel>;
+    private RenderFragment Step4 => @<FormPanel>
+        <dl class="registration-review">
+            <dt>Name</dt><dd>@ResourceId</dd>
+            <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : ResourceGroups.FirstOrDefault(group => group.Id == SelectedGroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
+            <dt>Provider</dt><dd>@Provider</dd>
+        </dl>
+        <p class="muted">Review your choices before creating the resource. Use Back to make changes.</p>
+    </FormPanel>;
 
-        @if (ErrorMessage is not null)
-        {
-            <div class="provider-error">@ErrorMessage</div>
-        }
+    public sealed class RegistrationDraft
+    {
+        public ResourceRegistrationGroupDraft Group { get; set; } = new();
+        public string ResourceId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Provider { get; set; } = "traefik";
+        public string SelectedHostResourceId { get; set; } = string.Empty;
+        public string SelectedGroupId { get; set; } = string.Empty;
+        public bool ExposeHttp { get; set; } = true;
+        public int HttpPort { get; set; } = 80;
+        public bool ExposeHttps { get; set; } = true;
+        public int HttpsPort { get; set; } = 443;
+        public string SelectedHttpsCertificateKey { get; set; } = string.Empty;
+        public bool ExposeTcp { get; set; }
+        public int TcpPort { get; set; } = 5432;
+        public bool CreateHttpRoute { get; set; } = true;
+        public string HttpHost { get; set; } = string.Empty;
+        public string HttpPathPrefix { get; set; } = string.Empty;
+        public string HttpTargetResourceId { get; set; } = string.Empty;
+        public string HttpTargetEndpointName { get; set; } = string.Empty;
+        public int? HttpTargetPort { get; set; }
+        public bool CreateTcpRoute { get; set; }
+        public string TcpTargetResourceId { get; set; } = string.Empty;
+        public string TcpTargetEndpointName { get; set; } = string.Empty;
+        public int? TcpTargetPort { get; set; } = 5432;
+    }
 
-        <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
-                           OnClick="Register" />
-    </FormPanel>
-</div>
-
-@code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string NetworkResourceType = "cloudshell.network";
     private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
@@ -177,28 +218,28 @@
     private const string TargetEndpointQueryParameter = "targetEndpointName";
     private const string RouteKindQueryParameter = "routeKind";
 
-    private string ResourceId { get; set; } = string.Empty;
-    private string Name { get; set; } = string.Empty;
-    private string Provider { get; set; } = "traefik";
-    private string SelectedHostResourceId { get; set; } = string.Empty;
-    private string SelectedGroupId { get; set; } = string.Empty;
-    private bool ExposeHttp { get; set; } = true;
-    private int HttpPort { get; set; } = 80;
-    private bool ExposeHttps { get; set; } = true;
-    private int HttpsPort { get; set; } = 443;
-    private string SelectedHttpsCertificateKey { get; set; } = string.Empty;
-    private bool ExposeTcp { get; set; }
-    private int TcpPort { get; set; } = 5432;
-    private bool CreateHttpRoute { get; set; } = true;
-    private string HttpHost { get; set; } = "app.local";
-    private string HttpPathPrefix { get; set; } = string.Empty;
-    private string HttpTargetResourceId { get; set; } = string.Empty;
-    private string HttpTargetEndpointName { get; set; } = string.Empty;
-    private int? HttpTargetPort { get; set; }
-    private bool CreateTcpRoute { get; set; }
-    private string TcpTargetResourceId { get; set; } = string.Empty;
-    private string TcpTargetEndpointName { get; set; } = string.Empty;
-    private int? TcpTargetPort { get; set; } = 5432;
+    private string ResourceId { get => Draft.ResourceId; set => Draft.ResourceId = value; }
+    private string Name { get => Draft.Name; set => Draft.Name = value; }
+    private string Provider { get => Draft.Provider; set => Draft.Provider = value; }
+    private string SelectedHostResourceId { get => Draft.SelectedHostResourceId; set => Draft.SelectedHostResourceId = value; }
+    private string SelectedGroupId { get => Draft.SelectedGroupId; set => Draft.SelectedGroupId = value; }
+    private bool ExposeHttp { get => Draft.ExposeHttp; set => Draft.ExposeHttp = value; }
+    private int HttpPort { get => Draft.HttpPort; set => Draft.HttpPort = value; }
+    private bool ExposeHttps { get => Draft.ExposeHttps; set => Draft.ExposeHttps = value; }
+    private int HttpsPort { get => Draft.HttpsPort; set => Draft.HttpsPort = value; }
+    private string SelectedHttpsCertificateKey { get => Draft.SelectedHttpsCertificateKey; set => Draft.SelectedHttpsCertificateKey = value; }
+    private bool ExposeTcp { get => Draft.ExposeTcp; set => Draft.ExposeTcp = value; }
+    private int TcpPort { get => Draft.TcpPort; set => Draft.TcpPort = value; }
+    private bool CreateHttpRoute { get => Draft.CreateHttpRoute; set => Draft.CreateHttpRoute = value; }
+    private string HttpHost { get => Draft.HttpHost; set => Draft.HttpHost = value; }
+    private string HttpPathPrefix { get => Draft.HttpPathPrefix; set => Draft.HttpPathPrefix = value; }
+    private string HttpTargetResourceId { get => Draft.HttpTargetResourceId; set => Draft.HttpTargetResourceId = value; }
+    private string HttpTargetEndpointName { get => Draft.HttpTargetEndpointName; set => Draft.HttpTargetEndpointName = value; }
+    private int? HttpTargetPort { get => Draft.HttpTargetPort; set => Draft.HttpTargetPort = value; }
+    private bool CreateTcpRoute { get => Draft.CreateTcpRoute; set => Draft.CreateTcpRoute = value; }
+    private string TcpTargetResourceId { get => Draft.TcpTargetResourceId; set => Draft.TcpTargetResourceId = value; }
+    private string TcpTargetEndpointName { get => Draft.TcpTargetEndpointName; set => Draft.TcpTargetEndpointName = value; }
+    private int? TcpTargetPort { get => Draft.TcpTargetPort; set => Draft.TcpTargetPort = value; }
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
     private IReadOnlyList<Resource> Resources { get; set; } = [];
@@ -225,7 +266,6 @@
 
         var requestedRouteKind = GetRequestedRouteKind();
         var targetResourceId = requestedTargetResourceId ??
-            GetTargetCandidates().FirstOrDefault()?.Id ??
             string.Empty;
         var targetEndpointName = GetRequestedTargetEndpointName(targetResourceId) ??
             GetTargetEndpoints(targetResourceId).FirstOrDefault()?.Name ??
@@ -356,6 +396,13 @@
             : null;
     }
 
+    private string? ValidateRoutesStep()
+    {
+        ErrorMessage = null;
+        _ = BuildRoutes();
+        return ErrorMessage;
+    }
+
     private async Task Register()
     {
         ErrorMessage = null;
@@ -388,6 +435,8 @@
             entrypoints,
             routes);
 
+        SelectedGroupId = await Draft.Group.ResolveAsync(SelectedGroupId,
+            command => ResourceManager.CreateResourceGroupAsync(command)) ?? string.Empty;
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,
@@ -397,6 +446,7 @@
                 JsonSerializer.SerializeToElement(definition),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 
+        await Wizard.CompleteAsync();
         Navigation.NavigateTo(GetReturnUrl());
     }
 

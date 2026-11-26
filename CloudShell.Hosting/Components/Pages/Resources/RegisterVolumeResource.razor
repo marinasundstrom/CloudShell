@@ -5,16 +5,27 @@
 @inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
-<div class="type-registration">
-    <FormPanel>
+<ResourceRegistrationWizard TDraft="RegistrationDraft" @ref="Wizard" Steps="WizardSteps" @bind-Draft="Draft" Error="@ErrorMessage" OnCreate="Register" />
+
+@code {
+    private ResourceRegistrationWizard<RegistrationDraft> Wizard = default!;
+    private RegistrationDraft Draft { get; set; } = new();
+    private string? ValidateBasics() => string.IsNullOrWhiteSpace(ResourceId) ? "Name is required." : Draft.Group.Validate();
+    private IReadOnlyList<ResourceRegistrationWizardStep> WizardSteps =>
+    [
+        new("Basics", Step0, ValidateBasics),
+        new("Configuration", Step1, () => HasSelectedStorage && string.IsNullOrWhiteSpace(Location) ? "Storage-owned volumes require a subpath." : null),
+        new("Review", Step2),
+    ];
+    private RenderFragment Step0 => @<FormPanel>
         <ResourceIdentityFields ResourceIdInputId="volume-resource-id"
                                 ResourceIdPlaceholder="data"
                                 @bind-ResourceId="ResourceId" />
-
-        <ResourceGroupSelect Id="volume-group"
+        <ResourceRegistrationGroupSelect Draft="Draft.Group" AllowNewGroup="@(!HasSelectedStorage && Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))" Id="volume-group"
                              ResourceGroups="ResourceGroups"
                              @bind-Value="SelectedGroupId" />
-
+    </FormPanel>;
+    private RenderFragment Step1 => @<FormPanel>
         <label for="volume-provider">Provider</label>
         <FluentTextField Id="volume-provider"
                          Disabled="@HasSelectedStorage"
@@ -54,31 +65,44 @@
                            Id="volume-max-size"
                            Min="1"
                            @bind-Value="MaxSizeBytes" />
+    </FormPanel>;
+    private RenderFragment Step2 => @<FormPanel>
+        <dl class="registration-review">
+            <dt>Name</dt><dd>@ResourceId</dd>
+            <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : ResourceGroups.FirstOrDefault(group => group.Id == SelectedGroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
+            <dt>Location</dt><dd>@Location</dd>
+            <dt>Provider</dt><dd>@Provider</dd>
+        </dl>
+        <p class="muted">Review your choices before creating the resource. Use Back to make changes.</p>
+    </FormPanel>;
 
-        @if (ErrorMessage is not null)
-        {
-            <div class="provider-error">@ErrorMessage</div>
-        }
+    public sealed class RegistrationDraft
+    {
+        public ResourceRegistrationGroupDraft Group { get; set; } = new();
+        public string ResourceId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string SelectedGroupId { get; set; } = string.Empty;
+        public string SelectedStorageResourceId { get; set; } = string.Empty;
+        public string Provider { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+        public string SelectedAccessMode { get; set; } = VolumeAccessMode.ReadWriteOnce.ToString();
+        public bool Persistent { get; set; } = true;
+        public long? MaxSizeBytes { get; set; }
+    }
 
-        <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
-                           OnClick="Register" />
-    </FormPanel>
-</div>
-
-@code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string VolumeResourceType = "cloudshell.volume";
     private const string StorageResourceQueryParameter = "storageResourceId";
 
-    private string ResourceId { get; set; } = string.Empty;
-    private string Name { get; set; } = string.Empty;
-    private string SelectedGroupId { get; set; } = string.Empty;
-    private string SelectedStorageResourceId { get; set; } = string.Empty;
-    private string Provider { get; set; } = string.Empty;
-    private string Location { get; set; } = string.Empty;
-    private string SelectedAccessMode { get; set; } = VolumeAccessMode.ReadWriteOnce.ToString();
-    private bool Persistent { get; set; } = true;
-    private long? MaxSizeBytes { get; set; }
+    private string ResourceId { get => Draft.ResourceId; set => Draft.ResourceId = value; }
+    private string Name { get => Draft.Name; set => Draft.Name = value; }
+    private string SelectedGroupId { get => Draft.SelectedGroupId; set => Draft.SelectedGroupId = value; }
+    private string SelectedStorageResourceId { get => Draft.SelectedStorageResourceId; set => Draft.SelectedStorageResourceId = value; }
+    private string Provider { get => Draft.Provider; set => Draft.Provider = value; }
+    private string Location { get => Draft.Location; set => Draft.Location = value; }
+    private string SelectedAccessMode { get => Draft.SelectedAccessMode; set => Draft.SelectedAccessMode = value; }
+    private bool Persistent { get => Draft.Persistent; set => Draft.Persistent = value; }
+    private long? MaxSizeBytes { get => Draft.MaxSizeBytes; set => Draft.MaxSizeBytes = value; }
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
     private IReadOnlyList<Resource> StorageResources { get; set; } = [];
@@ -137,6 +161,8 @@
             HasSelectedStorage ? NormalizeNullable(Location) : null,
             MaxSizeBytes is > 0 ? MaxSizeBytes : null);
 
+        SelectedGroupId = await Draft.Group.ResolveAsync(SelectedGroupId,
+            command => ResourceManager.CreateResourceGroupAsync(command)) ?? string.Empty;
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,
@@ -148,6 +174,7 @@
                 ResourceClass.Storage));
 
         var explicitReturnUrl = GetExplicitReturnUrl();
+        await Wizard.CompleteAsync();
         Navigation.NavigateTo(explicitReturnUrl ??
             (HasSelectedStorage
             ? BuildStorageVolumesRoute(SelectedStorageResourceId)
@@ -214,6 +241,7 @@
             return;
         }
 
+        Draft.Group.CreateNew = false;
         SelectedGroupId = ResourceManagerUiAccess.GetResourceGroupId(
             StorageGroupsByResourceId,
             SelectedStorageResourceId) ?? string.Empty;

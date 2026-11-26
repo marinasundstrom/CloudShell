@@ -1,13 +1,29 @@
 @using System.Text.Json
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
 
-<div class="type-registration">
-    <FormPanel>
+<ResourceRegistrationWizard TDraft="RegistrationDraft" @ref="Wizard" Steps="WizardSteps" @bind-Draft="Draft" Error="@ErrorMessage" OnCreate="Register" />
+
+@code {
+    private ResourceRegistrationWizard<RegistrationDraft> Wizard = default!;
+    private RegistrationDraft Draft { get; set; } = new();
+    private string? ValidateBasics() => string.IsNullOrWhiteSpace(ResourceId) ? "Name is required." : Draft.Group.Validate();
+    private IReadOnlyList<ResourceRegistrationWizardStep> WizardSteps =>
+    [
+        new("Basics", Step0, ValidateBasics),
+        new("Configuration", Step1, ValidateConfigurationStep),
+        new("Review", Step2),
+    ];
+    private RenderFragment Step0 => @<FormPanel>
         <ResourceIdentityFields ResourceIdInputId="network-resource-id"
                                 ResourceIdPlaceholder="app"
                                 @bind-ResourceId="ResourceId" />
-
+        <ResourceRegistrationGroupSelect Draft="Draft.Group" AllowNewGroup="@(Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))" Id="network-group"
+                             ResourceGroups="ResourceGroups"
+                             @bind-Value="SelectedGroupId" />
+    </FormPanel>;
+    private RenderFragment Step1 => @<FormPanel>
         <FluentCheckbox @bind-Value="IsDefault">
             Default network
         </FluentCheckbox>
@@ -53,39 +69,51 @@
                              Label="Exposure"
                              @bind-Value="SelectedExposure" />
         }
+    </FormPanel>;
+    private RenderFragment Step2 => @<FormPanel>
+        <dl class="registration-review">
+            <dt>Name</dt><dd>@ResourceId</dd>
+            <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : ResourceGroups.FirstOrDefault(group => group.Id == SelectedGroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
+            <dt>Endpoint name</dt><dd>@EndpointName</dd>
+        </dl>
+        <p class="muted">Review your choices before creating the resource. Use Back to make changes.</p>
+    </FormPanel>;
 
-        <ResourceGroupSelect Id="network-group"
-                             ResourceGroups="ResourceGroups"
-                             @bind-Value="SelectedGroupId" />
+    public sealed class RegistrationDraft
+    {
+        public ResourceRegistrationGroupDraft Group { get; set; } = new();
+        public string ResourceId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public bool IsDefault { get; set; }
+        public bool CreateEndpointRequest { get; set; }
+        public string EndpointName { get; set; } = "network";
+        public string EndpointHost { get; set; } = "localhost";
+        public string EndpointIPAddress { get; set; } = string.Empty;
+        public int? EndpointPort { get; set; }
+        public string ProviderEndpointId { get; set; } = string.Empty;
+        public string SelectedProtocol { get; set; } = ResourceEndpointProtocol.Http.ToString();
+        public ResourceEndpointAssignment EndpointAssignment { get; set; } =
+        ResourceEndpointAssignment.ProviderDefault;
+        public string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
+        public string SelectedGroupId { get; set; } = string.Empty;
+    }
 
-        @if (ErrorMessage is not null)
-        {
-            <div class="provider-error">@ErrorMessage</div>
-        }
-
-        <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
-                           OnClick="Register" />
-    </FormPanel>
-</div>
-
-@code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string NetworkResourceType = "cloudshell.network";
 
-    private string ResourceId { get; set; } = string.Empty;
-    private string Name { get; set; } = string.Empty;
-    private bool IsDefault { get; set; }
-    private bool CreateEndpointRequest { get; set; }
-    private string EndpointName { get; set; } = "network";
-    private string EndpointHost { get; set; } = "localhost";
-    private string EndpointIPAddress { get; set; } = string.Empty;
-    private int? EndpointPort { get; set; }
-    private string ProviderEndpointId { get; set; } = string.Empty;
-    private string SelectedProtocol { get; set; } = ResourceEndpointProtocol.Http.ToString();
-    private ResourceEndpointAssignment EndpointAssignment { get; set; } =
-        ResourceEndpointAssignment.ProviderDefault;
-    private string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
-    private string SelectedGroupId { get; set; } = string.Empty;
+    private string ResourceId { get => Draft.ResourceId; set => Draft.ResourceId = value; }
+    private string Name { get => Draft.Name; set => Draft.Name = value; }
+    private bool IsDefault { get => Draft.IsDefault; set => Draft.IsDefault = value; }
+    private bool CreateEndpointRequest { get => Draft.CreateEndpointRequest; set => Draft.CreateEndpointRequest = value; }
+    private string EndpointName { get => Draft.EndpointName; set => Draft.EndpointName = value; }
+    private string EndpointHost { get => Draft.EndpointHost; set => Draft.EndpointHost = value; }
+    private string EndpointIPAddress { get => Draft.EndpointIPAddress; set => Draft.EndpointIPAddress = value; }
+    private int? EndpointPort { get => Draft.EndpointPort; set => Draft.EndpointPort = value; }
+    private string ProviderEndpointId { get => Draft.ProviderEndpointId; set => Draft.ProviderEndpointId = value; }
+    private string SelectedProtocol { get => Draft.SelectedProtocol; set => Draft.SelectedProtocol = value; }
+    private ResourceEndpointAssignment EndpointAssignment { get => Draft.EndpointAssignment; set => Draft.EndpointAssignment = value; }
+    private string SelectedExposure { get => Draft.SelectedExposure; set => Draft.SelectedExposure = value; }
+    private string SelectedGroupId { get => Draft.SelectedGroupId; set => Draft.SelectedGroupId = value; }
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
 
@@ -106,6 +134,13 @@
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
     }
 
+    private string? ValidateConfigurationStep()
+    {
+        ErrorMessage = null;
+        _ = BuildEndpointRequests();
+        return ErrorMessage;
+    }
+
     private async Task Register()
     {
         ErrorMessage = null;
@@ -123,6 +158,8 @@
 
         var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "network");
         var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
+        SelectedGroupId = await Draft.Group.ResolveAsync(SelectedGroupId,
+            command => ResourceManager.CreateResourceGroupAsync(command)) ?? string.Empty;
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,
@@ -136,6 +173,7 @@
                     endpointRequests)),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 
+        await Wizard.CompleteAsync();
         Navigation.NavigateTo(GetReturnUrl());
     }
 

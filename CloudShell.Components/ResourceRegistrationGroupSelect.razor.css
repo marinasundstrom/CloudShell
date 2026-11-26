@@ -1,0 +1,8 @@
+.registration-group { display: grid; gap: .55rem; }
+.registration-group-selector { display: flex; align-items: end; gap: .5rem; }
+.registration-group-field { display: grid; gap: .35rem; flex: 1; min-width: 0; }
+.registration-group-field ::deep fluent-select { width: 100%; }
+.registration-group small, .registration-group-dialog-fields small { color: var(--cloudshell-text-muted); line-height: 1.4; }
+.registration-group-dialog-fields { display: grid; gap: 1rem; }
+.registration-group-dialog-fields ::deep fluent-text-field,
+.registration-group-dialog-fields ::deep fluent-text-area { width: 100%; }

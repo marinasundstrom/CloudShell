@@ -2,8 +2,24 @@
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 
-<div class="type-registration">
-    <FormPanel>
+<ResourceRegistrationWizard TDraft="RegistrationDraft" @ref="Wizard" Steps="WizardSteps" @bind-Draft="Draft" Error="@ErrorMessage" OnCreate="Register" />
+
+@code {
+    private ResourceRegistrationWizard<RegistrationDraft> Wizard = default!;
+    private RegistrationDraft Draft { get; set; } = new();
+    private string? ValidateBasics() => string.IsNullOrWhiteSpace(ResourceId) ? "Name is required." : null;
+    private IReadOnlyList<ResourceRegistrationWizardStep> WizardSteps =>
+    [
+        new("Basics", Step0, ValidateBasics),
+        new("Configuration", Step1, () => string.IsNullOrWhiteSpace(HostName) ? "Host name is required." : string.IsNullOrWhiteSpace(TargetResourceId) ? "Target resource is required." : null),
+        new("Review", Step2),
+    ];
+    private RenderFragment Step0 => @<FormPanel>
+        <ResourceIdentityFields ResourceIdInputId="name-mapping-resource-id"
+                                ResourceIdPlaceholder="app-cloudshell-local"
+                                @bind-ResourceId="ResourceId" />
+    </FormPanel>;
+    private RenderFragment Step1 => @<FormPanel>
         <label for="name-mapping-zone">DNS zone</label>
         <FluentSelect TOption="string"
                       Id="name-mapping-zone"
@@ -16,9 +32,6 @@
             }
         </FluentSelect>
 
-        <ResourceIdentityFields ResourceIdInputId="name-mapping-resource-id"
-                                ResourceIdPlaceholder="app-cloudshell-local"
-                                @bind-ResourceId="ResourceId" />
 
         <label for="name-mapping-host">Host name</label>
         <FluentTextField Id="name-mapping-host" @bind-Value="HostName" Placeholder="app.cloudshell.local" />
@@ -84,18 +97,28 @@
                 <FluentOption TOption="string" Value="@provider.Id">@ResourceDisplayLabels.GetQualifiedLabel(provider)</FluentOption>
             }
         </FluentSelect>
+    </FormPanel>;
+    private RenderFragment Step2 => @<FormPanel>
+        <dl class="registration-review">
+            <dt>Name</dt><dd>@ResourceId</dd>
+            <dt>Host name</dt><dd>@HostName</dd>
+            <dt>Target</dt><dd>@TargetResourceId</dd>
+        </dl>
+        <p class="muted">Review your choices before creating the resource. Use Back to make changes.</p>
+    </FormPanel>;
 
-        @if (ErrorMessage is not null)
-        {
-            <div class="provider-error">@ErrorMessage</div>
-        }
+    public sealed class RegistrationDraft
+    {
+        public string SelectedZoneResourceId { get; set; } = string.Empty;
+        public string ResourceId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string HostName { get; set; } = string.Empty;
+        public string TargetResourceId { get; set; } = string.Empty;
+        public string TargetEndpointName { get; set; } = string.Empty;
+        public string SelectedExposure { get; set; } = ResourceExposureScope.Public.ToString();
+        public string ProviderResourceId { get; set; } = string.Empty;
+    }
 
-        <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
-                           OnClick="Register" />
-    </FormPanel>
-</div>
-
-@code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string DnsZoneResourceType = "cloudshell.dnsZone";
     private const string NameMappingResourceType = "cloudshell.nameMapping";
@@ -107,14 +130,14 @@
     private const string TargetEndpointQueryParameter = "targetEndpointName";
     private const string HostNameQueryParameter = "hostName";
 
-    private string SelectedZoneResourceId { get; set; } = string.Empty;
-    private string ResourceId { get; set; } = string.Empty;
-    private string Name { get; set; } = string.Empty;
-    private string HostName { get; set; } = "app.cloudshell.local";
-    private string TargetResourceId { get; set; } = string.Empty;
-    private string TargetEndpointName { get; set; } = string.Empty;
-    private string SelectedExposure { get; set; } = ResourceExposureScope.Public.ToString();
-    private string ProviderResourceId { get; set; } = string.Empty;
+    private string SelectedZoneResourceId { get => Draft.SelectedZoneResourceId; set => Draft.SelectedZoneResourceId = value; }
+    private string ResourceId { get => Draft.ResourceId; set => Draft.ResourceId = value; }
+    private string Name { get => Draft.Name; set => Draft.Name = value; }
+    private string HostName { get => Draft.HostName; set => Draft.HostName = value; }
+    private string TargetResourceId { get => Draft.TargetResourceId; set => Draft.TargetResourceId = value; }
+    private string TargetEndpointName { get => Draft.TargetEndpointName; set => Draft.TargetEndpointName = value; }
+    private string SelectedExposure { get => Draft.SelectedExposure; set => Draft.SelectedExposure = value; }
+    private string ProviderResourceId { get => Draft.ProviderResourceId; set => Draft.ProviderResourceId = value; }
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
@@ -130,10 +153,8 @@
             ResourceManager,
             Resources);
         SelectedZoneResourceId = GetRequestedDnsZoneId() ??
-            GetDnsZoneCandidates().FirstOrDefault()?.Id ??
             string.Empty;
         TargetResourceId = GetRequestedTargetResourceId() ??
-            GetTargetCandidates().FirstOrDefault()?.Id ??
             string.Empty;
         TargetEndpointName = GetRequestedTargetEndpointName() ??
             GetTargetEndpoints(TargetResourceId).FirstOrDefault()?.Name ??
@@ -324,6 +345,7 @@
                 JsonSerializer.SerializeToElement(definition),
                 zoneGroup?.Id));
 
+        await Wizard.CompleteAsync();
         Navigation.NavigateTo(GetReturnUrl());
     }
 

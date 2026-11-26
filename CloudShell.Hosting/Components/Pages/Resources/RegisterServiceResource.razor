@@ -1,21 +1,36 @@
 @using System.Text.Json
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
 
-<div class="type-registration">
-    <FormPanel>
+<ResourceRegistrationWizard TDraft="RegistrationDraft" @ref="Wizard" Steps="WizardSteps" @bind-Draft="Draft" Error="@ErrorMessage" OnCreate="Register" />
+
+@code {
+    private ResourceRegistrationWizard<RegistrationDraft> Wizard = default!;
+    private RegistrationDraft Draft { get; set; } = new();
+    private string? ValidateBasics() => string.IsNullOrWhiteSpace(ResourceId) ? "Name is required." : Draft.Group.Validate();
+    private IReadOnlyList<ResourceRegistrationWizardStep> WizardSteps =>
+    [
+        new("Basics", Step0, ValidateBasics),
+        new("Targets", Step1, () => SelectedTargetIds.Count == 0 ? "Select at least one target resource." : null),
+        new("Endpoints", Step2, () => string.IsNullOrWhiteSpace(PortName) || TargetPort <= 0 ? "Port name and target port are required." : IsManualAssignment && Port is null ? "Manual endpoint assignment requires an exposed port." : null),
+        new("Review", Step3),
+    ];
+    private RenderFragment Step0 => @<FormPanel>
+        <ResourceIdentityFields ResourceIdInputId="service-resource-id"
+                                ResourceIdPlaceholder="api"
+                                @bind-ResourceId="ResourceId" />
+        <ResourceRegistrationGroupSelect Draft="Draft.Group" AllowNewGroup="@(Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))" Id="service-group"
+                             ResourceGroups="ResourceGroups"
+                             @bind-Value="SelectedGroupId" />
+    </FormPanel>;
+    private RenderFragment Step1 => @<FormPanel>
         <p class="muted">
             Use a Service when you need an explicit service unit or facade over target resources.
             Container apps can expose app-owned endpoints without a Service resource.
         </p>
 
-        <ResourceIdentityFields ResourceIdInputId="service-resource-id"
-                                ResourceIdPlaceholder="api"
-                                @bind-ResourceId="ResourceId" />
 
-        <ResourceGroupSelect Id="service-group"
-                             ResourceGroups="ResourceGroups"
-                             @bind-Value="SelectedGroupId" />
 
         <ResourceSelectionSection Title="Targets"
                                   Resources="GetTargetCandidates()"
@@ -24,7 +39,8 @@
         <ResourceSelectionSection Title="Networks"
                                   Resources="GetNetworkCandidates()"
                                   SelectedResourceIds="SelectedNetworkIds" />
-
+    </FormPanel>;
+    private RenderFragment Step2 => @<FormPanel>
         <label for="service-port-name">Port name</label>
         <FluentTextField Id="service-port-name" @bind-Value="PortName" />
 
@@ -52,33 +68,48 @@
                          Id="service-exposure"
                          Label="Exposure"
                          @bind-Value="SelectedExposure" />
+    </FormPanel>;
+    private RenderFragment Step3 => @<FormPanel>
+        <dl class="registration-review">
+            <dt>Name</dt><dd>@ResourceId</dd>
+            <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : ResourceGroups.FirstOrDefault(group => group.Id == SelectedGroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
+            <dt>Port name</dt><dd>@PortName</dd>
+            <dt>Target port</dt><dd>@TargetPort</dd>
+        </dl>
+        <p class="muted">Review your choices before creating the resource. Use Back to make changes.</p>
+    </FormPanel>;
 
-        @if (ErrorMessage is not null)
-        {
-            <div class="provider-error">@ErrorMessage</div>
-        }
+    public sealed class RegistrationDraft
+    {
+        public ResourceRegistrationGroupDraft Group { get; set; } = new();
+        public string ResourceId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string SelectedGroupId { get; set; } = string.Empty;
+        public string PortName { get; set; } = "http";
+        public int TargetPort { get; set; } = 80;
+        public int? Port { get; set; }
+        public string Protocol { get; set; } = "tcp";
+        public ResourceEndpointAssignment EndpointAssignment { get; set; } = ResourceEndpointAssignment.Auto;
+        public string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
+        public HashSet<string> SelectedTargetIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> SelectedNetworkIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    }
 
-        <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
-                           OnClick="Register" />
-    </FormPanel>
-</div>
-
-@code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string NetworkResourceType = "cloudshell.network";
     private const string ServiceResourceType = "cloudshell.service";
 
-    private string ResourceId { get; set; } = string.Empty;
-    private string Name { get; set; } = string.Empty;
-    private string SelectedGroupId { get; set; } = string.Empty;
-    private HashSet<string> SelectedTargetIds { get; } = new(StringComparer.OrdinalIgnoreCase);
-    private HashSet<string> SelectedNetworkIds { get; } = new(StringComparer.OrdinalIgnoreCase);
-    private string PortName { get; set; } = "http";
-    private int TargetPort { get; set; } = 80;
-    private int? Port { get; set; }
-    private string Protocol { get; set; } = "tcp";
-    private ResourceEndpointAssignment EndpointAssignment { get; set; } = ResourceEndpointAssignment.Auto;
-    private string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
+    private string ResourceId { get => Draft.ResourceId; set => Draft.ResourceId = value; }
+    private string Name { get => Draft.Name; set => Draft.Name = value; }
+    private string SelectedGroupId { get => Draft.SelectedGroupId; set => Draft.SelectedGroupId = value; }
+    private HashSet<string> SelectedTargetIds => Draft.SelectedTargetIds;
+    private HashSet<string> SelectedNetworkIds => Draft.SelectedNetworkIds;
+    private string PortName { get => Draft.PortName; set => Draft.PortName = value; }
+    private int TargetPort { get => Draft.TargetPort; set => Draft.TargetPort = value; }
+    private int? Port { get => Draft.Port; set => Draft.Port = value; }
+    private string Protocol { get => Draft.Protocol; set => Draft.Protocol = value; }
+    private ResourceEndpointAssignment EndpointAssignment { get => Draft.EndpointAssignment; set => Draft.EndpointAssignment = value; }
+    private string SelectedExposure { get => Draft.SelectedExposure; set => Draft.SelectedExposure = value; }
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
     private IReadOnlyList<Resource> Resources { get; set; } = [];
@@ -164,6 +195,8 @@
             [new ServicePort(PortName, TargetPort, assignedPort, Protocol, exposure)],
             SelectedNetworkIds.ToArray());
 
+        SelectedGroupId = await Draft.Group.ResolveAsync(SelectedGroupId,
+            command => ResourceManager.CreateResourceGroupAsync(command)) ?? string.Empty;
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,
@@ -173,6 +206,7 @@
                 JsonSerializer.SerializeToElement(definition),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 
+        await Wizard.CompleteAsync();
         Navigation.NavigateTo(GetReturnUrl());
     }
 

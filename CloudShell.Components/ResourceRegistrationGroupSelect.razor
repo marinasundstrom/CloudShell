@@ -1,0 +1,108 @@
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+
+<div class="registration-group">
+    <div class="registration-group-selector">
+        <div class="registration-group-field">
+            <ResourceGroupSelect @key="SelectedValue" Id="@Id" ResourceGroups="AvailableGroups" Value="@SelectedValue" ValueChanged="SelectGroupAsync" />
+        </div>
+        @if (AllowNewGroup)
+        {
+            <FluentButton IconStart="@(new Icons.Regular.Size20.Add())" Title="Add resource group" OnClick="OpenDialog">Add group</FluentButton>
+        }
+    </div>
+    <small>@(Draft.CreateNew ? "This group will be created when you create the resource." : "Optional. Resources without a selected group use the default group.")</small>
+    @if (Draft.CreateNew)
+    {
+        <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size20.Edit())" OnClick="OpenDialog">Edit pending group</FluentButton>
+    }
+</div>
+
+@if (DialogOpen)
+{
+    <FluentDialog Hidden="false" Modal="true" TrapFocus="true" PreventScroll="true"
+                  AriaLabel="New resource group" Style="width:min(28rem, calc(100vw - 2rem));"
+                  HiddenChanged="@(hidden => { if (hidden) DialogOpen = false; })"
+                  OnDialogResult="() => DialogOpen = false"
+                  @onkeydown="@(e => { if (e.Key == "Escape") DialogOpen = false; })">
+        <FluentDialogHeader Style="padding:1.25rem 1.5rem 0;">
+            <h2 style="margin:0;font-size:1.2rem;">New resource group</h2>
+        </FluentDialogHeader>
+        <FluentDialogBody Style="padding:1rem 1.5rem;">
+            <div class="registration-group-dialog-fields">
+                <FluentTextField Label="Group name" @bind-Value="PendingName" Required="true" Immediate="true" />
+                <FluentTextArea Label="Description" @bind-Value="PendingDescription" Rows="3" />
+                <small>The group is saved with this wizard draft. It will only be created when you create the resource.</small>
+                @if (DialogError is not null)
+                {
+                    <FluentMessageBar Intent="MessageIntent.Error">@DialogError</FluentMessageBar>
+                }
+            </div>
+        </FluentDialogBody>
+        <FluentDialogFooter Style="display:flex;justify-content:flex-end;gap:.5rem;padding:0 1.5rem 1.25rem;">
+            <FluentButton OnClick="() => DialogOpen = false">Cancel</FluentButton>
+            <FluentButton Appearance="Appearance.Accent" OnClick="SavePendingGroupAsync">Use group</FluentButton>
+        </FluentDialogFooter>
+    </FluentDialog>
+}
+
+@code {
+    private const string PendingGroupId = "__cloudshell_pending_group";
+    [Parameter, EditorRequired] public string Id { get; set; } = "resource-group";
+    [Parameter, EditorRequired] public ResourceRegistrationGroupDraft Draft { get; set; } = default!;
+    [Parameter] public IEnumerable<ResourceGroup> ResourceGroups { get; set; } = [];
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public bool AllowNewGroup { get; set; }
+
+    private bool DialogOpen;
+    private string PendingName = "";
+    private string PendingDescription = "";
+    private string? DialogError;
+    private string SelectedValue => Draft.CreateNew ? PendingGroupId : Value;
+
+    protected override void OnParametersSet()
+    {
+        if (!AllowNewGroup) { Draft.CreateNew = false; DialogOpen = false; }
+    }
+
+    private void OpenDialog()
+    {
+        PendingName = Draft.Name;
+        PendingDescription = Draft.Description;
+        DialogError = null;
+        DialogOpen = true;
+    }
+
+    private async Task SavePendingGroupAsync()
+    {
+        if (string.IsNullOrWhiteSpace(PendingName))
+        {
+            DialogError = "Group name is required.";
+            return;
+        }
+        Draft.Name = PendingName.Trim();
+        Draft.Description = PendingDescription.Trim();
+        Draft.CreateNew = true;
+        DialogOpen = false;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task SelectGroupAsync(string value)
+    {
+        Draft.CreateNew = value == PendingGroupId;
+        if (!Draft.CreateNew) await ValueChanged.InvokeAsync(value);
+    }
+
+    private IEnumerable<ResourceGroup> AvailableGroups
+    {
+        get
+        {
+            var groups = ResourceGroups;
+            if (Draft.CreatedGroupId is { } id && !groups.Any(group => group.Id == id))
+                groups = groups.Append(new ResourceGroup(id, Draft.CreatedGroupName ?? id, "", []));
+            if (Draft.CreateNew)
+                groups = groups.Append(new ResourceGroup(PendingGroupId, Draft.Name + " (new)", Draft.Description, []));
+            return groups;
+        }
+    }
+}

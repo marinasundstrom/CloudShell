@@ -1,13 +1,30 @@
 @using System.Text.Json
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
 
-<div class="type-registration">
-    <FormPanel>
+<ResourceRegistrationWizard TDraft="RegistrationDraft" @ref="Wizard" Steps="WizardSteps" @bind-Draft="Draft" Error="@ErrorMessage" OnCreate="Register" />
+
+@code {
+    private ResourceRegistrationWizard<RegistrationDraft> Wizard = default!;
+    private RegistrationDraft Draft { get; set; } = new();
+    private string? ValidateBasics() => string.IsNullOrWhiteSpace(ResourceId) ? "Name is required." : Draft.Group.Validate();
+    private IReadOnlyList<ResourceRegistrationWizardStep> WizardSteps =>
+    [
+        new("Basics", Step0, ValidateBasics),
+        new("DNS provider", Step1, () => string.IsNullOrWhiteSpace(ZoneName) ? "Zone name is required." : null),
+        new("Name mapping", Step2, ValidateMappingStep),
+        new("Review", Step3),
+    ];
+    private RenderFragment Step0 => @<FormPanel>
         <ResourceIdentityFields ResourceIdInputId="dns-zone-resource-id"
                                 ResourceIdPlaceholder="cloudshell-local"
                                 @bind-ResourceId="ResourceId" />
-
+        <ResourceRegistrationGroupSelect Draft="Draft.Group" AllowNewGroup="@(Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))" Id="dns-zone-group"
+                             ResourceGroups="ResourceGroups"
+                             @bind-Value="SelectedGroupId" />
+    </FormPanel>;
+    private RenderFragment Step1 => @<FormPanel>
         <label for="dns-zone-name-value">Zone name</label>
         <FluentTextField Id="dns-zone-name-value" @bind-Value="ZoneName" Placeholder="cloudshell.local" />
 
@@ -44,11 +61,8 @@
                 <span>Names ending in .local may conflict with mDNS/Bonjour on the host network. Use them intentionally for local development and reconcile them only on hosts where this suffix is acceptable.</span>
             </ResourceCallout>
         }
-
-        <ResourceGroupSelect Id="dns-zone-group"
-                             ResourceGroups="ResourceGroups"
-                             @bind-Value="SelectedGroupId" />
-
+    </FormPanel>;
+    private RenderFragment Step2 => @<FormPanel>
         <ResourceEditorSection Title="Initial name mapping">
             <FluentCheckbox @bind-Value="CreateNameMapping">
                 Add name mapping
@@ -104,18 +118,36 @@
                 </FluentSelect>
             }
         </ResourceEditorSection>
+    </FormPanel>;
+    private RenderFragment Step3 => @<FormPanel>
+        <dl class="registration-review">
+            <dt>Name</dt><dd>@ResourceId</dd>
+            <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : ResourceGroups.FirstOrDefault(group => group.Id == SelectedGroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
+            <dt>Zone</dt><dd>@ZoneName</dd>
+            <dt>Host name</dt><dd>@HostName</dd>
+            <dt>Provider</dt><dd>@Provider</dd>
+            <dt>Target</dt><dd>@TargetResourceId</dd>
+        </dl>
+        <p class="muted">Review your choices before creating the resource. Use Back to make changes.</p>
+    </FormPanel>;
 
-        @if (ErrorMessage is not null)
-        {
-            <div class="provider-error">@ErrorMessage</div>
-        }
+    public sealed class RegistrationDraft
+    {
+        public ResourceRegistrationGroupDraft Group { get; set; } = new();
+        public string ResourceId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string ZoneName { get; set; } = string.Empty;
+        public string Provider { get; set; } = string.Empty;
+        public string ProviderSelection { get; set; } = LogicalProviderSelection;
+        public string SelectedGroupId { get; set; } = string.Empty;
+        public bool CreateNameMapping { get; set; } = true;
+        public string HostName { get; set; } = string.Empty;
+        public string TargetResourceId { get; set; } = string.Empty;
+        public string TargetEndpointName { get; set; } = string.Empty;
+        public string SelectedExposure { get; set; } = ResourceExposureScope.Public.ToString();
+        public string ProviderResourceId { get; set; } = string.Empty;
+    }
 
-        <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
-                           OnClick="Register" />
-    </FormPanel>
-</div>
-
-@code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string DnsZoneResourceType = "cloudshell.dnsZone";
     private const string NetworkResourceType = "cloudshell.network";
@@ -125,18 +157,18 @@
     private const string LocalHostNamesProvider = "local-hostnames";
     private const string CustomProviderSelection = "__custom";
 
-    private string ResourceId { get; set; } = "dns:cloudshell-local";
-    private string Name { get; set; } = "CloudShell Local DNS";
-    private string ZoneName { get; set; } = "cloudshell.local";
-    private string Provider { get; set; } = string.Empty;
-    private string ProviderSelection { get; set; } = LogicalProviderSelection;
-    private string SelectedGroupId { get; set; } = string.Empty;
-    private bool CreateNameMapping { get; set; } = true;
-    private string HostName { get; set; } = "app.cloudshell.local";
-    private string TargetResourceId { get; set; } = string.Empty;
-    private string TargetEndpointName { get; set; } = string.Empty;
-    private string SelectedExposure { get; set; } = ResourceExposureScope.Public.ToString();
-    private string ProviderResourceId { get; set; } = string.Empty;
+    private string ResourceId { get => Draft.ResourceId; set => Draft.ResourceId = value; }
+    private string Name { get => Draft.Name; set => Draft.Name = value; }
+    private string ZoneName { get => Draft.ZoneName; set => Draft.ZoneName = value; }
+    private string Provider { get => Draft.Provider; set => Draft.Provider = value; }
+    private string ProviderSelection { get => Draft.ProviderSelection; set => Draft.ProviderSelection = value; }
+    private string SelectedGroupId { get => Draft.SelectedGroupId; set => Draft.SelectedGroupId = value; }
+    private bool CreateNameMapping { get => Draft.CreateNameMapping; set => Draft.CreateNameMapping = value; }
+    private string HostName { get => Draft.HostName; set => Draft.HostName = value; }
+    private string TargetResourceId { get => Draft.TargetResourceId; set => Draft.TargetResourceId = value; }
+    private string TargetEndpointName { get => Draft.TargetEndpointName; set => Draft.TargetEndpointName = value; }
+    private string SelectedExposure { get => Draft.SelectedExposure; set => Draft.SelectedExposure = value; }
+    private string ProviderResourceId { get => Draft.ProviderResourceId; set => Draft.ProviderResourceId = value; }
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
     private IReadOnlyList<Resource> Resources { get; set; } = [];
@@ -153,7 +185,7 @@
         ResourceGroupsByResourceId = await ResourceManagerUiAccess.CreateGroupLookupAsync(
             ResourceManager,
             Resources);
-        TargetResourceId = GetTargetCandidates().FirstOrDefault()?.Id ?? string.Empty;
+
     }
 
     private IReadOnlyList<Resource> GetTargetCandidates() =>
@@ -193,6 +225,13 @@
         string.Equals(resource.EffectiveTypeId, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(resource.EffectiveTypeId, NameMappingType, StringComparison.OrdinalIgnoreCase);
 
+    private string? ValidateMappingStep()
+    {
+        ErrorMessage = null;
+        _ = BuildMappings();
+        return ErrorMessage;
+    }
+
     private async Task Register()
     {
         ErrorMessage = null;
@@ -223,6 +262,8 @@
             GetProvider(),
             mappings);
 
+        SelectedGroupId = await Draft.Group.ResolveAsync(SelectedGroupId,
+            command => ResourceManager.CreateResourceGroupAsync(command)) ?? string.Empty;
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,
@@ -232,6 +273,7 @@
                 JsonSerializer.SerializeToElement(definition),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 
+        await Wizard.CompleteAsync();
         Navigation.NavigateTo(GetReturnUrl());
     }
 

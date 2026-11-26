@@ -1,0 +1,167 @@
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+@using Microsoft.AspNetCore.Components.Routing
+@using System.Text.Json
+@using Microsoft.JSInterop
+@using Microsoft.Extensions.Logging
+@typeparam TDraft where TDraft : class
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ILogger<ResourceRegistrationWizard<TDraft>> Logger
+
+<NavigationLock OnBeforeInternalNavigation="SaveBeforeNavigationAsync" />
+
+<div class="registration-wizard" aria-busy="@Busy">
+    @if (Restored)
+    {
+        <p class="draft-notice" role="status">Draft restored in this tab. <FluentButton Appearance="Appearance.Stealth" Disabled="@Busy" OnClick="ResetAsync">Start over</FluentButton></p>
+    }
+    <FluentWizard @ref="Wizard" @bind-Value="CurrentStep" Height="auto" StepperPosition="StepperPosition.Top" Border="WizardBorder.None" DisplayStepNumber="@(WizardStepStatus.Current | WizardStepStatus.Next)" OnFinish="CreateAsync">
+        <Steps>
+            @foreach (var step in Steps)
+            {
+                <FluentWizardStep @key="step.Title" Label="@step.Title" DeferredLoading="false" Disabled="@Busy" OnChange="args => ValidateStep(step, args)">
+                    <div class="registration-step"><h3>@step.Title</h3>@step.Content</div>
+                </FluentWizardStep>
+            }
+        </Steps>
+        <ButtonTemplate>
+            <div class="wizard-actions">
+                <span class="step-count">Step @(CurrentStep + 1) of @Steps.Count</span>
+                <FluentButton Disabled="@(Busy || CurrentStep == 0)" IconStart="@(new Icons.Regular.Size20.ArrowLeft())" OnClick="PreviousAsync">Back</FluentButton>
+                @if (CurrentStep < Steps.Count - 1)
+                {
+                    <FluentButton Appearance="Appearance.Accent" Disabled="@Busy" IconEnd="@(new Icons.Regular.Size20.ArrowRight().WithColor("currentColor"))" OnClick="NextAsync">Next</FluentButton>
+                }
+                else
+                {
+                    <FluentButton Appearance="Appearance.Accent" Disabled="@Busy" IconStart="@(new Icons.Regular.Size20.AddCircle().WithColor("currentColor"))" OnClick="FinishAsync">@(Busy ? "Creating…" : "Create resource")</FluentButton>
+                }
+            </div>
+        </ButtonTemplate>
+    </FluentWizard>
+    @if (!string.IsNullOrEmpty(ValidationError ?? Error))
+    {
+        <p class="wizard-error" role="alert">@(ValidationError ?? Error)</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ResourceRegistrationWizardStep> Steps { get; set; } = [];
+    /// <summary>Explicit non-secret draft model. Never put credentials or secret values in this model.</summary>
+    [Parameter, EditorRequired] public TDraft Draft { get; set; } = default!;
+    [Parameter] public EventCallback<TDraft> DraftChanged { get; set; }
+    [Parameter] public EventCallback OnCreate { get; set; }
+    [Parameter] public string? Error { get; set; }
+    private FluentWizard Wizard = default!;
+    private IJSObjectReference? Module;
+    private int CurrentStep;
+    private bool Busy, Restored, Completed;
+    private string? ValidationError, LastSnapshot;
+    private TDraft InitialDraft = default!;
+    private string DraftKey = "";
+
+    protected override void OnInitialized()
+    {
+        DraftKey = $"{typeof(TDraft).FullName}:{Navigation.ToBaseRelativePath(Navigation.Uri)}";
+        InitialDraft = JsonSerializer.Deserialize<TDraft>(JsonSerializer.Serialize(Draft))!;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender)
+            {
+                Module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/CloudShell.Components/registrationDrafts.js");
+                var saved = await Module.InvokeAsync<string?>("read", DraftKey);
+                if (saved is not null)
+                {
+                    var snapshot = JsonSerializer.Deserialize<DraftSnapshot>(saved);
+                    if (snapshot?.Model is not null)
+                    {
+                        await DraftChanged.InvokeAsync(snapshot.Model);
+                        CurrentStep = Math.Clamp(snapshot.Step, 0, Math.Max(0, Steps.Count - 1));
+                        Restored = true;
+                        StateHasChanged();
+                        return;
+                    }
+                }
+            }
+            if (!Busy) await SaveDraftAsync();
+        }
+        catch (JSDisconnectedException) { }
+        catch (JsonException) { /* An incompatible draft starts fresh. */ }
+        catch (JSException) { /* Draft caching must not block registration. */ }
+    }
+
+    private async Task SaveBeforeNavigationAsync(Microsoft.AspNetCore.Components.Routing.LocationChangingContext context)
+    {
+        if (Busy && !Completed) { context.PreventNavigation(); return; }
+        try { await SaveDraftAsync(); }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+    }
+    private async Task SaveDraftAsync()
+    {
+        if (Module is null || Completed) return;
+        var snapshot = JsonSerializer.Serialize(new DraftSnapshot(Draft, CurrentStep));
+        if (snapshot != LastSnapshot)
+        {
+            await Module.InvokeVoidAsync("write", DraftKey, snapshot);
+            LastSnapshot = snapshot;
+        }
+    }
+
+    private void ValidateStep(ResourceRegistrationWizardStep step, FluentWizardStepChangeEventArgs args)
+    {
+        if (Busy) { args.IsCancelled = true; return; }
+        ValidationError = args.TargetIndex > CurrentStep ? step.Validate?.Invoke() : null;
+        args.IsCancelled |= ValidationError is not null;
+    }
+    private Task PreviousAsync() => Wizard.GoToStepAsync(CurrentStep - 1);
+    private Task NextAsync() => Wizard.GoToStepAsync(CurrentStep + 1, validateEditContexts: true);
+    private Task FinishAsync() => Wizard.FinishAsync(validateEditContexts: true);
+    private async Task CreateAsync()
+    {
+        if (Busy) return;
+        ValidationError = Steps.Select(step => step.Validate?.Invoke()).FirstOrDefault(error => error is not null);
+        if (ValidationError is not null) return;
+        Busy = true;
+        try { await OnCreate.InvokeAsync(); }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Resource registration could not complete");
+            ValidationError = "The resource could not be created. Review the configuration and try again.";
+        }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Call after successful creation, before navigation, to remove this browser-tab draft.</summary>
+    public async Task CompleteAsync()
+    {
+        Completed = true;
+        if (Module is not null)
+        {
+            try { await Module.InvokeVoidAsync("remove", DraftKey); }
+            catch (JSDisconnectedException) { }
+            catch (JSException) { }
+        }
+    }
+    private async Task ResetAsync()
+    {
+        await DraftChanged.InvokeAsync(JsonSerializer.Deserialize<TDraft>(JsonSerializer.Serialize(InitialDraft))!);
+        CurrentStep = 0;
+        Restored = false;
+        ValidationError = null;
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (Module is not null)
+        {
+            try { await Module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+    public sealed record DraftSnapshot(TDraft Model, int Step);
+}

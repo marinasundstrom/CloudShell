@@ -269,3 +269,101 @@ installed.
 Untrusted or independently deployed integrations should eventually use an
 out-of-process provider protocol over HTTP or gRPC while retaining the same
 resource contracts at the host boundary.
+
+## Resource registration gallery and wizards
+
+`ResourceTypeContribution` remains the UI registration contract. Its
+`ResourceClass` places the type in the Add Resource gallery; display name,
+description, and ID are searchable. An explicit `?type=` link opens that type's
+registration component directly, preserving contextual query values and local
+return URLs. Unknown types display a recovery link instead of selecting an
+unrelated type. The gallery does not infer creation support from lifecycle
+capabilities: providers that use templates or launchers retain their authoring
+instructions in their registration component.
+
+UI packages can reference `CloudShell.Components` and compose
+`ResourceRegistrationWizard<TDraft>` with any number of
+`ResourceRegistrationWizardStep` entries. Each entry supplies a title, a
+`RenderFragment`, and an optional synchronous validation function returning a
+user-facing error or null. The wrapper uses Fluent UI's wizard, keeps step
+content mounted, validates forward navigation, and offers Back, Next, and Create
+resource. Providers own the field model, step order, validation, review content,
+and creation callback. The seven built-in platform registration forms use this
+same component; no provider-specific wizard registry is required.
+
+```razor
+<ResourceRegistrationWizard TDraft="DraftModel" @ref="Wizard"
+    Steps="Steps" @bind-Draft="Draft" OnCreate="CreateAsync" Error="Error" />
+
+@code {
+    private ResourceRegistrationWizard<DraftModel> Wizard = default!;
+    private DraftModel Draft { get; set; } = new();
+    private string? Error;
+    private IReadOnlyList<ResourceRegistrationWizardStep> Steps =>
+    [
+        new("Basics", Basics, () => string.IsNullOrWhiteSpace(Draft.Name)
+            ? "Name is required." : null),
+        new("Provider options", Options),
+        new("Review", Review)
+    ];
+    // Basics, Options, and Review are provider-owned RenderFragments bound to Draft.
+    // CreateAsync validates provider options and calls IResourceManager.CreateResourceAsync.
+    // After success, await Wizard.CompleteAsync() before navigating to the result.
+    public sealed class DraftModel
+    {
+        public string Name { get; set; } = "";
+        public string Region { get; set; } = "";
+    }
+}
+```
+
+Draft caching is explicitly opt-in through the supplied typed model. **Never put
+passwords, credentials, secret values, or entire resource/runtime objects in
+that model.** Keep sensitive inputs in separate component fields. Drafts are
+serialized into a bounded in-memory map in the current browser document, keyed
+by model type and registration URL, including contextual query parameters.
+They are saved after rendering and before internal navigation. Returning to the
+same wizard restores its non-secret model and step; Start over restores initial
+values. `CompleteAsync` clears the draft after successful creation. At most
+20 abandoned drafts are retained. Reloading or closing the page discards this
+cache; no localStorage, sessionStorage, server persistence, or API draft entity
+is introduced. Blazor Interactive Server still owns the active rendered
+component; the resumable draft cache lives in the browser.
+
+This is a WebUI authoring affordance. Resource definitions, provider validation,
+permissions, dependency orchestration, and persistence remain behind existing
+Control Plane/domain manager contracts. Remote clients and language SDKs keep
+using the same creation APIs and do not acquire wizard concepts. Creation errors
+remain in the wizard, duplicate submission is disabled, and cached values must
+be validated again against current providers and permissions. The wizard never
+serializes arbitrary provider objects or shows raw exception text to users.
+
+The resource type owns its entire initialization flow. The shell neither inserts
+mandatory steps nor takes over provider creation logic. Identity fields,
+`ResourceRegistrationGroupSelect`, review fragments, and the wizard itself are
+optional building blocks; custom types can replace any of them or use a wholly
+custom registration component. Provider-defined steps may execute their own
+validation and initialization logic before invoking domain operations.
+
+The optional group helper keeps a `ResourceRegistrationGroupDraft` in the typed
+wizard model. An Add group button beside the selector opens a dialog for its
+name and description. Use group selects the pending entry marked “(new)”; Cancel
+leaves the prior selection unchanged. Pending groups can be edited before
+submission. Default group requires no creation. A proposed name/description
+causes no writes during editing, step navigation, or cancellation. After provider
+validation, the final creation callback calls `ResolveAsync` with the domain
+manager's group-creation method, then passes the returned ID to resource
+creation. Group-create authorization remains enforced by the Control Plane.
+Owned child resources, such as volumes attached to Storage and name mappings
+inside a DNS Zone, continue to inherit their owner's group.
+
+Group and resource creation currently use two existing domain operations, not a
+distributed transaction. If resource creation subsequently fails, the newly
+created group remains selected and can be reused on retry without duplication.
+The UI must not report success until the resource operation succeeds. An atomic
+combined group/resource domain operation is not introduced by this UI helper.
+
+Registration flows may default safe common choices, but must require critical
+identity, destination, and routing values. Context from an explicitly selected
+resource may prefill related fields; arbitrary inventory order must not choose
+a destination. Validate required values at their step and again on submission.

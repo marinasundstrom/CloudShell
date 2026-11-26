@@ -5,10 +5,10 @@
               ValueChanged="OnValueChanged"
               Disabled="@Disabled"
               Appearance="Appearance.Outline">
-    <FluentOption TOption="string" Value="">@DefaultGroupLabel</FluentOption>
+    <FluentOption TOption="string" Value="" Selected="@(string.IsNullOrEmpty(Value))">@DefaultGroupLabel</FluentOption>
     @foreach (var group in ResourceGroups)
     {
-        <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
+        <FluentOption TOption="string" Value="@group.Id" Selected="@(Value == group.Id)">@group.Name</FluentOption>
     }
 </FluentSelect>
 

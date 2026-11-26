@@ -1,40 +1,59 @@
 @using System.Text.Json
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
 
-<div class="type-registration">
-    <FormPanel>
+<ResourceRegistrationWizard TDraft="RegistrationDraft" @ref="Wizard" Steps="WizardSteps" @bind-Draft="Draft" Error="@ErrorMessage" OnCreate="Register" />
+
+@code {
+    private ResourceRegistrationWizard<RegistrationDraft> Wizard = default!;
+    private RegistrationDraft Draft { get; set; } = new();
+    private string? ValidateBasics() => string.IsNullOrWhiteSpace(ResourceId) ? "Name is required." : Draft.Group.Validate();
+    private IReadOnlyList<ResourceRegistrationWizardStep> WizardSteps =>
+    [
+        new("Basics", Step0, ValidateBasics),
+        new("Configuration", Step1),
+        new("Review", Step2),
+    ];
+    private RenderFragment Step0 => @<FormPanel>
         <ResourceIdentityFields ResourceIdInputId="local-storage-resource-id"
                                 ResourceIdPlaceholder="local"
                                 @bind-ResourceId="ResourceId" />
-
-        <ResourceGroupSelect Id="local-storage-group"
+        <ResourceRegistrationGroupSelect Draft="Draft.Group" AllowNewGroup="@(Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))" Id="local-storage-group"
                              ResourceGroups="ResourceGroups"
                              @bind-Value="SelectedGroupId" />
-
+    </FormPanel>;
+    private RenderFragment Step1 => @<FormPanel>
         <label for="local-storage-location">Provider location</label>
         <FluentTextField Id="local-storage-location"
                          @bind-Value="Location"
                          Placeholder="Optional local storage root" />
+    </FormPanel>;
+    private RenderFragment Step2 => @<FormPanel>
+        <dl class="registration-review">
+            <dt>Name</dt><dd>@ResourceId</dd>
+            <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : ResourceGroups.FirstOrDefault(group => group.Id == SelectedGroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
+            <dt>Location</dt><dd>@Location</dd>
+        </dl>
+        <p class="muted">Review your choices before creating the resource. Use Back to make changes.</p>
+    </FormPanel>;
 
-        @if (ErrorMessage is not null)
-        {
-            <div class="provider-error">@ErrorMessage</div>
-        }
+    public sealed class RegistrationDraft
+    {
+        public ResourceRegistrationGroupDraft Group { get; set; } = new();
+        public string ResourceId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+        public string SelectedGroupId { get; set; } = string.Empty;
+    }
 
-        <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
-                           OnClick="Register" />
-    </FormPanel>
-</div>
-
-@code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string StorageResourceType = "cloudshell.storage";
 
-    private string ResourceId { get; set; } = string.Empty;
-    private string Name { get; set; } = string.Empty;
-    private string Location { get; set; } = string.Empty;
-    private string SelectedGroupId { get; set; } = string.Empty;
+    private string ResourceId { get => Draft.ResourceId; set => Draft.ResourceId = value; }
+    private string Name { get => Draft.Name; set => Draft.Name = value; }
+    private string Location { get => Draft.Location; set => Draft.Location = value; }
+    private string SelectedGroupId { get => Draft.SelectedGroupId; set => Draft.SelectedGroupId = value; }
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
 
@@ -64,6 +83,8 @@
             StorageMedia.FileSystem,
             NormalizeNullable(Location));
 
+        SelectedGroupId = await Draft.Group.ResolveAsync(SelectedGroupId,
+            command => ResourceManager.CreateResourceGroupAsync(command)) ?? string.Empty;
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,
@@ -74,6 +95,7 @@
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId,
                 ResourceClass.Storage));
 
+        await Wizard.CompleteAsync();
         Navigation.NavigateTo(GetReturnUrl());
     }
 

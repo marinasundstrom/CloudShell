@@ -1,0 +1,21 @@
+.registration-wizard { min-width: 0; }
+.registration-step { padding: .75rem .25rem 1rem; min-width: 0; }
+.registration-step h3 { margin: .25rem 0 1rem; font-size: 1.1rem; }
+.wizard-actions { display: flex; align-items: center; gap: .5rem; width: 100%; padding-top: 1rem; }
+.step-count { margin-right: auto; color: var(--cloudshell-text-muted); font-size: .875rem; }
+.draft-notice { color: var(--cloudshell-text-muted); margin: 0 0 1rem; }
+.wizard-error { padding: .75rem; color: var(--cloudshell-danger); background: var(--cloudshell-danger-fill); border-radius: var(--cloudshell-control-radius); }
+.registration-wizard ::deep .fluent-wizard-content { overflow: visible; }
+.registration-wizard ::deep .fluent-wizard > ol { overflow-x: auto; }
+@media (max-width: 640px) { .wizard-actions { flex-wrap: wrap; } .step-count { flex-basis: 100%; } }
+.registration-wizard ::deep .registration-review { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 3fr); gap: .65rem 1rem; margin: 0; }
+.registration-wizard ::deep .registration-review dt { color: var(--cloudshell-text-muted); font-weight: 600; }
+.registration-wizard ::deep .registration-review dd { margin: 0; overflow-wrap: anywhere; }
+
+.registration-wizard ::deep .resource-identity-fields { display: grid; gap: .4rem; }
+.registration-wizard ::deep .form-panel { display: grid; gap: .75rem; max-width: 44rem; }
+.registration-wizard ::deep .form-panel fluent-text-field,
+.registration-wizard ::deep .form-panel fluent-text-area,
+.registration-wizard ::deep .form-panel fluent-select { width: 100%; }
+
+.registration-wizard ::deep .environment-editor { display: grid; gap: .65rem; }

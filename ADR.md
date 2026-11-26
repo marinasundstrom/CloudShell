@@ -11,6 +11,15 @@ link to the decision so the dependency is visible.
 
 ## 2026-11-26
 
+### ADR-20261126-004: Provider-composed registration wizards and transient drafts
+
+The Add Resource gallery groups existing type contributions by resource class.
+Provider registration components compose the shared Fluent wizard with their own
+steps and typed, explicitly non-secret draft models. Drafts are cached only in
+browser-document memory, with no new domain entity, API, or server persistence.
+The Control Plane retains creation validation and authorization. See
+[Extension authoring](docs/extensions.md#resource-registration-gallery-and-wizards).
+
 ### ADR-20261126-003: Locally hosted structured JSON editor
 
 The shared UI component library wraps Monaco through BlazorMonaco for editable
