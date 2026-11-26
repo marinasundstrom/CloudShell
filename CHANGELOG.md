@@ -12,6 +12,9 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Added Fluent icons to Dashboard, Logs, and Traces navigation in the operations
+  workspace and inventory.
+
 - Added matching lifecycle icons to the compact resource action menu.
 
 - Removed outer padding for the resource operations workspace while retaining

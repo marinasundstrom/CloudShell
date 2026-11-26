@@ -22,9 +22,9 @@
         @if (InventoryOnly)
         {
             <nav aria-label="@L["System operations"]">
-                <FluentAnchor Href="@OperationsNavigation.Dashboard(null)">@L["Dashboard"]</FluentAnchor>
-                <FluentAnchor Href="@OperationsNavigation.Pane(null, "logs")">@L["Logs"]</FluentAnchor>
-                <FluentAnchor Href="@OperationsNavigation.Pane(null, "traces")">@L["Traces"]</FluentAnchor>
+                <FluentAnchor Href="@OperationsNavigation.Dashboard(null)" IconStart="@ResourceViewIcons.FromName("dashboard")">@L["Dashboard"]</FluentAnchor>
+                <FluentAnchor Href="@OperationsNavigation.Pane(null, "logs")" IconStart="@ResourceViewIcons.FromName("logs")">@L["Logs"]</FluentAnchor>
+                <FluentAnchor Href="@OperationsNavigation.Pane(null, "traces")" IconStart="@ResourceViewIcons.FromName("traces")">@L["Traces"]</FluentAnchor>
             </nav>
         }
         else { <FluentAnchor Href="/resources" Title="@L["Expand resource list"]">@L["Expand"]</FluentAnchor> }
@@ -84,7 +84,7 @@
         <nav class="operations-tabs" aria-label="@L["Operations"]">
             @foreach (var pane in StandardPanes)
             {
-                <FluentAnchor Href="@OperationsNavigation.Pane(ResourceId, pane.Id)" Appearance="@(CustomPaneId is null && Pane == pane.Id ? Appearance.Accent : Appearance.Stealth)" aria-current="@(CustomPaneId is null && Pane == pane.Id ? "page" : null)">@L[pane.Title]</FluentAnchor>
+                <FluentAnchor Href="@OperationsNavigation.Pane(ResourceId, pane.Id)" IconStart="@ResourceViewIcons.FromName(pane.Id)" Appearance="@(CustomPaneId is null && Pane == pane.Id ? Appearance.Accent : Appearance.Stealth)" aria-current="@(CustomPaneId is null && Pane == pane.Id ? "page" : null)">@L[pane.Title]</FluentAnchor>
             }
             @foreach (var pane in CustomPanes)
             {

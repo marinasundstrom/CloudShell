@@ -16,7 +16,7 @@ internal static class ResourceViewIcons
 
         return normalized switch
         {
-            "overview" or "home" => new Icons.Regular.Size20.HomeMore(),
+            "dashboard" or "overview" or "home" => new Icons.Regular.Size20.HomeMore(),
             "configuration" or "settings" => new Icons.Regular.Size20.SettingsCogMultiple(),
             "endpoints" or "endpoint" or "networking" or "network" => new Icons.Regular.Size20.Connector(),
             "dns" or "name-mapping" or "name-mappings" => new Icons.Regular.Size20.GlobeSync(),
