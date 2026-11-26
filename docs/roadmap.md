@@ -40,6 +40,12 @@ Useful references:
 - [Control Plane execution model future direction](future/control-plane-execution-model.md)
 - [Future directions](future/)
 
+The shared UI design language now covers common panels, summary cards,
+Settings tiles/navigation, metrics, usage, trace details, and empty states,
+with theme-aware text and semantic colors. Continue adoption in specialized
+provider layouts and embedded pages without rebuilding their workflows;
+see [System design guidelines](system-design-guidelines.md).
+
 ## Current Direction
 
 CloudShell should now move in one clear line:

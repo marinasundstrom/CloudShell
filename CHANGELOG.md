@@ -12,6 +12,13 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Extended the shared panel language to summary cards, Settings tiles,
+  metric/usage panels, trace details, and empty states. Added inset surfaces,
+  softer selection styling, compact headings, wrapping form actions, and
+  light/dark semantic text colors; corrected compact page-heading alignment
+  on narrower screens. Existing workflows and data-table boundaries remain.
+
+
 - Added grid-based dashboard drag reordering in edit mode, retaining keyboard
   controls and Save/Cancel. Fixed selected operations tab icon contrast and
   introduced shared borderless panel surfaces with contrasting backgrounds and

@@ -15,12 +15,12 @@ body {
     --cloudshell-page: var(--neutral-layer-1, #ffffff);
     --cloudshell-surface: var(--neutral-layer-1, #ffffff);
     --cloudshell-surface-muted: var(--neutral-fill-layer-rest, #fafafa);
-    --cloudshell-hover: var(--neutral-fill-layer-hover, #f3f8fd);
-    --cloudshell-selected: var(--neutral-fill-layer-active, #eaf2ff);
+    --cloudshell-hover: color-mix(in srgb, var(--cloudshell-text) 8%, var(--cloudshell-surface));
+    --cloudshell-selected: color-mix(in srgb, var(--cloudshell-accent) 14%, var(--cloudshell-surface));
     --cloudshell-input: var(--neutral-fill-input-rest, #ffffff);
     --cloudshell-text: var(--neutral-foreground-rest, #242424);
-    --cloudshell-text-muted: var(--neutral-foreground-hint, #64748b);
-    --cloudshell-text-subtle: var(--neutral-foreground-hint, #707070);
+    --cloudshell-text-muted: color-mix(in srgb, var(--cloudshell-text) 72%, var(--cloudshell-surface));
+    --cloudshell-text-subtle: var(--cloudshell-text-muted);
     --cloudshell-stroke: var(--neutral-stroke-rest, #e0e0e0);
     --cloudshell-divider: var(--neutral-stroke-divider-rest, #e5e5e5);
     --cloudshell-input-stroke: var(--neutral-stroke-input-rest, #b3b3b3);
@@ -29,14 +29,22 @@ body {
     --cloudshell-on-accent: var(--foreground-on-accent-rest, #ffffff);
     --cloudshell-focus-ring: var(--focus-stroke-outer, #0f6cbd);
     --cloudshell-success-fill: color-mix(in srgb, #107c10 12%, var(--cloudshell-surface));
-    --cloudshell-success-text: #0e700e;
+    --cloudshell-success-text: light-dark(#0e700e, #82d99a);
     --cloudshell-info-fill: color-mix(in srgb, #0f6cbd 10%, var(--cloudshell-surface));
-    --cloudshell-info-text: #0f6cbd;
+    --cloudshell-info-text: light-dark(#0f6cbd, #8ecbfa);
     --cloudshell-warning-fill: color-mix(in srgb, var(--palette-yellow, #f2c94c) 16%, var(--cloudshell-surface));
-    --cloudshell-warning-text: #b45309;
+    --cloudshell-warning-text: light-dark(#854500, #f5cf77);
     --cloudshell-danger-fill: color-mix(in srgb, #d13438 12%, var(--cloudshell-surface));
-    --cloudshell-danger-text: #d13438;
+    --cloudshell-danger-text: light-dark(#b4232c, #ff9da2);
     --cloudshell-panel-background: color-mix(in srgb, var(--cloudshell-text) 5%, var(--cloudshell-surface));
+    --cloudshell-inset-background: var(--cloudshell-surface);
+    --cloudshell-accent-subtle: color-mix(in srgb, var(--cloudshell-accent) 10%, var(--cloudshell-surface));
+    --cloudshell-space-xs: .25rem;
+    --cloudshell-space-sm: .5rem;
+    --cloudshell-space-md: .75rem;
+    --cloudshell-space-lg: 1rem;
+    --cloudshell-control-radius: 6px;
+    --cloudshell-panel-padding: .9rem;
     --cloudshell-panel-radius: 10px;
     --cloudshell-panel-shadow: 0 2px 6px #00000012;
     --cloudshell-resource-grid-min-width: 68rem;
@@ -83,7 +91,7 @@ p {
 }
 
 h1 {
-    font-size: 1.65rem;
+    font-size: 1.4rem;
     font-weight: 650;
 }
 
@@ -97,11 +105,10 @@ h2 {
 }
 
 h3 {
-    margin-top: 1.25rem;
-    font-size: .82rem;
+    margin-top: var(--cloudshell-space-lg);
+    font-size: .9rem;
     font-weight: 650;
-    text-transform: uppercase;
-    color: var(--cloudshell-text-muted);
+    color: var(--cloudshell-text);
 }
 
 .eyebrow {
@@ -122,6 +129,7 @@ h3 {
 }
 
 .page-heading p {
+    font-size: .875rem;
     max-width: 58rem;
     margin-top: .35rem;
     color: var(--cloudshell-text-muted);
@@ -193,7 +201,7 @@ h3 {
 
 .panel {
     min-width: 0;
-    padding: .9rem;
+    padding: var(--cloudshell-panel-padding);
 }
 
 .panel-wide {
@@ -295,7 +303,7 @@ h3 {
 }
 
 .health-healthy {
-    background: #16a34a;
+    background: #107c10;
 }
 
 .health-unhealthy {
@@ -1040,8 +1048,7 @@ h3 {
     display: grid;
     gap: .65rem;
     margin-top: .85rem;
-    padding-top: .85rem;
-    border-top: 1px solid var(--cloudshell-divider);
+    padding-top: .35rem;
 }
 
 .cloudshell-tabbed-select {
@@ -1130,7 +1137,7 @@ h3 {
 .cloudshell-tabbed-button.active:focus-visible,
 .cloudshell-tabbed-button.active:hover,
 .resource-tab-button.active {
-    border-color: var(--cloudshell-accent);
+    border-color: transparent;
     background: var(--cloudshell-selected);
     box-shadow: inset 3px 0 0 var(--cloudshell-accent);
 }
@@ -3110,9 +3117,10 @@ h3 {
 
 .dependency-map-summary div {
     padding: .9rem 1rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface);
+    border: 0;
+    border-radius: var(--cloudshell-panel-radius);
+    background: var(--cloudshell-panel-background);
+    box-shadow: var(--cloudshell-panel-shadow);
 }
 
 .dependency-map-summary span,
@@ -4116,8 +4124,9 @@ h3 {
 }
 
 .metric-view-tab.active {
-    border-color: var(--cloudshell-divider);
-    background: var(--cloudshell-surface-muted);
+    border-color: transparent;
+    box-shadow: inset 0 -3px 0 var(--cloudshell-accent);
+    background: var(--cloudshell-accent-subtle);
     color: var(--cloudshell-text);
 }
 
@@ -4162,9 +4171,10 @@ h3 {
     min-width: 0;
     min-height: 12rem;
     padding: .75rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-panel-radius);
+    background: var(--cloudshell-panel-background);
+    box-shadow: var(--cloudshell-panel-shadow);
 }
 
 .metric-panel.indicator {
@@ -4617,9 +4627,10 @@ h3 {
     min-width: 0;
     min-height: 12rem;
     padding: .75rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface);
+    border: 0;
+    border-radius: var(--cloudshell-panel-radius);
+    background: var(--cloudshell-panel-background);
+    box-shadow: var(--cloudshell-panel-shadow);
 }
 
 .usage-panel header {
@@ -4924,9 +4935,9 @@ h3 {
 .trace-summary-grid>div {
     min-width: 0;
     padding: .65rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-panel-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .trace-summary-grid span,
@@ -4957,9 +4968,9 @@ h3 {
 .trace-waterfall-panel,
 .trace-span-details {
     min-width: 0;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface);
+    border: 0;
+    border-radius: var(--cloudshell-panel-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .trace-waterfall-panel {
@@ -5312,9 +5323,9 @@ h3 {
 .extension-card {
     min-width: 0;
     padding: .75rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-panel-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .click-me-counter {
@@ -5359,9 +5370,9 @@ h3 {
     display: grid;
     gap: .25rem;
     padding: 2rem;
-    border: 1px dashed var(--cloudshell-stroke);
-    border-radius: 6px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-panel-radius);
+    background: var(--cloudshell-inset-background);
     color: var(--cloudshell-text-muted);
     text-align: center;
 }
@@ -5537,7 +5548,8 @@ h3 {
 }
 
 @media (max-width: 56.25rem) {
-    .page-heading {
+    .page-heading,
+    .page-heading.compact {
         align-items: stretch;
         flex-direction: column;
     }
@@ -5807,3 +5819,14 @@ h3 {
         transition-delay: 0ms !important;
     }
 }
+
+/* Nested content stays distinct without repeating outer card borders. */
+.panel .metric-panel,
+.shell-panel .metric-panel {
+    background: var(--cloudshell-inset-background);
+    box-shadow: none;
+}
+
+.page-heading > div { min-width: 0; }
+.page-heading h1 { overflow-wrap: anywhere; }
+.heading-actions { row-gap: var(--cloudshell-space-sm); }

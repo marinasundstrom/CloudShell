@@ -3,9 +3,9 @@
     grid-template-columns: auto minmax(0, 1fr);
     gap: .6rem;
     padding: .65rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-control-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .shell-summary-tile p {

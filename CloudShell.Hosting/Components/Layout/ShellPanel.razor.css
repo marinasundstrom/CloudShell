@@ -1,6 +1,6 @@
 .shell-panel {
     min-width: 0;
-    padding: .9rem;
+    padding: var(--cloudshell-panel-padding);
     border: 0;
     border-radius: var(--cloudshell-panel-radius);
     background: var(--cloudshell-panel-background);

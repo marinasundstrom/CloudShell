@@ -96,6 +96,32 @@ separators, input outlines, focus indicators, and edit-mode drop indicators.
 Selected navigation icons must inherit the link foreground so they remain
 legible on an accent background.
 
+The shared language also applies to existing pages without replacing their
+workflows:
+
+- Page canvases use `--cloudshell-page`; top-level summary, metric, and usage
+  cards use the panel tokens. Nested tiles, extension cards, trace details,
+  and empty states use `--cloudshell-inset-background` to separate levels.
+- Selection uses a restrained accent tint plus an edge marker, rather than
+  another outlined box. Icon tiles use `--cloudshell-accent-subtle`; reserve
+  semantic colors for resource state, health, warnings, and errors.
+- Muted text is derived from the active foreground and surface, not a fixed
+  gray. Semantic text colors have separate light/dark values selected by the
+  shell's effective color scheme, including System mode. Check normal text
+  against its actual surface for at least 4.5:1 contrast.
+- Page titles are compact (1.4rem); panel headings are 1rem and subsections
+  .9rem in sentence case. Uppercase is limited to navigation group labels
+  and small contextual labels. Keep headings and actions usable when wrapped.
+- Shared spacing tokens are .25, .5, .75, and 1rem; panel padding and corner
+  radius have dedicated tokens. Shared components provide fallback geometry
+  when consumed by another host.
+
+This is inspired by Aspire's dense, glanceable surfaces while retaining
+CloudShell's blue accent, primary navigation, and provider-owned content.
+Specialized provider layouts and data visualizations can adopt these tokens
+incrementally; do not blanket-remove meaningful table, input, or diagram
+boundaries.
+
 Internal Control Plane services can use lower-level provider and store
 interfaces such as `IResourceManagerStore`, `IResourceRegistrationStore`, and
 `ILogStore`. These are implementation contracts for the service process, not
