@@ -21,7 +21,7 @@
         <ResourceIdentityFields ResourceIdInputId="volume-resource-id"
                                 ResourceIdPlaceholder="data"
                                 @bind-ResourceId="ResourceId" />
-        <ResourceRegistrationGroupSelect Draft="Draft.Group" AllowNewGroup="@(!HasSelectedStorage && Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))" Id="volume-group"
+        <ResourceRegistrationGroupSelect Draft="Draft.Group" Disabled="@HasSelectedStorage" AllowNewGroup="@(!HasSelectedStorage && Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))" Id="volume-group"
                              ResourceGroups="ResourceGroups"
                              @bind-Value="SelectedGroupId" />
     </FormPanel>;
@@ -29,7 +29,8 @@
         <label for="volume-provider">Provider</label>
         <FluentTextField Id="volume-provider"
                          Disabled="@HasSelectedStorage"
-                         @bind-Value="Provider"
+                         Value="@(HasSelectedStorage ? GetSelectedStorageProvider() : Provider)"
+                         ValueChanged="@(value => Provider = value ?? string.Empty)"
                          Placeholder="Local Storage" />
 
         <label for="volume-storage">Storage resource</label>
@@ -70,8 +71,10 @@
         <dl class="registration-review">
             <dt>Name</dt><dd>@ResourceId</dd>
             <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : ResourceGroups.FirstOrDefault(group => group.Id == SelectedGroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
-            <dt>Location</dt><dd>@Location</dd>
-            <dt>Provider</dt><dd>@Provider</dd>
+            <dt>Location</dt><dd>@(string.IsNullOrWhiteSpace(Location) ? "Provider-managed location" : Location)</dd>
+            <dt>Provider</dt><dd>@(HasSelectedStorage ? GetSelectedStorageProvider() : NormalizeNullable(Provider) ?? StorageProviderNames.LocalStorage)</dd>
+            <dt>Access mode</dt><dd>@GetAccessModeLabel(ParseAccessMode())</dd>
+            <dt>Persistent</dt><dd>@(Persistent ? "Yes" : "No")</dd>
         </dl>
         <p class="muted">Review your choices before creating the resource. Use Back to make changes.</p>
     </FormPanel>;

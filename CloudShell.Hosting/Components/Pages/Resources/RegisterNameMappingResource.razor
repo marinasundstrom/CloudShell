@@ -11,7 +11,7 @@
     private IReadOnlyList<ResourceRegistrationWizardStep> WizardSteps =>
     [
         new("Basics", Step0, ValidateBasics),
-        new("Configuration", Step1, () => string.IsNullOrWhiteSpace(HostName) ? "Host name is required." : string.IsNullOrWhiteSpace(TargetResourceId) ? "Target resource is required." : null),
+        new("Configuration", Step1, () => GetSelectedZone() is null ? "Select a DNS zone." : string.IsNullOrWhiteSpace(HostName) ? "Host name is required." : string.IsNullOrWhiteSpace(TargetResourceId) ? "Target resource is required." : null),
         new("Review", Step2),
     ];
     private RenderFragment Step0 => @<FormPanel>
@@ -101,6 +101,7 @@
     private RenderFragment Step2 => @<FormPanel>
         <dl class="registration-review">
             <dt>Name</dt><dd>@ResourceId</dd>
+            <dt>DNS zone</dt><dd>@(GetSelectedZone() is { } zone ? ResourceDisplayLabels.GetQualifiedLabel(zone) : "None selected")</dd>
             <dt>Host name</dt><dd>@HostName</dd>
             <dt>Target</dt><dd>@TargetResourceId</dd>
         </dl>

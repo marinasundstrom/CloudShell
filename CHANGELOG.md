@@ -10,6 +10,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Hardened registration wizard validation and reviews: corrected errors clear during navigation, Name Mapping requires a DNS zone before review, custom DNS providers require an ID, and storage-owned volumes show their inherited provider and read-only group.
+
 - Add Resource now opens a searchable gallery with resource-class tabs. Built-in registration forms use a reusable Fluent wizard with provider-defined steps, review, browser-tab draft restoration, and optional new groups deferred until final submission.
 
 - Resource starts now use a saved, default-on automatic dependency preference; opting out opens a compact confirmation dialog shared by inventory, dashboard, and Configuration commands.

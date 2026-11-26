@@ -40,9 +40,9 @@
             </div>
         </ButtonTemplate>
     </FluentWizard>
-    @if (!string.IsNullOrEmpty(ValidationError ?? Error))
+    @if (!string.IsNullOrEmpty(ValidationError ?? (ShowCreationError ? Error : null)))
     {
-        <p class="wizard-error" role="alert">@(ValidationError ?? Error)</p>
+        <p class="wizard-error" role="alert">@(ValidationError ?? (ShowCreationError ? Error : null))</p>
     }
 </div>
 
@@ -56,7 +56,7 @@
     private FluentWizard Wizard = default!;
     private IJSObjectReference? Module;
     private int CurrentStep;
-    private bool Busy, Restored, Completed;
+    private bool Busy, Restored, Completed, ShowCreationError;
     private string? ValidationError, LastSnapshot;
     private TDraft InitialDraft = default!;
     private string DraftKey = "";
@@ -116,6 +116,7 @@
     private void ValidateStep(ResourceRegistrationWizardStep step, FluentWizardStepChangeEventArgs args)
     {
         if (Busy) { args.IsCancelled = true; return; }
+        ShowCreationError = false;
         ValidationError = args.TargetIndex > CurrentStep ? step.Validate?.Invoke() : null;
         args.IsCancelled |= ValidationError is not null;
     }
@@ -125,9 +126,11 @@
     private async Task CreateAsync()
     {
         if (Busy) return;
+        ShowCreationError = false;
         ValidationError = Steps.Select(step => step.Validate?.Invoke()).FirstOrDefault(error => error is not null);
         if (ValidationError is not null) return;
         Busy = true;
+        ShowCreationError = true;
         try { await OnCreate.InvokeAsync(); }
         catch (Exception exception)
         {
@@ -153,6 +156,7 @@
         await DraftChanged.InvokeAsync(JsonSerializer.Deserialize<TDraft>(JsonSerializer.Serialize(InitialDraft))!);
         CurrentStep = 0;
         Restored = false;
+        ShowCreationError = false;
         ValidationError = null;
     }
     public async ValueTask DisposeAsync()

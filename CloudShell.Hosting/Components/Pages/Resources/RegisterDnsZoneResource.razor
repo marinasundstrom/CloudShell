@@ -12,7 +12,7 @@
     private IReadOnlyList<ResourceRegistrationWizardStep> WizardSteps =>
     [
         new("Basics", Step0, ValidateBasics),
-        new("DNS provider", Step1, () => string.IsNullOrWhiteSpace(ZoneName) ? "Zone name is required." : null),
+        new("DNS provider", Step1, () => string.IsNullOrWhiteSpace(ZoneName) ? "Zone name is required." : IsCustomProviderSelected && string.IsNullOrWhiteSpace(Provider) ? "Provider ID is required." : null),
         new("Name mapping", Step2, ValidateMappingStep),
         new("Review", Step3),
     ];
@@ -124,9 +124,12 @@
             <dt>Name</dt><dd>@ResourceId</dd>
             <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : ResourceGroups.FirstOrDefault(group => group.Id == SelectedGroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
             <dt>Zone</dt><dd>@ZoneName</dd>
-            <dt>Host name</dt><dd>@HostName</dd>
-            <dt>Provider</dt><dd>@Provider</dd>
-            <dt>Target</dt><dd>@TargetResourceId</dd>
+            <dt>Provider</dt><dd>@(GetProvider() ?? "Logical only")</dd>
+            <dt>Initial name mapping</dt><dd>@(CreateNameMapping ? HostName : "None")</dd>
+            @if (CreateNameMapping)
+            {
+                <dt>Target</dt><dd>@TargetResourceId</dd>
+            }
         </dl>
         <p class="muted">Review your choices before creating the resource. Use Back to make changes.</p>
     </FormPanel>;

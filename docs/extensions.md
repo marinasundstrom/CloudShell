@@ -334,7 +334,12 @@ This is a WebUI authoring affordance. Resource definitions, provider validation,
 permissions, dependency orchestration, and persistence remain behind existing
 Control Plane/domain manager contracts. Remote clients and language SDKs keep
 using the same creation APIs and do not acquire wizard concepts. Creation errors
-remain in the wizard, duplicate submission is disabled, and cached values must
+remain in the wizard until step navigation or another submission; step validation
+errors describe the current step rather than lingering from earlier steps. Review
+views should name effective defaults explicitly and show inherited settings as
+read-only (for example, a storage-owned volume inherits its group and provider).
+Critical selections such as a DNS zone or a custom provider ID must be validated
+before leaving their configuration step. As before, duplicate submission is disabled, and cached values must
 be validated again against current providers and permissions. The wizard never
 serializes arbitrary provider objects or shows raw exception text to users.
 

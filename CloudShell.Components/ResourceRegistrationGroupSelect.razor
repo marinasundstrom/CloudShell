@@ -3,15 +3,15 @@
 <div class="registration-group">
     <div class="registration-group-selector">
         <div class="registration-group-field">
-            <ResourceGroupSelect @key="SelectedValue" Id="@Id" ResourceGroups="AvailableGroups" Value="@SelectedValue" ValueChanged="SelectGroupAsync" />
+            <ResourceGroupSelect @key="SelectedValue" Id="@Id" Disabled="@Disabled" ResourceGroups="AvailableGroups" Value="@SelectedValue" ValueChanged="SelectGroupAsync" />
         </div>
-        @if (AllowNewGroup)
+        @if (AllowNewGroup && !Disabled)
         {
             <FluentButton IconStart="@(new Icons.Regular.Size20.Add())" Title="Add resource group" OnClick="OpenDialog">Add group</FluentButton>
         }
     </div>
-    <small>@(Draft.CreateNew ? "This group will be created when you create the resource." : "Optional. Resources without a selected group use the default group.")</small>
-    @if (Draft.CreateNew)
+    <small>@(Disabled ? "Inherited from the selected storage resource." : Draft.CreateNew ? "This group will be created when you create the resource." : "Optional. Resources without a selected group use the default group.")</small>
+    @if (Draft.CreateNew && !Disabled)
     {
         <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size20.Edit())" OnClick="OpenDialog">Edit pending group</FluentButton>
     }
@@ -52,6 +52,7 @@
     [Parameter] public IEnumerable<ResourceGroup> ResourceGroups { get; set; } = [];
     [Parameter] public string Value { get; set; } = "";
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool AllowNewGroup { get; set; }
 
     private bool DialogOpen;
