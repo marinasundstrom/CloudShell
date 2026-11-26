@@ -59,6 +59,21 @@ public sealed class BuiltInProviderResourceManagerUiExtensionTests
         Assert.Equal(ResourceTabGroupTitles.Storage, storageTab.GroupTitle);
     }
 
+    [Theory]
+    [InlineData("application.rabbitmq", "broker")]
+    [InlineData("application.rabbitmq", "broker-status")]
+    [InlineData("application.rabbitmq", "topology")]
+    [InlineData("application.sql-server", "databases")]
+    public void ProviderInspectionViewsAreOperationsPanes(string typeId, string paneId)
+    {
+        var type = CreateCatalog().ResourceTypes.Single(type => type.Id == typeId);
+        var pane = Assert.Single(type.ResourceTabs, tab => tab.ViewId == paneId);
+        Assert.True(pane.IsOperational);
+        Assert.False(pane.ShowsApplyButton);
+        Assert.NotNull(pane.Icon);
+        Assert.Contains(type.ResourceTabs, tab => tab.Id == ResourcePredefinedViewIds.Configuration && !tab.IsOperational);
+    }
+
     private static ShellCatalog CreateCatalog()
     {
         var services = new ServiceCollection();

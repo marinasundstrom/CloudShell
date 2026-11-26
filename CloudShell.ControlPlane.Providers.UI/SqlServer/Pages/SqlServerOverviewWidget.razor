@@ -1,0 +1,51 @@
+@using CloudShell.Hosting.ResourceManager
+
+@if (Context.Error is not null)
+{
+    <p role="status">Database inventory is unavailable. Refresh to try again.</p>
+}
+else if (Context.IsLoading)
+{
+    <p role="status">Loading database inventory…</p>
+}
+else
+{
+    <div class="database-summary">
+        <div><strong>@Databases.Count</strong><span>Registered</span></div>
+        <div><strong>@Databases.Count(d => d.State == ResourceState.Running)</strong><span>Running</span></div>
+        <div><strong>@Databases.Count(d => d.State == ResourceState.Stopped)</strong><span>Stopped</span></div>
+    </div>
+    @if (Databases.Count == 0)
+    {
+        <p>No visible databases are attached to this server.</p>
+    }
+    else
+    {
+        <ul class="database-list" aria-label="Registered databases">
+            @foreach (var database in Databases.Take(5))
+            {
+                <li>
+                    <FluentAnchor Href="@Context.DashboardHref(database.Id)" IconStart="@(new Icons.Regular.Size20.Database())">@Context.GetLabel(database)</FluentAnchor>
+                    <span>@(database.State?.ToString() ?? "Not reported")</span>
+                </li>
+            }
+        </ul>
+        @if (Databases.Count > 5) { <p>Showing 5 of @Databases.Count databases.</p> }
+    }
+    <p class="inventory-note">Registered resource states · live SQL performance is not collected here.</p>
+}
+@if (Context.Resource is { } server)
+{
+    <FluentAnchor Href="@OperationsNavigation.Pane(server.Id, "databases")" IconStart="@(new Icons.Regular.Size20.Database())">View databases</FluentAnchor>
+}
+
+@code {
+    [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!;
+    private IReadOnlyList<Resource> Databases = [];
+
+    protected override void OnParametersSet() => Databases = Context.Resource is { } server
+        ? Context.Resources.Where(resource => SqlServerDatabaseInventory.BelongsTo(resource, server.Id))
+            .DistinctBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(Context.GetLabel, StringComparer.OrdinalIgnoreCase).ToArray()
+        : [];
+}

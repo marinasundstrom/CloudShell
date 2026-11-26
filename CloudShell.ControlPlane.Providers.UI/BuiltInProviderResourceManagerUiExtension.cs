@@ -69,6 +69,17 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                         ["operations.wide"] = "true"
                     }));
 
+        builder.AddCoreShellModule(CoreShellModuleId.Create("cloudshell.sql-server.operations"), module =>
+            module.ExtendSections(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Widgets)
+                .AddSection<SqlServerPages.SqlServerOverviewWidget>(
+                    CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "sql-server-databases"), "Databases", 25,
+                    new Dictionary<string, string>
+                    {
+                        [OperationsWorkspaceIds.Scope] = "resource",
+                        [OperationsWorkspaceIds.ResourceType] = SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
+                        [OperationsWorkspaceIds.DefaultWidget] = "true"
+                    }));
+
         var resourceTypes = builder;
         if (_options.EnableHostRunApplicationResourceTypes)
         {
@@ -252,7 +263,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "devices",
                 33,
                 resourceClass: ResourceManagerResourceClass.Service)
-            .AddResourceTab<ConfigurationPages.ConfigurationStoreSettings>(
+            .AddResourceConfigurationView<ConfigurationPages.ConfigurationStoreSettings>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "settings"),
                 "Settings",
@@ -260,7 +271,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "settings")
-            .AddResourceTab<ConfigurationPages.SecretsVaultSecrets>(
+            .AddResourceConfigurationView<ConfigurationPages.SecretsVaultSecrets>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "secrets"),
                 "Secrets",
@@ -268,7 +279,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "secrets")
-            .AddResourceTab<ConfigurationPages.SecretsVaultCertificates>(
+            .AddResourceConfigurationView<ConfigurationPages.SecretsVaultCertificates>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "certificates"),
                 "Certificates",
@@ -276,21 +287,21 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "certificates")
-            .AddResourceTab<DeviceRegistryPages.DeviceRegistryDevices>(
+            .AddResourceConfigurationView<DeviceRegistryPages.DeviceRegistryDevices>(
                 DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "enrolled-devices"),
                 "Devices",
                 20,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "devices")
-            .AddResourceTab<DeviceRegistryPages.DeviceRegistryEnrollmentProfiles>(
+            .AddResourceConfigurationView<DeviceRegistryPages.DeviceRegistryEnrollmentProfiles>(
                 DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "enrollment-profiles"),
                 "Enrollment profiles",
                 30,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "identity")
-            .AddResourceTab<EventBrokerPages.EventBrokerStreams>(
+            .AddResourceConfigurationView<EventBrokerPages.EventBrokerStreams>(
                 EventBrokerResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "streams"),
                 "Streams",
@@ -384,100 +395,100 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
             .AddResourceTypeEndpoint(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Http("management", 15672, supportsPortRemapping: false))
-            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+            .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+            .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+            .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+            .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+            .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 GoAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<SharedPages.ApplicationEnvironment>(
+            .AddResourceConfigurationView<SharedPages.ApplicationEnvironment>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<SharedPages.ApplicationStorage>(
+            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<SharedPages.ApplicationStorage>(
+            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<SharedPages.ApplicationStorage>(
+            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
                 JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<SharedPages.ApplicationStorage>(
+            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<SharedPages.ApplicationStorage>(
+            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
                 GoAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<ContainerAppPages.ApplicationDeployment>(
+            .AddResourceConfigurationView<ContainerAppPages.ApplicationDeployment>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
                 "Deployment",
                 20,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "deployment")
-            .AddResourceTab<ContainerAppPages.ApplicationRevisions>(
+            .AddResourceConfigurationView<ContainerAppPages.ApplicationRevisions>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "revisions"),
                 "Revisions",
                 25,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "runtime")
-            .AddResourceTab<ContainerAppPages.ContainerApplicationScaling>(
+            .AddResourceConfigurationView<ContainerAppPages.ContainerApplicationScaling>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"),
                 "Scale and replicas",
                 30,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "scale")
-            .AddResourceTab<ContainerAppPages.ApplicationMonitoring>(
+            .AddResourceConfigurationView<ContainerAppPages.ApplicationMonitoring>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Monitoring,
                 "Monitoring",
                 45,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+            .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
@@ -519,73 +530,71 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "application.exposure-actions",
                 "Application exposure",
                 10)
-            .AddResourceTab<SharedPages.ApplicationStorage>(
+            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 60,
                 groupTitle: ResourceTabGroupTitles.Storage,
                 icon: "storage")
-            .AddResourceTab<SharedPages.ApplicationStorage>(
+            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+            .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<SharedPages.ApplicationEnvironment>(
+            .AddResourceConfigurationView<SharedPages.ApplicationEnvironment>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+            .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<SharedPages.ApplicationEnvironment>(
+            .AddResourceConfigurationView<SharedPages.ApplicationEnvironment>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<SharedPages.ApplicationStorage>(
+            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<RabbitMQPages.RabbitMQBroker>(
+            .AddResourceOperationsPane<RabbitMQPages.RabbitMQBroker>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Messaging, "broker"),
                 "Broker",
                 35,
                 groupTitle: ResourceTabGroupTitles.Messaging,
                 icon: "queue")
-            .AddResourceTab<RabbitMQPages.RabbitMQDashboard>(
+            .AddResourceOperationsPane<RabbitMQPages.RabbitMQDashboard>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Messaging, "broker-status"),
                 "Broker status",
                 37,
                 groupTitle: ResourceTabGroupTitles.Messaging,
-                icon: "metrics",
-                isOperational: true)
-            .AddResourceTab<RabbitMQPages.RabbitMQTopology>(
+                icon: "metrics")
+            .AddResourceOperationsPane<RabbitMQPages.RabbitMQTopology>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Messaging, "topology"),
                 "Topology",
                 40,
                 groupTitle: ResourceTabGroupTitles.Messaging,
-                icon: "queue",
-                isOperational: true)
-            .AddResourceTab<SqlServerPages.SqlServerDatabases>(
+                icon: "queue")
+            .AddResourceOperationsPane<SqlServerPages.SqlServerDatabases>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "databases"),
                 "Databases",

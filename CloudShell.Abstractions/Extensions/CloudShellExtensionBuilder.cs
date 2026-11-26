@@ -335,6 +335,16 @@ internal sealed class CloudShellExtensionBuilder(
         return this;
     }
 
+    public ICloudShellExtensionBuilder AddResourceConfigurationView<TComponent>(
+        string resourceTypeId, ResourceViewId id, string title, int order,
+        bool showsApplyButton = false, string? groupTitle = null, string? icon = null) =>
+        AddResourceTab<TComponent>(resourceTypeId, id, title, order, showsApplyButton, groupTitle, icon);
+
+    public ICloudShellExtensionBuilder AddResourceOperationsPane<TComponent>(
+        string resourceTypeId, ResourceViewId id, string title, int order,
+        string? groupTitle = null, string? icon = null) =>
+        AddResourceTab<TComponent>(resourceTypeId, id, title, order, false, groupTitle, icon, isOperational: true);
+
     public ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,
         ResourceViewId id,

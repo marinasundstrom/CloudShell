@@ -108,7 +108,7 @@ else
             DatabaseRows = childDatabases
                 .Concat(visibleDatabases)
             .Where(resource => BuiltInProviderResourceUiTypes.IsSqlDatabase(resource.EffectiveTypeId))
-            .Where(resource => IsDatabaseForServer(resource, Server.Id))
+            .Where(resource => SqlServerDatabaseInventory.BelongsTo(resource, Server.Id))
             .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => CreateRow(group.First()))
             .OrderBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
@@ -131,12 +131,6 @@ else
             _ => $"{count} databases are attached to this SQL Server resource."
         };
     }
-
-    private static bool IsDatabaseForServer(Resource database, string serverResourceId) =>
-        string.Equals(database.ParentResourceId, serverResourceId, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(database.OwnerResourceId, serverResourceId, StringComparison.OrdinalIgnoreCase) ||
-        database.DependsOn.Any(dependency =>
-            string.Equals(dependency, serverResourceId, StringComparison.OrdinalIgnoreCase));
 
     private static SqlDatabaseRow CreateRow(Resource resource)
     {

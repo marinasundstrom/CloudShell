@@ -133,7 +133,7 @@
             {
                 @foreach (var tab in ProviderPanes)
                 {
-                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(Selected.Id, tab.Id)" Appearance="@(Pane == tab.Id.Identifier ? Appearance.Accent : Appearance.Stealth)">@L[tab.Title]</FluentAnchor>
+                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(Selected.Id, tab.Id)" IconStart="@ResourceViewIcons.FromName(tab.Icon)?.WithColor("currentColor")" aria-current="@(Pane == tab.Id.Identifier ? "page" : null)" Appearance="@(Pane == tab.Id.Identifier ? Appearance.Accent : Appearance.Stealth)">@L[tab.Title]</FluentAnchor>
                 }
                 <FluentAnchor Href="@ConfigurationHref(Selected)" Appearance="@(IsConfiguration ? Appearance.Accent : Appearance.Stealth)" IconStart="@(new Icons.Regular.Size16.Settings().WithColor("currentColor"))">@L["Configuration"]</FluentAnchor>
             }

@@ -230,3 +230,41 @@ Resource headings use the registered resource type's display name, falling back
 to the resource kind when no type contribution is available. Navigating to a
 different resource or pane resets the content scroller; background refreshes
 preserve the current reading position.
+
+### Provider configuration views and operations panes
+
+UI extensions should use `AddResourceConfigurationView<TComponent>` for resource
+configuration (including custom tabs, groups, icons and optional Apply behavior)
+and `AddResourceOperationsPane<TComponent>` for inspection surfaces
+alongside Logs and Traces. Both retain the existing `ResourceViewId` route and
+component `ResourceId` parameter contract. Operations panes do not expose the
+configuration Apply button. `AddResourceTab` remains available for older extensions;
+its `isOperational` flag maps to the same contribution model. Standard operational
+view IDs retain their existing automatic classification.
+
+RabbitMQ Broker, Broker status and Topology, and SQL Server Databases are operations
+panes. Configuration, Environment and Storage remain configuration views. Operational
+commands belong in the relevant resource-specific operations pane; configuration
+tabs own setup and editing, while dashboard widgets summarize and link to panes.
+These UI commands invoke existing authorized domain actions rather than defining
+new resource actions in the UI layer. For example, a queue inspection pane owns
+Clear queue beside message counts and consumer information; the dashboard links
+to that pane, and configuration tabs retain queue settings. Destructive operations
+require an explicit confirmation describing their effect. Pane
+icons inherit the selected link foreground in both themes.
+
+Dashboard widgets continue to use the CoreShell widgets outlet and resource-type
+metadata, so defaults and per-resource user/organization customization share one
+layout mechanism. SQL Server contributes a default Databases widget: visible
+registered databases, running/stopped totals, a five-item preview and a link to
+the full Databases pane. Parent, owner and dependency relationships are recognized,
+with duplicate registrations counted once. The widget uses the authorized inventory
+in `OperationsWorkspaceContext`; it does not query SQL or claim SQL performance or
+health from resource lifecycle state. RabbitMQ retains its provider-backed message
+rates and queue-depth widget, with an explicit unavailable state for failed reads.
+
+These are WebUI contribution changes, not new resource types or Control Plane API
+contracts. Remote clients, launchers and language SDKs need no new transport fields.
+Providers remain responsible for operational data and diagnostics; UI components
+must not expose credentials. Layout persistence uses the existing dashboard store.
+Live SQL performance telemetry remains a future provider capability.

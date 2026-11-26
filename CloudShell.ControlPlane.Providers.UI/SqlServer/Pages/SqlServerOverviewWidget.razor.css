@@ -1,0 +1,7 @@
+.database-summary { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+.database-summary div { display: grid; gap: .2rem; }
+.database-summary strong { font-size: 1.4rem; }
+.database-summary span, .inventory-note { font-size: .75rem; color: var(--cloudshell-text-muted); }
+.database-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
+.database-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; padding: .5rem; border-radius: var(--cloudshell-control-radius, 6px); background: var(--cloudshell-inset-background); }
+.database-list li span { font-size: .8rem; }

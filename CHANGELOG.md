@@ -12,6 +12,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Added explicit configuration-view and operations-pane UI authoring methods. Moved RabbitMQ Broker and SQL Server Databases into operations navigation, added provider pane icons and a default SQL Server database-inventory widget. RabbitMQ failed dashboard reads now always show an unavailable diagnostic.
+
 - Use provider display names in resource headings, stack configuration setting fields on narrow screens, and reset pane scroll position when navigating. Phone-width headers give resource identity its own row.
 
 - Removed duplicate Extensions framing in Settings, reduced narrow-screen settings summaries, wired Extensions reload, and added a direct template entry point to provider registration guidance. Empty-state text stays grouped in stretched panels.

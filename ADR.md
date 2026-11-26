@@ -1395,3 +1395,11 @@ Related changes: [Changelog](CHANGELOG.md).
 Build-server container app deployments should push an immutable image tag to a registry, then call the authenticated Container Apps revision API with that tag. The Control Plane authorizes the caller, updates the image, creates the revision, and records resource events for traceability.
 
 Related changes: [Changelog](CHANGELOG.md).
+
+### ADR-20261126-010: Explicit provider UI surfaces share existing contributions
+
+Configuration views and operational inspection panes use explicit builder methods
+while retaining ResourceTabContribution, stable view IDs and existing routing.
+Dashboard widgets use the existing CoreShell outlet instead of a parallel provider
+widget registry. Inventory widgets describe registered lifecycle state; live
+performance data requires an operational provider contract.

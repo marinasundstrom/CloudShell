@@ -73,7 +73,7 @@ else
             var result = await DashboardProvider.GetDashboardAsync(resource, request.Token);
             if (request.IsCancellationRequested) return;
             Snapshot = result;
-            Error = result.Succeeded ? null : result.ErrorMessage;
+            Error = result.Succeeded ? null : result.ErrorMessage ?? "Broker counters are unavailable. Open Broker details for diagnostics.";
         }
         catch (OperationCanceledException) when (request.IsCancellationRequested) { }
         catch (Exception) { if (!request.IsCancellationRequested) Error = "Broker counters are unavailable. Open Broker details for diagnostics."; }

@@ -96,6 +96,24 @@ public sealed class CloudShellExtensionBuilderTests
         Assert.True(Assert.Single(Assert.Single(extension.ResourceTypes).ResourceTabs).IsOperational);
     }
 
+    [Fact]
+    public void ExplicitResourceSurfacesKeepApplyInConfiguration()
+    {
+        var extension = ConfigureExtension(builder => builder
+            .AddResourceType<TestComponent>("sample.resource", "Sample", "Sample", "sample", 10)
+            .AddResourceConfigurationView<TestComponent>("sample.resource",
+                new ResourceViewId(ResourceTabGroupIds.General, "settings"), "Settings", 10, showsApplyButton: true, groupTitle: "Provider settings")
+            .AddResourceOperationsPane<TestComponent>("sample.resource",
+                new ResourceViewId(ResourceTabGroupIds.General, "diagnostics"), "Diagnostics", 20, icon: "metrics"));
+        var tabs = Assert.Single(extension.ResourceTypes).ResourceTabs;
+        Assert.False(tabs[0].IsOperational);
+        Assert.True(tabs[0].ShowsApplyButton);
+        Assert.Equal("Provider settings", tabs[0].GroupTitle);
+        Assert.True(tabs[1].IsOperational);
+        Assert.False(tabs[1].ShowsApplyButton);
+        Assert.Equal("metrics", tabs[1].Icon);
+    }
+
     private static CloudShellExtensionRegistration ConfigureExtension(
         Action<ICloudShellExtensionBuilder> configure)
     {

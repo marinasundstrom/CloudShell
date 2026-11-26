@@ -114,6 +114,16 @@ public interface ICloudShellExtensionBuilder
         string resourceTypeId,
         ResourceEndpointDescriptor descriptor);
 
+    /// <summary>Registers a view in the resource configuration UI.</summary>
+    ICloudShellExtensionBuilder AddResourceConfigurationView<TComponent>(
+        string resourceTypeId, ResourceViewId id, string title, int order,
+        bool showsApplyButton = false, string? groupTitle = null, string? icon = null);
+
+    /// <summary>Registers a resource operations pane alongside Logs and Traces.</summary>
+    ICloudShellExtensionBuilder AddResourceOperationsPane<TComponent>(
+        string resourceTypeId, ResourceViewId id, string title, int order,
+        string? groupTitle = null, string? icon = null);
+
     ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,
         ResourceViewId id,
