@@ -718,3 +718,5 @@ Control Plane that owns the environment, while UI hosts remain clients of
 that Control Plane.
 
 See [Programmatic resources](programmatic-resources.md) for the declaration API.
+
+UI status-page re-execution excludes `/api` paths. API errors preserve their original status and response body; they are not routed through a Razor error page.

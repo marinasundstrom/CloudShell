@@ -3507,6 +3507,15 @@ public sealed class SampleSmokeTests
             graphApp.GetProperty("capabilities").EnumerateArray(),
             capability => capability.GetProperty("id").GetString() == ResourceHealthCheckCapabilityIds.Liveness.ToString());
 
+        // API 404s must not be re-executed through the UI's antiforgery-protected page.
+        using (var client = new HttpClient { BaseAddress = host.BaseAddress })
+        using (var response = await client.PostAsync(
+            "/api/control-plane/v1/resources/missing-resource/health/refresh", null))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.DoesNotContain("antiforgery", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        }
+
         var graphScalingHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.container-app:api")}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
         Assert.Contains("Scale and replicas", graphScalingHtml);

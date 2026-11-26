@@ -27,7 +27,11 @@ public static class CloudShellHostApplicationExtensions
             app.UseHsts();
         }
 
-        app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+        // API errors must keep their status/body instead of re-executing a Razor page
+        // (which also requires an antiforgery token for POST requests).
+        app.UseWhen(
+            context => !context.Request.Path.StartsWithSegments("/api"),
+            branch => branch.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
         app.UseHttpsRedirection();
         app.UseRequestLocalization();
 

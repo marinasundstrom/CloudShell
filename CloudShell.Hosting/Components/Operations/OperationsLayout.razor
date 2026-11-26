@@ -33,6 +33,10 @@
                       Title="@L[InventoryOnly ? "Collapse resource list" : "Expand resource list"]"
                       aria-label="@L[InventoryOnly ? "Collapse resource list" : "Expand resource list"]" />
         </div>
+        @if (UiOptions.Value.ReadOnly)
+        {
+            <p role="status">@L["Resource Manager is in read-only mode. Resource creation, lifecycle actions, updates, and deletes are disabled in this UI."]</p>
+        }
         <FluentSearch @bind-Value="Filter" Immediate="true" Placeholder="@L["Filter resources"]" aria-label="@L["Filter resources"]" />
         <FluentAnchor Href="@ScopeHref(null)" Appearance="@(ResourceId is null ? Appearance.Accent : Appearance.Stealth)">@L["All resources"]</FluentAnchor>
         <FluentSelect TOption="string" @bind-Value="Grouping" aria-label="@L["Resource list grouping"]" Title="@L["Resource list grouping"]">
@@ -90,8 +94,11 @@
         </div>
         <div class="inventory-footer">
             <FluentAnchor Href="@ResourceManagerRoutes.ResourceGraph" Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Branch())">@L["Resource graph"]</FluentAnchor>
+            @if (!UiOptions.Value.ReadOnly)
+            {
             <FluentAnchor Href="/resources/add" Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Add())">@L["Add resource"]</FluentAnchor>
             <FluentAnchor Href="/resources/groups/new" Appearance="Appearance.Stealth">@L["Create group"]</FluentAnchor>
+            }
             <FluentAnchor Href="/resources/templates" Appearance="Appearance.Stealth">@L["Templates"]</FluentAnchor>
         </div>
     </aside>

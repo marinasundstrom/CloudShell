@@ -184,3 +184,5 @@ Configuration Store/API resources, and assert the API can read protected
 configuration settings with a Keycloak-issued token. The Docker-backed path also
 verifies the generated Keycloak Docker Compose project is removed during test
 cleanup, including compose-managed containers and networks.
+
+The local Keycloak startup script configures the `master` and `cloudshell` realms for HTTP through container loopback, so Docker Desktop published-port traffic works consistently. The published port is bound to `127.0.0.1`. This development-only setup uses `sslRequired: none`; production realms must require HTTPS.

@@ -10,6 +10,9 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Made the local Keycloak sample initialize both development realms through container loopback and bind its published HTTP port to localhost, avoiding Docker Desktop HTTPS-required failures.
+- Restored the resource workspace read-only notice and hid creation links in read-only mode. Kept API error responses out of UI status-page re-execution so missing-resource POSTs retain their HTTP status instead of reporting an unrelated antiforgery error.
+
 - Kept the replicated-container API as a separate solution workload instead of importing its web assets into the UI host, fixing the .NET 11 hot-reload asset build conflict. Widened shared detail labels for compact operational views, aligned replica links and state indicators, kept metric units together, and allowed metric descriptions to wrap. Reset the operations pane scroll position on navigation without remounting its menu.
 
 - Migrated device inventory/twin operations, event streams, and container deployment, revisions, scaling and monitoring to resource operations panes. Retained setup editors in Configuration.
