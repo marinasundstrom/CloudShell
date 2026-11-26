@@ -6,6 +6,13 @@ namespace CloudShell.Hosting.ResourceManager;
 
 internal sealed record OperationsDashboardLayout(int Version, string[] Widgets)
 {
+    public static void Reorder(List<string> widgets, string source, string target, bool after)
+    {
+        if (source == target || !widgets.Contains(source) || !widgets.Contains(target)) return;
+        widgets.Remove(source);
+        widgets.Insert(widgets.IndexOf(target) + (after ? 1 : 0), source);
+    }
+
     public static string SettingKey(string environment, string? resourceId) =>
         "operations.dashboard." + Convert.ToHexStringLower(SHA256.HashData(
             Encoding.UTF8.GetBytes(environment + "\n" + (resourceId is null ? "system" : "resource:" + resourceId))));

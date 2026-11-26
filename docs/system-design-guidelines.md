@@ -86,6 +86,16 @@ does need custom layout or representation components, follow the component
 placement, naming, and component-scoped styling rules in
 [UI structure and component organization](ui-structure.md).
 
+CloudShell's shared panel language uses rounded, borderless surfaces with a
+contrasting background and subtle shadow. Use `ShellPanel` or the shared
+`.panel` class; custom widget containers use `--cloudshell-panel-background`,
+`--cloudshell-panel-radius`, and `--cloudshell-panel-shadow`. These tokens
+derive from Fluent theme colors for light and dark modes. Separate panel
+headings with spacing rather than decorative rules. Keep meaningful table
+separators, input outlines, focus indicators, and edit-mode drop indicators.
+Selected navigation icons must inherit the link foreground so they remain
+legible on an accent background.
+
 Internal Control Plane services can use lower-level provider and store
 interfaces such as `IResourceManagerStore`, `IResourceRegistrationStore`, and
 `ILogStore`. These are implementation contracts for the service process, not

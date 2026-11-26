@@ -80,4 +80,18 @@ public sealed class OperationsWorkspaceTests
         Assert.False(OperationsContributions.Applies(new Dictionary<string,string> { [OperationsWorkspaceIds.ResourceType] = "sql.server" }, system));
         Assert.True(OperationsContributions.Applies(new Dictionary<string,string> { [OperationsWorkspaceIds.Scope] = "system" }, system));
     }
+    [Theory]
+    [InlineData("a", "c", true, "b,c,a")]
+    [InlineData("c", "a", false, "c,a,b")]
+    [InlineData("a", "b", false, "a,b,c")]
+    [InlineData("c", "a", true, "a,c,b")]
+    [InlineData("a", "a", true, "a,b,c")]
+    [InlineData("missing", "b", true, "a,b,c")]
+    [InlineData("a", "missing", false, "a,b,c")]
+    public void DashboardDropReordersWithoutLosingWidgets(string source, string target, bool after, string expected)
+    {
+        List<string> widgets = ["a", "b", "c"];
+        OperationsDashboardLayout.Reorder(widgets, source, target, after);
+        Assert.Equal(expected.Split(','), widgets);
+    }
 }

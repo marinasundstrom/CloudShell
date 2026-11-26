@@ -176,7 +176,13 @@ and operational classification belong to CloudShell's Resource Manager UI.
   refreshed from the workspace, with cancellation on scope changes/disposal.
   Large-graph virtualization and retained diagram zoom/pan are future work.
 - Graph width is responsive and contributed widgets may request full width.
-  Freeform drag/resize and user-specific widget size editing are not included.
+  Dashboard cards use shared rounded, contrasting surfaces without outer
+  borders or header dividers. Edit mode supports pointer drag handles
+  (including touch) over a visible grid, with highlighted before/after drop
+  targets. Drops reorder the draft; Save persists and Cancel restores the
+  saved order. Keyboard users retain the Move earlier/later buttons.
+  Widget widths still come from contributions; freeform positioning, resizing,
+  and user-specific widget size editing are not included.
 - Multiple named dashboards, organization tenants, shared-layout revision
   history, and cross-UI-host organization storage are not built in.
 - Existing specialized provider adapters retain their existing split-host

@@ -12,6 +12,11 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Added grid-based dashboard drag reordering in edit mode, retaining keyboard
+  controls and Save/Cancel. Fixed selected operations tab icon contrast and
+  introduced shared borderless panel surfaces with contrasting backgrounds and
+  subtle shadows ([ADR-20261126-002](ADR.md#adr-20261126-002-shared-panel-surface-language)).
+
 - Added Fluent icons to Dashboard, Logs, and Traces navigation in the operations
   workspace and inventory.
 

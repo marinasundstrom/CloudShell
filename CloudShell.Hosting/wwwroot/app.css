@@ -12,7 +12,7 @@ body {
 
 :root {
     color-scheme: light dark;
-    --cloudshell-page: var(--neutral-fill-layer-rest, #f5f5f5);
+    --cloudshell-page: var(--neutral-layer-1, #ffffff);
     --cloudshell-surface: var(--neutral-layer-1, #ffffff);
     --cloudshell-surface-muted: var(--neutral-fill-layer-rest, #fafafa);
     --cloudshell-hover: var(--neutral-fill-layer-hover, #f3f8fd);
@@ -36,6 +36,9 @@ body {
     --cloudshell-warning-text: #b45309;
     --cloudshell-danger-fill: color-mix(in srgb, #d13438 12%, var(--cloudshell-surface));
     --cloudshell-danger-text: #d13438;
+    --cloudshell-panel-background: color-mix(in srgb, var(--cloudshell-text) 5%, var(--cloudshell-surface));
+    --cloudshell-panel-radius: 10px;
+    --cloudshell-panel-shadow: 0 2px 6px #00000012;
     --cloudshell-resource-grid-min-width: 68rem;
 }
 
@@ -168,10 +171,10 @@ h3 {
 }
 
 .panel {
-    border: 1px solid var(--cloudshell-stroke);
-    border-radius: 6px;
-    background: var(--cloudshell-surface);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+    border: 0;
+    border-radius: var(--cloudshell-panel-radius);
+    background: var(--cloudshell-panel-background);
+    box-shadow: var(--cloudshell-panel-shadow);
 }
 
 .dashboard-grid {

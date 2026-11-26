@@ -1,5 +1,8 @@
 @using CoreShell.Blazor
 @using System.Text.Json
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 @inject ICoreShellBlazorSectionOutletProjectionService Outlets
 @inject ICloudShellUserSettingsProvider Settings
 @inject IOrganizationDashboardSettings Organization
@@ -37,6 +40,7 @@ else
 {
     @if (Editing)
     {
+        <p>@L["Drag widgets onto the grid to reorder, or use the arrow buttons. Save to keep your layout."]</p>
         <section class="widget-catalog" aria-label="@L["Available widgets"]">
             <strong>@L["Add widgets"]</strong>
             @foreach (var section in Available.Where(s => !Visible.Contains(s.Section.Id.Value)))
@@ -45,15 +49,16 @@ else
             }
         </section>
     }
-    <div class="dashboard-grid">
+    <div @ref="Grid" class="dashboard-grid @(Editing ? "editing" : null)" data-editing="@(Editing && !Saving ? "true" : "false")">
         @foreach (var id in Visible.ToArray())
         {
             var section = Available.FirstOrDefault(s => s.Section.Id.Value == id);
-            <section @key="id" class="dashboard-widget @(section?.Section.Attributes.GetValueOrDefault("operations.wide") == "true" ? "wide" : null)">
+            <section @key="id" data-widget-id="@id" class="dashboard-widget @(section?.Section.Attributes.GetValueOrDefault("operations.wide") == "true" ? "wide" : null)">
                 <header><h2>@(section is null ? L["Unavailable widget"].Value : L[section.Section.Title].Value)</h2>
                     @if (Editing)
                     {
                         <div class="widget-tools">
+                            <span class="widget-drag-handle" data-dashboard-drag-handle title="@L["Drag to reorder; use the arrow buttons for keyboard reordering"]" aria-hidden="true">⠿</span>
                             <FluentButton OnClick="() => Move(id, -1)" Disabled="@(Visible.IndexOf(id) == 0)" aria-label="@L["Move earlier"]">↑</FluentButton>
                             <FluentButton OnClick="() => Move(id, 1)" Disabled="@(Visible.IndexOf(id) == Visible.Count - 1)" aria-label="@L["Move later"]">↓</FluentButton>
                             <FluentButton OnClick="() => Visible.Remove(id)" aria-label="@L["Remove widget"]" IconStart="@(new Icons.Regular.Size16.Dismiss())" />
@@ -90,6 +95,53 @@ else
     private string? Message;
     private string? PendingNavigation;
     private int Version;
+    private ElementReference Grid;
+    private IJSObjectReference? DragModule;
+    private IJSObjectReference? DragController;
+    private DotNetObjectReference<OperationsDashboard>? Self;
+    private bool Disposed;
+    private bool Attaching;
+    private bool DragUnavailable;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Loading || Disposed || Attaching || DragUnavailable || DragController is not null) return;
+        Attaching = true;
+        var version = Version;
+        try
+        {
+            DragModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/CloudShell.Hosting/operations-dashboard.js");
+            if (Disposed || version != Version || Loading) return;
+            Self ??= DotNetObjectReference.Create(this);
+            DragController = await DragModule.InvokeAsync<IJSObjectReference>("attach", Grid, Self);
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { DragUnavailable = true; Message = "Drag controls are unavailable. Use the arrow buttons to reorder widgets."; await InvokeAsync(StateHasChanged); }
+        finally { Attaching = false; }
+    }
+
+    [JSInvokable]
+    public Task DropWidget(string source, string target, bool after)
+    {
+        if (Editing && !Saving && !Disposed)
+        {
+            OperationsDashboardLayout.Reorder(Visible, source, target, after);
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Disposed = true;
+        try
+        {
+            if (DragController is not null) { await DragController.InvokeVoidAsync("dispose"); await DragController.DisposeAsync(); }
+            if (DragModule is not null) await DragModule.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+        Self?.Dispose();
+    }
     private IEnumerable<string> Defaults =>
         (Context.Resource is { } resource && DashboardOptions.Value.ResourceTypes.TryGetValue(resource.EffectiveTypeId, out var typeDefaults) ? typeDefaults : Context.IsSystem ? DashboardOptions.Value.System : null)
         ?? Available.Where(IsDefault).Select(s => s.Section.Id.Value).ToArray();
@@ -105,6 +157,12 @@ else
     {
         var key = OperationsDashboardLayout.SettingKey(Navigation.BaseUri, Context.ResourceId);
         if (Key == key) return;
+        if (DragController is not null)
+        {
+            await DragController.InvokeVoidAsync("dispose");
+            await DragController.DisposeAsync();
+            DragController = null;
+        }
         Key = key;
         var version = ++Version;
         Editing = false;

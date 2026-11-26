@@ -11,6 +11,16 @@ link to the decision so the dependency is visible.
 
 ## 2026-11-26
 
+### ADR-20261126-002: Shared panel surface language
+
+CloudShell panels use contrasting, rounded backgrounds with subtle elevation,
+without decorative outer borders or heading dividers. This is shared across
+the shell and extension UI, rather than a dashboard-only treatment. Common
+panels and composed dashboard widgets use the same theme-derived surface,
+radius, and shadow tokens. Functional outlines and accessibility indicators
+remain distinct. See [System design guidelines](docs/system-design-guidelines.md).
+
+
 ### ADR-20261126-001: Resource operations workspace with composed dashboards
 
 Resources is the default developer/operator surface. It starts with a full

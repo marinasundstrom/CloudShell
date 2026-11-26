@@ -24,10 +24,15 @@ overview with separate broker-status/topology panes.
 
 ## Remaining enhancements
 
+- Next design pass: extend the shared panel language across existing pages,
+  refining density, typography, spacing, navigation, and controls with Aspire
+  as inspiration while retaining CloudShell's identity and current workflows.
+  Existing pages should adopt the language incrementally without a full rebuild.
+
 - Larger inventories: virtualization, richer grouping/filtering, and query cost
   tuning for remote Control Planes.
 - Relationship diagrams: retained zoom/pan and larger-neighborhood exploration.
-- Layout controls: configurable widget sizes and optional drag rearrangement,
+- Layout controls: configurable widget sizes,
   retaining keyboard equivalents.
 - Shared settings: a multi-instance organization storage adapter and conflict
   handling beyond the initial single UI-host file store.
