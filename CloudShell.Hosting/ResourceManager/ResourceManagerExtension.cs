@@ -139,19 +139,21 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "storage",
                 7,
                 resourceClass: ResourceClass.Storage)
-            .AddResourceTab<LocalStorageOverview>(
+            .AddResourceOperationsPane<LocalStorageOverview>(
                 "cloudshell.storage",
-                ResourcePredefinedViewIds.Overview,
-                "Overview",
+                new ResourceViewId(ResourceTabGroupIds.Storage, "storage-status"),
+                "Storage status",
                 10,
-                groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<StorageVolumes>(
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "storage")
+            .AddResourceOperationsPane<StorageVolumes>(
                 "cloudshell.storage",
                 ResourcePredefinedViewIds.Volumes,
                 "Volumes",
                 20,
-                groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<UpdateLocalStorageResource>(
+                groupTitle: ResourceTabGroupTitles.Storage,
+                icon: "storage")
+            .AddResourceConfigurationView<UpdateLocalStorageResource>(
                 "cloudshell.storage",
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
@@ -165,13 +167,14 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "storage",
                 8,
                 resourceClass: ResourceClass.Storage)
-            .AddResourceTab<VolumeOverview>(
+            .AddResourceOperationsPane<VolumeOverview>(
                 "cloudshell.volume",
-                ResourcePredefinedViewIds.Overview,
-                "Overview",
+                new ResourceViewId(ResourceTabGroupIds.Storage, "volume-status"),
+                "Volume status",
                 10,
-                groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<UpdateVolumeResource>(
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "storage")
+            .AddResourceConfigurationView<UpdateVolumeResource>(
                 "cloudshell.volume",
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
@@ -192,12 +195,13 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "network",
                 10,
                 resourceClass: ResourceClass.Network)
-            .AddResourceTab<DnsZoneOverview>(
+            .AddResourceOperationsPane<DnsZoneOverview>(
                 "cloudshell.dnsZone",
-                ResourcePredefinedViewIds.Overview,
-                "Overview",
+                new ResourceViewId(ResourceTabGroupIds.Networking, "name-mappings"),
+                "Name mappings",
                 10,
-                groupTitle: ResourceTabGroupTitles.General)
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "dns")
             .AddResourceType<RegisterNameMappingResource, UpdateNameMappingResource>(
                 "cloudshell.nameMapping",
                 "Name Mapping",

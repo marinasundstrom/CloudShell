@@ -263,28 +263,25 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "devices",
                 33,
                 resourceClass: ResourceManagerResourceClass.Service)
-            .AddResourceConfigurationView<ConfigurationPages.ConfigurationStoreSettings>(
+            .AddResourceOperationsPane<ConfigurationPages.ConfigurationStoreValues>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.General, "settings"),
-                "Settings",
+                new ResourceViewId(ResourceTabGroupIds.General, "values"),
+                "Values",
                 20,
-                showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "settings")
-            .AddResourceConfigurationView<ConfigurationPages.SecretsVaultSecrets>(
+            .AddResourceOperationsPane<ConfigurationPages.SecretsVaultSecrets>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "secrets"),
                 "Secrets",
                 20,
-                showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "secrets")
-            .AddResourceConfigurationView<ConfigurationPages.SecretsVaultCertificates>(
+            .AddResourceOperationsPane<ConfigurationPages.SecretsVaultCertificates>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.General, "certificates"),
                 "Certificates",
                 30,
-                showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General,
                 icon: "certificates")
             .AddResourceOperationsPane<DeviceRegistryPages.DeviceRegistryDevices>(
@@ -431,36 +428,41 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
+            .AddResourceOperationsPane<SharedPages.ApplicationStorage>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
-                groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
+                groupTitle: ResourceTabGroupTitles.Storage,
+                icon: "storage")
+            .AddResourceOperationsPane<SharedPages.ApplicationStorage>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
-                groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
+                groupTitle: ResourceTabGroupTitles.Storage,
+                icon: "storage")
+            .AddResourceOperationsPane<SharedPages.ApplicationStorage>(
                 JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
-                groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
+                groupTitle: ResourceTabGroupTitles.Storage,
+                icon: "storage")
+            .AddResourceOperationsPane<SharedPages.ApplicationStorage>(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
-                groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
+                groupTitle: ResourceTabGroupTitles.Storage,
+                icon: "storage")
+            .AddResourceOperationsPane<SharedPages.ApplicationStorage>(
                 GoAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
-                groupTitle: ResourceTabGroupTitles.Storage)
+                groupTitle: ResourceTabGroupTitles.Storage,
+                icon: "storage")
             .AddResourceOperationsPane<ContainerAppPages.ApplicationDeployment>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
@@ -531,19 +533,20 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "application.exposure-actions",
                 "Application exposure",
                 10)
-            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
+            .AddResourceOperationsPane<SharedPages.ApplicationStorage>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 60,
                 groupTitle: ResourceTabGroupTitles.Storage,
                 icon: "storage")
-            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
+            .AddResourceOperationsPane<SharedPages.ApplicationStorage>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
-                groupTitle: ResourceTabGroupTitles.Storage)
+                groupTitle: ResourceTabGroupTitles.Storage,
+                icon: "storage")
             .AddResourceConfigurationView<SharedPages.ApplicationConfiguration>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
@@ -568,12 +571,13 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceConfigurationView<SharedPages.ApplicationStorage>(
+            .AddResourceOperationsPane<SharedPages.ApplicationStorage>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
-                groupTitle: ResourceTabGroupTitles.Storage)
+                groupTitle: ResourceTabGroupTitles.Storage,
+                icon: "storage")
             .AddResourceOperationsPane<RabbitMQPages.RabbitMQBroker>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Messaging, "broker"),

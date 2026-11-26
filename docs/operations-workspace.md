@@ -18,6 +18,17 @@ workspace reuses their content components; it does not wrap every shell page.
 
 ## Layout and navigation
 
+Pane navigation places Dashboard first, then resource-specific provider panes and
+composed extension panes, followed by shared operational views (Logs, Traces and
+applicable Activity, Health, Monitoring and Usage views). Configuration is last.
+Provider ordering is retained within each set; overrides of shared operational
+view IDs remain in the shared set.
+
+Storage status, volume inventories and status, application storage attachments,
+and DNS name mappings are operational panes. Storage setup editors remain in
+Configuration. Configuration Store Values and Secrets Vault Secrets/Certificates
+use pane-local Save commands rather than the configuration Apply workflow.
+
 Compact density is the default; Comfortable is a persisted user preference.
 Inventory search filters the list without changing the selected resource or
 signal scope. The list and content scroll independently. On narrow screens,

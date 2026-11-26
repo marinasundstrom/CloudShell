@@ -1,3 +1,7 @@
+@using CloudShell.Abstractions.Authorization
+@using CloudShell.Hosting.ResourceManager
+@inject ICloudShellAuthorizationService Authorization
+@inject Microsoft.Extensions.Options.IOptions<ResourceManagerUiOptions> UiOptions
 @inject IResourceManager ResourceManager
 @inject IServiceProvider Services
 
@@ -16,14 +20,26 @@ else
     <section class="blade-section">
         <div class="blade-section-header">
             <div>
-                <h3>Settings</h3>
+                <h3>Values</h3>
                 <p>@GetSettingSummary()</p>
+            </div>
+            <div class="inline-actions">
+                <FluentButton Appearance="Appearance.Accent" IconStart="@(new Icons.Regular.Size20.Save().WithColor("currentColor"))"
+                              Disabled="@(!CanEdit || IsSaving)" OnClick="SaveAsync">
+                    @(IsSaving ? "Saving…" : "Save changes")
+                </FluentButton>
             </div>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
             <ProcedureMessage Message="@ErrorMessage" />
+        }
+        @if (Saved)
+        {
+            <ProcedureMessage Compact="true" Severity="ResourceSignalSeverity.Info" Role="status">
+                Values saved.
+            </ProcedureMessage>
         }
         @if (RemovedExistingSettings.Count > 0)
         {
@@ -36,8 +52,8 @@ else
             <Actions>
                 <FluentButton Appearance="Appearance.Neutral"
                               IconStart="new Icons.Regular.Size20.Add()"
-                              OnClick="AddSetting">
-                    Add setting
+                              Disabled="@(!CanEdit || IsSaving)" OnClick="AddSetting">
+                    Add value
                 </FluentButton>
             </Actions>
             <ChildContent>
@@ -45,18 +61,18 @@ else
                 {
                     <div class="environment-row configuration-entry-row configuration-setting-runtime-row">
                         <div class="configuration-field">
-                            <FluentTextField Label="Name" AriaLabel="Configuration setting name"
+                            <FluentTextField Disabled="@(!CanEdit || IsSaving)" Label="Name" AriaLabel="Configuration setting name"
                                              Placeholder="Name"
-                                             @bind-Value="setting.Name" />
+                                             @bind-Value="setting.Name" @bind-Value:after="ClearSaved" />
                         </div>
                         <div class="configuration-field">
-                            <FluentTextField Label="Value" AriaLabel="Configuration setting value"
+                            <FluentTextField Disabled="@(!CanEdit || IsSaving)" Label="Value" AriaLabel="Configuration setting value"
                                              Placeholder="Value"
-                                             @bind-Value="setting.Value" />
+                                             @bind-Value="setting.Value" @bind-Value:after="ClearSaved" />
                         </div>
                         <FluentButton Appearance="Appearance.Neutral"
                                       IconStart="new Icons.Regular.Size20.Delete()"
-                                      OnClick="() => RemoveSetting(setting)">
+                                      Disabled="@(!CanEdit || IsSaving)" OnClick="() => RemoveSetting(setting)">
                             Remove
                         </FluentButton>
                     </div>
@@ -67,9 +83,6 @@ else
 }
 
 @code {
-    [CascadingParameter]
-    public ResourceConfigurationContext? Configuration { get; set; }
-
     [Parameter]
     public string? ResourceId { get; set; }
 
@@ -77,17 +90,34 @@ else
     private IConfigurationStoreRuntimeSettingManager? SettingManager { get; set; }
     private List<SettingInput> Settings { get; } = [];
     private List<string> RemovedExistingSettings { get; } = [];
-    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+    private string? ResourceGroupId { get; set; }
+    private bool IsSaving { get; set; }
+    private bool Saved { get; set; }
+    private bool CanEdit => Resource is not null && !UiOptions.Value.ReadOnly &&
+        Authorization.CanAccessResource(Resource.Id, ResourceGroupId, CloudShellPermissions.Resources.Manage);
     private string? ErrorMessage { get; set; }
 
+    private void ClearSaved() => Saved = false;
+
+    private string? LoadedResourceId;
     protected override async Task OnParametersSetAsync()
     {
+        if (LoadedResourceId == ResourceId) return;
+        LoadedResourceId = ResourceId;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        Saved = false;
         SettingManager = Services.GetService(typeof(IConfigurationStoreRuntimeSettingManager))
             as IConfigurationStoreRuntimeSettingManager;
         Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
 
+        Saved = false;
+        ResourceGroupId = Resource is null ? null : (await ResourceManager.GetResourceGroupForResourceAsync(Resource.Id))?.Id;
         Settings.Clear();
         RemovedExistingSettings.Clear();
         if (SettingManager is not null && Resource is not null)
@@ -101,37 +131,26 @@ else
             Settings.Add(new());
         }
 
-        RegisterApplyHandler();
-    }
-
-    private void RegisterApplyHandler()
-    {
-        if (Configuration is not null &&
-            SettingManager is not null &&
-            Resource is not null &&
-            !ReferenceEquals(Configuration, RegisteredConfiguration))
-        {
-            Configuration.SetApplyHandler(ApplyAsync);
-            RegisteredConfiguration = Configuration;
-        }
     }
 
     private string GetSettingSummary()
     {
         var count = Settings.Count(setting => !string.IsNullOrWhiteSpace(setting.Name));
         return count == 1
-            ? "1 setting is configured for this store."
-            : $"{count} settings are configured for this store.";
+            ? "1 value is stored here."
+            : $"{count} values are stored here.";
     }
 
     private void AddSetting()
     {
         Settings.Add(new());
+        Saved = false;
         ErrorMessage = null;
     }
 
     private void RemoveSetting(SettingInput setting)
     {
+        Saved = false;
         Settings.Remove(setting);
         TrackRemovedSetting(setting);
         if (Settings.Count == 0)
@@ -142,26 +161,32 @@ else
         ErrorMessage = null;
     }
 
-    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    private async Task SaveAsync()
     {
-        if (SettingManager is null || Resource is null)
-        {
-            return ResourceProcedureResult.Completed("Configuration Store settings cannot be managed from this UI host.");
-        }
-
-        var settings = BuildSettings();
-        if (settings is null)
-        {
-            return ResourceProcedureResult.Completed(ErrorMessage ?? "Configuration Store settings were not updated.");
-        }
-
-        await SettingManager.UpdateSettingsAsync(
-            CreateRuntimeContext(Resource),
-            settings,
-            cancellationToken);
+        if (!CanEdit || IsSaving || SettingManager is null || Resource is null) return;
+        Saved = false;
         ErrorMessage = null;
-        RemovedExistingSettings.Clear();
-        return ResourceProcedureResult.Completed("Configuration Store settings updated.");
+        var settings = BuildSettings();
+        if (settings is null) return;
+
+        IsSaving = true;
+        try
+        {
+            await SettingManager.UpdateSettingsAsync(CreateRuntimeContext(Resource), settings);
+            Settings.Clear();
+            Settings.AddRange(settings.Select(SettingInput.FromSetting));
+            if (Settings.Count == 0) Settings.Add(new());
+            RemovedExistingSettings.Clear();
+            Saved = true;
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Values could not be saved. Your changes are still available; try again.";
+        }
+        finally
+        {
+            IsSaving = false;
+        }
     }
 
     private void TrackRemovedSetting(SettingInput setting)
@@ -182,8 +207,8 @@ else
     {
         var names = string.Join(", ", RemovedExistingSettings.Order(StringComparer.OrdinalIgnoreCase));
         return RemovedExistingSettings.Count == 1
-            ? $"Setting {names} will be deleted when you apply changes."
-            : $"Settings {names} will be deleted when you apply changes.";
+            ? $"Setting {names} will be deleted when you save changes."
+            : $"Settings {names} will be deleted when you save changes.";
     }
 
     private IReadOnlyList<ConfigurationStoreRuntimeSetting>? BuildSettings()

@@ -68,13 +68,16 @@ application configuration. The Secrets Vault `IConfiguration` client maps
 These naming rules belong to the built-in providers. Other providers or cloud
 deployment targets may apply their own character and length restrictions.
 
-## Resource Manager Management
+## Resource operations panes
 
-Graph-backed Configuration Store resources contribute a **Settings** tab in
-Resource Manager when the UI host has access to the provider runtime manager.
-That tab manages provider-owned runtime settings and rewrites the sidecar
+Graph-backed Configuration Store resources contribute a **Values** operations pane when the UI host has access to the provider runtime manager.
+That pane manages provider-owned runtime settings and rewrites the sidecar
 definition file used by the backing Configuration Store service. Setting values
 do not become Resource graph attributes.
+Each editor has its own **Save changes** command, respects read-only mode and
+resource-management permissions, and retains drafts across inventory refreshes.
+These operational editors appear beside Dashboard rather than inside Configuration.
+
 The `configuration.store.inspect` operation uses the provider-execution
 boundary. The built-in resource-type registration supplies a runtime inspector;
 if a host or test constructs the operation path without one, the inspect action
@@ -89,11 +92,11 @@ return a missing-inspector diagnostic instead of treating the absent adapter as
 a successful empty inspection.
 
 Graph-backed Secrets Vault resources contribute **Secrets** and
-**Certificates** tabs under the same host/runtime boundary. Existing secret and
+**Certificates** operations panes under the same host/runtime boundary. Existing secret and
 certificate values are masked in the UI and preserved unless a replacement
 value is entered. Certificate values can be pasted, uploaded as PEM or PFX/P12
 content, or generated as a self-signed development certificate from the
-Certificates tab. Secret values and certificate payloads stay in
+Certificates pane. Secret values and certificate payloads stay in
 provider-owned runtime state and sidecar definition files; Resource Manager
 only projects non-secret metadata such as counts, content type, thumbprint,
 subject, validity dates, and private-key presence.

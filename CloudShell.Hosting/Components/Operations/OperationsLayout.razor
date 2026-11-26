@@ -128,17 +128,28 @@
             </div>
         </header>
         <nav class="operations-tabs" aria-label="@L["Operations"]">
-            @foreach (var pane in StandardPanes)
+            @foreach (var pane in StandardPanes.Take(1))
             {
                 <FluentAnchor Href="@OperationsNavigation.Pane(ResourceId, pane.Id)" IconStart="@ResourceViewIcons.FromName(pane.Id)?.WithColor("currentColor")" Appearance="@(CustomPaneId is null && Pane == pane.Id ? Appearance.Accent : Appearance.Stealth)" aria-current="@(CustomPaneId is null && Pane == pane.Id ? "page" : null)">@L[pane.Title]</FluentAnchor>
+            }
+            @if (Selected is not null)
+            {
+                @foreach (var tab in ProviderPanes.Where(tab => !OperationsNavigation.IsOperational(tab.Id)))
+                {
+                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(Selected.Id, tab.Id)" IconStart="@ResourceViewIcons.FromName(tab.Icon)?.WithColor("currentColor")" aria-current="@(Pane == tab.Id.Identifier ? "page" : null)" Appearance="@(Pane == tab.Id.Identifier ? Appearance.Accent : Appearance.Stealth)">@L[tab.Title]</FluentAnchor>
+                }
             }
             @foreach (var pane in CustomPanes)
             {
                 <FluentAnchor Href="@CustomHref(pane.Section.Id.Value)" Appearance="@(CustomPaneId == pane.Section.Id.Value ? Appearance.Accent : Appearance.Stealth)">@L[pane.Section.Title]</FluentAnchor>
             }
+            @foreach (var pane in StandardPanes.Skip(1))
+            {
+                <FluentAnchor Href="@OperationsNavigation.Pane(ResourceId, pane.Id)" IconStart="@ResourceViewIcons.FromName(pane.Id)?.WithColor("currentColor")" Appearance="@(CustomPaneId is null && Pane == pane.Id ? Appearance.Accent : Appearance.Stealth)" aria-current="@(CustomPaneId is null && Pane == pane.Id ? "page" : null)">@L[pane.Title]</FluentAnchor>
+            }
             @if (Selected is not null)
             {
-                @foreach (var tab in ProviderPanes)
+                @foreach (var tab in ProviderPanes.Where(tab => OperationsNavigation.IsOperational(tab.Id)))
                 {
                     <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(Selected.Id, tab.Id)" IconStart="@ResourceViewIcons.FromName(tab.Icon)?.WithColor("currentColor")" aria-current="@(Pane == tab.Id.Identifier ? "page" : null)" Appearance="@(Pane == tab.Id.Identifier ? Appearance.Accent : Appearance.Stealth)">@L[tab.Title]</FluentAnchor>
                 }

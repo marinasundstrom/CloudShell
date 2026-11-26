@@ -45,7 +45,7 @@ public sealed class BuiltInProviderResourceManagerUiExtensionTests
     }
 
     [Fact]
-    public void ContainerApplicationStorage_ReplacesPredefinedStorageView()
+    public void ContainerApplicationStorage_IsAnOperationsPane()
     {
         var resourceType = CreateCatalog()
             .ResourceTypes
@@ -56,6 +56,8 @@ public sealed class BuiltInProviderResourceManagerUiExtensionTests
             tab => tab.Id.Identifier == ResourcePredefinedViewIds.Storage.Identifier);
 
         Assert.Equal(ResourcePredefinedViewIds.Storage, storageTab.Id);
+        Assert.True(storageTab.IsOperational);
+        Assert.True(storageTab.OwnsLayout);
         Assert.Equal(ResourceTabGroupTitles.Storage, storageTab.GroupTitle);
     }
 
@@ -75,7 +77,16 @@ public sealed class BuiltInProviderResourceManagerUiExtensionTests
     }
 
     [Theory]
+    [InlineData("cloudshell.storage", "storage-status", "configuration")]
+    [InlineData("cloudshell.storage", "volumes", "configuration")]
+    [InlineData("cloudshell.volume", "volume-status", "configuration")]
+    [InlineData("cloudshell.dnsZone", "name-mappings", null)]
+    [InlineData("application.sql-server", "storage", "configuration")]
+    [InlineData("application.rabbitmq", "storage", "configuration")]
     [InlineData("iot.device-registry", "enrolled-devices", "enrollment-profiles")]
+    [InlineData("secrets.vault", "secrets", null)]
+    [InlineData("secrets.vault", "certificates", null)]
+    [InlineData("configuration.store", "values", null)]
     [InlineData("event.broker", "streams", null)]
     [InlineData("application.container-app", "deployment", "configuration")]
     [InlineData("application.container-app", "revisions", "configuration")]
