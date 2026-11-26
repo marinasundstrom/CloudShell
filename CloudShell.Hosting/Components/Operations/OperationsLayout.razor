@@ -4,6 +4,7 @@
 @using CoreShell.Blazor
 @inject IOptions<ResourceManagerUiOptions> UiOptions
 @inject IResourceHealthManager HealthManager
+@inject IResourceEventManager ResourceEvents
 @inject IResourceManager ResourceManager
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject ICloudShellAuthorizationService Authorization
@@ -17,8 +18,8 @@
 
 <FluentMenuProvider />
 <CascadingValue Value="Context">
-<div class="operations-workspace @(Comfortable ? "comfortable" : "compact") @(ShowResources ? "show-resources" : null) @(InventoryOnly ? "inventory-only" : null)">
-    <aside class="operations-inventory" aria-label="@L["Resources"]">
+<div class="operations-workspace @(Comfortable ? "comfortable" : "compact") @(ShowResources ? "show-resources" : null) @(InventoryOnly ? "inventory-only" : null) @(InventoryHidden ? "inventory-hidden" : null)">
+    <aside id="resource-inventory" class="operations-inventory" aria-label="@L["Resources"]">
         <div class="inventory-heading"><h1>@L["Resources"]</h1><span>@Resources.Count</span>
         @if (InventoryOnly)
         {
@@ -28,11 +29,21 @@
                 <FluentAnchor Href="@OperationsNavigation.Pane(null, "traces")" IconStart="@ResourceViewIcons.FromName("traces")">@L["Traces"]</FluentAnchor>
             </nav>
         }
-        <FluentAnchor Href="@(InventoryOnly ? InventoryReturnHref : "/resources")"
-                      Appearance="Appearance.Stealth"
-                      IconStart="@(InventoryOnly ? new Icons.Regular.Size20.PanelLeftContract().WithColor("currentColor") : new Icons.Regular.Size20.PanelLeftExpand().WithColor("currentColor"))"
-                      Title="@L[InventoryOnly ? "Collapse resource list" : "Expand resource list"]"
-                      aria-label="@L[InventoryOnly ? "Collapse resource list" : "Expand resource list"]" />
+        @if (InventoryOnly)
+        {
+            <FluentAnchor Href="@InventoryReturnHref" Appearance="Appearance.Stealth"
+                          IconStart="@(new Icons.Regular.Size20.PanelLeftContract().WithColor("currentColor"))"
+                          Title="@L["Return to resource view"]" aria-label="@L["Return to resource view"]" />
+        }
+        else
+        {
+            <FluentAnchor Href="/resources" Appearance="Appearance.Stealth"
+                          IconStart="@(new Icons.Regular.Size20.ArrowExpand().WithColor("currentColor"))"
+                          Title="@L["Widen resource list"]" aria-label="@L["Widen resource list"]" />
+            <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size20.PanelLeftContract().WithColor("currentColor"))"
+                          Title="@L["Hide resources"]" aria-label="@L["Hide resources"]"
+                          OnClick="() => { InventoryHidden = true; ShowResources = false; }" />
+        }
         </div>
         @if (UiOptions.Value.ReadOnly)
         {
@@ -57,7 +68,8 @@
             @foreach (var row in section.Rows)
             {
                 var resource = row.Resource;
-                <div @key="resource.Id" class="resource-row @(row.Depth > 0 ? "child-resource" : null) @(resource.Id == ResourceId ? "selected" : null) @(CollapsedResources.Contains(resource.Id) && SelectedAncestorIds.Contains(resource.Id) ? "contains-selection" : null)" style="--resource-depth:@row.Depth">
+                var progressLabel = GetProgressLabel(resource);
+                <div @key="resource.Id" class="resource-row @(progressLabel is not null ? "transitioning" : null) @(row.Depth > 0 ? "child-resource" : null) @(resource.Id == ResourceId ? "selected" : null) @(CollapsedResources.Contains(resource.Id) && SelectedAncestorIds.Contains(resource.Id) ? "contains-selection" : null)" style="--resource-depth:@row.Depth">
                     @if (row.ChildCount > 0)
                     {
                         <FluentButton Appearance="Appearance.Stealth" Class="resource-branch-toggle"
@@ -72,8 +84,9 @@
                         <span class="resource-name-block"><span class="resource-name">@Display.GetResourceLabel(resource)</span>
                         @if (InventoryOnly)
                         {
-                            <span class="resource-summary"><ResourceStateIndicator State="resource.State" /><span>@(resource.State?.ToString() ?? L["—"].Value)</span><span aria-hidden="true">·</span><span class="resource-type">@ResourceTypeLabel(resource)</span></span>
+                            <span class="resource-summary"><ResourceStateIndicator State="resource.State" ProgressLabel="@progressLabel" /><span>@(progressLabel ?? resource.State?.ToString() ?? L["—"].Value)</span><span aria-hidden="true">·</span><span class="resource-type">@ResourceTypeLabel(resource)</span></span>
                         }</span>
+                        <ResourceAttentionIndicator Signal="@ResourceAttentionSignalResolver.Resolve(resource, Health.GetValueOrDefault(resource.Id), Failures.GetValueOrDefault(resource.Id), L)" />
                         @if (row.ChildCount > 0) { <span class="resource-child-count" title="@L["{0} child resources", row.ChildCount]">@row.ChildCount</span> }</span>
                     </FluentAnchor>
                     @if (InventoryOnly)
@@ -93,10 +106,10 @@
                     }
                     @if (!InventoryOnly)
                     {
-                    <span class="row-state"><ResourceStateIndicator State="resource.State" /><span>@(resource.State?.ToString() ?? L["—"].Value)</span></span>
+                    <span class="row-state"><ResourceStateIndicator State="resource.State" ProgressLabel="@progressLabel" /><span>@(progressLabel ?? resource.State?.ToString() ?? L["—"].Value)</span></span>
                     }
                         <div class="row-actions">
-                            <ResourceRowActions Resource="resource" Capabilities="@(Capabilities.GetValueOrDefault(resource.Id) ?? ResourceOperationCapabilities.None(resource.Id))" Busy="@ActionBusy" Requested="RequestAction" />
+                            <ResourceRowActions Resource="resource" Capabilities="@(Capabilities.GetValueOrDefault(resource.Id) ?? ResourceOperationCapabilities.None(resource.Id))" ExecutingActionIds="@ExecutingActions.Where(a => a.Key.ResourceId == resource.Id).Select(a => a.Key.ActionId).ToArray()" Requested="RequestAction" />
                         </div>
                 </div>
             }
@@ -140,7 +153,7 @@
                 </div>
             </div>
             <div class="operations-tools">
-                <FluentButton Class="resource-toggle" OnClick="() => ShowResources = !ShowResources" aria-expanded="@ShowResources">@L["Resources"]</FluentButton>
+                <FluentButton Class="resource-toggle" OnClick="() => { InventoryHidden = false; ShowResources = !ShowResources; }" IconStart="@(new Icons.Regular.Size16.PanelLeftExpand().WithColor("currentColor"))" aria-controls="resource-inventory">@L["Show resources"]</FluentButton>
                 <FluentButton OnClick="ToggleDensityAsync" Title="@L["Change density"]">@L[Comfortable ? "Density: Comfortable" : "Density: Compact"]</FluentButton>
                 <FluentButton OnClick="RefreshAsync" Disabled="@Loading" IconStart="@(new Icons.Regular.Size16.ArrowSync())">@L["Refresh"]</FluentButton>
             </div>
@@ -216,8 +229,8 @@
             <div class="operation-confirmation" role="alert">
                 <strong>@L["Run {0} on {1}?", pending.Action.DisplayName, Display.GetResourceLabel(pending.Resource)]</strong>
                 @if (pending.Action.Kind == ResourceActionKind.Start) { <FluentCheckbox @bind-Value="StartDependencies">@L["Start dependencies"]</FluentCheckbox> }
-                <FluentButton OnClick="ConfirmActionAsync" Disabled="@ActionBusy">@L["Confirm"]</FluentButton>
-                <FluentButton OnClick="() => PendingAction = null" Disabled="@ActionBusy">@L["Cancel"]</FluentButton>
+                <FluentButton OnClick="ConfirmActionAsync">@L["Confirm"]</FluentButton>
+                <FluentButton OnClick="() => PendingAction = null">@L["Cancel"]</FluentButton>
             </div>
         }
         @if (ActionMessage is not null) { <p class="operation-confirmation" role="status">@ActionMessage</p> }
@@ -228,25 +241,71 @@
     private bool Refreshing;
     private IReadOnlyDictionary<string, ResourceOperationCapabilities> Capabilities = new Dictionary<string, ResourceOperationCapabilities>();
     private (Resource Resource, ResourceAction Action)? PendingAction;
-    private bool ActionBusy;
+    private readonly Dictionary<(string ResourceId, string ActionId), ResourceActionKind> ExecutingActions = new();
+    private string? GetProgressLabel(Resource resource)
+    {
+        if (ExecutingActions.LastOrDefault(a => a.Key.ResourceId == resource.Id) is var executing && executing.Key.ResourceId is not null)
+        {
+            var label = executing.Value switch
+            {
+                ResourceActionKind.Start => "Starting",
+                ResourceActionKind.Stop => "Stopping",
+                ResourceActionKind.Restart => "Restarting",
+                ResourceActionKind.Pause => "Pausing",
+                _ => null
+            };
+            if (label is not null) return L[label].Value;
+        }
+        return resource.State switch
+        {
+            ResourceState.Starting => L["Starting"].Value,
+            ResourceState.Stopping => L["Stopping"].Value,
+            _ => null
+        };
+    }
     private bool StartDependencies;
     private string? ActionMessage;
     private void RequestAction((Resource Resource, ResourceAction Action) request) { PendingAction = request; StartDependencies = false; ActionMessage = null; }
     private async Task ConfirmActionAsync()
     {
-        if (PendingAction is not { } pending || ActionBusy || UiOptions.Value.ReadOnly) return;
-        ActionBusy = true;
+        if (PendingAction is not { } pending || UiOptions.Value.ReadOnly) return;
+        var key = (pending.Resource.Id, pending.Action.Id);
+        if (!ExecutingActions.TryAdd(key, pending.Action.Kind)) return;
+        var startDependencies = StartDependencies;
+        PendingAction = null;
         try
         {
-            var result = await ResourceManager.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(pending.Resource.Id, pending.Action.Id, StartDependencies: StartDependencies));
-            ActionMessage = result.Message; PendingAction = null; await RefreshAsync();
+            var result = await ResourceManager.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(pending.Resource.Id, pending.Action.Id, StartDependencies: startDependencies));
+            ActionMessage = result.Message; await RefreshAsync();
         }
         catch (Exception) { ActionMessage = L["The operation could not complete. Open resource configuration for diagnostics or dependency choices."].Value; }
-        finally { ActionBusy = false; }
+        finally { ExecutingActions.Remove(key); }
+    }
+    private IReadOnlyDictionary<string, ResourceFailureSignal> Failures = new Dictionary<string, ResourceFailureSignal>();
+    private async Task RefreshFailuresAsync()
+    {
+        try
+        {
+            var resources = Resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+            var events = resources.Count == 0 ? [] : await ResourceEvents.ListResourceEventsAsync(
+                new ResourceEventQuery(MaxEvents: Math.Clamp(resources.Count * 20, 100, 1000)), Lifetime.Token);
+            Failures = events.Where(item => resources.ContainsKey(item.ResourceId))
+                .GroupBy(item => item.ResourceId, StringComparer.OrdinalIgnoreCase)
+                .Select(group => (Id: group.Key, Failure: ResourceFailureSignalResolver.GetActiveFailure(resources[group.Key], group)))
+                .Where(item => item.Failure is not null)
+                .ToDictionary(item => item.Id, item => item.Failure!, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (OperationCanceledException) when (Lifetime.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(Logger, ex, "Could not refresh inventory failure indicators");
+            Failures = new Dictionary<string, ResourceFailureSignal>();
+        }
     }
     private bool Loading = true;
     private bool Comfortable;
     private bool ShowResources;
+    private bool InventoryHidden;
     private string Filter = "";
     private string? Error;
     private DateTimeOffset? UpdatedAt;
@@ -371,6 +430,7 @@
             Sections = (await Outlets.ResolveSectionOutletAsync(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Panes, Lifetime.Token))?.Sections ?? [];
             Capabilities = Resources.Count == 0 ? new Dictionary<string, ResourceOperationCapabilities>()
                 : await ResourceManager.GetResourceOperationCapabilitiesAsync(Resources.Select(r => r.Id).ToArray(), Lifetime.Token);
+            await RefreshFailuresAsync();
             UpdatedAt = DateTimeOffset.Now;
             Error = null;
         }

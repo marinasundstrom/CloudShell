@@ -30,6 +30,6 @@
     [Parameter, EditorRequired] public Resource Resource { get; set; } = default!;
     [Parameter, EditorRequired] public ResourceOperationCapabilities Capabilities { get; set; } = default!;
     [Parameter] public EventCallback<(Resource Resource, ResourceAction Action)> Requested { get; set; }
-    [Parameter] public bool Busy { get; set; }
-    private ResourceActionControlState State(ResourceAction action) => ResourceActionControlStateResolver.Resolve(action, Capabilities, Options.Value.ReadOnly, Busy, L["Working…"].Value);
+    [Parameter] public IReadOnlyCollection<string> ExecutingActionIds { get; set; } = [];
+    private ResourceActionControlState State(ResourceAction action) => ResourceActionControlStateResolver.Resolve(action, Capabilities, Options.Value.ReadOnly, ExecutingActionIds.Contains(action.Id), L["Working…"].Value);
 }

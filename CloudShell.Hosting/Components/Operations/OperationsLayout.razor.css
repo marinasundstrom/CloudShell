@@ -1,5 +1,5 @@
 .operations-workspace { display:flex; flex:1; min-height:0; border:1px solid var(--cloudshell-stroke); border-radius:6px; background:var(--cloudshell-surface); overflow:hidden; --operation-gap:.65rem; }
-.operations-inventory { display:flex; flex-direction:column; gap:.4rem; width:17rem; min-width:13rem; max-width:35%; resize:horizontal; overflow:auto; flex-shrink:0; border-right:1px solid var(--cloudshell-stroke); padding:.6rem; }
+.operations-inventory { display:flex; flex-direction:column; gap:.4rem; width:20rem; min-width:15rem; max-width:35%; resize:horizontal; overflow:auto; flex-shrink:0; border-right:1px solid var(--cloudshell-stroke); padding:.6rem; }
 .inventory-heading, .inventory-footer, .operations-heading, .operations-tools { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
 .inventory-heading { padding:.3rem; } .inventory-heading span { color:var(--cloudshell-text-muted); }
 .inventory-rows { flex:1; overflow:auto; min-height:0; }
@@ -126,3 +126,21 @@
 .resource-row:hover .row-actions { background:var(--cloudshell-hover); }
 .resource-row.selected .row-actions { background:var(--cloudshell-selected); }
 .operations-inventory ::deep .inventory-all.active::part(control) { background:var(--cloudshell-selected); box-shadow:inset 3px 0 var(--cloudshell-accent); }
+
+.resource-label ::deep .resource-failure-indicator { flex-shrink:0; margin-left:.15rem; }
+
+.inventory-hidden:not(.inventory-only) .operations-inventory { display:none; }
+.inventory-hidden .operations-tools ::deep .resource-toggle { display:inline-flex; }
+.inventory-heading > span { margin-right:auto; }
+.resource-name { max-width:none; }
+/* Stealth commands sit on the row surface; only the targeted command highlights. */
+.resource-row ::deep fluent-button:not(:hover):not(:active)::part(control) { background:transparent; }
+.resource-row ::deep fluent-button:hover::part(control) { background:color-mix(in srgb, var(--cloudshell-text) 8%, var(--cloudshell-hover)); }
+
+/* Keep lifecycle progress visible while the pointer remains on the row. */
+.resource-row.transitioning .row-state { opacity:1; }
+.resource-row.transitioning .row-actions { position:static; opacity:1; pointer-events:auto; flex-shrink:0; background:transparent; }
+.resource-row.transitioning .row-state { flex-wrap:wrap; }
+@media(max-width:1050px) {
+    .resource-row.transitioning .row-state > span { display:inline; }
+}

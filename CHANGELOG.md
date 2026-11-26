@@ -10,6 +10,10 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Kept resource-list command backgrounds transparent in both themes and lifecycle progress visible in expanded and compact lists, including locally executing actions. Other provider-enabled commands remain available during an operation.
+
+- Restored resource-list attention icons for active operation failures, unhealthy checks, lifecycle/health mismatches, and degraded or unknown states. Widened the sidebar and separated widening the filtered list from hiding it to focus on a resource.
+
 - Improved the expanded resource inventory with two-line resource identity, friendly type names, parent/child guides, inline lifecycle actions, and conventional endpoint hyperlinks with copy commands. Selecting a resource from the full inventory opens its dashboard; action confirmations remain visible in inventory mode.
 
 - Added a shared, locally hosted Monaco JSON editor with read-only viewing, light/dark theme synchronization, syntax diagnostics and a text fallback ([ADR-20261126-003](ADR.md#adr-20261126-003-locally-hosted-structured-json-editor)). Device twin panes now show editable desired state beside a non-editor reported-state display with a copy button, stacking on narrow screens. Improved long-text wrapping in Event Broker tables.

@@ -46,6 +46,13 @@ internal static class ResourceFailureSignalResolver
             return null;
         }
 
+        if (string.Equals(latestFailure.EventType, ResourceEventTypes.Events.Resource.CreateFailed, StringComparison.OrdinalIgnoreCase) &&
+            orderedEvents.Any(item => item.Timestamp > latestFailure.Timestamp &&
+                string.Equals(item.EventType, ResourceEventTypes.Events.Resource.Created, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
         if (IsStaleForCurrentResourceState(resource, latestFailure))
         {
             return null;

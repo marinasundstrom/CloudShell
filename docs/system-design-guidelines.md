@@ -352,3 +352,14 @@ hierarchy; grouping by resource group remains a separate choice. Endpoint links
 use Fluent Hypertext appearance for HTTP/HTTPS addresses, with copy actions for
 all displayed protocols. Lifecycle commands retain their capability checks and
 show confirmation within the active list or pane.
+
+The resource sidebar provides separate controls for widening the inventory and
+hiding the sidebar; hide/show is rightmost. Widening retains the in-memory filter
+and grouping. All resources selects the system dashboard. Attention icons remain
+separate from lifecycle dots and visible alongside resource names. Active failures
+come from a bounded recent-event query (at most 1,000 events); later successful
+lifecycle events clear resolved failures, and successful creation retries clear
+earlier creation failures. Health warnings use existing summaries
+and never treat a normally stopped resource as a failure by itself.
+
+Resource inventory lifecycle progress uses the same state indicator in expanded and compact lists. Starting/stopping states and locally executing lifecycle actions stay visible on hover. Only the executing action is suppressed; other actions remain governed by Control Plane capabilities, including provider-supported stop/abort operations during startup.
