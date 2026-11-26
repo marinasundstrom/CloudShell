@@ -102,6 +102,8 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.AddSingleton<ShellCatalog>();
         builder.Services.AddScoped<ICloudShellNavigator, CloudShellNavigator>();
         builder.Services.AddScoped<ResourceManagerDisplaySettings>();
+        builder.Services.TryAddScoped<IOrganizationDashboardSettings, OrganizationDashboardSettings>();
+        builder.Services.Configure<OperationsDashboardOptions>(builder.Configuration.GetSection("Shell:Dashboards"));
     }
 
     private static void ConfigureLocalization(WebApplicationBuilder builder)

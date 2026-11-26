@@ -1,0 +1,35 @@
+@inject IOptions<ResourceManagerUiOptions> Options
+@inject IStringLocalizer<SharedResource> L
+@{
+    var primary = Resource.ResourceActions.FirstOrDefault(a => a.Kind == ResourceActionKind.Stop && Capabilities.CanExecuteAction(a.Id))
+        ?? Resource.ResourceActions.FirstOrDefault(a => a.Kind == ResourceActionKind.Start && Capabilities.CanExecuteAction(a.Id))
+        ?? Resource.StopAction ?? Resource.StartAction;
+}
+@if (primary is not null)
+{
+    var state = State(primary);
+    <FluentButton Appearance="Appearance.Stealth" Disabled="@(!state.IsEnabled)" Title="@state.Title"
+                  aria-label="@L["{0} {1}", primary.DisplayName, Resource.EffectiveDisplayName]"
+                  IconStart="@(primary.Kind == ResourceActionKind.Stop ? new Icons.Regular.Size16.Stop() : new Icons.Regular.Size16.Play())"
+                  OnClick="() => Requested.InvokeAsync((Resource, primary))" />
+}
+@if (Resource.ResourceActions.Count > 0)
+{
+    <FluentMenuButton UseMenuService="true" ButtonAppearance="Appearance.Stealth" aria-label="@L["More actions for {0}", Resource.EffectiveDisplayName]">
+        <ButtonContent><FluentIcon Value="@(new Icons.Regular.Size16.MoreHorizontal())" /><span class="visually-hidden">@L["More actions for {0}", Resource.EffectiveDisplayName]</span></ButtonContent>
+        <ChildContent>
+            @foreach (var action in Resource.ResourceActions)
+            {
+                var state = State(action);
+                <FluentMenuItem Disabled="@(!state.IsEnabled)" Title="@state.Title" OnClick="() => Requested.InvokeAsync((Resource, action))">@L[action.DisplayName]</FluentMenuItem>
+            }
+        </ChildContent>
+    </FluentMenuButton>
+}
+@code {
+    [Parameter, EditorRequired] public Resource Resource { get; set; } = default!;
+    [Parameter, EditorRequired] public ResourceOperationCapabilities Capabilities { get; set; } = default!;
+    [Parameter] public EventCallback<(Resource Resource, ResourceAction Action)> Requested { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    private ResourceActionControlState State(ResourceAction action) => ResourceActionControlStateResolver.Resolve(action, Capabilities, Options.Value.ReadOnly, Busy, L["Working…"].Value);
+}

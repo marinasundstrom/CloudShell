@@ -18,6 +18,15 @@ type and can compose with predefined Resource Manager views in two ways:
 2. Add a new tab or replace a predefined tab entirely with provider-owned
    content.
 
+## Operational panes and dashboard widgets
+
+Use `AddResourceTab<TComponent>(..., isOperational: true)` for detailed
+operational content. Configuration tabs retain their existing editing surface.
+Dashboard summaries use the CoreShell widgets outlet and a cascading resource
+scope; organization and personal layouts customize the default set per resource.
+See [Operations workspace](../operations-workspace.md) for the preview contracts,
+authoring example, permission rules, and combined/split-host parity.
+
 ## Resource Types
 
 Resource types are the user-facing contract for adding resources. An extension

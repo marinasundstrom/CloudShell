@@ -342,11 +342,16 @@ internal sealed class CloudShellExtensionBuilder(
         int order,
         bool showsApplyButton = false,
         string? groupTitle = null,
-        string? icon = null)
+        string? icon = null,
+        bool isOperational = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceTypeId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ValidateTabId(id);
+        if (string.Equals(id.Identifier, "dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The resource route 'dashboard' is reserved for the customizable operations overview. Contribute dashboard sections or use another operational pane ID.");
+        }
 
         var typeIndex = _resourceTypes.FindIndex(type =>
             string.Equals(type.Id, resourceTypeId, StringComparison.OrdinalIgnoreCase));
@@ -368,7 +373,8 @@ internal sealed class CloudShellExtensionBuilder(
                 typeof(TComponent),
                 showsApplyButton,
                 NormalizeGroupTitle(groupTitle),
-                ResolveResourceTabIcon(id, icon)))
+                ResolveResourceTabIcon(id, icon),
+                isOperational))
             .OrderBy(tab => tab.Order)
             .ThenBy(tab => tab.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();

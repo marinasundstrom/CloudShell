@@ -1,0 +1,89 @@
+@using System.Globalization
+@using CloudShell.Hosting.ResourceManager
+@implements IDisposable
+@inject IRabbitMQBrokerDashboardProvider DashboardProvider
+
+@if (Error is not null)
+{
+    <p role="status">@Error</p>
+}
+else if (Snapshot is null)
+{
+    <p>Loading broker counters…</p>
+}
+else
+{
+    <div class="broker-summary">
+        <div><strong>@Format(Snapshot.Totals.MessagesReady)</strong><span>Ready</span></div>
+        <div><strong>@Format(Snapshot.Totals.MessagesUnacknowledged)</strong><span>Unacknowledged</span></div>
+        <div><strong>@Format(Snapshot.Totals.Consumers)</strong><span>Consumers</span></div>
+    </div>
+    <div class="broker-charts">
+        <section>
+            <h3>Message rates</h3>
+            @if (Snapshot.Throughput.Count > 0)
+            {
+                <svg viewBox="0 0 400 135" role="img" aria-label="Recent publish, delivery, and acknowledgement rates">
+                    <title>Message rates, messages per second, from @Snapshot.Throughput.First().Timestamp.ToLocalTime().ToString("HH:mm:ss") to @Snapshot.Throughput.Last().Timestamp.ToLocalTime().ToString("HH:mm:ss")</title>
+                    <line x1="5" y1="120" x2="395" y2="120" class="axis" />
+                    <polyline points="@Points(s => s.PublishRate)" class="publish" />
+                    <polyline points="@Points(s => s.DeliverGetRate)" class="deliver" />
+                    <polyline points="@Points(s => s.AckRate)" class="ack" />
+                </svg>
+                <p class="legend">Publish @Rate(Snapshot.Totals.PublishRate) · Deliver @Rate(Snapshot.Totals.DeliverGetRate) · Ack @Rate(Snapshot.Totals.AckRate) msg/s</p>
+            }
+            else { <p>No recent throughput samples.</p> }
+        </section>
+        <section>
+            <h3>Queue depth</h3>
+            @foreach (var queue in Snapshot.Queues.OrderByDescending(q => q.Messages).Take(5))
+            {
+                <div class="queue-heading"><span>@queue.Name</span><span>@Format(queue.Messages)</span></div>
+                <svg viewBox="0 0 400 10" role="img" aria-label="@($"{queue.Name}: {Format(queue.MessagesReady)} ready, {Format(queue.MessagesUnacknowledged)} unacknowledged")">
+                    <rect width="400" height="8" class="track" />
+                    <rect width="@Width(queue.MessagesReady)" height="8" class="ready" />
+                    <rect x="@Width(queue.MessagesReady)" width="@Width(queue.MessagesUnacknowledged)" height="8" class="unacked" />
+                </svg>
+            }
+            @if (Snapshot.Queues.Count == 0) { <p>No queue load reported.</p> }
+            <p class="legend">Ready / unacknowledged · top five queues</p>
+        </section>
+    </div>
+    <p class="legend">Observed @Snapshot.ObservedAt.ToLocalTime().ToString("HH:mm:ss")</p>
+}
+@if (Context.Resource is { } broker)
+{
+    <FluentAnchor Href="@OperationsNavigation.Pane(broker.Id, "broker-status")">Broker details</FluentAnchor>
+    <FluentAnchor Href="@OperationsNavigation.Pane(broker.Id, "topology")">Topology</FluentAnchor>
+}
+@code {
+    [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!;
+    private RabbitMQBrokerDashboardResult? Snapshot;
+    private string? Error;
+    private CancellationTokenSource? Request;
+    protected override async Task OnParametersSetAsync()
+    {
+        Request?.Cancel(); Request?.Dispose();
+        var request = Request = new CancellationTokenSource();
+        try
+        {
+            if (Context.Resource is not { } resource) return;
+            var result = await DashboardProvider.GetDashboardAsync(resource, request.Token);
+            if (request.IsCancellationRequested) return;
+            Snapshot = result;
+            Error = result.Succeeded ? null : result.ErrorMessage;
+        }
+        catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+        catch (Exception) { if (!request.IsCancellationRequested) Error = "Broker counters are unavailable. Open Broker details for diagnostics."; }
+    }
+    private static string Format(long? value) => value?.ToString("N0", CultureInfo.CurrentCulture) ?? "—";
+    private static string Rate(double? value) => value?.ToString("0.#", CultureInfo.CurrentCulture) ?? "—";
+    private string Width(long? value) => (400d * Math.Max(0, value ?? 0) / Math.Max(1, Snapshot!.Queues.Max(q => q.Messages ?? 0))).ToString("0.##", CultureInfo.InvariantCulture);
+    private string Points(Func<RabbitMQBrokerThroughputSample, double?> select)
+    {
+        var samples = Snapshot!.Throughput.TakeLast(100).ToArray();
+        var max = Math.Max(1, samples.Max(s => Math.Max(s.PublishRate ?? 0, Math.Max(s.DeliverGetRate ?? 0, s.AckRate ?? 0))));
+        return string.Join(" ", samples.Select((s,i) => string.Create(CultureInfo.InvariantCulture, $"{5 + 390d * i / Math.Max(1, samples.Length - 1):0.##},{120 - 110 * Math.Max(0, select(s) ?? 0) / max:0.##}")));
+    }
+    public void Dispose() { Request?.Cancel(); Request?.Dispose(); }
+}

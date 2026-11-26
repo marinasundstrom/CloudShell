@@ -1,5 +1,8 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.ResourceHost.Pages;
+using CloudShell.Hosting.ResourceManager;
+using CoreShell;
+using CoreShell.Blazor;
 
 namespace CloudShell.ResourceHost;
 
@@ -32,6 +35,25 @@ public sealed class SampleResourceManagerUiExtension : ICloudShellExtension
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
+        builder.AddCoreShellModule(CoreShellModuleId.Create("sample.operations"), module =>
+        {
+            module.ExtendSections(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Widgets)
+                .AddSection<SampleOperationsSummary>(CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "sample-summary"),
+                    "Sample service", 25, new Dictionary<string, string>
+                    {
+                        [OperationsWorkspaceIds.Scope] = "resource",
+                        [OperationsWorkspaceIds.ResourceType] = "sample-service",
+                        [OperationsWorkspaceIds.DefaultWidget] = "true"
+                    });
+            module.ExtendSections(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Panes)
+                .AddSection<SampleOperationsSummary>(CoreShellSectionId.Create(OperationsWorkspaceIds.Panes, "sample-details"),
+                    "Service details", 20, new Dictionary<string, string>
+                    {
+                        [OperationsWorkspaceIds.Scope] = "resource",
+                        [OperationsWorkspaceIds.ResourceType] = "sample-service"
+                    });
+        });
+
         builder
             .AddResourceType<RegisterSampleResource>(
                 "sample-service",

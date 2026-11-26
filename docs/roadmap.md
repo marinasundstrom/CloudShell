@@ -97,6 +97,22 @@ app-development loop before broader platform expansion.
 | 9 | Agent/reconciliation preparation | Agents are the future execution boundary, but the MVP should not become a distributed-systems project. | Keep Configuration Store, Secrets Vault, and Device Registry modeled as stable resources while process/container realization remains provider-owned; shape later host-local execution as typed desired/observed work and defer remote agents, placement, regions, and clustering. |
 | 10 | CoreShell, UI composition, and shell structure | Useful only when it reduces current Resource Manager, Settings, notification, or shell drift. | Use the CoreShell Fluent UI sample as the reference shell and extract only proven common shell building blocks; pause persistence, marketplace, and user-personalized shell-platform work. |
 
+### Resource operations workspace
+
+The [operations workspace](operations-workspace.md) is the new default Resources
+experience: full inventory first, then a compact list beside the selected
+resource dashboard and operational panes. Standalone Observability and other
+ordinary navigation areas retain their own pages. Configuration workflows stay
+intact. System and resource dashboards support type defaults, per-resource
+organization layouts, and personal overrides; RabbitMQ contributes overview
+charts and separate detailed operational panes.
+
+This focused user-requested Resource Manager change supersedes the earlier
+restriction on new operational workspace/personalization work for this feature.
+It does not activate a marketplace or general-purpose shell editor. Continue
+provider coverage, large-inventory/graph tuning, and shared preference storage
+through the [follow-up proposal](proposals/core/operations-workspace.md).
+
 ## Authoritative Milestones
 
 Milestones in this file are the authoritative product scope. Proposal status
@@ -615,8 +631,8 @@ Active MVP tie-off queue:
    labels in routine UI, preserve resource IDs in canonical details, keep
    app-scoped health/logs/traces/monitoring/activity/relationships coherent,
    and update provider READMEs, sample READMEs, proposal status, and feature
-   docs where behavior is intentionally incomplete. Do not broaden shell
-   composition or add new global workspaces.
+   docs where behavior is intentionally incomplete. Use the implemented Resources
+   workspace for operational panes; avoid unrelated shell-platform expansion.
 
 Verify each tie-off slice with targeted tests, relevant sample smoke coverage
 when practical, and `git diff --check`. Docker-dependent smoke tests remain

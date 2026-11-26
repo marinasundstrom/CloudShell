@@ -1,0 +1,167 @@
+@using CoreShell.Blazor
+@using System.Text.Json
+@inject ICoreShellBlazorSectionOutletProjectionService Outlets
+@inject ICloudShellUserSettingsProvider Settings
+@inject IOrganizationDashboardSettings Organization
+@inject ICloudShellAuthorizationService Authorization
+@inject IOptions<OperationsDashboardOptions> DashboardOptions
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
+
+<NavigationLock ConfirmExternalNavigation="@Editing" OnBeforeInternalNavigation="GuardNavigation" />
+@if (PendingNavigation is not null)
+{
+    <div role="alert"><p>@L["Discard unsaved dashboard changes?"]</p><FluentButton OnClick="DiscardAndNavigate">@L["Discard and leave"]</FluentButton><FluentButton OnClick="() => PendingNavigation = null">@L["Keep editing"]</FluentButton></div>
+}
+<div class="dashboard-toolbar">
+    <span>@L[Context.IsSystem ? "System dashboard" : "Resource dashboard"]</span>
+    @if (Editing)
+    {
+        @if (Authorization.HasPermission(CloudShellPermissions.Shell.Configure))
+        {
+            <FluentButton OnClick="SaveOrganizationAsync" Disabled="@Saving">@L["Save for organization"]</FluentButton>
+        }
+        <FluentButton OnClick="RestoreDefaults">@L["Restore defaults"]</FluentButton>
+        <FluentButton OnClick="Cancel" Disabled="@Saving">@L["Cancel"]</FluentButton>
+        <FluentButton Appearance="Appearance.Accent" OnClick="SaveAsync" Disabled="@Saving">@L[Saving ? "Saving…" : "Save"]</FluentButton>
+    }
+    else
+    {
+        <FluentButton OnClick="UseOrganizationAsync" Disabled="@Loading">@L["Use organization defaults"]</FluentButton>
+        <FluentButton OnClick="Edit" Disabled="@Loading" IconStart="@(new Icons.Regular.Size16.Edit())">@L["Edit dashboard"]</FluentButton>
+    }
+</div>
+@if (Message is not null) { <p role="alert">@L[Message]</p> }
+@if (Loading) { <p>@L["Loading dashboard…"]</p> }
+else
+{
+    @if (Editing)
+    {
+        <section class="widget-catalog" aria-label="@L["Available widgets"]">
+            <strong>@L["Add widgets"]</strong>
+            @foreach (var section in Available.Where(s => !Visible.Contains(s.Section.Id.Value)))
+            {
+                <FluentButton OnClick="() => Visible.Add(section.Section.Id.Value)" IconStart="@(new Icons.Regular.Size16.Add())">@L[section.Section.Title]</FluentButton>
+            }
+        </section>
+    }
+    <div class="dashboard-grid">
+        @foreach (var id in Visible.ToArray())
+        {
+            var section = Available.FirstOrDefault(s => s.Section.Id.Value == id);
+            <section @key="id" class="dashboard-widget @(section?.Section.Attributes.GetValueOrDefault("operations.wide") == "true" ? "wide" : null)">
+                <header><h2>@(section is null ? L["Unavailable widget"].Value : L[section.Section.Title].Value)</h2>
+                    @if (Editing)
+                    {
+                        <div class="widget-tools">
+                            <FluentButton OnClick="() => Move(id, -1)" Disabled="@(Visible.IndexOf(id) == 0)" aria-label="@L["Move earlier"]">↑</FluentButton>
+                            <FluentButton OnClick="() => Move(id, 1)" Disabled="@(Visible.IndexOf(id) == Visible.Count - 1)" aria-label="@L["Move later"]">↓</FluentButton>
+                            <FluentButton OnClick="() => Visible.Remove(id)" aria-label="@L["Remove widget"]" IconStart="@(new Icons.Regular.Size16.Dismiss())" />
+                        </div>
+                    }
+                </header>
+                @if (section is null)
+                {
+                    <p>@L["This widget is not available in this scope. Its saved position is retained."]</p>
+                }
+                else
+                {
+                    <ErrorBoundary @key="(Context.ResourceId, id)">
+                        <ChildContent><DynamicComponent Type="section.ContentType" /></ChildContent>
+                        <ErrorContent><p role="alert">@L["This widget could not be loaded. Other widgets remain available."]</p></ErrorContent>
+                    </ErrorBoundary>
+                }
+            </section>
+        }
+    </div>
+    @if (Visible.Count == 0) { <p>@L["Your dashboard is empty. Choose Edit dashboard to add widgets."]</p> }
+}
+
+@code {
+    [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!;
+    private IReadOnlyList<CoreShellBlazorSection> Available = [];
+    private List<string> Visible = [];
+    private string[] Saved = [];
+    private string[] Shared = [];
+    private string? Key;
+    private bool Editing;
+    private bool Saving;
+    private bool Loading;
+    private string? Message;
+    private string? PendingNavigation;
+    private int Version;
+    private IEnumerable<string> Defaults =>
+        (Context.Resource is { } resource && DashboardOptions.Value.ResourceTypes.TryGetValue(resource.EffectiveTypeId, out var typeDefaults) ? typeDefaults : Context.IsSystem ? DashboardOptions.Value.System : null)
+        ?? Available.Where(IsDefault).Select(s => s.Section.Id.Value).ToArray();
+
+    private bool IsDefault(CoreShellBlazorSection section) => section.Section.Attributes.GetValueOrDefault(OperationsWorkspaceIds.DefaultWidget) == "true" &&
+        (section.Section.Attributes.GetValueOrDefault("operations.signal") switch
+        {
+            "traces" => Context.Resource?.EffectiveObservability.Traces == true,
+            "logs" => Context.Resource?.ResourceLogSources.Count > 0,
+            _ => true
+        });
+    protected override async Task OnParametersSetAsync()
+    {
+        var key = OperationsDashboardLayout.SettingKey(Navigation.BaseUri, Context.ResourceId);
+        if (Key == key) return;
+        Key = key;
+        var version = ++Version;
+        Editing = false;
+        Loading = true;
+        Message = null;
+        try
+        {
+            var outlet = await Outlets.ResolveSectionOutletAsync(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Widgets);
+            if (version != Version) return;
+            Available = (outlet?.Sections ?? []).Where(s => OperationsContributions.Applies(s.Section.Attributes, Context)).ToArray();
+            var organization = await Organization.GetAsync(key);
+            if (version != Version) return;
+            Shared = OperationsDashboardLayout.Parse(organization, Defaults).Widgets;
+            var saved = await Settings.GetSettingAsync(key);
+            if (version != Version) return;
+            Visible = OperationsDashboardLayout.Parse(saved?.Value, Shared).Widgets.ToList();
+        }
+        catch (Exception)
+        {
+            if (version != Version) return;
+            Visible = Defaults.ToList();
+            Message = "The saved layout could not be loaded. Defaults are shown; save to replace it.";
+        }
+        finally { if (version == Version) { Saved = Visible.ToArray(); Loading = false; } }
+    }
+    private async Task SaveOrganizationAsync()
+    {
+        Saving = true;
+        try
+        {
+            await Organization.SetAsync(Key!, JsonSerializer.Serialize(new OperationsDashboardLayout(1, Visible.ToArray())));
+            Shared = Visible.ToArray();
+            Message = "Organization defaults saved. Personal overrides remain unchanged; Save also keeps this as your personal layout.";
+        }
+        catch (Exception) { Message = "Could not save organization defaults. Your draft is retained."; }
+        finally { Saving = false; }
+    }
+    private async Task UseOrganizationAsync()
+    {
+        try { await Settings.RemoveSettingAsync(Key!); Visible = Shared.ToList(); Saved = Visible.ToArray(); Message = null; }
+        catch (Exception) { Message = "Could not reset your layout. Try again."; }
+    }
+    private void Edit() { Editing = true; Message = null; }
+    private void Cancel() { Visible = Saved.ToList(); Editing = false; Message = null; }
+    private void RestoreDefaults() => Visible = Defaults.ToList();
+    private void Move(string id, int offset) { var from = Visible.IndexOf(id); var to = from + offset; if (to < 0 || to >= Visible.Count) return; Visible.RemoveAt(from); Visible.Insert(to, id); }
+    private async Task SaveAsync()
+    {
+        Saving = true;
+        try { await Settings.SetSettingAsync(Key!, JsonSerializer.Serialize(new OperationsDashboardLayout(1, Visible.ToArray()))); Saved = Visible.ToArray(); Editing = false; Message = null; }
+        catch (Exception) { Message = "Could not save the dashboard. Your draft is retained; try again."; }
+        finally { Saving = false; }
+    }
+    private void GuardNavigation(LocationChangingContext args)
+    {
+        if (!Editing) return;
+        args.PreventNavigation(); PendingNavigation = args.TargetLocation;
+    }
+    private void DiscardAndNavigate() { Editing = false; var target = PendingNavigation; PendingNavigation = null; Navigation.NavigateTo(target!); }
+}

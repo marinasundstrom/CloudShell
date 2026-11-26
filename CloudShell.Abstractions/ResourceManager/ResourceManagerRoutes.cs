@@ -27,11 +27,6 @@ public static class ResourceManagerRoutes
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
 
-        if (viewId == ResourcePredefinedViewIds.Overview)
-        {
-            return ResourceDetails(resourceId);
-        }
-
         return $"{ResourceDetails(resourceId)}/{Uri.EscapeDataString(GetResourceViewSegment(viewId))}";
     }
 

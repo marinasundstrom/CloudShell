@@ -1,0 +1,275 @@
+@inherits LayoutComponentBase
+@layout CloudShell.Hosting.Components.Layout.MainLayout
+@implements IAsyncDisposable
+@using CoreShell.Blazor
+@inject IOptions<ResourceManagerUiOptions> UiOptions
+@inject IResourceHealthManager HealthManager
+@inject IResourceManager ResourceManager
+@inject ResourceManagerDisplaySettings DisplaySettings
+@inject ICloudShellAuthorizationService Authorization
+@inject ICloudShellUserSettingsProvider Settings
+@inject NavigationManager Navigation
+@inject ShellCatalog Catalog
+@inject ICoreShellBlazorSectionOutletProjectionService Outlets
+@inject IStringLocalizer<SharedResource> L
+@inject Microsoft.Extensions.Logging.ILogger<OperationsLayout> Logger
+
+<FluentMenuProvider />
+<CascadingValue Value="Context">
+<div class="operations-workspace @(Comfortable ? "comfortable" : "compact") @(ShowResources ? "show-resources" : null) @(InventoryOnly ? "inventory-only" : null)">
+    <aside class="operations-inventory" aria-label="@L["Resources"]">
+        <div class="inventory-heading"><h1>@L["Resources"]</h1><span>@Resources.Count</span>
+        @if (InventoryOnly)
+        {
+            <nav aria-label="@L["System operations"]">
+                <FluentAnchor Href="@OperationsNavigation.Dashboard(null)">@L["Dashboard"]</FluentAnchor>
+                <FluentAnchor Href="@OperationsNavigation.Pane(null, "logs")">@L["Logs"]</FluentAnchor>
+                <FluentAnchor Href="@OperationsNavigation.Pane(null, "traces")">@L["Traces"]</FluentAnchor>
+            </nav>
+        }
+        else { <FluentAnchor Href="/resources" Title="@L["Expand resource list"]">@L["Expand"]</FluentAnchor> }
+        </div>
+        <FluentSearch @bind-Value="Filter" Immediate="true" Placeholder="@L["Filter resources"]" aria-label="@L["Filter resources"]" />
+        <FluentAnchor Href="@ScopeHref(null)" Appearance="@(ResourceId is null ? Appearance.Accent : Appearance.Stealth)">@L["All resources"]</FluentAnchor>
+        <div class="inventory-rows">
+            @foreach (var resource in Resources.Where(MatchesFilter))
+            {
+                <div @key="resource.Id" class="resource-row @(resource.Id == ResourceId ? "selected" : null)">
+                    <FluentAnchor Href="@ScopeHref(resource.Id)" Appearance="Appearance.Stealth" Title="@Display.GetResourceLabel(resource)" aria-current="@(resource.Id == ResourceId ? "page" : null)">
+                        <span class="resource-label"><ResourceKindIcon Resource="resource" />
+                        <span class="resource-name">@Display.GetResourceLabel(resource)</span></span>
+                    </FluentAnchor>
+                    @if (InventoryOnly)
+                    {
+                        <span class="inventory-type">@resource.Kind</span>
+                        <span class="inventory-endpoint">@resource.PrimaryEndpoint</span>
+                    }
+                    <span class="row-state"><ResourceStateIndicator State="resource.State" /><span>@(resource.State?.ToString() ?? L["—"].Value)</span></span>
+                    @if (!InventoryOnly)
+                    {
+                        <div class="row-actions">
+                            <ResourceRowActions Resource="resource" Capabilities="@(Capabilities.GetValueOrDefault(resource.Id) ?? ResourceOperationCapabilities.None(resource.Id))" Busy="@ActionBusy" Requested="RequestAction" />
+                        </div>
+                    }
+                </div>
+            }
+            @if (!Loading && Resources.Count == 0)
+            {
+                <p>@L["No visible resources"]</p>
+            }
+            else if (!Resources.Any(MatchesFilter))
+            {
+                <p>@L["No matching resources"]</p>
+            }
+        </div>
+        <div class="inventory-footer">
+            <FluentAnchor Href="@ResourceManagerRoutes.ResourceGraph" Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Branch())">@L["Resource graph"]</FluentAnchor>
+            <FluentAnchor Href="/resources/add" Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Add())">@L["Add resource"]</FluentAnchor>
+            <FluentAnchor Href="/resources/groups/new" Appearance="Appearance.Stealth">@L["Create group"]</FluentAnchor>
+            <FluentAnchor Href="/resources/templates" Appearance="Appearance.Stealth">@L["Templates"]</FluentAnchor>
+        </div>
+    </aside>
+    <section class="operations-main">
+        <header class="operations-heading">
+            <div>
+                <span class="scope-label">@L[ResourceId is null ? "System" : "Resource"]</span>
+                <h1>@(Selected is null ? L[ResourceId is null ? "CloudShell" : "Resource unavailable"].Value : Display.GetResourceLabel(Selected))</h1>
+            </div>
+            <div class="operations-tools">
+                <FluentButton Class="resource-toggle" OnClick="() => ShowResources = !ShowResources" aria-expanded="@ShowResources">@L["Resources"]</FluentButton>
+                <FluentButton OnClick="ToggleDensityAsync" Title="@L["Change density"]">@L[Comfortable ? "Density: Comfortable" : "Density: Compact"]</FluentButton>
+                <FluentButton OnClick="RefreshAsync" Disabled="@Loading" IconStart="@(new Icons.Regular.Size16.ArrowSync())">@L["Refresh"]</FluentButton>
+            </div>
+        </header>
+        <nav class="operations-tabs" aria-label="@L["Operations"]">
+            @foreach (var pane in StandardPanes)
+            {
+                <FluentAnchor Href="@OperationsNavigation.Pane(ResourceId, pane.Id)" Appearance="@(CustomPaneId is null && Pane == pane.Id ? Appearance.Accent : Appearance.Stealth)" aria-current="@(CustomPaneId is null && Pane == pane.Id ? "page" : null)">@L[pane.Title]</FluentAnchor>
+            }
+            @foreach (var pane in CustomPanes)
+            {
+                <FluentAnchor Href="@CustomHref(pane.Section.Id.Value)" Appearance="@(CustomPaneId == pane.Section.Id.Value ? Appearance.Accent : Appearance.Stealth)">@L[pane.Section.Title]</FluentAnchor>
+            }
+            @if (Selected is not null)
+            {
+                @foreach (var tab in ProviderPanes)
+                {
+                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(Selected.Id, tab.Id)" Appearance="@(Pane == tab.Id.Identifier ? Appearance.Accent : Appearance.Stealth)">@L[tab.Title]</FluentAnchor>
+                }
+                <FluentAnchor Href="@ConfigurationHref(Selected)" Appearance="@(IsConfiguration ? Appearance.Accent : Appearance.Stealth)" IconStart="@(new Icons.Regular.Size16.Settings())">@L["Configuration"]</FluentAnchor>
+            }
+        </nav>
+        <div class="operations-freshness" role="status">
+            @if (Error is not null) { <span>@L[Error]</span> }
+            else if (Loading) { <span>@L["Loading resources…"]</span> }
+            else if (UpdatedAt is not null) { <span>@L["Updated {0} · refreshes every 5 seconds", UpdatedAt.Value.ToLocalTime().ToString("HH:mm:ss")]</span> }
+            @if (Selected is not null && !MatchesFilter(Selected)) { <span>@L["Selected resource is outside the list filter."]</span> }
+        </div>
+        @if (PendingAction is { } pending)
+        {
+            <div class="operation-confirmation" role="alert">
+                <strong>@L["Run {0} on {1}?", pending.Action.DisplayName, Display.GetResourceLabel(pending.Resource)]</strong>
+                @if (pending.Action.Kind == ResourceActionKind.Start) { <FluentCheckbox @bind-Value="StartDependencies">@L["Start dependencies"]</FluentCheckbox> }
+                <FluentButton OnClick="ConfirmActionAsync" Disabled="@ActionBusy">@L["Confirm"]</FluentButton>
+                <FluentButton OnClick="() => PendingAction = null" Disabled="@ActionBusy">@L["Cancel"]</FluentButton>
+            </div>
+        }
+        @if (ActionMessage is not null) { <p class="operation-confirmation" role="status">@ActionMessage</p> }
+        <div class="operations-content">
+            @if (InventoryOnly) { }
+            else if (ResourceId is not null && Selected is null)
+            {
+                <EmptyState Title="@L[Loading ? "Loading resource" : "Resource unavailable"].Value" Message="@L["The resource may have been removed or is not visible to your identity."].Value" />
+            }
+            else if (CustomPaneId is not null)
+            {
+                var custom = CustomPanes.FirstOrDefault(p => p.Section.Id.Value == CustomPaneId);
+                @if (custom is null) { <EmptyState Title="@L["Pane unavailable"].Value" Message="@L["This pane is not available in the current scope."].Value" /> }
+                else { <ErrorBoundary @key="(ResourceId, CustomPaneId)"><ChildContent><DynamicComponent Type="custom.ContentType" /></ChildContent><ErrorContent><p role="alert">@L["This pane could not be loaded."]</p></ErrorContent></ErrorBoundary> }
+            }
+            else
+            {
+                @Body
+            }
+        </div>
+    </section>
+</div>
+</CascadingValue>
+
+@code {
+    private readonly CancellationTokenSource Lifetime = new();
+    private Task? Polling;
+    private bool Refreshing;
+    private IReadOnlyDictionary<string, ResourceOperationCapabilities> Capabilities = new Dictionary<string, ResourceOperationCapabilities>();
+    private (Resource Resource, ResourceAction Action)? PendingAction;
+    private bool ActionBusy;
+    private bool StartDependencies;
+    private string? ActionMessage;
+    private void RequestAction((Resource Resource, ResourceAction Action) request) { PendingAction = request; StartDependencies = false; ActionMessage = null; }
+    private async Task ConfirmActionAsync()
+    {
+        if (PendingAction is not { } pending || ActionBusy || UiOptions.Value.ReadOnly) return;
+        ActionBusy = true;
+        try
+        {
+            var result = await ResourceManager.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(pending.Resource.Id, pending.Action.Id, StartDependencies: StartDependencies));
+            ActionMessage = result.Message; PendingAction = null; await RefreshAsync();
+        }
+        catch (Exception) { ActionMessage = L["The operation could not complete. Open resource configuration for diagnostics or dependency choices."].Value; }
+        finally { ActionBusy = false; }
+    }
+    private bool Loading = true;
+    private bool Comfortable;
+    private bool ShowResources;
+    private string Filter = "";
+    private string? Error;
+    private DateTimeOffset? UpdatedAt;
+    private IReadOnlyList<Resource> Resources = [];
+    private IReadOnlyDictionary<string, ResourceHealthSummary> Health = new Dictionary<string, ResourceHealthSummary>();
+    private ResourceManagerDisplaySelection Display = ResourceManagerDisplaySelection.Default;
+    private IReadOnlyList<CoreShellBlazorSection> Sections = [];
+    private string? ResourceId;
+    private string Pane = "dashboard";
+    private string? CustomPaneId;
+    private Resource? Selected => Resources.FirstOrDefault(r => string.Equals(r.Id, ResourceId, StringComparison.OrdinalIgnoreCase));
+    private OperationsWorkspaceContext Context => new(Resources, Selected, ResourceId, Loading, Error, UpdatedAt, Display.GetResourceLabel) { Health = Health };
+    private (string Id, string Title)[] StandardPanes => [("dashboard", "Dashboard"), ("logs", "Logs"), ("traces", "Traces")];
+    private IEnumerable<ResourceTabContribution> ProviderPanes => Selected is null ? [] : ResourceTabResolver.Resolve(
+        Selected, Catalog.ResourceTypes.FirstOrDefault(t => t.Id == Selected.EffectiveTypeId),
+        true, Selected.ResourceCapabilities.Any(c => c.Id == ResourceCapabilityIds.Monitoring), Authorization.CanReadUsage(), false).Tabs
+        .Where(OperationsNavigation.IsOperational).Where(t => t.Id != ResourcePredefinedViewIds.Logs && t.Id != ResourcePredefinedViewIds.Traces);
+    private bool InventoryOnly => ResourceId is null && Pane == "resources";
+    private bool IsConfiguration => Pane is not ("dashboard" or "logs" or "traces" or "metrics" or "health" or "monitoring" or "activity" or "usage") && !ProviderPanes.Any(t => t.Id.Identifier == Pane);
+    private IEnumerable<CoreShellBlazorSection> CustomPanes => Sections.Where(s => OperationsContributions.Applies(s.Section.Attributes, Context));
+    private bool MatchesFilter(Resource resource) => string.IsNullOrWhiteSpace(Filter) || Display.GetResourceLabel(resource).Contains(Filter, StringComparison.OrdinalIgnoreCase) || resource.Kind.Contains(Filter, StringComparison.OrdinalIgnoreCase);
+    private string ConfigurationHref(Resource resource) =>
+        Catalog.ResourceTypes.FirstOrDefault(t => t.Id == resource.EffectiveTypeId)?.UpdateComponentType is not null
+            ? ResourceManagerRoutes.ResourceDetails(resource.Id, ResourcePredefinedViewIds.Configuration)
+            : OperationsNavigation.Pane(resource.Id, "overview");
+    private string CustomHref(string id) => Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(OperationsNavigation.Dashboard(ResourceId), "pane", id);
+    private string ScopeHref(string? id)
+    {
+        var target = OperationsNavigation.Pane(id, Pane is "logs" or "traces" or "metrics" ? Pane : "dashboard");
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+        foreach (var key in new[] { "since", "before", "timeRange" })
+            if (query.TryGetValue(key, out var value)) target = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(target, key, value.ToString());
+        return target;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Navigation.LocationChanged += LocationChanged;
+        ReadLocation();
+        try { Comfortable = (await Settings.GetSettingAsync("operations.density"))?.Value == "comfortable"; }
+        catch (Exception ex) { Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(Logger, ex, "Could not load operations density"); }
+        await RefreshAsync();
+        Polling = PollAsync();
+    }
+
+    private void ReadLocation()
+    {
+        (ResourceId, Pane) = OperationsNavigation.Parse(Navigation.ToBaseRelativePath(Navigation.Uri));
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+        CustomPaneId = query.TryGetValue("pane", out var pane) ? pane.ToString() : null;
+    }
+
+    private void LocationChanged(object? sender, LocationChangedEventArgs args) => _ = InvokeAsync(() =>
+    {
+        ReadLocation();
+        PendingAction = null;
+        ActionMessage = null;
+        ShowResources = false;
+        StateHasChanged();
+    });
+
+    private async Task ToggleDensityAsync()
+    {
+        var next = !Comfortable;
+        try { await Settings.SetSettingAsync("operations.density", next ? "comfortable" : "compact"); Comfortable = next; }
+        catch (Exception ex) { Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(Logger, ex, "Could not save density"); Error = "Could not save density. Try again."; }
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (Refreshing || Lifetime.IsCancellationRequested) return;
+        Refreshing = true;
+        try
+        {
+            var display = await DisplaySettings.GetAsync(Lifetime.Token);
+            var inventory = await ResourceManager.ListResourcesAsync(cancellationToken: Lifetime.Token);
+            var groups = await ResourceManagerUiAccess.CreateGroupLookupAsync(ResourceManager, inventory);
+            Resources = inventory.Where(display.ShowsResource).Where(r => ResourceManagerUiAccess.CanReadResource(Authorization, r, groups))
+                .OrderBy(display.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase).ToArray();
+            Display = display;
+            Health = (await HealthManager.ListResourceHealthAsync(Lifetime.Token))
+                .Where(pair => Resources.Any(r => r.Id == pair.Key)).ToDictionary(pair => pair.Key, pair => pair.Value);
+            Sections = (await Outlets.ResolveSectionOutletAsync(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Panes, Lifetime.Token))?.Sections ?? [];
+            Capabilities = Resources.Count == 0 ? new Dictionary<string, ResourceOperationCapabilities>()
+                : await ResourceManager.GetResourceOperationCapabilitiesAsync(Resources.Select(r => r.Id).ToArray(), Lifetime.Token);
+            UpdatedAt = DateTimeOffset.Now;
+            Error = null;
+        }
+        catch (OperationCanceledException) when (Lifetime.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(Logger, ex, "Could not refresh operations inventory");
+            Error = "Resource refresh failed. Information may be stale; retry with Refresh.";
+        }
+        finally { Loading = false; Refreshing = false; }
+    }
+
+    private async Task PollAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try { while (await timer.WaitForNextTickAsync(Lifetime.Token)) await InvokeAsync(async () => { await RefreshAsync(); StateHasChanged(); }); }
+        catch (OperationCanceledException) when (Lifetime.IsCancellationRequested) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Navigation.LocationChanged -= LocationChanged;
+        await Lifetime.CancelAsync();
+        if (Polling is not null) await Polling;
+        Lifetime.Dispose();
+    }
+}

@@ -45,12 +45,14 @@ internal static class ResourceManagerShellLinks
     public static string ResourceDetails(
         ICoreShellRouteService routes,
         string resourceId) =>
-        ResourceDetails(routes, resourceId, ResourcePredefinedViewIds.Overview);
+        ResourceDetailsCore(routes, resourceId, null);
 
     public static string ResourceDetails(
         ICoreShellRouteService routes,
         string resourceId,
-        ResourceViewId viewId)
+        ResourceViewId viewId) => ResourceDetailsCore(routes, resourceId, viewId);
+
+    private static string ResourceDetailsCore(ICoreShellRouteService routes, string resourceId, ResourceViewId? viewId)
     {
         ArgumentNullException.ThrowIfNull(routes);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
@@ -60,9 +62,9 @@ internal static class ResourceManagerShellLinks
             ["resourceId"] = resourceId
         };
 
-        if (viewId != ResourcePredefinedViewIds.Overview)
+        if (viewId.HasValue)
         {
-            routeParams["view"] = ResourceManagerRoutes.GetResourceViewSegment(viewId);
+            routeParams["view"] = ResourceManagerRoutes.GetResourceViewSegment(viewId.Value);
         }
 
         var href = ResolveHref(
@@ -71,7 +73,7 @@ internal static class ResourceManagerShellLinks
             routeParams);
 
         return href == "#"
-            ? ResourceManagerRoutes.ResourceDetails(resourceId, viewId)
+            ? (viewId.HasValue ? ResourceManagerRoutes.ResourceDetails(resourceId, viewId.Value) : ResourceManagerRoutes.ResourceDetails(resourceId))
             : href;
     }
 

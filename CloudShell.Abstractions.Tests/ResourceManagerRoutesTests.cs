@@ -31,13 +31,13 @@ public sealed class ResourceManagerRoutesTests
     }
 
     [Fact]
-    public void ResourceDetails_WithOverviewView_TargetsResourceDetailsContainer()
+    public void ResourceDetails_WithOverviewView_TargetsDetailedConfigurationOverview()
     {
         var route = ResourceManagerRoutes.ResourceDetails(
             "application:api",
             ResourcePredefinedViewIds.Overview);
 
-        Assert.Equal("/resources/application%3Aapi", route);
+        Assert.Equal("/resources/application%3Aapi/overview", route);
     }
 
     [Fact]

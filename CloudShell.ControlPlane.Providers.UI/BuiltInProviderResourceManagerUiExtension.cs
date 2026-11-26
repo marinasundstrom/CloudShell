@@ -4,6 +4,9 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.Hosting.Components.Pages.Resources;
+using CloudShell.Hosting.ResourceManager;
+using CoreShell;
+using CoreShell.Blazor;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ContainerAppPages = CloudShell.ControlPlane.Providers.UI.ContainerApplication.Pages;
 using ConfigurationPages = CloudShell.ControlPlane.Providers.UI.Configuration.Pages;
@@ -53,6 +56,18 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
         builder.Services.TryAddScoped<IResourceReplicaSlotStateManager, EmptyResourceReplicaSlotStateManager>();
         builder.Services.TryAddSingleton<IRabbitMQBrokerTopologyProvider, NoopRabbitMQBrokerTopologyProvider>();
         builder.Services.TryAddSingleton<IRabbitMQBrokerDashboardProvider, NoopRabbitMQBrokerDashboardProvider>();
+
+        builder.AddCoreShellModule(CoreShellModuleId.Create("cloudshell.rabbitmq.operations"), module =>
+            module.ExtendSections(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Widgets)
+                .AddSection<RabbitMQPages.RabbitMQOverviewWidget>(
+                    CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "rabbitmq-counters"), "RabbitMQ", 25,
+                    new Dictionary<string, string>
+                    {
+                        [OperationsWorkspaceIds.Scope] = "resource",
+                        [OperationsWorkspaceIds.ResourceType] = RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                        [OperationsWorkspaceIds.DefaultWidget] = "true",
+                        ["operations.wide"] = "true"
+                    }));
 
         var resourceTypes = builder;
         if (_options.EnableHostRunApplicationResourceTypes)
@@ -556,18 +571,20 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 icon: "queue")
             .AddResourceTab<RabbitMQPages.RabbitMQDashboard>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Messaging, "dashboard"),
-                "Dashboard",
+                new ResourceViewId(ResourceTabGroupIds.Messaging, "broker-status"),
+                "Broker status",
                 37,
                 groupTitle: ResourceTabGroupTitles.Messaging,
-                icon: "metrics")
+                icon: "metrics",
+                isOperational: true)
             .AddResourceTab<RabbitMQPages.RabbitMQTopology>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Messaging, "topology"),
                 "Topology",
                 40,
                 groupTitle: ResourceTabGroupTitles.Messaging,
-                icon: "queue")
+                icon: "queue",
+                isOperational: true)
             .AddResourceTab<SqlServerPages.SqlServerDatabases>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "databases"),

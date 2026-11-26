@@ -2586,7 +2586,10 @@ public sealed class SampleSmokeTests
             }));
         Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
 
-        var dashboardHtml = await client.GetStringAsync("/");
+        using var landingResponse = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.Redirect, landingResponse.StatusCode);
+        Assert.Equal("/resources?operation=dashboard", landingResponse.Headers.Location?.PathAndQuery);
+        var dashboardHtml = await client.GetStringAsync(landingResponse.Headers.Location);
         Assert.Contains("href=\"/account/logout\"", dashboardHtml);
         Assert.Contains("data-enhance-nav=\"false\"", dashboardHtml);
 

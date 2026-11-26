@@ -1,0 +1,12 @@
+@inject IStringLocalizer<SharedResource> L
+@{
+    var attention = Context.Resources.Where(r => r.State is ResourceState.Degraded or ResourceState.Unknown || Context.Health.GetValueOrDefault(r.Id)?.Status == ResourceHealthStatus.Unhealthy).ToArray();
+}
+@if (attention.Length == 0) { <p>@L["No unhealthy, degraded, or unknown resource states reported."]</p> }
+else
+{
+    @foreach (var resource in attention.Take(12))
+    { <p><FluentAnchor Href="@Context.DashboardHref(resource.Id)">@Context.GetLabel(resource)</FluentAnchor> <span>@resource.State</span></p> }
+    @if (attention.Length > 12) { <p>@L["{0} more resources need attention.", attention.Length - 12]</p> }
+}
+@code { [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!; }

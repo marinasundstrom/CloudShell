@@ -429,6 +429,8 @@ else if (ShowHeading)
 </section>
 
 @code {
+    [CascadingParameter] public OperationsWorkspaceContext? Workspace { get; set; }
+    private string TracesHome => Workspace is null ? "/telemetry/traces" : OperationsNavigation.Pane(null, "traces");
     [Parameter]
     public string? ResourceId { get; set; }
 
@@ -535,7 +537,7 @@ else if (ShowHeading)
                 L["Trace resource not found"].Value,
                 L["Resource '{0}' does not expose traces or is not available.", GetResourceLabel(resourceId)].Value,
                 Inline ? L["Open Resources"].Value : L["All trace resources"].Value,
-                Inline ? GetResourcesRoute() : "/telemetry/traces");
+                Inline ? GetResourcesRoute() : TracesHome);
         }
 
         if (IsAllSourcesSelected())
@@ -640,7 +642,7 @@ else if (ShowHeading)
             : TraceSortModes.Newest;
     }
 
-    private void ShowAllResources() => Navigation.NavigateTo("/telemetry/traces");
+    private void ShowAllResources() => Navigation.NavigateTo(TracesHome);
 
     private void ClearTraceFilter()
     {
@@ -649,7 +651,7 @@ else if (ShowHeading)
         {
             Navigation.NavigateTo(Inline && !string.IsNullOrWhiteSpace(ResourceId)
                 ? ResourceManagerShellLinks.ResourceDetails(ShellRoutes, ResourceId, ResourcePredefinedViewIds.Traces)
-                : "/telemetry/traces");
+                : TracesHome);
             return;
         }
 
@@ -1044,7 +1046,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
         }
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            "/telemetry/traces",
+            TracesHome,
             BuildTraceQuery(resourceId, traceId, scopeResourceId));
     }
 

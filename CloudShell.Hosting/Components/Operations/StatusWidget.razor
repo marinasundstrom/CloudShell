@@ -1,0 +1,19 @@
+@inject IStringLocalizer<SharedResource> L
+@if (Context.Resource is { } resource)
+{
+    <ResourceStatusSummary Resource="resource" HealthSummary="@Context.Health.GetValueOrDefault(resource.Id)" />
+    <ResourceQuickActions Resource="resource" @key="resource.Id" />
+    <ResourceFailureSummary Resource="resource" />
+    <dl><dt>@L["Type"]</dt><dd>@resource.Kind</dd><dt>@L["Management"]</dt><dd>@resource.ManagementMode</dd></dl>
+    <FluentAnchor Href="@OperationsNavigation.Pane(resource.Id, "overview")">@L["Resource actions and configuration"]</FluentAnchor>
+}
+else
+{
+    <div class="status-counts">
+        <div><strong>@Context.Resources.Count</strong><span>@L["Resources"]</span></div>
+        @foreach (var group in Context.Resources.GroupBy(r => r.State).OrderBy(g => g.Key))
+        { <div><strong>@group.Count()</strong><span>@(group.Key?.ToString() ?? L["No lifecycle"].Value)</span></div> }
+    </div>
+    <p>@L["Lifecycle state is separate from health. Open a resource to investigate."]</p>
+}
+@code { [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!; }

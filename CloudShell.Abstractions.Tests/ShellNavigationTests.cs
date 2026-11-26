@@ -391,7 +391,7 @@ public sealed class ShellNavigationTests
             "application:orders");
 
         Assert.Equal(
-            "/resources/application%3Aorders",
+            "/resources/application%3Aorders/overview",
             items.Single(item => item.Id == ResourcePredefinedViewIds.Overview.Value).Href);
         Assert.Equal(
             "/resources/application%3Aorders/logs",

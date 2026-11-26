@@ -104,3 +104,12 @@ Use this sample for both cases:
 
 Runtime state is stored under `samples/CloudShell.ResourceHost/Data/` and is
 ignored by git.
+
+## Operations workspace
+
+The sample includes a type-specific default dashboard widget and a Service
+details pane through the public CoreShell operations outlets. Open Resources,
+select a sample service, and switch Dashboard/Logs/Traces/Service details while
+retaining the compact inventory. Edit dashboard changes the selected resource's
+layout; users with `shell.configure` can also save organization defaults.
+See [Operations workspace](../../docs/operations-workspace.md).

@@ -1,0 +1,4 @@
+.quick-actions { display:flex; flex-wrap:wrap; gap:.4rem; margin:.65rem 0; }
+.action-confirmation { padding:.65rem; margin:.65rem 0; border:1px solid var(--cloudshell-stroke); border-radius:4px; background:var(--neutral-layer-2); }
+.action-confirmation p { margin:0 0 .5rem; }
+.action-confirmation ::deep fluent-button { margin-right:.35rem; }

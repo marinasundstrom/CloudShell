@@ -1,0 +1,58 @@
+@implements IDisposable
+@inject IResourceEventManager Events
+@inject ITraceManager Traces
+@inject ILogManager Logs
+@inject ICloudShellAuthorizationService Authorization
+@inject IStringLocalizer<SharedResource> L
+@if (Message is not null) { <p>@L[Message]</p> }
+else
+{
+    <div class="signal-preview">
+        @foreach (var item in Items)
+        { <p><time>@item.Time.ToLocalTime().ToString("HH:mm:ss")</time> <span>@item.Text</span></p> }
+    </div>
+    @if (Items.Count == 0) { <p>@L["No recent entries."]</p> }
+}
+@if (Kind is "logs" or "traces") { <FluentAnchor Href="@OperationsNavigation.Pane(Context.ResourceId, Kind)">@L["View all"]</FluentAnchor> }
+else if (Context.ResourceId is not null) { <FluentAnchor Href="@OperationsNavigation.Pane(Context.ResourceId, "activity")">@L["View all"]</FluentAnchor> }
+@code {
+    [Parameter] public string Kind { get; set; } = "activity";
+    [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!;
+    private List<(DateTimeOffset Time, string Text)> Items = [];
+    private CancellationTokenSource? Request;
+    private string? Message;
+    protected override async Task OnParametersSetAsync()
+    {
+        Request?.Cancel(); Request?.Dispose();
+        var request = Request = new CancellationTokenSource();
+        Items = [];
+        Message = "Loading…";
+        try
+        {
+            if (Kind == "logs" && !Authorization.CanReadLogs() || Kind == "traces" && !Authorization.CanReadTraces()) { Message = "Access denied"; return; }
+            List<(DateTimeOffset, string)> items;
+            if (Kind == "traces")
+            {
+                var spans = await Traces.ListTraceSpansAsync(new TraceQuery(ResourceId: Context.ResourceId, MaxSpans: 8), request.Token);
+                items = spans.Where(s => Context.Resources.Any(r => r.Id == s.ResourceId)).Select(s => (s.StartTime, $"{s.Name} · {s.Status} · {s.Duration.TotalMilliseconds:0.#} ms")).ToList();
+            }
+            else if (Kind == "logs")
+            {
+                var sources = await Logs.ListLogSourcesAsync(new LogQuery(ResourceId: Context.ResourceId), request.Token);
+                await using var session = sources.Count == 0 ? null : await Logs.OpenLogSessionAsync(new LogSessionOptions(sources.Take(8).Select(s => s.Id).ToArray()), request.Token);
+                var entries = session is null ? [] : await session.ReadAsync(8, cancellationToken: request.Token);
+                items = entries.Select(e => (e.Entry.Timestamp, e.Entry.Message)).ToList();
+            }
+            else
+            {
+                var events = await Events.ListResourceEventsAsync(new ResourceEventQuery(ResourceId: Context.ResourceId, MaxEvents: 8), request.Token);
+                items = events.Where(e => Context.Resources.Any(r => r.Id == e.ResourceId)).Select(e => (e.Timestamp, e.Message)).ToList();
+            }
+            if (request.IsCancellationRequested) return;
+            Items = items; Message = null;
+        }
+        catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+        catch (Exception) { if (!request.IsCancellationRequested) Message = "This signal is unavailable. Try its full view for details."; }
+    }
+    public void Dispose() { Request?.Cancel(); Request?.Dispose(); }
+}

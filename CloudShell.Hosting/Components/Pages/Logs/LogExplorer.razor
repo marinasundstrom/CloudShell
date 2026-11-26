@@ -318,6 +318,8 @@ else if (ShowHeading)
     </section>
 
 @code {
+    [CascadingParameter] public OperationsWorkspaceContext? Workspace { get; set; }
+    private string LogsHome => Workspace is null ? "/logs" : OperationsNavigation.Pane(null, "logs");
     [Parameter]
     public string? ResourceId { get; set; }
 
@@ -797,7 +799,7 @@ else if (ShowHeading)
             query["traceId"] = TraceId.Trim();
         }
 
-        Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
+        Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(LogsHome, query));
     }
 
     private void SelectLog(string? logId)
@@ -934,7 +936,7 @@ else if (ShowHeading)
                     query["resourceId"] = resourceId;
                 }
 
-                Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
+                Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(LogsHome, query));
             }
 
             return;
@@ -1367,7 +1369,7 @@ else if (ShowHeading)
             query["traceId"] = traceId.Trim();
         }
 
-        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(LogsHome, query);
     }
 
     private string BuildLogSourceRoute(LogSource log, string? traceId = null)
@@ -1388,7 +1390,7 @@ else if (ShowHeading)
             query["traceId"] = traceId.Trim();
         }
 
-        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(LogsHome, query);
     }
 
     private string BuildLogViewRoute(string view, LogSource? selected)
@@ -1422,7 +1424,7 @@ else if (ShowHeading)
             query["resourceId"] = resourceId;
         }
 
-        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(LogsHome, query);
     }
 
     private void AddLogViewQuery(Dictionary<string, string?> query, string view)
@@ -1504,7 +1506,7 @@ else if (ShowHeading)
         }
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            "/telemetry/traces",
+            Workspace is null ? "/telemetry/traces" : OperationsNavigation.Pane(null, "traces"),
             query);
     }
 
@@ -1547,7 +1549,7 @@ else if (ShowHeading)
         !LogResourceFilters.Any(option =>
             string.Equals(option.ResourceId, ResourceId, StringComparison.OrdinalIgnoreCase));
 
-    private static string BuildAllLogsRoute() => "/logs";
+    private string BuildAllLogsRoute() => LogsHome;
 
     private sealed record LogSelectionIssue(
         string Title,

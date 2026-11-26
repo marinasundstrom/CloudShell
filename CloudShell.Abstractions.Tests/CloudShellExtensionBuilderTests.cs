@@ -84,6 +84,18 @@ public sealed class CloudShellExtensionBuilderTests
         Assert.Equal(2, resourceType.ResourceTabs.Count);
     }
 
+    [Fact]
+    public void AddResourceTab_RejectsReservedDashboardAndPreservesOperationalClassification()
+    {
+        Assert.Throws<InvalidOperationException>(() => ConfigureExtension(builder => builder
+            .AddResourceType<TestComponent>("sample.resource", "Sample", "Sample resource.", "sample", 10)
+            .AddResourceTab<TestComponent>("sample.resource", new ResourceViewId(ResourceTabGroupIds.General, "dashboard"), "Dashboard", 10)));
+        var extension = ConfigureExtension(builder => builder
+            .AddResourceType<TestComponent>("sample.resource", "Sample", "Sample resource.", "sample", 10)
+            .AddResourceTab<TestComponent>("sample.resource", new ResourceViewId(ResourceTabGroupIds.General, "diagnostics"), "Diagnostics", 10, isOperational: true));
+        Assert.True(Assert.Single(Assert.Single(extension.ResourceTypes).ResourceTabs).IsOperational);
+    }
+
     private static CloudShellExtensionRegistration ConfigureExtension(
         Action<ICloudShellExtensionBuilder> configure)
     {

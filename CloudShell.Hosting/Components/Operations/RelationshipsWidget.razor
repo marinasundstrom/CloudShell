@@ -1,0 +1,40 @@
+@inject IStringLocalizer<SharedResource> L
+@{
+    var nodes = Nodes;
+    var positions = nodes.Select((r,i) => (r.Id, X: 20 + i % 3 * 250, Y: 20 + i / 3 * 95)).ToDictionary(n => n.Id);
+    var edges = nodes.SelectMany(r => r.DependsOn.Select(id => (From:r.Id, To:id, Kind:"Dependency"))
+        .Concat(r.ParentResourceId is null ? [] : new[] { (From:r.Id, To:r.ParentResourceId, Kind:"Parent") })
+        .Concat(r.OwnerResourceId is null ? [] : new[] { (From:r.Id, To:r.OwnerResourceId, Kind:"Owner") }))
+        .Where(e => positions.ContainsKey(e.To)).Distinct().ToArray();
+}
+<p class="graph-caption">@L["Declared relationships · lifecycle updates every 5 seconds"]</p>
+<div class="relationship-graph">
+    <svg viewBox="@($"0 0 750 {Math.Max(130, ((nodes.Count + 2) / 3) * 95 + 25)}")" role="img" aria-label="@L["Resource relationships"]">
+        @foreach (var edge in edges)
+        {
+            var from = positions[edge.From]; var to = positions[edge.To];
+            <g><title>@L[edge.Kind]: @Context.GetLabel(nodes.First(n => n.Id == edge.From)) → @Context.GetLabel(nodes.First(n => n.Id == edge.To))</title>
+            <line x1="@(from.X+105)" y1="@(from.Y+44)" x2="@(to.X+105)" y2="@(to.Y+10)" class="@edge.Kind.ToLowerInvariant()" />
+            </g>
+        }
+        @foreach (var resource in nodes)
+        {
+            var p = positions[resource.Id];
+            <g><rect x="@p.X" y="@p.Y" width="210" height="54" rx="5" />
+            <foreignObject x="@(p.X+8)" y="@(p.Y+5)" width="194" height="45">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="graph-node">
+                    <FluentAnchor Href="@Context.DashboardHref(resource.Id)" Appearance="Appearance.Stealth">@Context.GetLabel(resource)</FluentAnchor>
+                    <span>@(resource.State?.ToString() ?? L["No lifecycle"].Value)</span>
+                </div>
+            </foreignObject></g>
+        }
+    </svg>
+</div>
+<p class="graph-caption">@L["Solid: dependency · dashed: parent · dotted: owner. These are declared relationships, not observed traffic."]</p>
+@if (Context.Resources.Count > 24 && Context.IsSystem) { <p>@L["Showing the first 24 resources. Select a resource to inspect its neighborhood."]</p> }
+@if (nodes.Count == 0) { <p>@L["No visible relationships."]</p> }
+<FluentAnchor Href="@ResourceManagerRoutes.ResourceGraph">@L["Open full graph"]</FluentAnchor>
+@code {
+    [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!;
+    private IReadOnlyList<Resource> Nodes => (Context.Resource is not { } selected ? Context.Resources : Context.Resources.Where(r => r.Id == selected.Id || selected.DependsOn.Contains(r.Id) || r.DependsOn.Contains(selected.Id) || r.ParentResourceId == selected.Id || selected.ParentResourceId == r.Id || r.OwnerResourceId == selected.Id || selected.OwnerResourceId == r.Id)).OrderBy(r => r.Id, StringComparer.Ordinal).Take(24).ToArray();
+}

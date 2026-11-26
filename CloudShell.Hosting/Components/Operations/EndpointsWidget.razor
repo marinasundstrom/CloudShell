@@ -1,0 +1,15 @@
+@inject IStringLocalizer<SharedResource> L
+@if (Context.Resource is { } resource)
+{
+    @foreach (var endpoint in resource.Endpoints)
+    {
+        var address = resource.GetResolvedEndpointAddress(endpoint);
+        <p><strong>@endpoint.Name</strong><br />
+        @if (Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+        { <FluentAnchor Href="@address" Target="_blank" Rel="noopener noreferrer">@address</FluentAnchor> }
+        else { <span>@(address ?? L["Not resolved"].Value)</span> }
+        </p>
+    }
+    @if (resource.Endpoints.Count == 0) { <p>@L["No endpoints advertised."]</p> }
+}
+@code { [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!; }

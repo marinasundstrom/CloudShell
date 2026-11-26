@@ -81,6 +81,7 @@ keep only the delta that affects remaining work.
 | 24 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
 | 25 | [Intent-first resource authoring](core/intent-first-resource-authoring.md) | Proposed | Medium-high; broadens authoring without making CloudShell code-centric. | Defer until ResourceDefinition apply, provider diagnostics, and Resource Manager review/apply surfaces are stable; then start with draft-template review rather than autonomous apply. |
 | 26 | [Device registration and management](iot/device-registration-and-management.md) | Proposed | Medium-high; extends the existing Device Registry through one provider-neutral inventory and onboarding model. | Start with operator-initiated registration, stable external identifier bindings, and later enrollment reconciliation into the same device record. Keep update, deployment, and flashing execution deferred. |
+| 27 | [Operations workspace and customizable dashboards](core/operations-workspace.md) | Core implemented; follow-up | High; gives developers and operators a compact overview with persistent resource navigation. | Use the operations workspace spec for current behavior; validate provider coverage, large graphs, and multi-instance shared preferences. |
 
 ## Deferred Strategy Notes
 

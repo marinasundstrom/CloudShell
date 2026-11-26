@@ -1,0 +1,1 @@
+.status-counts { display:flex; flex-wrap:wrap; gap:1.2rem; } .status-counts div { display:grid; gap:.2rem; } strong { font-size:1.6rem; } span,p,dt,dd { font-size:.8rem; } dl { display:grid; grid-template-columns:auto 1fr; gap:.4rem; } dd { margin:0; }

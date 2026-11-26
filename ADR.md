@@ -9,6 +9,27 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-11-26
+
+### ADR-20261126-001: Resource operations workspace with composed dashboards
+
+Resources is the default developer/operator surface. It starts with a full
+inventory; selecting a resource narrows that list beside its dashboard and
+standard or custom operational panes. Ordinary shell navigation and standalone
+Observability remain independent. Resource configuration forms retain their
+editing workflows while operational content moves into workspace panes.
+
+Dashboards compose ordinary CoreShell sections and receive a Resource Manager
+UI scope context. There is one system dashboard and one dashboard per resource.
+Type/host defaults are overridden by per-resource organization layouts, then
+personal layouts. These are presentation preferences, not resource definitions
+or provider configuration. Organization writes require `shell.configure`; the
+initial shared store is UI-host-local and replaceable for multi-instance hosts.
+
+See [Operations workspace](docs/operations-workspace.md) for contracts,
+routes, storage, provider parity, and current limits. Detailed provider tools
+remain panes; overview widgets summarize their important information.
+
 ## 2026-08-22
 
 ### ADR-20260822-002: Separate Control Plane distribution, instance, endpoint, and execution ownership

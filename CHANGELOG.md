@@ -10,6 +10,23 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+### 2026-11-26
+
+- Replaced the default resource inventory/preview with a compact operations
+  workspace: full-width inventory first, persistent compact resource list on
+  selection, and system/resource dashboards with adjacent operational panes.
+- Added hover/focus lifecycle controls, labeled command icons, and direct access
+  to the existing Resource graph.
+- Added composed widgets, type/host defaults, per-resource organization layouts,
+  personal overrides, accessible reordering, and saved-layout recovery.
+- Preserved standalone Observability and configuration workflows; moved standard
+  and explicitly classified custom operational tabs into workspace navigation.
+- Added RabbitMQ overview diagrams and separate broker-status/topology panes,
+  plus a sample custom dashboard widget and operational pane.
+- Added navigation, layout validation, organization authorization/persistence,
+  and extension classification coverage. Decision:
+  [ADR-20261126-001](ADR.md#adr-20261126-001).
+
 ### 2026-10-26
 
 - Update Raven code highlighting for whole backtick and `@`-escaped identifiers, including function names and references; verify grammar-only rendering.

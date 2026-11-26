@@ -1,6 +1,8 @@
 @using Microsoft.FluentUI.AspNetCore.Components
 
-<section class="cloudshell-tabbed-layout registration-layout @Class" @attributes="AdditionalAttributes">
+<section class="cloudshell-tabbed-layout registration-layout @(ShowNavigation ? null : "operations-content-only") @Class" @attributes="AdditionalAttributes">
+    @if (ShowNavigation)
+    {
     <aside class="panel cloudshell-tabbed-summary registration-options">
         @SummaryContent
 
@@ -62,6 +64,7 @@
             </div>
         }
     </aside>
+    }
 
     <div class="panel cloudshell-tabbed-host registration-host"
          data-composition-module="@SelectedItem?.ModuleId">
@@ -90,6 +93,7 @@
 </section>
 
 @code {
+    [Parameter] public bool ShowNavigation { get; set; } = true;
     [Parameter]
     public IReadOnlyList<CloudShellTabbedLayoutItem> Items { get; set; } = [];
 

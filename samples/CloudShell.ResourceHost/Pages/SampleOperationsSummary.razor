@@ -1,0 +1,9 @@
+@using CloudShell.Hosting.ResourceManager
+@if (Context.Resource is { } resource)
+{
+    <p><strong>@Context.GetLabel(resource)</strong> is a sample service with @resource.DependsOn.Count declared dependencies.</p>
+    <p>State: @(resource.State?.ToString() ?? "No lifecycle"). The sample provider supports lifecycle actions without starting external processes.</p>
+}
+@code {
+    [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!;
+}

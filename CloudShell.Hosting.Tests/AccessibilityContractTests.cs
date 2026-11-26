@@ -57,13 +57,13 @@ public sealed class AccessibilityContractTests
     public void IconOnlyActions_KeepAccessibleText()
     {
         var themeSource = ReadHostingFile("Components/Layout/ThemeSelector.razor");
-        var resourcesSource = ReadHostingFile("Components/Pages/Resources/Resources.razor");
+        var dashboardSource = ReadHostingFile("Components/Operations/OperationsDashboard.razor");
         var updateSource = ReadHostingFile("Components/Pages/Resources/UpdateResource.razor");
 
         Assert.Contains("<span class=\"visually-hidden\">", themeSource);
         Assert.Contains("@L[\"Theme\"]", themeSource);
-        Assert.Contains("L[\"More actions for {0}\", GetResourceLabel(resource)]", resourcesSource);
-        Assert.Contains("builder.AddAttribute(sequence++, \"aria-label\", actionState.Label);", resourcesSource);
+        Assert.Contains("aria-label=\"@L[\"Remove widget\"]\"", dashboardSource);
+        Assert.Contains("aria-label=\"@L[\"Move earlier\"]\"", dashboardSource);
         Assert.Contains("L[\"More actions for {0}\", GetResourceLabel(resource)]", updateSource);
         Assert.Contains("builder.AddAttribute(sequence++, \"aria-label\", actionState.Label);", updateSource);
     }
