@@ -5,42 +5,20 @@
 @inject IResourceManager ResourceManager
 @inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
 
 @if (IsCreateMode)
 {
-    <div class="type-registration">
-        <FormPanel>
-            <ResourceIdentityFields ResourceIdInputId="@($"{EditorId}-resource-id")"
-                                    ResourceIdPlaceholder="api"
-                                    @bind-ResourceId="ResourceIdInput" />
-
-            <ResourceGroupSelect Id="@($"{EditorId}-group")"
-                                 ResourceGroups="ResourceGroups"
-                                 @bind-Value="SelectedGroupId" />
-
-            @UploadFields()
-
-            @if (StatusMessage is not null)
-            {
-                <ProcedureMessage Compact="true">@StatusMessage</ProcedureMessage>
-            }
-
-            @if (ErrorMessage is not null)
-            {
-                <div class="provider-error">@ErrorMessage</div>
-            }
-
-            @if (ValidationSignals.Count > 0)
-            {
-                <ResourceProcedureSignals Signals="ValidationSignals" />
-            }
-
-            <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
-                               Text="@(IsBusy ? "Uploading" : "Create")"
-                               Disabled="@(!CanSubmitCreate)"
-                               OnClick="CreateResourceAsync" />
-        </FormPanel>
-    </div>
+    <ResourceRegistrationWizard TDraft="CreationDraft" @ref="CreationWizard" Steps="CreationSteps"
+                                Draft="Draft" DraftChanged="RestoreDraft" Error="@ErrorMessage" OnCreate="CreateResourceAsync" />
+    @if (StatusMessage is not null)
+    {
+        <ProcedureMessage Compact="true">@StatusMessage</ProcedureMessage>
+    }
+    @if (ValidationSignals.Count > 0)
+    {
+        <ResourceProcedureSignals Signals="ValidationSignals" />
+    }
 }
 else if (ExistingResource is null)
 {
@@ -103,6 +81,62 @@ else
 }
 
 @code {
+    private ResourceRegistrationWizard<CreationDraft> CreationWizard = default!;
+    private CreationDraft Draft { get; set; } = new();
+    private bool CreateOptionsLoaded;
+    public sealed class CreationDraft
+    {
+        public ResourceRegistrationGroupDraft Group { get; set; } = new();
+        public string ResourceIdInput { get; set; } = "";
+        public string NameInput { get; set; } = "";
+        public string SelectedGroupId { get; set; } = "";
+        public string SelectedLayoutKind { get; set; } = "";
+        public string SelectedPackageKind { get; set; } = "";
+        public string EntryPath { get; set; } = ".";
+    }
+    private void RestoreDraft(CreationDraft draft)
+    {
+        Draft = draft;
+        SelectedFile = null;
+    }
+    private IReadOnlyList<ResourceRegistrationWizardStep> CreationSteps =>
+    [
+        new("Basics", CreationBasics, () => string.IsNullOrWhiteSpace(ResourceIdInput) ? "Name is required." : Draft.Group.Validate()),
+        new("Application package", CreationPackage, ValidateCreationPackage),
+        new("Review", CreationReview)
+    ];
+    private RenderFragment CreationBasics => @<FormPanel>
+        <ResourceIdentityFields ResourceIdInputId="application-artifact-create-resource-id" ResourceIdPlaceholder="api" @bind-ResourceId="ResourceIdInput" />
+        <label for="application-artifact-create-name">Display name</label>
+        <FluentTextField Id="application-artifact-create-name" @bind-Value="NameInput" Placeholder="Optional" />
+        <ResourceRegistrationGroupSelect Id="application-artifact-create-group" Draft="Draft.Group" AllowNewGroup="@(Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))" ResourceGroups="ResourceGroups" @bind-Value="SelectedGroupId" />
+    </FormPanel>;
+    private RenderFragment CreationPackage => @<FormPanel>
+        @UploadFields()
+        <small>Package selections remain available while moving between steps. If you leave this wizard or reload, select the file again.</small>
+    </FormPanel>;
+    private RenderFragment CreationReview => @<FormPanel>
+        <dl class="registration-review">
+            <dt>Name</dt><dd>@ResourceIdInput</dd>
+            <dt>Display name</dt><dd>@(NormalizeNullable(NameInput) ?? ResourceIdInput)</dd>
+            <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : ResourceGroups.FirstOrDefault(group => group.Id == SelectedGroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
+            <dt>Package layout</dt><dd>@GetSelectedLayout()?.DisplayName</dd>
+            <dt>Package kind</dt><dd>@SelectedPackageKind</dd>
+            <dt>Entry path</dt><dd>@EntryPath</dd>
+            <dt>Package</dt><dd>@(SelectedFile?.Name ?? "Select the package file again in the previous step.")</dd>
+        </dl>
+    </FormPanel>;
+    private string? ValidateCreationPackage()
+    {
+        if (StoreStatus?.IsEnabled != true) return "Application package upload is not enabled for this Control Plane host.";
+        if (!Layouts.Any(layout => layout.Kind == SelectedLayoutKind)) return "Select a supported package layout.";
+        if (!GetSelectedLayoutPackageKinds().Contains(SelectedPackageKind)) return "Select a supported package kind.";
+        if (string.IsNullOrWhiteSpace(EntryPath)) return "Entry path is required.";
+        if (SelectedFile is null) return "Select an application package.";
+        if (SelectedFile.Size == 0 || SelectedFile.Size > GetMaxUploadBytes()) return "Select a non-empty package within the upload size limit.";
+        return null;
+    }
+
     private const long BrowserFileOpenLimit = 1024L * 1024L * 1024L;
     private const string ResourceModelProviderId = "resource-model";
     private const string SourceOwnerAttribute = ResourceAttributeNames.ApplicationSourceOwner;
@@ -158,12 +192,12 @@ else
     private IReadOnlyList<DeploymentArtifactLayoutDescriptor> Layouts { get; set; } = [];
     private DeploymentArtifactStoreStatus? StoreStatus { get; set; }
     private IBrowserFile? SelectedFile { get; set; }
-    private string ResourceIdInput { get; set; } = string.Empty;
-    private string NameInput { get; set; } = string.Empty;
-    private string SelectedGroupId { get; set; } = string.Empty;
-    private string SelectedLayoutKind { get; set; } = string.Empty;
-    private string SelectedPackageKind { get; set; } = string.Empty;
-    private string EntryPath { get; set; } = ".";
+    private string ResourceIdInput { get => Draft.ResourceIdInput; set => Draft.ResourceIdInput = value; }
+    private string NameInput { get => Draft.NameInput; set => Draft.NameInput = value; }
+    private string SelectedGroupId { get => Draft.SelectedGroupId; set => Draft.SelectedGroupId = value; }
+    private string SelectedLayoutKind { get => Draft.SelectedLayoutKind; set => Draft.SelectedLayoutKind = value; }
+    private string SelectedPackageKind { get => Draft.SelectedPackageKind; set => Draft.SelectedPackageKind = value; }
+    private string EntryPath { get => Draft.EntryPath; set => Draft.EntryPath = value; }
     private IReadOnlyList<DeploymentArtifactRevision> ArtifactRevisions { get; set; } = [];
     private string SelectedRevisionId { get; set; } = string.Empty;
     private string? StatusMessage { get; set; }
@@ -214,6 +248,8 @@ else
 
     private async Task LoadArtifactOptionsAsync()
     {
+        if (IsCreateMode && CreateOptionsLoaded) return;
+        CreateOptionsLoaded = IsCreateMode;
         var resourceTypeId = EffectiveResourceTypeId;
         if (string.IsNullOrWhiteSpace(resourceTypeId))
         {
@@ -292,12 +328,6 @@ else
         }
         else
         {
-            @if (IsCreateMode)
-            {
-                <label for="@($"{EditorId}-name")">Display name</label>
-                <FluentTextField Id="@($"{EditorId}-name")" @bind-Value="NameInput" Placeholder="API" />
-            }
-
             <label for="@($"{EditorId}-layout")">Package layout</label>
             <FluentSelect TOption="string"
                           Id="@($"{EditorId}-layout")"
@@ -324,7 +354,7 @@ else
             <FluentTextField Id="@($"{EditorId}-entry")" @bind-Value="EntryPath" Placeholder="." />
 
             <label for="@($"{EditorId}-file")">Package</label>
-            <InputFile id="@($"{EditorId}-file")" OnChange="SelectFile" />
+            <InputFile class="application-package-file" id="@($"{EditorId}-file")" OnChange="SelectFile" />
             @if (SelectedFile is not null)
             {
                 <small>@SelectedFile.Name (@SelectedFile.Size bytes)</small>
@@ -409,6 +439,8 @@ else
                 return;
             }
 
+            SelectedGroupId = await Draft.Group.ResolveAsync(SelectedGroupId,
+                command => ResourceManager.CreateResourceGroupAsync(command)) ?? string.Empty;
             var template = CreateTemplate(
                 resourceId,
                 resourceName,
@@ -423,6 +455,7 @@ else
             }
 
             StatusMessage = $"Application resource created with package revision {revision.RevisionId}.";
+            await CreationWizard.CompleteAsync();
             Navigation.NavigateTo(
                 RegistrationNavigation?.GetReturnUrlOrDefault() ??
                 $"/resources/{Uri.EscapeDataString(resourceId)}");

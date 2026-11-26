@@ -1,0 +1,82 @@
+@using CloudShell.Abstractions.Authorization
+@using CloudShell.Hosting.ResourceManager
+@using CloudShell.ResourceModel
+@inject IResourceManager ResourceManager
+@inject IResourceTemplateManager Templates
+@inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
+
+<ResourceRegistrationWizard TDraft="ConfigurationServiceCreationDraft" @ref="Wizard" Steps="Steps"
+                            @bind-Draft="Draft" Error="@ErrorMessage" OnCreate="CreateAsync" />
+
+@code {
+    [CascadingParameter] public ResourceTypeContribution? ResourceType { get; set; }
+    [CascadingParameter] public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
+    private ConfigurationServiceCreationDraft Draft { get; set; } = new();
+    private ResourceRegistrationWizard<ConfigurationServiceCreationDraft> Wizard = default!;
+    private IReadOnlyList<ResourceGroup> Groups = [];
+    private string? ErrorMessage;
+    private bool IsVault => ResourceType?.Id == SecretsVaultResourceTypeProvider.ResourceTypeId.ToString();
+    private IReadOnlyList<ResourceRegistrationWizardStep> Steps =>
+    [
+        new("Basics", Basics, Draft.ValidateBasics),
+        new("Service endpoint", Endpoint, Draft.ValidateEndpoint),
+        new("Review", Review)
+    ];
+    protected override async Task OnInitializedAsync() => Groups = await ResourceManager.ListResourceGroupsAsync();
+
+    private RenderFragment Basics => @<FormPanel>
+        <ResourceIdentityFields ResourceIdInputId="configuration-service-name" @bind-ResourceId="Draft.Name" />
+        <ResourceRegistrationGroupSelect Id="configuration-service-group" Draft="Draft.Group" ResourceGroups="Groups"
+            AllowNewGroup="@(Authorization.CanAccessResourceGroup("__new_resource_group", CloudShellPermissions.ResourceGroups.Create))"
+            @bind-Value="Draft.GroupId" />
+    </FormPanel>;
+
+    private RenderFragment Endpoint => @<FormPanel>
+        <label for="configuration-service-endpoint">Service endpoint (required)</label>
+        <FluentTextField Id="configuration-service-endpoint" @bind-Value="Draft.Endpoint" Required="true" Placeholder="https://service.example.test" />
+        <p class="muted">Enter the service's absolute HTTP or HTTPS endpoint. Choose the address and port for your environment.</p>
+        <p class="muted">@(IsVault ? "Add secrets and certificates from the resource's operations panes after creation." : "Manage configuration values from the resource's Values pane after creation.")</p>
+    </FormPanel>;
+
+    private RenderFragment Review => @<FormPanel>
+        <dl class="registration-review">
+            <dt>Name</dt><dd>@Draft.Name</dd>
+            <dt>Type</dt><dd>@ResourceType?.DisplayName</dd>
+            <dt>Resource group</dt><dd>@(Draft.Group.CreateNew ? $"New group: {Draft.Group.Name}" : Groups.FirstOrDefault(group => group.Id == Draft.GroupId)?.Name ?? Draft.Group.CreatedGroupName ?? "Default group")</dd>
+            <dt>Service endpoint</dt><dd>@Draft.Endpoint</dd>
+        </dl>
+        <p class="muted">The resource will be registered without starting it. Use its Start action when ready.</p>
+    </FormPanel>;
+
+    private async Task CreateAsync()
+    {
+        ErrorMessage = Draft.ValidateBasics() ?? Draft.ValidateEndpoint();
+        if (ErrorMessage is not null) return;
+        if (ResourceType?.Id != ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString() && !IsVault)
+        {
+            ErrorMessage = "This resource type does not support this creation flow.";
+            return;
+        }
+        Draft.GroupId = await Draft.Group.ResolveAsync(Draft.GroupId,
+            command => ResourceManager.CreateResourceGroupAsync(command)) ?? "";
+        var id = ResourceNameNormalizer.Normalize(Draft.Name, IsVault ? "vault" : "configuration");
+        var name = ResourceDisplayNameDefaults.Resolve(Draft.Name);
+        var template = new ResourceTemplate($"create:{id}",
+            [new ResourceDefinition(name, ResourceType!.Id, id,
+                IsVault ? SecretsVaultResourceTypeProvider.ProviderId : ConfigurationStoreResourceTypeProvider.ProviderId,
+                name, Attributes: new ResourceAttributeValueMap(new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                {
+                    ["endpoint"] = ResourceAttributeValue.String(Draft.Endpoint.Trim())
+                }))],
+            Metadata: string.IsNullOrWhiteSpace(Draft.GroupId) ? null : new Dictionary<string, string> { ["resourceGroup.id"] = Draft.GroupId });
+        var result = await Templates.ApplyResourceTemplateAsync(new ResourceTemplateApplyRequest(template, ResourceDefinitionApplyMode.CreateOnly));
+        if (result.HasErrors || !result.IsCommitted)
+        {
+            ErrorMessage = "The resource could not be created. Check that the name is unique and the provider is available.";
+            return;
+        }
+        await Wizard.CompleteAsync();
+        Navigation.NavigateTo(RegistrationNavigation?.GetReturnUrlOrDefault() ?? $"/resources/{Uri.EscapeDataString(id)}");
+    }
+}

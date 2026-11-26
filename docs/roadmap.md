@@ -41,9 +41,11 @@ Useful references:
 - [Future directions](future/)
 
 Add Resource now uses a searchable resource-class gallery and provider-composed
-Fluent wizards. The seven platform creation forms share typed browser-tab draft
-restoration; template/launcher-only providers retain their existing authoring
-instructions. Reload-persistent and cross-device drafts are intentionally outside
+Fluent wizards. The seven platform forms, five packaged application types,
+Configuration Store, and Secrets Vault share typed browser-tab draft restoration.
+Remaining template/launcher-only providers still need provider-owned creation flows
+(starting with database, broker, and container types); their entry pages link to
+templates and explain availability. Reload-persistent and cross-device drafts are intentionally outside
 this UI slice. See [extension authoring](extensions.md#resource-registration-gallery-and-wizards).
 
 The shared UI design language now covers common panels, summary cards,

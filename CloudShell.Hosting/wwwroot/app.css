@@ -2634,6 +2634,7 @@ h3 {
 .secrets-vault-certificate-editor .certificate-value {
     margin-bottom: 1rem;
 }
+input.application-package-file,
 .secrets-vault-certificate-editor input[type="file"] {
     width: 100%;
     min-width: 0;
@@ -2642,6 +2643,7 @@ h3 {
     border: 0;
     background: transparent;
 }
+input.application-package-file::file-selector-button,
 .secrets-vault-certificate-editor input[type="file"]::file-selector-button {
     padding: .4rem .65rem;
     margin-right: .5rem;
@@ -2652,6 +2654,7 @@ h3 {
     font: inherit;
     cursor: pointer;
 }
+input.application-package-file::file-selector-button:hover,
 .secrets-vault-certificate-editor input[type="file"]::file-selector-button:hover {
     background: var(--cloudshell-hover);
 }

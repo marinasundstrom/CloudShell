@@ -281,6 +281,26 @@ unrelated type. The gallery does not infer creation support from lifecycle
 capabilities: providers that use templates or launchers retain their authoring
 instructions in their registration component.
 
+The built-in provider UI currently uses authoring-entry pages, not creation
+wizards, for executable applications, SQL Server, RabbitMQ, container apps,
+and the types registered with `Shared.Pages.RegisterResource`. These pages consistently identify the
+selected type and link to Resource Templates. They have no form fields or
+draft navigation to validate. Provider-owned wizard coverage for these types
+remains a separate implementation gap; the platform wizard checks do not cover
+provider creation. The five packaged application types (.NET, JavaScript, Java,
+Go, and Python) instead share `ApplicationArtifactResourceEditor`: creation uses
+Basics, Application package, and Review wizard steps. Names, groups (including
+deferred new groups), layout, package kind, and entry path use the non-secret
+draft model. File handles are kept only in the active component through Back/Next;
+leaving the wizard or reloading requires selecting the file again. Missing host
+upload support, layouts, package kind, entry path, or package blocks progression.
+Configuration Store and Secrets Vault use provider-owned Basics, Service endpoint,
+and Review steps. Name and an explicit HTTP(S) endpoint are required. Optional group
+creation is deferred until submission. Creation applies a CreateOnly template through
+`IResourceTemplateManager` and leaves the resource stopped. Values, secrets, and
+certificates are managed in operations panes after creation. Secrets and certificate
+contents must never be included in the reusable browser draft cache.
+
 UI packages can reference `CloudShell.Components` and compose
 `ResourceRegistrationWizard<TDraft>` with any number of
 `ResourceRegistrationWizardStep` entries. Each entry supplies a title, a

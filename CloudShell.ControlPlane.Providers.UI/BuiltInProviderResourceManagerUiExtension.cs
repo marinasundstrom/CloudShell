@@ -244,17 +244,17 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                 "database-item",
                 30,
                 resourceClass: ResourceManagerResourceClass.Service)
-            .AddResourceType<SharedPages.RegisterResource>(
+            .AddResourceType<ConfigurationPages.RegisterConfigurationService>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 "Configuration Store",
-                "Inspect configuration store resources managed through Resource Manager.",
+                "Create a Configuration Store with a service endpoint.",
                 "settings",
                 31,
                 resourceClass: ResourceManagerResourceClass.Configuration)
-            .AddResourceType<SharedPages.RegisterResource>(
+            .AddResourceType<ConfigurationPages.RegisterConfigurationService>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 "Secrets Vault",
-                "Inspect secrets vault resources managed through Resource Manager.",
+                "Create a Secrets Vault with a service endpoint.",
                 "key",
                 32,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)

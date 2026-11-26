@@ -1,0 +1,13 @@
+<EmptyState Title="@($"Create {ResourceType?.DisplayName ?? "resource"}")"
+            Message="This resource type is created through Resource Templates or a launcher. A guided creation wizard is not available yet.">
+    <div class="form-actions">
+        <FluentAnchor Href="/resources/templates" Appearance="Appearance.Neutral"
+                      IconStart="@(new Icons.Regular.Size20.DocumentCopy())">
+            Browse templates
+        </FluentAnchor>
+    </div>
+</EmptyState>
+
+@code {
+    [CascadingParameter] public ResourceTypeContribution? ResourceType { get; set; }
+}

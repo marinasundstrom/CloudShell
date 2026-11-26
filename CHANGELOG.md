@@ -10,6 +10,12 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Added provider-owned Configuration Store and Secrets Vault creation wizards with required service endpoints, deferred optional groups, review, and tab-local draft restoration; creation uses existing resource template contracts and leaves resources stopped.
+
+- Migrated packaged application creation (.NET, JavaScript, Java, Go, and Python) to the shared three-step wizard with non-secret draft restoration, deferred groups, package validation before review, and stable layout selections across parameter refreshes.
+
+- Made provider creation entry pages consistent: selected-type headings, explicit wizard availability, and a Browse templates link for application, container-app, and generic provider types. Documented the provider wizard coverage gap.
+
 - Hardened registration wizard validation and reviews: corrected errors clear during navigation, Name Mapping requires a DNS zone before review, custom DNS providers require an ID, and storage-owned volumes show their inherited provider and read-only group.
 
 - Add Resource now opens a searchable gallery with resource-class tabs. Built-in registration forms use a reusable Fluent wizard with provider-defined steps, review, browser-tab draft restoration, and optional new groups deferred until final submission.
