@@ -53,4 +53,4 @@
 .operations-inventory { overflow-x:hidden; }
 
 
-.operations-content:has(.dashboard-grid) { background: var(--cloudshell-page); }
+.operations-content:has(.dashboard-grid) { background: var(--cloudshell-card-canvas); }

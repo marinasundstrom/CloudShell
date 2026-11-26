@@ -172,3 +172,11 @@ Before extracting a component, ask:
    Resource Manager, or a provider?
 
 Start local. Promote only when reuse or a stable concept justifies it.
+
+### Provider stylesheet ownership
+
+Built-in provider pages with isolated CSS render `ProviderStyles` to load the
+provider package stylesheet through `HeadContent`. Hosts need not hard-code
+the optional provider package into the shell. Dynamic SVG descendants use
+scoped `::deep` selectors. Provider charts use the shared theme-aware palette,
+including darker delivery/acknowledgement colors on light surfaces.

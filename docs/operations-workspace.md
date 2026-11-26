@@ -176,8 +176,8 @@ and operational classification belong to CloudShell's Resource Manager UI.
   refreshed from the workspace, with cancellation on scope changes/disposal.
   Large-graph virtualization and retained diagram zoom/pan are future work.
 - Graph width is responsive and contributed widgets may request full width.
-  Dashboard cards use shared rounded, contrasting surfaces without outer
-  borders or header dividers. Edit mode supports pointer drag handles
+  Dashboard cards use shared rounded surfaces with shadows and faint borders
+  in light mode, contrasting colors in dark mode, and no header dividers. Edit mode supports pointer drag handles
   (including touch) over a visible grid, with highlighted before/after drop
   targets. Drops reorder the draft; Save persists and Cancel restores the
   saved order. Keyboard users retain the Move earlier/later buttons.

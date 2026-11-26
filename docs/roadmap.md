@@ -42,7 +42,10 @@ Useful references:
 
 The shared UI design language now covers common panels, summary cards,
 Settings tiles/navigation, metrics, usage, trace details, and empty states,
-with theme-aware text and semantic colors. Continue adoption in specialized
+with theme-aware text and semantic colors. Provider sections, resource pickers,
+configuration/deployment tiles, and RabbitMQ charts now share these surfaces.
+Light panels use shadows and faint borders; dark panels retain surface contrast.
+Continue adoption in specialized
 provider layouts and embedded pages without rebuilding their workflows;
 see [System design guidelines](system-design-guidelines.md).
 

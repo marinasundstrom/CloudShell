@@ -27,7 +27,8 @@ overview with separate broker-status/topology panes.
 - Continue page-specific adoption of the shared design language: specialized
   provider layouts, embedded page headers, and remaining legacy list tiles.
   Summary cards, Settings navigation/tiles, metrics, usage, trace details,
-  empty states, typography, and theme colors now use the shared baseline.
+  empty states, provider sections, resource pickers, configuration/deployment
+  tiles, RabbitMQ chart colors, typography, and theme colors use the shared baseline.
   Preserve existing workflows; see the system design guidelines.
 
 - Larger inventories: virtualization, richer grouping/filtering, and query cost

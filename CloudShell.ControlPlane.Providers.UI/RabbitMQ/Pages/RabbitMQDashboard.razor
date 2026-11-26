@@ -1,3 +1,5 @@
+<ProviderStyles />
+
 @using System.Globalization
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
@@ -17,111 +19,7 @@ else if (!BuiltInProviderResourceUiTypes.IsRabbitMQ(Broker.EffectiveTypeId))
 }
 else
 {
-    <style>
-        .rabbitmq-dashboard-actions {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: .65rem;
-        }
 
-        .rabbitmq-dashboard-metrics {
-            grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-        }
-
-        .rabbitmq-dashboard-metrics strong {
-            color: var(--cloudshell-text);
-            font-size: .78rem;
-            font-weight: 600;
-        }
-
-        .rabbitmq-dashboard-metrics span {
-            font-size: 1rem;
-            font-weight: 600;
-        }
-
-        .rabbitmq-dashboard-chart-shell {
-            min-width: 0;
-            padding: .65rem;
-            border: 1px solid var(--cloudshell-divider);
-            border-radius: 4px;
-            background: var(--cloudshell-surface-muted);
-        }
-
-        .rabbitmq-dashboard-chart {
-            min-height: 18rem;
-            width: 100%;
-        }
-
-        .rabbitmq-dashboard-chart svg {
-            display: block;
-            width: 100%;
-            min-height: 18rem;
-        }
-
-        .rabbitmq-dashboard-chart .axis text,
-        .rabbitmq-dashboard-chart .queue-label,
-        .rabbitmq-dashboard-chart .queue-value,
-        .rabbitmq-dashboard-chart .legend-label {
-            fill: var(--cloudshell-text-muted);
-            font-family: var(--body-font);
-            font-size: .72rem;
-        }
-
-        .rabbitmq-dashboard-chart .queue-label {
-            fill: var(--cloudshell-text);
-            font-weight: 600;
-        }
-
-        .rabbitmq-dashboard-chart .queue-ready {
-            fill: var(--cloudshell-accent);
-        }
-
-        .rabbitmq-dashboard-chart .queue-unacknowledged {
-            fill: color-mix(in srgb, var(--cloudshell-warning-text) 82%, var(--cloudshell-text));
-        }
-
-        .rabbitmq-dashboard-chart .queue-track {
-            fill: var(--cloudshell-surface);
-            stroke: var(--cloudshell-divider);
-        }
-
-        .rabbitmq-dashboard-chart .axis line,
-        .rabbitmq-dashboard-chart .axis path {
-            stroke: var(--cloudshell-divider);
-        }
-
-        .rabbitmq-dashboard-chart .legend-swatch.ready {
-            fill: var(--cloudshell-accent);
-        }
-
-        .rabbitmq-dashboard-chart .legend-swatch.unacknowledged {
-            fill: color-mix(in srgb, var(--cloudshell-warning-text) 82%, var(--cloudshell-text));
-        }
-
-        .rabbitmq-dashboard-chart .throughput-publish {
-            stroke: var(--cloudshell-accent);
-            fill: var(--cloudshell-accent);
-        }
-
-        .rabbitmq-dashboard-chart .throughput-deliver {
-            stroke: color-mix(in srgb, #0f766e 78%, var(--cloudshell-text));
-            fill: color-mix(in srgb, #0f766e 78%, var(--cloudshell-text));
-        }
-
-        .rabbitmq-dashboard-chart .throughput-ack {
-            stroke: color-mix(in srgb, var(--cloudshell-warning-text) 82%, var(--cloudshell-text));
-            fill: color-mix(in srgb, var(--cloudshell-warning-text) 82%, var(--cloudshell-text));
-        }
-
-        .rabbitmq-dashboard-chart .legend-line {
-            stroke-width: 3;
-        }
-
-        .rabbitmq-dashboard-chart .throughput-line {
-            fill: none;
-        }
-    </style>
 
     <div class="blade-section-header">
         <div>

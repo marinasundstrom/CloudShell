@@ -12,6 +12,12 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Refined light-mode panels with white surfaces, soft shadows, and faint
+  borders while retaining dark-mode surface contrast and white normal pages.
+  Adapted provider sections, resource pickers, and configuration/deployment
+  tiles; made RabbitMQ chart colors theme-aware and loaded provider-isolated
+  styles from provider views.
+
 - Extended the shared panel language to summary cards, Settings tiles,
   metric/usage panels, trace details, and empty states. Added inset surfaces,
   softer selection styling, compact headings, wrapping form actions, and

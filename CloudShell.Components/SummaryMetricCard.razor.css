@@ -1,5 +1,5 @@
 .metric-card {
-    border: 0;
+    border: 1px solid var(--cloudshell-panel-border, transparent);
     border-radius: var(--cloudshell-panel-radius, 10px);
     background: var(--cloudshell-panel-background, var(--cloudshell-surface));
     box-shadow: var(--cloudshell-panel-shadow);

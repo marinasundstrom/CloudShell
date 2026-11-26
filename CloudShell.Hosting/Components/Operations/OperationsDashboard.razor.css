@@ -1,6 +1,6 @@
 .dashboard-toolbar { display:flex; gap:.4rem; align-items:center; margin-bottom:.6rem; } .dashboard-toolbar > span { flex:1; font-weight:600; }
 .dashboard-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
-.dashboard-widget { border:0; border-radius:var(--cloudshell-panel-radius); padding:.8rem; min-width:0; overflow:auto; background:var(--cloudshell-panel-background); box-shadow:var(--cloudshell-panel-shadow); }
+.dashboard-widget { border:1px solid var(--cloudshell-panel-border); border-radius:var(--cloudshell-panel-radius); padding:.8rem; min-width:0; overflow:auto; background:var(--cloudshell-panel-background); box-shadow:var(--cloudshell-panel-shadow); }
 .dashboard-widget.wide { grid-column:1/-1; } .dashboard-widget header { display:flex; align-items:center; justify-content:space-between; gap:.4rem; margin-bottom:.6rem; }
 h2 { font-size:.9rem; margin:0; } .widget-tools,.widget-catalog { display:flex; gap:.3rem; flex-wrap:wrap; }
 .widget-catalog { padding:.6rem; border:1px dashed var(--cloudshell-stroke); margin-bottom:.7rem; align-items:center; }

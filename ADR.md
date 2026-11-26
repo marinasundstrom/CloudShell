@@ -13,8 +13,10 @@ link to the decision so the dependency is visible.
 
 ### ADR-20261126-002: Shared panel surface language
 
-CloudShell panels use contrasting, rounded backgrounds with subtle elevation,
-without decorative outer borders or heading dividers. This is shared across
+CloudShell panels use rounded backgrounds without decorative heading dividers.
+Light mode relies on soft shadows and faint borders to distinguish white panels
+on white content pages or light-gray dashboard canvases. Dark mode retains
+contrasting surface colors and visually borderless panels. This is shared across
 the shell and extension UI, rather than a dashboard-only treatment. Common
 panels and composed dashboard widgets use the same theme-derived surface,
 radius, and shadow tokens. Functional outlines and accessibility indicators

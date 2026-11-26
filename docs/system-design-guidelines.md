@@ -86,10 +86,13 @@ does need custom layout or representation components, follow the component
 placement, naming, and component-scoped styling rules in
 [UI structure and component organization](ui-structure.md).
 
-CloudShell's shared panel language uses rounded, borderless surfaces with a
-contrasting background and subtle shadow. Use `ShellPanel` or the shared
+CloudShell's shared panel language uses rounded surfaces. In light mode,
+white panels are separated primarily by soft shadows and a faint outer border;
+normal content pages remain white, while dashboard canvases use a light gray.
+Dark mode retains contrasting surface colors and visually borderless panels. Use `ShellPanel` or the shared
 `.panel` class; custom widget containers use `--cloudshell-panel-background`,
-`--cloudshell-panel-radius`, and `--cloudshell-panel-shadow`. These tokens
+`--cloudshell-panel-radius`, `--cloudshell-panel-border`, and
+`--cloudshell-panel-shadow`. These tokens
 derive from Fluent theme colors for light and dark modes. Separate panel
 headings with spacing rather than decorative rules. Keep meaningful table
 separators, input outlines, focus indicators, and edit-mode drop indicators.

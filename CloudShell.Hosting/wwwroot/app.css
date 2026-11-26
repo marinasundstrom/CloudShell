@@ -12,7 +12,8 @@ body {
 
 :root {
     color-scheme: light dark;
-    --cloudshell-page: var(--neutral-layer-1, #ffffff);
+    --cloudshell-page: light-dark(#ffffff, var(--neutral-layer-1, #272727));
+    --cloudshell-card-canvas: light-dark(#f3f4f6, var(--neutral-layer-1, #272727));
     --cloudshell-surface: var(--neutral-layer-1, #ffffff);
     --cloudshell-surface-muted: var(--neutral-fill-layer-rest, #fafafa);
     --cloudshell-hover: color-mix(in srgb, var(--cloudshell-text) 8%, var(--cloudshell-surface));
@@ -22,7 +23,7 @@ body {
     --cloudshell-text-muted: color-mix(in srgb, var(--cloudshell-text) 72%, var(--cloudshell-surface));
     --cloudshell-text-subtle: var(--cloudshell-text-muted);
     --cloudshell-stroke: var(--neutral-stroke-rest, #e0e0e0);
-    --cloudshell-divider: var(--neutral-stroke-divider-rest, #e5e5e5);
+    --cloudshell-divider: color-mix(in srgb, var(--cloudshell-text) 12%, var(--cloudshell-surface));
     --cloudshell-input-stroke: var(--neutral-stroke-input-rest, #b3b3b3);
     --cloudshell-accent: var(--accent-fill-rest, #0f6cbd);
     --cloudshell-accent-foreground: var(--accent-foreground-rest, #0f6cbd);
@@ -36,8 +37,10 @@ body {
     --cloudshell-warning-text: light-dark(#854500, #f5cf77);
     --cloudshell-danger-fill: color-mix(in srgb, #d13438 12%, var(--cloudshell-surface));
     --cloudshell-danger-text: light-dark(#b4232c, #ff9da2);
-    --cloudshell-panel-background: color-mix(in srgb, var(--cloudshell-text) 5%, var(--cloudshell-surface));
-    --cloudshell-inset-background: var(--cloudshell-surface);
+    --cloudshell-panel-background: light-dark(#ffffff, color-mix(in srgb, var(--cloudshell-text) 5%, var(--cloudshell-surface)));
+    --cloudshell-inset-background: light-dark(#f5f6f8, var(--cloudshell-surface));
+    --cloudshell-chart-delivery: light-dark(#0f766e, #6ed6c6);
+    --cloudshell-chart-acknowledged: light-dark(#946200, #e9c46a);
     --cloudshell-accent-subtle: color-mix(in srgb, var(--cloudshell-accent) 10%, var(--cloudshell-surface));
     --cloudshell-space-xs: .25rem;
     --cloudshell-space-sm: .5rem;
@@ -46,7 +49,8 @@ body {
     --cloudshell-control-radius: 6px;
     --cloudshell-panel-padding: .9rem;
     --cloudshell-panel-radius: 10px;
-    --cloudshell-panel-shadow: 0 2px 6px #00000012;
+    --cloudshell-panel-border: light-dark(#e4e7eb, transparent);
+    --cloudshell-panel-shadow: 0 2px 6px light-dark(#172b4d1a, #00000012);
     --cloudshell-resource-grid-min-width: 68rem;
 }
 
@@ -179,7 +183,7 @@ h3 {
 }
 
 .panel {
-    border: 0;
+    border: 1px solid var(--cloudshell-panel-border);
     border-radius: var(--cloudshell-panel-radius);
     background: var(--cloudshell-panel-background);
     box-shadow: var(--cloudshell-panel-shadow);
@@ -826,12 +830,16 @@ h3 {
 }
 
 .blade-section {
-    padding-top: .2rem;
+    border: 1px solid var(--cloudshell-panel-border);
+    box-shadow: var(--cloudshell-panel-shadow);
+    min-width: 0;
+    padding: var(--cloudshell-panel-padding);
+    border-radius: var(--cloudshell-panel-radius);
+    background: var(--cloudshell-panel-background);
 }
 
 .blade-section+.blade-section {
-    margin-top: .85rem;
-    border-top: 1px solid var(--cloudshell-divider);
+    margin-top: var(--cloudshell-space-md);
 }
 
 .blade-section-header {
@@ -1196,9 +1204,9 @@ h3 {
     display: grid;
     gap: .12rem;
     padding: .55rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-control-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .generated-list>.generated-list-item.with-icon {
@@ -2208,7 +2216,7 @@ h3 {
 
 .container-app-status-pill.warning {
     border-color: #f2c94c;
-    color: #8a6100;
+    color: var(--cloudshell-warning-text);
     background: var(--cloudshell-warning-fill);
 }
 
@@ -2228,9 +2236,9 @@ h3 {
 .container-app-deployment-primary,
 .container-app-deployment-metrics {
     padding: .7rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-control-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .container-app-deployment-primary {
@@ -2295,9 +2303,9 @@ h3 {
     display: grid;
     gap: .55rem;
     padding: .7rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-control-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .generated-deploy-form fluent-text-field {
@@ -2320,9 +2328,9 @@ h3 {
     display: grid;
     gap: .55rem;
     padding: .7rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-control-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .generated-access-form fluent-select,
@@ -2601,9 +2609,9 @@ h3 {
     gap: .75rem;
     align-items: center;
     padding: .55rem .65rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-control-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .configuration-entry-summary span {
@@ -3054,9 +3062,9 @@ h3 {
     display: grid;
     gap: .1rem;
     padding: .55rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-control-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .compact-endpoint-list {
@@ -3117,7 +3125,7 @@ h3 {
 
 .dependency-map-summary div {
     padding: .9rem 1rem;
-    border: 0;
+    border: 1px solid var(--cloudshell-panel-border);
     border-radius: var(--cloudshell-panel-radius);
     background: var(--cloudshell-panel-background);
     box-shadow: var(--cloudshell-panel-shadow);
@@ -4171,7 +4179,7 @@ h3 {
     min-width: 0;
     min-height: 12rem;
     padding: .75rem;
-    border: 0;
+    border: 1px solid var(--cloudshell-panel-border);
     border-radius: var(--cloudshell-panel-radius);
     background: var(--cloudshell-panel-background);
     box-shadow: var(--cloudshell-panel-shadow);
@@ -4627,7 +4635,7 @@ h3 {
     min-width: 0;
     min-height: 12rem;
     padding: .75rem;
-    border: 0;
+    border: 1px solid var(--cloudshell-panel-border);
     border-radius: var(--cloudshell-panel-radius);
     background: var(--cloudshell-panel-background);
     box-shadow: var(--cloudshell-panel-shadow);
@@ -5830,3 +5838,14 @@ h3 {
 .page-heading > div { min-width: 0; }
 .page-heading h1 { overflow-wrap: anywhere; }
 .heading-actions { row-gap: var(--cloudshell-space-sm); }
+
+
+/* Embedded provider sections use a second surface level inside shell panels. */
+.panel .blade-section,
+.shell-panel .blade-section,
+.dashboard-widget .blade-section {
+    background: var(--cloudshell-inset-background);
+}
+.blade-section-header { flex-wrap: wrap; }
+.blade-section-header > div { min-width: 0; }
+.blade-section-header h3 { overflow-wrap: anywhere; }
