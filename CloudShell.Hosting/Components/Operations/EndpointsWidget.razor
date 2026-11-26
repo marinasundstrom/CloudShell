@@ -6,7 +6,7 @@
         var address = resource.GetResolvedEndpointAddress(endpoint);
         <p><strong>@endpoint.Name</strong><br />
         @if (Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
-        { <FluentAnchor Href="@address" Target="_blank" Rel="noopener noreferrer">@address</FluentAnchor> }
+        { <FluentAnchor Appearance="Appearance.Hypertext" Href="@address" Target="_blank" Rel="noopener noreferrer">@address</FluentAnchor> }
         else { <span>@(address ?? L["Not resolved"].Value)</span> }
         </p>
     }

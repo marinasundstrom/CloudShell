@@ -345,3 +345,10 @@ Monaco provides syntax diagnostics, but domain validation and authorization
 remain mandatory at the operation boundary. External JSON schema fetching is
 disabled. Editors do not reveal masked secret/certificate values. A text-area
 fallback remains available if editor assets fail to load.
+
+Resource inventory uses a compact identity column with name above lifecycle state
+and friendly type name in its expanded view. Parent/child guides describe resource
+hierarchy; grouping by resource group remains a separate choice. Endpoint links
+use Fluent Hypertext appearance for HTTP/HTTPS addresses, with copy actions for
+all displayed protocols. Lifecycle commands retain their capability checks and
+show confirmation within the active list or pane.

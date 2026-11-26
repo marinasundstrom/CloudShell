@@ -33,7 +33,7 @@
 
 .inventory-only .operations-main { display:none; }
 .inventory-only .operations-inventory { width:100%; max-width:none; resize:none; border:0; box-sizing:border-box; }
-.inventory-only .resource-row { gap:1rem; border-bottom:1px solid var(--cloudshell-stroke); }
+.inventory-only .resource-row { gap:1rem; border-bottom:1px solid color-mix(in srgb, var(--cloudshell-stroke) 40%, transparent); }
 .inventory-only .resource-row ::deep fluent-anchor { flex:2; }
 .inventory-only .resource-name { max-width:none; font-weight:600; }
 .inventory-type { flex:1; font-size:.8rem; } .inventory-endpoint { flex:2; font-size:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -82,3 +82,47 @@
     .operations-heading { flex-direction:column; align-items:stretch; }
     .operations-tools { justify-content:flex-start; }
 }
+
+/* Inventory rows share their identity and actions between the full list and sidebar. */
+.inventory-filter-bar { display:flex; gap:.4rem; flex-wrap:wrap; }
+.inventory-filter-bar ::deep fluent-search { flex:1; min-width:8rem; }
+.inventory-filter-bar ::deep fluent-select { max-width:100%; }
+.operations-inventory ::deep .inventory-all::part(control) { justify-content:flex-start; gap:.5rem; }
+.operations-inventory ::deep .inventory-all.active { background:var(--cloudshell-accent-subtle); border-radius:4px; box-shadow:inset 3px 0 var(--cloudshell-accent); }
+.resource-name-block { display:flex; flex-direction:column; min-width:0; flex:1; gap:.2rem; }
+.resource-summary { display:flex; align-items:center; gap:.3rem; min-width:0; font-size:.75rem; font-weight:400; color:var(--cloudshell-text-muted); }
+.resource-type { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.child-resource::before { content:""; position:absolute; left:calc(var(--resource-depth) * .8rem - .15rem); top:0; height:50%; width:.5rem; border-left:1px dotted var(--cloudshell-stroke); border-bottom:1px dotted var(--cloudshell-stroke); pointer-events:none; }
+.inventory-only .resource-row { gap:.6rem; min-height:60px; border-radius:0; padding-block:.25rem; }
+.inventory-only .resource-row ::deep fluent-anchor { flex:0 1 45%; }
+.inventory-only .resource-row ::deep fluent-anchor::part(control) { padding:.4rem; }
+.inventory-only .resource-row ::deep .resource-kind-icon { width:24px; height:24px; }
+.inventory-only .resource-label { gap:.65rem; }
+.inventory-only .resource-name { display:block; font-size:.875rem; }
+.inventory-only .inventory-endpoint { flex:1; min-width:0; color:var(--cloudshell-text-muted); }
+.inventory-only .row-actions { position:static; opacity:1; pointer-events:auto; flex:0 0 4.5rem; justify-content:flex-end; background:transparent; }
+.inventory-only .inventory-rows { margin-top:.25rem; }
+@media(max-width:760px) {
+ .inventory-only .resource-row ::deep fluent-anchor { flex:1; }
+ .inventory-only .resource-summary > span { display:inline; }
+ .inventory-only .inventory-endpoint { display:none; }
+}
+.inventory-only .inventory-endpoint { display:flex; align-items:center; gap:.25rem; }
+.inventory-endpoint > span { overflow:hidden; text-overflow:ellipsis; }
+.inventory-only .inventory-endpoint ::deep .inventory-endpoint-link { flex:0 1 auto; min-width:0; overflow:hidden; }
+.inventory-only .inventory-endpoint ::deep .inventory-endpoint-link::part(control) { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0; }
+@media(max-width:760px) { .inventory-only .inventory-endpoint { display:none; } }
+.inventory-only .resource-row > ::deep fluent-anchor { height:auto; }
+.inventory-only .resource-row > ::deep fluent-anchor::part(control) { height:auto; min-height:48px; }
+
+.inventory-heading { justify-content:flex-start; }
+.inventory-heading nav, .inventory-heading > ::deep fluent-anchor:last-child { margin-left:auto; }
+
+.resource-row:hover { background:var(--cloudshell-hover); }
+.resource-row.selected { border-left:0; background:var(--cloudshell-selected); box-shadow:inset 3px 0 var(--cloudshell-accent); }
+.resource-row > ::deep fluent-anchor::part(control),
+.resource-row > ::deep fluent-anchor:hover::part(control),
+.resource-row > ::deep fluent-anchor:active::part(control) { background:transparent; }
+.resource-row:hover .row-actions { background:var(--cloudshell-hover); }
+.resource-row.selected .row-actions { background:var(--cloudshell-selected); }
+.operations-inventory ::deep .inventory-all.active::part(control) { background:var(--cloudshell-selected); box-shadow:inset 3px 0 var(--cloudshell-accent); }
