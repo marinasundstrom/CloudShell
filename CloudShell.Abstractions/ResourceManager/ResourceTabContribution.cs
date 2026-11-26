@@ -10,6 +10,9 @@ public sealed record ResourceTabContribution(
     string? Icon = null,
     bool IsOperational = false)
 {
+    /// <summary>The component supplies its own heading and panel layout.</summary>
+    public bool OwnsLayout { get; init; }
+
     public string GroupId => Id.GroupId;
 
     public string ViewId => Id.Identifier;

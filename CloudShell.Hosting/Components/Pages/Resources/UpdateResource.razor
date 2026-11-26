@@ -151,7 +151,7 @@
         </div>
     }
 
-    <CloudShellTabbedLayout ShowNavigation="@(!operational)" Items="@ResourceTabLayoutProjection.CreateItems(tabs, ShellRoutes, ResourceId)"
+    <CloudShellTabbedLayout RenderAsPanel="@(selectedTab?.OwnsLayout != true)" ShowNavigation="@(!operational)" Items="@ResourceTabLayoutProjection.CreateItems(tabs, ShellRoutes, ResourceId)"
                             SelectedItemId="@selectedTab?.Id.Value"
                             SelectedItemChanged="SelectLayoutTab"
                             SelectFirstItemWhenSelectedMissing="@(selectedTabIssue is null)"
@@ -189,7 +189,7 @@
             }
         </EmptyContent>
         <HeaderContent Context="item">
-            @if (selectedTab is not null && resource is not null &&
+            @if (selectedTab is not null && !selectedTab.OwnsLayout && resource is not null &&
                 selectedTab.ComponentType != typeof(ResourceActivity) &&
                 selectedTab.ComponentType != typeof(GeneratedResourceHealth) &&
                 selectedTab.ComponentType != typeof(GeneratedResourceMonitoring) &&

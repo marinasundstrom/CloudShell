@@ -1403,3 +1403,11 @@ while retaining ResourceTabContribution, stable view IDs and existing routing.
 Dashboard widgets use the existing CoreShell outlet instead of a parallel provider
 widget registry. Inventory widgets describe registered lifecycle state; live
 performance data requires an operational provider contract.
+
+### ADR-20261126-011: Provider operations panes own their presentation
+
+Explicit operations-pane contributions own their heading and panel layout by
+default. They may request shell framing with `ownsLayout: false`. Configuration
+views retain the grouped tab layout and shell framing. This separates pane
+composition from resource configuration without hardcoding provider component
+types into the shell renderer.

@@ -111,7 +111,19 @@ public sealed class CloudShellExtensionBuilderTests
         Assert.Equal("Provider settings", tabs[0].GroupTitle);
         Assert.True(tabs[1].IsOperational);
         Assert.False(tabs[1].ShowsApplyButton);
+        Assert.True(tabs[1].OwnsLayout);
+        Assert.False(tabs[0].OwnsLayout);
         Assert.Equal("metrics", tabs[1].Icon);
+    }
+
+    [Fact]
+    public void OperationsPaneCanRequestShellFraming()
+    {
+        var extension = ConfigureExtension(builder => builder
+            .AddResourceType<TestComponent>("sample.resource", "Sample", "Sample", "sample", 10)
+            .AddResourceOperationsPane<TestComponent>("sample.resource",
+                new ResourceViewId(ResourceTabGroupIds.General, "diagnostics"), "Diagnostics", 20, ownsLayout: false));
+        Assert.False(Assert.Single(Assert.Single(extension.ResourceTypes).ResourceTabs).OwnsLayout);
     }
 
     private static CloudShellExtensionRegistration ConfigureExtension(

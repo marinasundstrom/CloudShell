@@ -1,3 +1,5 @@
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.Providers.UI;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
@@ -46,7 +48,7 @@ builder.AddCloudShellControlPlane(controlPlane =>
         {
             resources.AddResourceGroup("sample-data", "Data services", "Simulated resources for UI review.");
             resources.AddResourceGroup("sample-messaging", "Messaging", "Simulated resources for UI review.");
-            foreach (var id in new[] { "sample:sql", "sample:orders-db", "sample:reporting-db" })
+            foreach (var id in new[] { "sample:sql", "sample:orders-db", "sample:reporting-db", "sample:archive-db", "sample:analytics-db", "sample:audit-db", "sample:warehouse-db", "sample:unknown-db" })
                 resources.Declare(SampleResourceProvider.ProviderId, id).WithResourceGroup("sample-data").WithAutoStart(false);
             foreach (var id in new[] { "sample:broker", "sample:orders-queue", "sample:deadletters" })
                 resources.Declare(SampleResourceProvider.ProviderId, id).WithResourceGroup("sample-messaging").WithAutoStart(false);
@@ -57,8 +59,14 @@ builder.AddCloudShellControlPlane(controlPlane =>
     });
 });
 
+if (builder.Configuration.GetValue<bool>("DesignPreview:Enabled"))
+    builder.Services.AddSingleton<IRabbitMQBrokerDashboardProvider, DesignPreviewBrokerDashboardProvider>();
+
 builder.AddCloudShellUi(ui =>
 {
+    if (builder.Configuration.GetValue<bool>("DesignPreview:Enabled"))
+        ui.AddBuiltInProviderResourceManagerUi();
+
     ui
         .AddExtension<ResourceManagerExtension>()
         .AddExtension<TelemetryExtension>()

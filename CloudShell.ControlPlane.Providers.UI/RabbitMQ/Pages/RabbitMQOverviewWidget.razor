@@ -25,6 +25,7 @@ else
             <h3>Message rates</h3>
             @if (Snapshot.Throughput.Count > 0)
             {
+                <div class="chart-scale"><span>0–@Rate(RateMaximum) msg/s</span><span>Last @Snapshot.Throughput.TakeLast(100).Count() samples</span></div>
                 <svg viewBox="0 0 400 135" role="img" aria-label="Recent publish, delivery, and acknowledgement rates">
                     <title>Message rates, messages per second, from @Snapshot.Throughput.First().Timestamp.ToLocalTime().ToString("HH:mm:ss") to @Snapshot.Throughput.Last().Timestamp.ToLocalTime().ToString("HH:mm:ss")</title>
                     <line x1="5" y1="120" x2="395" y2="120" class="axis" />
@@ -32,7 +33,12 @@ else
                     <polyline points="@Points(s => s.DeliverGetRate)" class="deliver" />
                     <polyline points="@Points(s => s.AckRate)" class="ack" />
                 </svg>
-                <p class="legend">Publish @Rate(Snapshot.Totals.PublishRate) · Deliver @Rate(Snapshot.Totals.DeliverGetRate) · Ack @Rate(Snapshot.Totals.AckRate) msg/s</p>
+                <div class="chart-legend" aria-label="Message rate legend">
+                    <span><i class="line-key publish-key" aria-hidden="true"></i>Publish @Rate(Snapshot.Totals.PublishRate)</span>
+                    <span><i class="line-key deliver-key" aria-hidden="true"></i>Deliver @Rate(Snapshot.Totals.DeliverGetRate)</span>
+                    <span><i class="line-key ack-key" aria-hidden="true"></i>Ack @Rate(Snapshot.Totals.AckRate)</span>
+                </div>
+                <p class="legend">Messages per second · @Snapshot.Throughput.TakeLast(100).First().Timestamp.ToLocalTime().ToString("HH:mm:ss")–@Snapshot.Throughput.Last().Timestamp.ToLocalTime().ToString("HH:mm:ss")</p>
             }
             else { <p>No recent throughput samples.</p> }
         </section>
@@ -48,15 +54,21 @@ else
                 </svg>
             }
             @if (Snapshot.Queues.Count == 0) { <p>No queue load reported.</p> }
-            <p class="legend">Ready / unacknowledged · top five queues</p>
+            <div class="chart-legend" aria-label="Queue depth legend">
+                <span><i class="area-key ready-key" aria-hidden="true"></i>Ready</span>
+                <span><i class="area-key unacked-key" aria-hidden="true"></i>Unacknowledged</span>
+            </div>
+            <p class="legend">Top @Math.Min(5, Snapshot.Queues.Count) of @Snapshot.Queues.Count queues · messages</p>
         </section>
     </div>
     <p class="legend">Observed @Snapshot.ObservedAt.ToLocalTime().ToString("HH:mm:ss")</p>
 }
 @if (Context.Resource is { } broker)
 {
-    <FluentAnchor Href="@OperationsNavigation.Pane(broker.Id, "broker-status")">Broker details</FluentAnchor>
-    <FluentAnchor Href="@OperationsNavigation.Pane(broker.Id, "topology")">Topology</FluentAnchor>
+    <div class="widget-links">
+        <FluentAnchor Href="@OperationsNavigation.Pane(broker.Id, "broker-status")" IconStart="@(new Icons.Regular.Size20.ChartMultiple())">Broker details</FluentAnchor>
+        <FluentAnchor Href="@OperationsNavigation.Pane(broker.Id, "topology")" IconStart="@(new Icons.Regular.Size20.DataUsage())">Topology</FluentAnchor>
+    </div>
 }
 @code {
     [CascadingParameter] public OperationsWorkspaceContext Context { get; set; } = default!;
@@ -81,10 +93,11 @@ else
     private static string Format(long? value) => value?.ToString("N0", CultureInfo.CurrentCulture) ?? "—";
     private static string Rate(double? value) => value?.ToString("0.#", CultureInfo.CurrentCulture) ?? "—";
     private string Width(long? value) => (400d * Math.Max(0, value ?? 0) / Math.Max(1, Snapshot!.Queues.Max(q => q.Messages ?? 0))).ToString("0.##", CultureInfo.InvariantCulture);
+    private double RateMaximum => Math.Max(1, Snapshot!.Throughput.TakeLast(100).Max(s => Math.Max(s.PublishRate ?? 0, Math.Max(s.DeliverGetRate ?? 0, s.AckRate ?? 0))));
     private string Points(Func<RabbitMQBrokerThroughputSample, double?> select)
     {
         var samples = Snapshot!.Throughput.TakeLast(100).ToArray();
-        var max = Math.Max(1, samples.Max(s => Math.Max(s.PublishRate ?? 0, Math.Max(s.DeliverGetRate ?? 0, s.AckRate ?? 0))));
+        var max = RateMaximum;
         return string.Join(" ", samples.Select((s,i) => string.Create(CultureInfo.InvariantCulture, $"{5 + 390d * i / Math.Max(1, samples.Length - 1):0.##},{120 - 110 * Math.Max(0, select(s) ?? 0) / max:0.##}")));
     }
     public void Dispose() { Request?.Cancel(); Request?.Dispose(); }

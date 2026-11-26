@@ -342,8 +342,17 @@ internal sealed class CloudShellExtensionBuilder(
 
     public ICloudShellExtensionBuilder AddResourceOperationsPane<TComponent>(
         string resourceTypeId, ResourceViewId id, string title, int order,
-        string? groupTitle = null, string? icon = null) =>
+        string? groupTitle = null, string? icon = null, bool ownsLayout = true)
+    {
         AddResourceTab<TComponent>(resourceTypeId, id, title, order, false, groupTitle, icon, isOperational: true);
+        var index = _resourceTypes.FindIndex(type => string.Equals(type.Id, resourceTypeId, StringComparison.OrdinalIgnoreCase));
+        var type = _resourceTypes[index];
+        _resourceTypes[index] = type with
+        {
+            Tabs = type.ResourceTabs.Select(tab => tab.Id == id ? tab with { OwnsLayout = ownsLayout } : tab).ToArray()
+        };
+        return this;
+    }
 
     public ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,

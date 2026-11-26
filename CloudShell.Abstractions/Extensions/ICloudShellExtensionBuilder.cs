@@ -122,7 +122,7 @@ public interface ICloudShellExtensionBuilder
     /// <summary>Registers a resource operations pane alongside Logs and Traces.</summary>
     ICloudShellExtensionBuilder AddResourceOperationsPane<TComponent>(
         string resourceTypeId, ResourceViewId id, string title, int order,
-        string? groupTitle = null, string? icon = null);
+        string? groupTitle = null, string? icon = null, bool ownsLayout = true);
 
     ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,

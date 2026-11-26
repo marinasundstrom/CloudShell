@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Providers;
 
 namespace CloudShell.ResourceHost;
 
@@ -47,10 +48,15 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
         if (designPreview)
         {
             resources = [..resources,
-                Create("sample:sql", "SQL Server", ResourceState.Running, "tcp://sql.example.test:1433", kind: "SQL server", typeId: "sample-sql"),
-                Create("sample:orders-db", "Orders", ResourceState.Running, "sql://sql.example.test/orders", kind: "Database", typeId: "sample-database", parentId: "sample:sql"),
-                Create("sample:reporting-db", "Reporting", ResourceState.Stopped, "sql://sql.example.test/reporting", kind: "Database", typeId: "sample-database", parentId: "sample:sql"),
-                Create("sample:broker", "Message broker", ResourceState.Running, "amqp://broker.example.test:5672", kind: "Message broker", typeId: "sample-broker"),
+                Create("sample:sql", "SQL Server (simulated)", ResourceState.Running, "tcp://sql.example.test:1433", kind: "SQL server", typeId: SqlServerResourceTypeProvider.ResourceTypeId.ToString()),
+                Create("sample:orders-db", "Orders", ResourceState.Running, "sql://sql.example.test/orders", kind: "Database", typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(), parentId: "sample:sql"),
+                Create("sample:reporting-db", "Reporting", ResourceState.Stopped, "sql://sql.example.test/reporting", kind: "Database", typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(), parentId: "sample:sql"),
+                Create("sample:archive-db", "HistoricalOrdersArchiveForInternationalFulfillmentAndReturns", ResourceState.Running, "sql://sql.example.test/archive", kind: "Database", typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(), parentId: "sample:sql"),
+                Create("sample:analytics-db", "Analytics", ResourceState.Degraded, "sql://sql.example.test/analytics", kind: "Database", typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(), parentId: "sample:sql"),
+                Create("sample:audit-db", "Audit", ResourceState.Running, "sql://sql.example.test/audit", kind: "Database", typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(), parentId: "sample:sql"),
+                Create("sample:warehouse-db", "Warehouse", ResourceState.Running, "sql://sql.example.test/warehouse", kind: "Database", typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(), parentId: "sample:sql"),
+                Create("sample:unknown-db", "Unreported", ResourceState.Unknown, "sql://sql.example.test/unknown", kind: "Database", typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(), parentId: "sample:sql"),
+                Create("sample:broker", "RabbitMQ (simulated)", ResourceState.Running, "amqp://broker.example.test:5672", kind: "Message broker", typeId: RabbitMQResourceTypeProvider.ResourceTypeId.ToString(), endpointName: "amqp"),
                 Create("sample:orders-queue", "Orders awaiting fulfillment", ResourceState.Running, "queue://orders", kind: "Queue", typeId: "sample-queue", parentId: "sample:broker"),
                 Create("sample:deadletters", "Orders awaiting fulfillment / dead letters", ResourceState.Stopped, "queue://orders-deadletters", kind: "Queue", typeId: "sample-queue", parentId: "sample:orders-queue")];
         }
@@ -99,7 +105,7 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
         ResourceState state,
         string endpoint,
         IReadOnlyList<string>? dependsOn = null,
-        string kind = "Sample service", string typeId = "sample-service", string? parentId = null)
+        string kind = "Sample service", string typeId = "sample-service", string? parentId = null, string endpointName = "default")
     {
         lock (gate)
         {
@@ -113,7 +119,7 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
             DisplayName,
             "local",
             state,
-            [ResourceEndpoint.Contract("default", GetProtocol(endpoint), ResourceExposureScope.Public, GetPort(endpoint))],
+            [ResourceEndpoint.Contract(endpointName, GetProtocol(endpoint), ResourceExposureScope.Public, GetPort(endpoint))],
             "0.1.0",
             DateTimeOffset.UtcNow,
             dependsOn ?? [],
@@ -124,10 +130,10 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
             [
                 ResourceEndpointNetworkMapping.ForEndpoint(
                     id,
-                    "default",
+                    endpointName,
                     endpoint,
                     ResourceExposureScope.Public,
-                    sourceEndpointName: "default")
+                    sourceEndpointName: endpointName)
             ]);
     }
 

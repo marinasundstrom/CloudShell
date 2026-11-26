@@ -84,3 +84,19 @@ polyline {
     background: var(--cloudshell-inset-background);
     border-radius: var(--cloudshell-control-radius, 6px);
 }
+
+.queue-heading { gap: .75rem; align-items: baseline; margin-top: .6rem; }
+.queue-heading span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.queue-heading span:last-child { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.chart-scale, .chart-legend, .widget-links { display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
+.chart-scale { justify-content: space-between; }
+.chart-scale, .chart-legend { font-size: .75rem; }
+.chart-scale, .legend { color: var(--cloudshell-text-muted); }
+.chart-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.line-key { display: inline-block; width: 1.2rem; border-top: 2px solid; }
+.publish-key { border-color: var(--cloudshell-accent); }
+.deliver-key { border-color: var(--cloudshell-chart-delivery); border-top-style: dashed; }
+.ack-key { border-color: var(--cloudshell-chart-acknowledged); border-top-style: dotted; }
+.area-key { display: inline-block; width: .65rem; height: .65rem; border-radius: 2px; }
+.ready-key { background: var(--cloudshell-accent); }
+.unacked-key { background: var(--cloudshell-chart-acknowledged); }

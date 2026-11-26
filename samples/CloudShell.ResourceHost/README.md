@@ -119,6 +119,22 @@ See [Operations workspace](../../docs/operations-workspace.md).
 Set `DesignPreview__Enabled=true` when running this sample to include simulated
 SQL-server/database and broker/queue resources alongside the three services.
 The fixture includes two Resource Groups, a three-level parent/child hierarchy,
-long labels, and running/stopped states. It starts no SQL or broker processes
+long labels, and running/stopped/degraded/unknown states. SQL Server and RabbitMQ
+use the real built-in UI contributions. SQL Server has seven database resources;
+RabbitMQ has six deterministic queue-counter entries and thirty throughput samples.
+The extra SQL/RabbitMQ provider UI and the simulated dashboard provider are enabled
+only for this opt-in preview. Resources are labeled simulated.
+
+Open `/resources/sample%3Asql` and `/resources/sample%3Abroker` to review populated
+widgets, then follow View databases / Broker details to their operations panes.
+Use the theme menu to compare Light and Dark, and Edit dashboard to rearrange cards.
+ It starts no SQL or broker processes
 and does not validate live provider telemetry. Use it to review hierarchy,
 Resource Group sections, filtering, compact/full inventory, and both themes.
+
+Verified populated widgets at 1280px and 420px widths in Light and Dark: seven SQL
+registrations (including degraded/unknown states and a long name), six broker
+queue counters, widget-to-pane navigation, single pane headings and preserved
+configuration groups. These checks exercise UI composition with simulated data,
+not connectivity to SQL Server or the RabbitMQ Management API. Individual queue
+resource widgets remain future work.

@@ -268,3 +268,11 @@ contracts. Remote clients, launchers and language SDKs need no new transport fie
 Providers remain responsible for operational data and diagnostics; UI components
 must not expose credentials. Layout persistence uses the existing dashboard store.
 Live SQL performance telemetry remains a future provider capability.
+
+Operations-pane components own their headings and panel composition by default
+(`ResourceTabContribution.OwnsLayout`). This avoids repeated headings and nested
+outer cards when migrating existing provider views. Pass `ownsLayout: false` to
+`AddResourceOperationsPane` for a simple component that needs shell framing.
+Configuration views and legacy tab contributions retain shell framing by default.
+Provider widgets with isolated CSS must include `ProviderStyles` so direct entry
+and navigation from another provider both load their scoped styles.

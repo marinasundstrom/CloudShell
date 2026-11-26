@@ -1,3 +1,5 @@
+<ProviderStyles />
+
 @using CloudShell.Hosting.ResourceManager
 
 @if (Context.Error is not null)
@@ -12,8 +14,10 @@ else
 {
     <div class="database-summary">
         <div><strong>@Databases.Count</strong><span>Registered</span></div>
-        <div><strong>@Databases.Count(d => d.State == ResourceState.Running)</strong><span>Running</span></div>
-        <div><strong>@Databases.Count(d => d.State == ResourceState.Stopped)</strong><span>Stopped</span></div>
+        @foreach (var group in Databases.GroupBy(database => database.State).OrderBy(group => group.Key))
+        {
+            <div><strong>@group.Count()</strong><span>@(group.Key?.ToString() ?? "Not reported")</span></div>
+        }
     </div>
     @if (Databases.Count == 0)
     {
@@ -25,8 +29,11 @@ else
             @foreach (var database in Databases.Take(5))
             {
                 <li>
-                    <FluentAnchor Href="@Context.DashboardHref(database.Id)" IconStart="@(new Icons.Regular.Size20.Database())">@Context.GetLabel(database)</FluentAnchor>
-                    <span>@(database.State?.ToString() ?? "Not reported")</span>
+                    <div class="database-name">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Database())" />
+                        <FluentAnchor Href="@Context.DashboardHref(database.Id)" Appearance="Appearance.Hypertext"><span>@Context.GetLabel(database)</span></FluentAnchor>
+                    </div>
+                    <span class="database-state"><ResourceStateIndicator State="database.State" />@(database.State?.ToString() ?? "Not reported")</span>
                 </li>
             }
         </ul>
