@@ -148,26 +148,29 @@ else
                                                                IconTitle="Replica"
                                                                Summary="@FormatReplicaOrdinal(row.Resource)">
                                             <TitleContent>
-                                                <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(row.Resource.Id)">
+                                                <FluentAnchor Appearance="Appearance.Hypertext" Href="@ResourceManagerRoutes.ResourceDetails(row.Resource.Id)">
                                                     @ResourceDisplayLabels.GetQualifiedLabel(row.Resource)
                                                 </FluentAnchor>
                                             </TitleContent>
                                         </ResourceTableIdentity>
                                     </td>
                                     <td>
-                                        <ResourceStateIndicator State="row.Resource.State" Variant="pill" />
+                                        <span class="resource-table-state">
+                                            <ResourceStateIndicator State="row.Resource.State" />
+                                            <span>@row.Resource.State</span>
+                                        </span>
                                     </td>
                                     <td>
                                         <strong>@FormatMonitoringStatus(row.Snapshot)</strong>
                                         <span>@GetMonitoringMessage(row)</span>
                                     </td>
-                                    <td>@FormatMetric(row, CpuUsageMetricName, NotCollected)</td>
-                                    <td>@FormatMetric(row, MemoryUsageMetricNames, NotCollected)</td>
-                                    <td>
+                                    <td class="numeric-value">@FormatMetric(row, CpuUsageMetricName, NotCollected)</td>
+                                    <td class="numeric-value">@FormatMetric(row, MemoryUsageMetricNames, NotCollected)</td>
+                                    <td class="numeric-value">
                                         <strong>@FormatMetric(row, NetworkReceivedMetricName, NotCollected)</strong>
                                         <span>Sent @FormatMetric(row, NetworkSentMetricName, NotCollected)</span>
                                     </td>
-                                    <td>@FormatMetric(row, ProcessCountMetricName, NotCollected)</td>
+                                    <td class="numeric-value">@FormatMetric(row, ProcessCountMetricName, NotCollected)</td>
                                 </tr>
                             }
                         </tbody>

@@ -95,3 +95,8 @@
     white-space: normal;
     overflow-wrap: anywhere;
 }
+
+.resource-table ::deep td.numeric-value {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}

@@ -15,6 +15,10 @@ The stable `application.container-app:api` resource owns the workload
 declaration, service endpoint, and requested replica count. The hidden runtime
 replica resources own materialized probe targets while the app is active.
 
+The API workload is a separate solution project, not a project reference of the
+UI host. The runtime builds it from its project path when materializing replicas;
+this keeps workload static assets and hot-reload modules out of the shell.
+
 The sample keeps the app stopped by default so Resource Manager projection,
 health declarations, and UI tabs can be tested without starting Docker
 containers. Starting `application.container-app:api` creates runtime replica

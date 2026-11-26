@@ -188,7 +188,7 @@ else
                                     else
                                     {
                                         <strong>
-                                            <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(replica.Id)">
+                                            <FluentAnchor Appearance="Appearance.Hypertext" Href="@ResourceManagerRoutes.ResourceDetails(replica.Id)">
                                                 @ResourceDisplayLabels.GetQualifiedLabel(replica)
                                             </FluentAnchor>
                                         </strong>
@@ -202,7 +202,10 @@ else
                                     }
                                     else
                                     {
-                                        <ResourceStateIndicator State="replica.State" Variant="pill" />
+                                        <span class="resource-table-state">
+                                            <ResourceStateIndicator State="replica.State" />
+                                            <span>@replica.State</span>
+                                        </span>
                                     }
                                 </td>
                                 <td>@(replica is null ? "Not running" : GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version))</td>

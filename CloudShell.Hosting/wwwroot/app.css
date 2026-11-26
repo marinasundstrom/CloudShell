@@ -2965,7 +2965,7 @@ h3 {
 
 .detail-list {
     display: grid;
-    grid-template-columns: 7rem minmax(0, 1fr);
+    grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
     gap: .45rem .75rem;
     margin: 0;
 }

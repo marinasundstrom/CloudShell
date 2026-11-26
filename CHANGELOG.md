@@ -10,6 +10,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Kept the replicated-container API as a separate solution workload instead of importing its web assets into the UI host, fixing the .NET 11 hot-reload asset build conflict. Widened shared detail labels for compact operational views, aligned replica links and state indicators, kept metric units together, and allowed metric descriptions to wrap. Reset the operations pane scroll position on navigation without remounting its menu.
+
 - Migrated device inventory/twin operations, event streams, and container deployment, revisions, scaling and monitoring to resource operations panes. Retained setup editors in Configuration.
 - Removed misleading hover backgrounds/pointers from read-only resource, usage and metric tables; kept feedback on actionable controls. Aligned device presence indicators and made certificate fields responsive with persistent labels and themed upload controls.
 

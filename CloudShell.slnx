@@ -52,6 +52,9 @@
   <Folder Name="/samples/DeviceRegistry/EventConsumer/">
     <Project Path="samples/DeviceRegistry/EventConsumer/CloudShell.DeviceRegistry.EventConsumer.csproj" />
   </Folder>
+  <Folder Name="/samples/ReplicatedContainerHealth/Api/">
+    <Project Path="samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj" />
+  </Folder>
   <Folder Name="/samples/ReplicatedContainerHealth/">
     <Project Path="samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj" />
   </Folder>

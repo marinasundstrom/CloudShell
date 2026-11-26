@@ -56,7 +56,7 @@
             document.documentElement.scrollTop = 0;
             document.body.scrollTop = 0;
 
-            document.querySelectorAll(".shell-main, .shell-content").forEach(function (element) {
+            document.querySelectorAll(".shell-main, .shell-content, .operations-content").forEach(function (element) {
                 element.scrollTop = 0;
                 element.scrollLeft = 0;
             });

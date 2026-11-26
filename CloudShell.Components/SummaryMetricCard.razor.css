@@ -68,8 +68,7 @@
 }
 
 .metric-summary-card span,
-.metric-summary-card strong,
-.metric-summary-card small {
+.metric-summary-card strong {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -85,3 +84,9 @@
 }
 
 .metric-card-warning { background: var(--cloudshell-warning-fill); }
+
+.metric-summary-card small {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+}

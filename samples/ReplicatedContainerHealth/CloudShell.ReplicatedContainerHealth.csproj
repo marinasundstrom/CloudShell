@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="Api\CloudShell.ReplicatedContainerHealth.Api.csproj" />
     <ProjectReference Include="..\..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
     <ProjectReference Include="..\..\CloudShell.ControlPlane.Providers.UI\CloudShell.ControlPlane.Providers.UI.csproj" />
