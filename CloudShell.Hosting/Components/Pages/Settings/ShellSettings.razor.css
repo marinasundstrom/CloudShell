@@ -1,0 +1,2 @@
+.settings-summary { display:grid; gap:.5rem; }
+@media(max-width:760px) { .settings-summary { display:none; } }

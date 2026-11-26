@@ -1,5 +1,6 @@
 @page "/extensions"
 @rendermode InteractiveServer
+@inject NavigationManager Navigation
 @inject ShellCatalog ShellCatalog
 @inject ICloudShellExtensionActivationStore ActivationStore
 @inject ICloudShellAuthorizationService Authorization
@@ -19,7 +20,8 @@ else
                  Title="@L["Extensions"].Value"
                  Description="@L["Extensions registered through the service container. Host configuration or this UI can activate their contributions."].Value">
         <Actions>
-            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())">
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())"
+                          OnClick="() => Navigation.Refresh(forceReload: true)">
                 @L["Reload"]
             </FluentButton>
         </Actions>

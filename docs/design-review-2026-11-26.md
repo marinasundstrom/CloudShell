@@ -37,7 +37,26 @@ resources, long names, and stopped states; it is not a live-provider substitute.
 
 - Exercise populated provider-specific charts, tables, and failure states with
   real runtime services in both themes.
-- Review embedded Settings/Extensions heading ownership and nested panel density.
+- Exercise authenticated user-administration forms inside Settings; the local preview currently exposes the unavailable state.
 - Extend the static relationship component to more complex graph layouts; it now
   shares the full graph's node/edge styling and provider-aware icons.
 - Expand narrow-screen and keyboard-only checks across provider forms.
+
+
+## Follow-up review
+
+- Rechecked embedded Extensions in light and dark mode: removed its duplicate
+  outer section heading and wired its Reload command to refresh the current page.
+- Checked Settings General at 700px: hide the decorative summary tiles at narrow
+  widths while retaining the section picker and the settings form. Removed the
+  generic “Settings section” subtitle.
+- Checked provider registration guidance (RabbitMQ) and the .NET package form
+  in both themes. The package-upload-disabled state is the available host state.
+  Provider registration guidance now links directly to Templates; stretched empty
+  panels keep their heading, explanation, and action together.
+- Existing live-provider and authenticated-state coverage limits above still apply.
+
+Validation: both preview hosts build successfully with hot reload disabled;
+five Hosting tests pass. Full-solution validation remains blocked by stale
+.NET preview hot-reload assets in ReplicatedContainerHealth and SignalRContainerApp
+samples (scoped CSS endpoint / missing generated-file errors).

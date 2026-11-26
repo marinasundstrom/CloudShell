@@ -5377,6 +5377,7 @@ h3 {
 
 .empty-state {
     display: grid;
+    align-content: center;
     gap: .25rem;
     padding: 2rem;
     border: 0;

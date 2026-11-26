@@ -17,26 +17,30 @@
                                         RouteSegment="@Section"
                                         IconSelector="GetIcon">
     <SummaryContent Context="sections">
-        <ShellSummaryTile Title="@L["CloudShell"].Value"
-                          Description="@L["Common settings"].Value">
-            <Icon>
-                <FluentIcon Value="@(new Icons.Regular.Size20.SettingsCogMultiple())" />
-            </Icon>
-        </ShellSummaryTile>
-        <ShellSummaryTile Title="@L["{0} section(s)", sections.Count].Value"
-                          Description="@L["Available settings"].Value">
-            <Icon>
-                <FluentIcon Value="@(new Icons.Regular.Size20.AppsListDetail())" />
-            </Icon>
-        </ShellSummaryTile>
+        <div class="settings-summary">
+            <ShellSummaryTile Title="@L["CloudShell"].Value"
+                              Description="@L["Common settings"].Value">
+                <Icon>
+                    <FluentIcon Value="@(new Icons.Regular.Size20.SettingsCogMultiple())" />
+                </Icon>
+            </ShellSummaryTile>
+            <ShellSummaryTile Title="@L["{0} section(s)", sections.Count].Value"
+                              Description="@L["Available settings"].Value">
+                <Icon>
+                    <FluentIcon Value="@(new Icons.Regular.Size20.AppsListDetail())" />
+                </Icon>
+            </ShellSummaryTile>
+        </div>
     </SummaryContent>
     <EmptyContent>
         <EmptyState Title="@L["No settings sections"].Value"
                     Message="@L["No settings sections are registered for this CloudShell host."].Value" />
     </EmptyContent>
     <HeaderContent Context="section">
-        <ShellPanelHeader Title="@L[section.Title].Value"
-                          Description="@L["Settings section"].Value" />
+        @if (section.Id != ShellIds.SettingsExtensionsSection)
+        {
+            <ShellPanelHeader Title="@L[section.Title].Value" />
+        }
     </HeaderContent>
 </CloudShellCoreShellSectionTabbedLayout>
 
