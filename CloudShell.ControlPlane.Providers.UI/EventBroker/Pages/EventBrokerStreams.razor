@@ -37,9 +37,9 @@ else
                     <tr>
                         <th>Name</th>
                         <th>Protocol</th>
-                        <th>Endpoint</th>
+                        <th class="text-cell">Endpoint</th>
                         <th>Event format</th>
-                        <th>Capabilities</th>
+                        <th class="text-cell">Capabilities</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -48,9 +48,9 @@ else
                         <tr>
                             <td><strong>@protocol.Name</strong></td>
                             <td>@FormatProtocol(protocol.Protocol)</td>
-                            <td>@FormatEndpoint(protocol.Address)</td>
+                            <td class="text-cell">@FormatEndpoint(protocol.Address)</td>
                             <td>@FormatEventFormat(protocol.EventFormat)</td>
-                            <td>@FormatCapabilities(protocol.Capabilities)</td>
+                            <td class="text-cell">@FormatCapabilities(protocol.Capabilities)</td>
                         </tr>
                     }
                 </tbody>
@@ -91,9 +91,9 @@ else
                     @foreach (var stream in Streams)
                     {
                         <tr>
-                            <td><strong>@stream.Name</strong></td>
-                            <td>@stream.EventCount</td>
-                            <td>@stream.LastSequence</td>
+                            <td class="text-cell"><strong>@stream.Name</strong></td>
+                            <td class="numeric-value">@stream.EventCount</td>
+                            <td class="numeric-value">@stream.LastSequence</td>
                             <td>@FormatLastEvent(stream.LastEventAt)</td>
                         </tr>
                     }

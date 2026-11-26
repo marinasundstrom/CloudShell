@@ -10,6 +10,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Added a shared, locally hosted Monaco JSON editor with read-only viewing, light/dark theme synchronization, syntax diagnostics and a text fallback ([ADR-20261126-003](ADR.md#adr-20261126-003-locally-hosted-structured-json-editor)). Device twin panes now show editable desired state beside a non-editor reported-state display with a copy button, stacking on narrow screens. Improved long-text wrapping in Event Broker tables.
+
 - Kept authorized resource detail links working when a resource is hidden from the inventory by display preferences, including volumes opened from their parent storage pane.
 
 - Added consistent, theme-aware icons to dashboard widget headings, including provider widgets, with an optional semantic icon contribution. Aligned storage and DNS resource links with Fluent navigation and clarified volume configuration commands.

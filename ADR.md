@@ -11,6 +11,15 @@ link to the decision so the dependency is visible.
 
 ## 2026-11-26
 
+### ADR-20261126-003: Locally hosted structured JSON editor
+
+The shared UI component library wraps Monaco through BlazorMonaco for editable
+and read-only JSON. Assets are served by the host and loaded on demand, with
+no CDN dependency or remote schema fetching. Theme synchronization and editor
+lifetime belong to the UI component; provider validation and authorization stay
+at the operation boundary. Plain text is the fallback when assets fail to load.
+See [System design guidelines](docs/system-design-guidelines.md#structured-json-editors).
+
 ### ADR-20261126-002: Shared panel surface language
 
 CloudShell panels use rounded backgrounds without decorative heading dividers.

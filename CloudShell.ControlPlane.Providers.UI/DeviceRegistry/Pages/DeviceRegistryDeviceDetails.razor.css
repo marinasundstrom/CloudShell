@@ -1,0 +1,10 @@
+.device-details-heading { flex-wrap: wrap; }
+.device-details-heading > div { min-width: 0; overflow-wrap: anywhere; }
+.device-details-heading .heading-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.device-twin-state-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+.device-twin-state { min-width: 0; }
+@media (max-width: 900px) { .device-twin-state-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.reported-state-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .4rem; }
+.reported-state-heading h4 { margin: 0; font-size: .84rem; font-weight: 600; }
+.reported-state-json { margin: .4rem 0 0; padding: .75rem; max-height: 20rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8125rem; }

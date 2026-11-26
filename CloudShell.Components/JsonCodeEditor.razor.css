@@ -1,0 +1,3 @@
+.json-code-editor { min-width: 0; }
+label { display:block; margin-bottom:.4rem; font-size:.84rem; font-weight:600; }
+.json-code-editor ::deep .monaco-editor-container { height: 20rem; border:1px solid var(--cloudshell-stroke); border-radius:4px; overflow:hidden; }

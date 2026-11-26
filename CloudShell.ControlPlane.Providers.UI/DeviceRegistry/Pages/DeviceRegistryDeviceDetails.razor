@@ -1,10 +1,12 @@
 <ProviderStyles />
 
 @using System.Text.Json
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
 @inject IResourceManager ResourceManager
 
 <section class="blade-section">
-    <div class="blade-section-header">
+    <div class="blade-section-header device-details-heading">
         <div>
             <h3>@Device.Subject</h3>
             <p>@Device.ClientId</p>
@@ -44,7 +46,7 @@
 
     @if (!string.IsNullOrWhiteSpace(DeviceOperationMessage))
     {
-        <p>@DeviceOperationMessage</p>
+        <p role="status">@DeviceOperationMessage</p>
     }
 
     <ResourceTable AriaLabel="Device identity details">
@@ -135,7 +137,7 @@
         <div class="heading-actions">
             <FluentButton Appearance="Appearance.Accent"
                           Disabled="@IsUpdatingTwin"
-                          IconStart="@(new Icons.Regular.Size20.Save())"
+                          IconStart="@(new Icons.Regular.Size20.Save().WithColor("currentColor"))"
                           OnClick="UpdateDesiredStateAsync">
                 Save desired state
             </FluentButton>
@@ -144,7 +146,7 @@
 
     @if (!string.IsNullOrWhiteSpace(TwinOperationMessage))
     {
-        <p>@TwinOperationMessage</p>
+        <p role="status">@TwinOperationMessage</p>
     }
 
     <ResourceTable AriaLabel="Device twin metadata">
@@ -172,29 +174,26 @@
         </tbody>
     </ResourceTable>
 
-    <div class="form-grid">
-        <label for="device-twin-desired">Desired state</label>
-        <FluentTextArea Id="device-twin-desired"
-                        AriaLabel="Desired twin state JSON"
-                        @bind-Value="DesiredStateJson"
-                        Rows="8"
-                        Style="width: 100%;" />
+    <div class="device-twin-state-grid">
+        <div class="device-twin-state">
+            <JsonCodeEditor @key="Device.Id" @ref="DesiredStateEditor" Label="Desired state" InitialValue="@DesiredStateJson" />
+        </div>
+        <div class="device-twin-state">
+            <div class="reported-state-heading">
+                <h4>Reported state</h4>
+                <FluentButton Appearance="Appearance.Stealth"
+                              IconStart="@(new Icons.Regular.Size20.Copy())"
+                              OnClick="CopyReportedStateAsync">
+                    Copy reported state
+                </FluentButton>
+            </div>
+            <pre class="reported-state-json" aria-label="Reported state" tabindex="0"><code>@FormatTwinStateJson(Device.Twin.Reported.State)</code></pre>
+            @if (!string.IsNullOrEmpty(CopyReportedStateMessage))
+            {
+                <p role="status">@CopyReportedStateMessage</p>
+            }
+        </div>
     </div>
-
-    <ResourceTable AriaLabel="Reported twin state">
-        <thead>
-            <tr>
-                <th>Reported state</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>
-                    <pre>@FormatTwinStateJson(Device.Twin.Reported.State)</pre>
-                </td>
-            </tr>
-        </tbody>
-    </ResourceTable>
 </section>
 
 <section class="blade-section">
@@ -241,6 +240,21 @@
 
 @code {
     private const string NotReported = "Not reported";
+    private string? CopyReportedStateMessage;
+
+    private async Task CopyReportedStateAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", FormatTwinStateJson(Device.Twin.Reported.State));
+            CopyReportedStateMessage = "Reported state copied.";
+        }
+        catch (JSException)
+        {
+            CopyReportedStateMessage = "Could not copy reported state. Select the JSON and copy it manually.";
+        }
+        catch (JSDisconnectedException) { }
+    }
 
     [Parameter, EditorRequired]
     public CloudShell.Abstractions.ResourceManager.Resource Resource { get; set; } = default!;
@@ -263,6 +277,7 @@
     private bool IsMutatingDevice { get; set; }
     private bool IsUpdatingTwin { get; set; }
     private string? DeviceOperationMessage { get; set; }
+    private JsonCodeEditor? DesiredStateEditor;
     private string DesiredStateJson { get; set; } = "{}";
     private string? TwinEditorDeviceId { get; set; }
     private string? TwinOperationMessage { get; set; }
@@ -360,6 +375,7 @@
         TwinOperationMessage = null;
         try
         {
+            DesiredStateJson = DesiredStateEditor is null ? DesiredStateJson : await DesiredStateEditor.GetValueAsync();
             var desiredState = ParseTwinStateJson(DesiredStateJson);
             var twin = await DeviceManager.SetDesiredStateAsync(
                 Resource,

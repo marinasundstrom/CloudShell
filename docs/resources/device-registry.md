@@ -287,3 +287,9 @@ read-only. See [Built-in service runtime](../built-in-service-runtime.md).
 - External broker integration through Event Broker, TLS listener configuration,
   retained messages, and richer microcontroller provisioning remain future work
   for MQTT.
+
+The operational Devices pane displays desired and reported twin JSON side by
+side on wide screens and stacked on narrow screens. Desired state uses the
+shared Monaco JSON editor; reported state remains a non-editor JSON display with a copy button. Drafts survive
+inventory refreshes and theme changes, while Save still rejects non-object or
+malformed JSON through the existing provider workflow.

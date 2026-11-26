@@ -330,3 +330,18 @@ Cover behavior at the same layer where it is owned.
 For MVP stabilization, every model change should include at least one test that
 guards the intended behavior and one test that guards an important invalid or
 edge state.
+
+## Structured JSON editors
+
+Use `CloudShell.Components.JsonCodeEditor` for editing JSON and for read-only
+JSON inspection. It uses locally served BlazorMonaco assets, loads on demand,
+and follows the shell theme. Set `ReadOnly` for inspection. Supply `InitialValue`
+and a stable resource/device key; call `GetValueAsync` when saving so the latest
+keystroke is included. Refreshes must not replace an in-progress draft. For
+read-only values, include the source version in the component key to refresh
+without affecting a neighboring editor.
+
+Monaco provides syntax diagnostics, but domain validation and authorization
+remain mandatory at the operation boundary. External JSON schema fetching is
+disabled. Editors do not reveal masked secret/certificate values. A text-area
+fallback remains available if editor assets fail to load.
