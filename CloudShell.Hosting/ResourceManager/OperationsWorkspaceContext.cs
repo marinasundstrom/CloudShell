@@ -15,6 +15,9 @@ public sealed record OperationsWorkspaceContext(
 {
     public IReadOnlyDictionary<string, ResourceHealthSummary> Health { get; init; } = new Dictionary<string, ResourceHealthSummary>();
     public string Pane { get; init; } = "dashboard";
+    /// <summary>Requests a resource action through the shell's shared confirmation and preference flow.</summary>
+    public Func<Resource, ResourceAction, Task>? RequestActionAsync { get; init; }
+    public Func<string, string, bool> IsActionExecuting { get; init; } = (_, _) => false;
     public bool IsSystem => string.IsNullOrEmpty(ResourceId);
     public string DashboardHref(string? resourceId = null) => OperationsNavigation.Dashboard(resourceId);
 }

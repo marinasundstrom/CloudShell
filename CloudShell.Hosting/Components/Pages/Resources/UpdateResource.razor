@@ -870,6 +870,8 @@
         };
     }
 
+    [CascadingParameter] public OperationsWorkspaceContext? Workspace { get; set; }
+
     private async Task ExecuteAction(ResourceAction action)
     {
         if (Resource is null)
@@ -882,6 +884,14 @@
         {
             ProcedureMessage = actionState.Title;
             ProcedureSignals = [];
+            return;
+        }
+
+        if (Workspace?.RequestActionAsync is { } requestAction)
+        {
+            await requestAction(Resource, action);
+            await ReloadResourceAsync();
+            ResourceContentVersion++;
             return;
         }
 

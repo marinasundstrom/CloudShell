@@ -237,3 +237,5 @@ and [Resource identity and permissions](resource-identity-and-permissions.md).
 - Do not require every provider log entry to become structured immediately.
   Source metadata and parser/format metadata can evolve as provider needs are
   proven.
+
+Lifecycle cancellation emits `event.lifecycle.start.cancelled`, `stop.cancelled`, `pause.cancelled`, or `restart.cancelled` under the same `event.lifecycle` prefix. These informational outcomes replace the matching in-progress operation notification using the existing correlation key; they are neither successful completion nor failure. Providers signal cancellation with `OperationCanceledException`. This reports the outcome of a supported cancellation, and does not imply every provider can abort startup.

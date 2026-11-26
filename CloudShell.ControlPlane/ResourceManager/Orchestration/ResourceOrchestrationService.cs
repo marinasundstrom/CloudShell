@@ -451,6 +451,12 @@ public sealed class ResourceOrchestrationService(
 
             return result;
         }
+        catch (OperationCanceledException)
+        {
+            AppendLifecycleEvent(resource, GetLifecycleEventTypes(action)?.Cancelled,
+                $"{action.DisplayName} was cancelled.", cause, triggeredBy);
+            throw;
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             AppendResourceActionEvent(
@@ -1099,19 +1105,23 @@ public sealed class ResourceOrchestrationService(
             ResourceActionKind.Start => new(
                 ResourceEventTypes.Events.Lifecycle.Starting,
                 ResourceEventTypes.Events.Lifecycle.Started,
-                ResourceEventTypes.Events.Lifecycle.StartFailed),
+                ResourceEventTypes.Events.Lifecycle.StartFailed,
+                ResourceEventTypes.Events.Lifecycle.StartCancelled),
             ResourceActionKind.Stop => new(
                 ResourceEventTypes.Events.Lifecycle.Stopping,
                 ResourceEventTypes.Events.Lifecycle.Stopped,
-                ResourceEventTypes.Events.Lifecycle.StopFailed),
+                ResourceEventTypes.Events.Lifecycle.StopFailed,
+                ResourceEventTypes.Events.Lifecycle.StopCancelled),
             ResourceActionKind.Pause => new(
                 ResourceEventTypes.Events.Lifecycle.Pausing,
                 ResourceEventTypes.Events.Lifecycle.Paused,
-                ResourceEventTypes.Events.Lifecycle.PauseFailed),
+                ResourceEventTypes.Events.Lifecycle.PauseFailed,
+                ResourceEventTypes.Events.Lifecycle.PauseCancelled),
             ResourceActionKind.Restart => new(
                 ResourceEventTypes.Events.Lifecycle.Restarting,
                 ResourceEventTypes.Events.Lifecycle.Restarted,
-                ResourceEventTypes.Events.Lifecycle.RestartFailed),
+                ResourceEventTypes.Events.Lifecycle.RestartFailed,
+                ResourceEventTypes.Events.Lifecycle.RestartCancelled),
             _ => null
         };
 
@@ -1173,7 +1183,8 @@ public sealed class ResourceOrchestrationService(
     private sealed record ResourceLifecycleEventTypes(
         string Starting,
         string Completed,
-        string Failed);
+        string Failed,
+        string Cancelled);
 
     private static ControlPlaneException CreateDependencyAutoStartException(
         Resource rootResource,

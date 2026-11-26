@@ -44,6 +44,8 @@ public sealed record CloudShellUserSetting(
 
 public static class CloudShellUserSettingKeys
 {
+    public const string ResourceManagerStartDependenciesAutomatically =
+        "resource-manager.start-dependencies-automatically";
     public const string ThemeMode = "shell.theme";
     public const string NavigationCollapsed = "shell.navigation.collapsed";
     public const string NavigationCollapsedGroups = "shell.navigation.collapsed-groups";

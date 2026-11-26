@@ -94,6 +94,10 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
 
         return resourceEvent.EventType.Trim() switch
         {
+            ResourceEventTypes.Events.Lifecycle.StartCancelled or
+            ResourceEventTypes.Events.Lifecycle.StopCancelled or
+            ResourceEventTypes.Events.Lifecycle.PauseCancelled or
+            ResourceEventTypes.Events.Lifecycle.RestartCancelled => CloudShellNotificationStatus.Active,
             ResourceEventTypes.Events.Lifecycle.Starting or
             ResourceEventTypes.Events.Lifecycle.Stopping or
             ResourceEventTypes.Events.Lifecycle.Pausing or
@@ -412,16 +416,20 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         {
             ResourceEventTypes.Events.Lifecycle.Starting or
             ResourceEventTypes.Events.Lifecycle.Started or
-            ResourceEventTypes.Events.Lifecycle.StartFailed => ResourceActionIds.Start,
+            ResourceEventTypes.Events.Lifecycle.StartFailed or
+            ResourceEventTypes.Events.Lifecycle.StartCancelled => ResourceActionIds.Start,
             ResourceEventTypes.Events.Lifecycle.Stopping or
             ResourceEventTypes.Events.Lifecycle.Stopped or
-            ResourceEventTypes.Events.Lifecycle.StopFailed => ResourceActionIds.Stop,
+            ResourceEventTypes.Events.Lifecycle.StopFailed or
+            ResourceEventTypes.Events.Lifecycle.StopCancelled => ResourceActionIds.Stop,
             ResourceEventTypes.Events.Lifecycle.Pausing or
             ResourceEventTypes.Events.Lifecycle.Paused or
-            ResourceEventTypes.Events.Lifecycle.PauseFailed => ResourceActionIds.Pause,
+            ResourceEventTypes.Events.Lifecycle.PauseFailed or
+            ResourceEventTypes.Events.Lifecycle.PauseCancelled => ResourceActionIds.Pause,
             ResourceEventTypes.Events.Lifecycle.Restarting or
             ResourceEventTypes.Events.Lifecycle.Restarted or
-            ResourceEventTypes.Events.Lifecycle.RestartFailed => ResourceActionIds.Restart,
+            ResourceEventTypes.Events.Lifecycle.RestartFailed or
+            ResourceEventTypes.Events.Lifecycle.RestartCancelled => ResourceActionIds.Restart,
             _ => null
         };
 

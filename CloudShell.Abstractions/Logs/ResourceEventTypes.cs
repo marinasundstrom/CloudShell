@@ -53,15 +53,19 @@ public static class ResourceEventTypes
             public const string Starting = "event.lifecycle.starting";
             public const string Started = "event.lifecycle.started";
             public const string StartFailed = "event.lifecycle.start.failed";
+            public const string StartCancelled = "event.lifecycle.start.cancelled";
             public const string Stopping = "event.lifecycle.stopping";
             public const string Stopped = "event.lifecycle.stopped";
             public const string StopFailed = "event.lifecycle.stop.failed";
+            public const string StopCancelled = "event.lifecycle.stop.cancelled";
             public const string Pausing = "event.lifecycle.pausing";
             public const string Paused = "event.lifecycle.paused";
             public const string PauseFailed = "event.lifecycle.pause.failed";
+            public const string PauseCancelled = "event.lifecycle.pause.cancelled";
             public const string Restarting = "event.lifecycle.restarting";
             public const string Restarted = "event.lifecycle.restarted";
             public const string RestartFailed = "event.lifecycle.restart.failed";
+            public const string RestartCancelled = "event.lifecycle.restart.cancelled";
             public const string Degraded = "event.lifecycle.degraded";
             public const string StoppedUnexpectedly = "event.lifecycle.stopped.unexpectedly";
         }

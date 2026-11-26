@@ -4,40 +4,19 @@
 <div class="quick-actions">
 @foreach (var action in Resource.ResourceActions.Where(a => a.Kind != ResourceActionKind.Custom))
 {
-    var control = ResourceActionControlStateResolver.Resolve(action, Capabilities, Options.Value.ReadOnly, Busy, L["Working…"].Value);
-    <FluentButton Disabled="@(!control.IsEnabled)" Title="@control.Title" IconStart="@OperationsActionIcons.From(action.EffectivePresentation.Icon)" OnClick="() => Pending = action">@L[action.DisplayName]</FluentButton>
+    var control = ResourceActionControlStateResolver.Resolve(action, Capabilities, Options.Value.ReadOnly, Workspace?.IsActionExecuting(Resource.Id, action.Id) == true, L["Working…"].Value);
+    <FluentButton Disabled="@(!control.IsEnabled || Workspace?.RequestActionAsync is null)" Title="@control.Title" IconStart="@OperationsActionIcons.From(action.EffectivePresentation.Icon)" OnClick="() => RequestAsync(action)">@L[action.DisplayName]</FluentButton>
 }
 </div>
-@if (Pending is not null)
-{
-    <div class="action-confirmation" role="alert"><p>@L["Run {0} on {1}?", Pending.DisplayName, Resource.EffectiveDisplayName]</p>
-    @if (Pending.Kind == ResourceActionKind.Start) { <FluentCheckbox @bind-Value="StartDependencies">@L["Start dependencies"]</FluentCheckbox> }
-    <FluentButton OnClick="ExecuteAsync" Disabled="@Busy">@L["Confirm"]</FluentButton>
-    <FluentButton OnClick="() => Pending = null" Disabled="@Busy">@L["Cancel"]</FluentButton></div>
-}
-@if (Message is not null) { <p role="status">@Message</p> }
 @code {
     [Parameter, EditorRequired] public Resource Resource { get; set; } = default!;
     private ResourceOperationCapabilities Capabilities = ResourceOperationCapabilities.None("");
-    private ResourceAction? Pending;
-    private bool Busy;
-    private bool StartDependencies;
-    private string? Message;
+    [CascadingParameter] public OperationsWorkspaceContext? Workspace { get; set; }
     protected override async Task OnParametersSetAsync()
     {
         try { Capabilities = (await Manager.GetResourceOperationCapabilitiesAsync([Resource.Id])).GetValueOrDefault(Resource.Id) ?? ResourceOperationCapabilities.None(Resource.Id); }
         catch (Exception) { Capabilities = ResourceOperationCapabilities.None(Resource.Id); }
     }
-    private async Task ExecuteAsync()
-    {
-        if (Pending is not { } action || Busy || Options.Value.ReadOnly) return;
-        Busy = true;
-        try
-        {
-            var result = await Manager.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(Resource.Id, action.Id, StartDependencies: StartDependencies));
-            Message = result.Message; Pending = null;
-        }
-        catch (Exception) { Message = L["The operation could not complete. Open resource actions and configuration for diagnostics or dependency choices."].Value; }
-        finally { Busy = false; }
-    }
+    private Task RequestAsync(ResourceAction action) =>
+        Workspace?.RequestActionAsync?.Invoke(Resource, action) ?? Task.CompletedTask;
 }

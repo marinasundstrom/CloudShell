@@ -8,6 +8,24 @@ namespace CloudShell.ControlPlane.Tests;
 
 public sealed class CloudShellNotificationStoreTests
 {
+    [Theory]
+    [InlineData(ResourceEventTypes.Events.Lifecycle.Starting, ResourceEventTypes.Events.Lifecycle.StartCancelled)]
+    [InlineData(ResourceEventTypes.Events.Lifecycle.Stopping, ResourceEventTypes.Events.Lifecycle.StopCancelled)]
+    [InlineData(ResourceEventTypes.Events.Lifecycle.Pausing, ResourceEventTypes.Events.Lifecycle.PauseCancelled)]
+    [InlineData(ResourceEventTypes.Events.Lifecycle.Restarting, ResourceEventTypes.Events.Lifecycle.RestartCancelled)]
+    public void CancelledLifecycleReplacesProgressWithInformationalOutcome(string progressType, string cancelledType)
+    {
+        var rule = new DefaultResourceEventNotificationRule();
+        var progress = rule.CreateNotification(new ResourceEvent("sample:worker", progressType, "Working", DateTimeOffset.UtcNow, TriggeredBy: "tests"));
+        var cancelled = rule.CreateNotification(new ResourceEvent("sample:worker", cancelledType, "Operation cancelled.", DateTimeOffset.UtcNow, TriggeredBy: "tests"));
+        Assert.NotNull(progress);
+        Assert.NotNull(cancelled);
+        Assert.Equal(progress.CorrelationId, cancelled.CorrelationId);
+        Assert.Equal(CloudShellNotificationStatus.InProgress, progress.Status);
+        Assert.Equal(CloudShellNotificationStatus.Active, cancelled.Status);
+        Assert.Equal(ResourceSignalSeverity.Info, cancelled.Severity);
+    }
+
     [Fact]
     public void InMemoryStore_CreatesAcknowledgesAndDismissesNotifications()
     {

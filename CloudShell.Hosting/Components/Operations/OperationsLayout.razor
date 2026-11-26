@@ -6,6 +6,7 @@
 @inject IResourceHealthManager HealthManager
 @inject IResourceEventManager ResourceEvents
 @inject IResourceManager ResourceManager
+@inject IResourceOrchestrationSettings OrchestrationSettings
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject ICloudShellAuthorizationService Authorization
 @inject ICloudShellUserSettingsProvider Settings
@@ -215,6 +216,28 @@
     </section>
 </div>
 </CascadingValue>
+@if (PendingAction is { } pending)
+{
+    <FluentDialog @onkeydown="@(e => { if (e.Key == "Escape") PendingAction = null; })" Hidden="false" HiddenChanged="@(hidden => { if (hidden) PendingAction = null; })" Modal="true" TrapFocus="true" PreventScroll="true"
+                  AriaLabel="@L["{0} {1}", pending.Action.DisplayName, Display.GetResourceLabel(pending.Resource)]"
+                  OnDialogResult="() => PendingAction = null" Style="width:min(28rem, calc(100vw - 2rem));">
+        <FluentDialogHeader Style="padding:1.25rem 1.5rem 0;"><h2 style="margin:0;font-size:1.2rem;overflow-wrap:anywhere;">@L["{0} {1}", pending.Action.DisplayName, Display.GetResourceLabel(pending.Resource)]</h2></FluentDialogHeader>
+        <FluentDialogBody Style="padding:.5rem 1.5rem 1.5rem;">
+            <p style="margin:0;color:var(--cloudshell-text-muted);">@ResourceTypeLabel(pending.Resource)</p>
+            @if (pending.Action.Kind == ResourceActionKind.Start && pending.Resource.DependsOn.Count > 0)
+            {
+                <div style="margin-top:1.25rem;">
+                    <FluentCheckbox @bind-Value="StartDependencies" aria-describedby="dependency-start-help">@L["Also start dependencies"]</FluentCheckbox>
+                    <p id="dependency-start-help" style="margin:.5rem 0 0 1.75rem;color:var(--cloudshell-text-muted);font-size:.875rem;">@L["Required resources will start first, in dependency order."]</p>
+                </div>
+            }
+        </FluentDialogBody>
+        <FluentDialogFooter Style="display:flex;justify-content:flex-end;gap:.5rem;padding:0 1.5rem 1.25rem;">
+            <FluentButton OnClick="() => PendingAction = null">@L["Cancel"]</FluentButton>
+            <FluentButton Appearance="Appearance.Accent" IconStart="@OperationsActionIcons.From(pending.Action.EffectivePresentation.Icon).WithColor("currentColor")" OnClick="ConfirmActionAsync">@L[pending.Action.DisplayName]</FluentButton>
+        </FluentDialogFooter>
+    </FluentDialog>
+}
 
 @code {
     private async Task CopyEndpointAsync(string address)
@@ -224,15 +247,6 @@
         catch (Microsoft.JSInterop.JSDisconnectedException) { }
     }
     private RenderFragment ActionFeedback => @<text>
-        @if (PendingAction is { } pending)
-        {
-            <div class="operation-confirmation" role="alert">
-                <strong>@L["Run {0} on {1}?", pending.Action.DisplayName, Display.GetResourceLabel(pending.Resource)]</strong>
-                @if (pending.Action.Kind == ResourceActionKind.Start) { <FluentCheckbox @bind-Value="StartDependencies">@L["Start dependencies"]</FluentCheckbox> }
-                <FluentButton OnClick="ConfirmActionAsync">@L["Confirm"]</FluentButton>
-                <FluentButton OnClick="() => PendingAction = null">@L["Cancel"]</FluentButton>
-            </div>
-        }
         @if (ActionMessage is not null) { <p class="operation-confirmation" role="status">@ActionMessage</p> }
     </text>;
 
@@ -265,7 +279,18 @@
     }
     private bool StartDependencies;
     private string? ActionMessage;
-    private void RequestAction((Resource Resource, ResourceAction Action) request) { PendingAction = request; StartDependencies = false; ActionMessage = null; }
+    private async Task RequestAction((Resource Resource, ResourceAction Action) request)
+    {
+        if (UiOptions.Value.ReadOnly || PendingAction is not null) return;
+        var automatic = await ResourceActionPreferences.StartDependenciesAutomaticallyAsync(Settings);
+        PendingAction = request;
+        StartDependencies = automatic && request.Action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
+        ActionMessage = null;
+        if (request.Action.Kind == ResourceActionKind.Start && automatic && !request.Action.RequiresConfirmation)
+            await ConfirmActionAsync();
+        else
+            StateHasChanged();
+    }
     private async Task ConfirmActionAsync()
     {
         if (PendingAction is not { } pending || UiOptions.Value.ReadOnly) return;
@@ -273,13 +298,15 @@
         if (!ExecutingActions.TryAdd(key, pending.Action.Kind)) return;
         var startDependencies = StartDependencies;
         PendingAction = null;
+        StateHasChanged();
         try
         {
-            var result = await ResourceManager.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(pending.Resource.Id, pending.Action.Id, StartDependencies: startDependencies));
+            var result = await ResourceManager.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(pending.Resource.Id, pending.Action.Id, StartDependencies: startDependencies, DependencyStartFailureBehavior: OrchestrationSettings.GetDependencyStartFailureSettings().Behavior));
             ActionMessage = result.Message; await RefreshAsync();
         }
+        catch (OperationCanceledException) { ActionMessage = L["Operation cancelled."].Value; await RefreshAsync(); }
         catch (Exception) { ActionMessage = L["The operation could not complete. Open resource configuration for diagnostics or dependency choices."].Value; }
-        finally { ExecutingActions.Remove(key); }
+        finally { ExecutingActions.Remove(key); StateHasChanged(); }
     }
     private IReadOnlyDictionary<string, ResourceFailureSignal> Failures = new Dictionary<string, ResourceFailureSignal>();
     private async Task RefreshFailuresAsync()
@@ -339,7 +366,7 @@
     private Resource? Selected => ReadableResources.FirstOrDefault(r => string.Equals(r.Id, ResourceId, StringComparison.OrdinalIgnoreCase));
     private IReadOnlyList<Resource> ContextResources => Selected is { } selected && !Resources.Any(r => r.Id == selected.Id)
         ? [.. Resources, selected] : Resources;
-    private OperationsWorkspaceContext Context => new(ContextResources, Selected, ResourceId, Loading, Error, UpdatedAt, Display.GetResourceLabel) { Health = Health, Pane = Pane };
+    private OperationsWorkspaceContext Context => new(ContextResources, Selected, ResourceId, Loading, Error, UpdatedAt, Display.GetResourceLabel) { Health = Health, Pane = Pane, RequestActionAsync = (resource, action) => RequestAction((resource, action)), IsActionExecuting = (resourceId, actionId) => ExecutingActions.ContainsKey((resourceId, actionId)) };
     private (string Id, string Title)[] StandardPanes => [("dashboard", "Dashboard"), ("logs", "Logs"), ("traces", "Traces")];
     private IEnumerable<ResourceTabContribution> ProviderPanes => Selected is null ? [] : OperationalTabs(Selected);
     private IEnumerable<ResourceTabContribution> OperationalTabs(Resource resource) => ResourceTabResolver.Resolve(

@@ -138,3 +138,13 @@ queue counters, widget-to-pane navigation, single pane headings and preserved
 configuration groups. These checks exercise UI composition with simulated data,
 not connectivity to SQL Server or the RabbitMQ Management API. Individual queue
 resource widgets remain future work.
+
+### Lifecycle UX preview
+
+Set `--DesignPreview:StartupDelayMilliseconds=60000` to keep Start/Restart in
+`Starting` for a minute. While starting, the sample provider advertises **Abort
+startup** using the Stop lifecycle action. Aborting cancels the pending start,
+leaves the resource stopped, and permits a new start. This is simulated provider
+behavior; it launches no external process. The default remains immediate startup.
+Use it to review transition indicators and available commands in expanded and
+compact resource lists in both themes.

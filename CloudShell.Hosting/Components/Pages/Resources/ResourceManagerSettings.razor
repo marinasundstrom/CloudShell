@@ -5,6 +5,7 @@
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
 @inject ResourceManagerDisplaySettings DisplaySettings
+@inject ICloudShellUserSettingsProvider UserSettings
 @inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
@@ -49,6 +50,16 @@
                     <span>@L["Resource Manager settings can be inspected, but changes are disabled by host configuration."]</span>
                 </ProcedureMessage>
             }
+
+            <fieldset class="form-fieldset">
+                <legend>@L["Lifecycle actions"]</legend>
+                <div class="checkbox-stack">
+                    <FluentCheckbox @bind-Value="SelectedStartDependenciesAutomatically" Disabled="@IsReadOnly">
+                        @L["Start dependencies automatically"]
+                    </FluentCheckbox>
+                    <small>@L["Starts required resources first. Turn off to review each start before it runs. Enabled by default."]</small>
+                </div>
+            </fieldset>
 
             <fieldset class="form-fieldset">
                 <legend>@L["Resource labels"]</legend>
@@ -251,6 +262,8 @@
         ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds;
     private string SelectedDependencyStartFailureBehavior { get; set; } =
         DependencyStartFailureBehavior.FailAction.ToString();
+    private bool SelectedStartDependenciesAutomatically { get; set; } = true;
+    private bool SavedStartDependenciesAutomatically = true;
     private bool SelectedEnableDisplayNames { get; set; } = true;
     private bool SelectedShowRuntimeManagedResources { get; set; }
     private bool SelectedShowHiddenResources { get; set; }
@@ -312,6 +325,7 @@
                 selection.HealthCheckIntervalSeconds) ||
             (!IsDependencyStartFailureBehaviorConfigured &&
                 GetSelectedDependencyStartFailureBehavior() != selection.DependencyStartFailureBehavior) ||
+            SelectedStartDependenciesAutomatically != SavedStartDependenciesAutomatically ||
             SelectedEnableDisplayNames != display.EnableDisplayNames ||
             (display.CanShowRuntimeManagedResources &&
                 SelectedShowRuntimeManagedResources != display.ShowRuntimeManagedResources) ||
@@ -359,6 +373,8 @@
             SelectedContainerHostId,
             SelectedHealthCheckIntervalSeconds,
             GetSelectedDependencyStartFailureBehavior());
+        await UserSettings.SetSettingAsync(CloudShellUserSettingKeys.ResourceManagerStartDependenciesAutomatically,
+            SelectedStartDependenciesAutomatically ? "true" : "false");
         await DisplaySettings.SelectAsync(
             SelectedEnableDisplayNames,
             SelectedShowRuntimeManagedResources,
@@ -383,6 +399,8 @@
 
     private async Task ApplyDisplaySelectionAsync()
     {
+        SavedStartDependenciesAutomatically = await ResourceActionPreferences.StartDependenciesAutomaticallyAsync(UserSettings);
+        SelectedStartDependenciesAutomatically = SavedStartDependenciesAutomatically;
         DisplaySelection = await DisplaySettings.GetAsync();
         SelectedEnableDisplayNames = DisplaySelection.EnableDisplayNames;
         SelectedShowRuntimeManagedResources = DisplaySelection.ShowRuntimeManagedResources;

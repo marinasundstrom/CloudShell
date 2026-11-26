@@ -10,6 +10,10 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Resource starts now use a saved, default-on automatic dependency preference; opting out opens a compact confirmation dialog shared by inventory, dashboard, and Configuration commands.
+
+- Moved resource-list action confirmations into a Fluent dialog without navigation, with a dependency-first option for resources that declare dependencies. Added an opt-in delayed-start sample with provider-supported abort for lifecycle UX checks and explicit cancellation feedback. Lifecycle cancellation now ends the matching in-progress notification with an informational outcome.
+
 - Aligned resource hierarchy connectors with parent icon centers in expanded and compact lists, using consistent indentation for nested resources.
 
 - Kept resource-list command backgrounds transparent in both themes and lifecycle progress visible in expanded and compact lists, including locally executing actions. Other provider-enabled commands remain available during an operation.

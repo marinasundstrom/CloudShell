@@ -6,7 +6,13 @@ namespace CloudShell.ResourceHost;
 public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedureProvider
 {
     private readonly bool designPreview;
-    public SampleResourceProvider(IConfiguration configuration) => designPreview = configuration.GetValue<bool>("DesignPreview:Enabled");
+    private readonly int startupDelayMilliseconds;
+    private readonly Dictionary<string, CancellationTokenSource> startups = new(StringComparer.OrdinalIgnoreCase);
+    public SampleResourceProvider(IConfiguration configuration)
+    {
+        designPreview = configuration.GetValue<bool>("DesignPreview:Enabled");
+        startupDelayMilliseconds = Math.Clamp(configuration.GetValue<int>("DesignPreview:StartupDelayMilliseconds"), 0, 120000);
+    }
 
     public const string ProviderId = "sample.resources";
 
@@ -76,11 +82,42 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
         return Task.FromResult(ResourceProcedureResult.Completed($"Deleted {context.Resource.Name}."));
     }
 
-    public Task<ResourceProcedureResult> ExecuteActionAsync(
+    public async Task<ResourceProcedureResult> ExecuteActionAsync(
         ResourceProcedureContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default)
     {
+        if (startupDelayMilliseconds > 0 && action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart)
+        {
+            using var startup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            lock (gate)
+            {
+                if (startups.ContainsKey(context.Resource.Id))
+                    throw new InvalidOperationException("Startup is already in progress.");
+                startups[context.Resource.Id] = startup;
+                states[context.Resource.Id] = ResourceState.Starting;
+            }
+            try
+            {
+                await Task.Delay(startupDelayMilliseconds, startup.Token);
+                lock (gate)
+                {
+                    startup.Token.ThrowIfCancellationRequested();
+                    states[context.Resource.Id] = ResourceState.Running;
+                }
+                return ResourceProcedureResult.Completed($"{action.DisplayName} completed for {context.Resource.Name}.");
+            }
+            catch (OperationCanceledException)
+            {
+                lock (gate) { states[context.Resource.Id] = ResourceState.Stopped; }
+                throw;
+            }
+            finally
+            {
+                lock (gate) { startups.Remove(context.Resource.Id); }
+            }
+        }
+
         var state = action.Kind switch
         {
             ResourceActionKind.Start or ResourceActionKind.Restart => ResourceState.Running,
@@ -91,12 +128,13 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
 
         lock (gate)
         {
+            if (action.Kind == ResourceActionKind.Stop && startups.TryGetValue(context.Resource.Id, out var startup))
+                startup.Cancel();
             states[context.Resource.Id] = state;
             deleted.Remove(context.Resource.Id);
         }
 
-        return Task.FromResult(ResourceProcedureResult.Completed(
-            $"{action.DisplayName} completed for {context.Resource.Name}."));
+        return ResourceProcedureResult.Completed($"{action.DisplayName} completed for {context.Resource.Name}.");
     }
 
     private Resource Create(
@@ -148,9 +186,12 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
             : null;
 
     private static IReadOnlyList<ResourceAction> CreateActions(ResourceState state) =>
-        state == ResourceState.Running
-            ? [ResourceAction.Stop, ResourceAction.Restart]
-            : [ResourceAction.Start];
+        state switch
+        {
+            ResourceState.Running => [ResourceAction.Stop, ResourceAction.Restart],
+            ResourceState.Starting => [ResourceAction.Stop with { DisplayName = "Abort startup", Description = "Cancel the simulated startup." }],
+            _ => [ResourceAction.Start]
+        };
 
     private bool IsDeleted(string id)
     {

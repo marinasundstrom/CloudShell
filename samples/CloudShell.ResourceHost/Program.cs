@@ -40,9 +40,11 @@ builder.AddCloudShellControlPlane(controlPlane =>
                 SampleResourceProvider.ProviderId,
                 "sample:api")
             .DependsOn(database);
-        resources.Declare(
+        var worker = resources.Declare(
             SampleResourceProvider.ProviderId,
             "sample:worker");
+        if (builder.Configuration.GetValue<int>("DesignPreview:StartupDelayMilliseconds") > 0)
+            worker.WithAutoStart(false);
 
         if (builder.Configuration.GetValue<bool>("DesignPreview:Enabled"))
         {
