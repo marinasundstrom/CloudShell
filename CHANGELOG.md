@@ -10,6 +10,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Aligned the SQL Server dashboard database preview with compact resource lists: removed nested row cards, softened separators, and matched resource-link typography.
+
 ### 2026-11-26
 
 - Added populated opt-in SQL Server/RabbitMQ widget previews. Fixed SQL widget style loading, long-label wrapping and complete state totals; clarified RabbitMQ chart scales and legends. Operations panes can own their layout, removing repeated provider headings and nested outer cards.

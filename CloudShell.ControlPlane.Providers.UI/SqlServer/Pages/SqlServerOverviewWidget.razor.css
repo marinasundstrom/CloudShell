@@ -2,11 +2,14 @@
 .database-summary div { display: grid; gap: .2rem; }
 .database-summary strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 .database-summary span, .inventory-note { font-size: .75rem; color: var(--cloudshell-text-muted); }
-.database-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
-.database-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; padding: .65rem; border-radius: var(--cloudshell-control-radius, 6px); background: var(--cloudshell-inset-background); }
+.database-list { list-style: none; padding: 0; margin: .75rem 0; display: grid; }
+.database-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; padding: .4rem 0; min-height: 2rem; }
+.database-list li + li { border-top: 1px solid var(--cloudshell-divider); }
 .database-name { min-width: 0; flex: 1 1 12rem; display: flex; align-items: center; gap: .5rem; }
 .database-name ::deep svg { flex: 0 0 auto; }
 .database-name span { overflow-wrap: anywhere; white-space: normal; }
 .database-name ::deep fluent-anchor { min-width: 0; max-width: 100%; }
-.database-name ::deep fluent-anchor::part(control) { white-space: normal; height: auto; text-align: start; }
+.database-name ::deep fluent-anchor::part(control) { white-space: normal; height: auto; text-align: start; font-size: .82rem; color: var(--cloudshell-text); text-decoration: none; }
+.database-name ::deep fluent-anchor:hover::part(control),
+.database-name ::deep fluent-anchor:focus-within::part(control) { color: var(--cloudshell-accent); text-decoration: underline; }
 .database-state { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; font-size: .8rem; }
