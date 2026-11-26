@@ -39,6 +39,21 @@ public sealed class OperationsWorkspaceTests
         Assert.StartsWith("/resources?", OperationsNavigation.Pane(null, "traces"));
     }
 
+    [Theory]
+    [InlineData("logs")]
+    [InlineData("traces")]
+    [InlineData("metrics")]
+    public void ResourceTelemetryRoutesUseTheSharedExplorerPage(string pane)
+    {
+        // These literal routes must outrank UpdateResource's generic provider-view route,
+        // including resources whose provider contributes no telemetry tab.
+        var routes = typeof(CloudShell.Hosting.Components.Pages.Resources.Resources)
+            .GetCustomAttributes(typeof(Microsoft.AspNetCore.Components.RouteAttribute), false)
+            .Cast<Microsoft.AspNetCore.Components.RouteAttribute>()
+            .Select(route => route.Template);
+        Assert.Contains("/resources/{ResourceId}/" + pane, routes);
+    }
+
     [Fact]
     public void DashboardKeysSeparateEnvironmentAndScopes()
     {

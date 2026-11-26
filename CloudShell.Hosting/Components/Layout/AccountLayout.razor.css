@@ -1,0 +1,17 @@
+.brand-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: var(--cloudshell-control-radius);
+    background: var(--cloudshell-accent);
+    color: var(--cloudshell-on-accent);
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+.brand-name { font-weight: 700; }
+.brand-subtitle { color: var(--cloudshell-text-muted); font-size: .76rem; }
+.account-brand { flex-wrap: wrap; }
+.account-brand .command-surface { margin-left: auto; }

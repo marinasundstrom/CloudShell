@@ -51,3 +51,16 @@
 .resource-label { display:flex; align-items:center; gap:.45rem; min-width:0; }
 .inventory-footer { flex-wrap:wrap; justify-content:flex-start; }
 .operations-inventory { overflow-x:hidden; }
+
+.resource-row { padding-left: calc(var(--resource-depth, 0) * .8rem); }
+.resource-branch-spacer { width: 1.35rem; flex-shrink: 0; }
+.resource-row ::deep .resource-branch-toggle { flex: 0 0 1.35rem; min-width: 1.35rem; }
+.resource-row ::deep .resource-branch-toggle::part(control) { padding: 0; min-width: 1.35rem; }
+.resource-child-count { color: var(--cloudshell-text-muted); background: var(--cloudshell-inset-background); border-radius: 1rem; padding: .05rem .35rem; font-size: .7rem; }
+
+.inventory-section-heading { display: flex; align-items: center; gap: .4rem; padding: .65rem .3rem .3rem; font-size: .75rem; font-weight: 600; color: var(--cloudshell-text-muted); }
+.resource-row ::deep fluent-anchor { overflow: hidden; }
+.resource-row ::deep fluent-anchor::part(control) { box-sizing: border-box; overflow: hidden; }
+.resource-label { width: 100%; overflow: hidden; }
+.resource-name { min-width: 0; flex: 1; }
+.resource-child-count, .row-state { flex-shrink: 0; }

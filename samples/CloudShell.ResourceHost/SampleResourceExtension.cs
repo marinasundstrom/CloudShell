@@ -54,6 +54,11 @@ public sealed class SampleResourceManagerUiExtension : ICloudShellExtension
                     });
         });
 
+        builder.AddResourceType<RegisterSampleResource>("sample-sql", "Sample SQL server", "Simulated design preview resource.", "database", 10);
+        builder.AddResourceType<RegisterSampleResource>("sample-database", "Sample database", "Simulated design preview resource.", "database", 11);
+        builder.AddResourceType<RegisterSampleResource>("sample-broker", "Sample message broker", "Simulated design preview resource.", "server", 12);
+        builder.AddResourceType<RegisterSampleResource>("sample-queue", "Sample queue", "Simulated design preview resource.", "resource", 13);
+
         builder
             .AddResourceType<RegisterSampleResource>(
                 "sample-service",

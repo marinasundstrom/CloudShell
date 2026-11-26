@@ -4,6 +4,9 @@ namespace CloudShell.ResourceHost;
 
 public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedureProvider
 {
+    private readonly bool designPreview;
+    public SampleResourceProvider(IConfiguration configuration) => designPreview = configuration.GetValue<bool>("DesignPreview:Enabled");
+
     public const string ProviderId = "sample.resources";
 
     private readonly object gate = new();
@@ -41,6 +44,16 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
                 "queue://sample-work")
         ];
 
+        if (designPreview)
+        {
+            resources = [..resources,
+                Create("sample:sql", "SQL Server", ResourceState.Running, "tcp://sql.example.test:1433", kind: "SQL server", typeId: "sample-sql"),
+                Create("sample:orders-db", "Orders", ResourceState.Running, "sql://sql.example.test/orders", kind: "Database", typeId: "sample-database", parentId: "sample:sql"),
+                Create("sample:reporting-db", "Reporting", ResourceState.Stopped, "sql://sql.example.test/reporting", kind: "Database", typeId: "sample-database", parentId: "sample:sql"),
+                Create("sample:broker", "Message broker", ResourceState.Running, "amqp://broker.example.test:5672", kind: "Message broker", typeId: "sample-broker"),
+                Create("sample:orders-queue", "Orders awaiting fulfillment", ResourceState.Running, "queue://orders", kind: "Queue", typeId: "sample-queue", parentId: "sample:broker"),
+                Create("sample:deadletters", "Orders awaiting fulfillment / dead letters", ResourceState.Stopped, "queue://orders-deadletters", kind: "Queue", typeId: "sample-queue", parentId: "sample:orders-queue")];
+        }
         return resources.Where(resource => !IsDeleted(resource.Id)).ToArray();
     }
 
@@ -85,7 +98,8 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
         string name,
         ResourceState state,
         string endpoint,
-        IReadOnlyList<string>? dependsOn = null)
+        IReadOnlyList<string>? dependsOn = null,
+        string kind = "Sample service", string typeId = "sample-service", string? parentId = null)
     {
         lock (gate)
         {
@@ -95,7 +109,7 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
         return new(
             id,
             name,
-            "Sample service",
+            kind,
             DisplayName,
             "local",
             state,
@@ -103,7 +117,8 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
             "0.1.0",
             DateTimeOffset.UtcNow,
             dependsOn ?? [],
-            TypeId: "sample-service",
+            TypeId: typeId,
+            ParentResourceId: parentId,
             Actions: CreateActions(state),
             EndpointNetworkMappings:
             [

@@ -187,3 +187,24 @@ and operational classification belong to CloudShell's Resource Manager UI.
   history, and cross-UI-host organization storage are not built in.
 - Existing specialized provider adapters retain their existing split-host
   limitations; the widget layer does not introduce a new provider data API.
+
+### Inventory hierarchy and Resource Groups
+
+The list defaults to **Resource hierarchy**, nesting provider-projected
+`ParentResourceId` relationships with indentation, disclosure buttons, and
+visible child counts. Expanding a parent does not select it; selecting any row
+keeps the active operational pane. Collapse state survives inventory refreshes.
+Filtering reveals matching descendants and their visible ancestors. A missing
+or unauthorized parent never hides an otherwise readable child or discloses the
+parent's identity; malformed cycles render each visible resource at most once.
+
+**Resource groups** is an optional list presentation. It adds named sections
+from Control Plane group membership, retaining parent/child nesting within each
+section. Children assigned to a different group from their parent appear at the
+root of their own section. Resource Groups are organizational containers;
+provider sub-resources remain resources and retain their own operations panes.
+Group presentation and branch collapse are local to the current workspace visit.
+
+The inventory expand/collapse icon preserves the previous scoped pane when
+returning from the full list. Resource logs, traces, and metrics use the shared
+explorers even when a provider does not contribute a corresponding view tab.

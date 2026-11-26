@@ -4,9 +4,9 @@
     justify-content: flex-start;
     gap: .8rem;
     padding: .65rem .7rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
+    border: 0;
+    border-radius: var(--cloudshell-control-radius);
+    background: var(--cloudshell-inset-background);
 }
 
 .shell-entity-row strong,

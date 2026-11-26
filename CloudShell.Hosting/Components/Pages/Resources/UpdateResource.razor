@@ -203,7 +203,12 @@
             }
         </EmptyContent>
         <HeaderContent Context="item">
-            @if (selectedTab is not null && resource is not null)
+            @if (selectedTab is not null && resource is not null &&
+                selectedTab.ComponentType != typeof(ResourceActivity) &&
+                selectedTab.ComponentType != typeof(GeneratedResourceHealth) &&
+                selectedTab.ComponentType != typeof(GeneratedResourceMonitoring) &&
+                selectedTab.ComponentType != typeof(GeneratedResourceUsage) &&
+                selectedTab.ComponentType != typeof(GeneratedResourceRecovery))
             {
                 <ShellPanelHeader Title="@selectedTab.Title"
                                   Description="@(resourceType?.DisplayName ?? resource.EffectiveTypeId)" />

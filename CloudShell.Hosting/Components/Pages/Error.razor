@@ -1,30 +1,20 @@
-﻿@page "/Error"
+@page "/Error"
 @using System.Diagnostics
 @using Microsoft.AspNetCore.Http
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Error"]</PageTitle>
 
-<h1 class="text-danger">@L["Error."]</h1>
-<h2 class="text-danger">@L["An error occurred while processing your request."]</h2>
-
-@if (ShowRequestId)
-{
-    <p>
-        <strong>@L["Request ID:"]</strong> <code>@RequestId</code>
-    </p>
-}
-
-<h3>@L["Development Mode"]</h3>
-<p>
-    @L["Swapping to"] <strong>@L["Development"]</strong> @L["environment will display more detailed information about the error that occurred."]
-</p>
-<p>
-    <strong>@L["The Development environment shouldn't be enabled for deployed applications."]</strong>
-    @L["It can result in displaying sensitive information from exceptions to end users."]
-    @L["For local debugging, enable the"] <strong>@L["Development"]</strong> @L["environment by setting the"] <strong>ASPNETCORE_ENVIRONMENT</strong> @L["environment variable to"] <strong>@L["Development"]</strong>
-    @L["and restarting the app."]
-</p>
+<PageHeading Title="@L["Something went wrong"].Value"
+             Description="@L["CloudShell could not complete this request."].Value" />
+<ShellPanel>
+    <p>@L["Try opening the page again. If the problem continues, share the request ID with your administrator."]</p>
+    @if (ShowRequestId)
+    {
+        <p><strong>@L["Request ID:"]</strong> <code>@RequestId</code></p>
+    }
+    <FluentAnchor Href="/resources" Appearance="Appearance.Accent">@L["Open Resources"]</FluentAnchor>
+</ShellPanel>
 
 @code{
     [CascadingParameter]

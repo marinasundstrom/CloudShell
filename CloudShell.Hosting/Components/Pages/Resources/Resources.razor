@@ -1,25 +1,29 @@
 @page "/resources"
 @page "/resources/{ResourceId}"
 @page "/resources/{ResourceId}/dashboard"
+@page "/resources/{ResourceId}/logs"
+@page "/resources/{ResourceId}/traces"
+@page "/resources/{ResourceId}/metrics"
 @layout CloudShell.Hosting.Components.Operations.OperationsLayout
 @rendermode InteractiveServer
 @using CloudShell.Hosting.Components.Operations
 @using CloudShell.Hosting.Components.Pages.Logs
 @using CloudShell.Hosting.Components.Pages.Observability
 @inject ICloudShellAuthorizationService Authorization
+@inject NavigationManager Navigation
 
 <PageTitle>Resources</PageTitle>
-@if (Operation == "logs")
+@if (ActiveOperation == "logs")
 {
     @if (Authorization.CanReadLogs()) { <LogExplorer ResourceId="@(ResourceId ?? QueryResourceId)" LogSourceId="@LogSourceId" TraceId="@TraceId" View="@LogView" SourceIds="@SourceIds" ShowHeading="false" /> }
     else { <EmptyState Title="Access denied" Message="Your identity cannot read logs." /> }
 }
-else if (Operation == "traces")
+else if (ActiveOperation == "traces")
 {
     @if (Authorization.CanReadTraces()) { <TraceExplorer ResourceId="@(ResourceId ?? QueryResourceId)" TraceId="@TraceId" ScopeResourceId="@ScopeResourceId" ShowHeading="false" /> }
     else { <EmptyState Title="Access denied" Message="Your identity cannot read traces." /> }
 }
-else if (Operation == "metrics")
+else if (ActiveOperation == "metrics")
 {
     @if (Authorization.CanReadMetrics()) { <MetricExplorer ResourceId="@(ResourceId ?? QueryResourceId)" ScopeResourceId="@ScopeResourceId" View="@LogView" ShowHeading="false" /> }
     else { <EmptyState Title="Access denied" Message="Your identity cannot read metrics." /> }
@@ -27,6 +31,8 @@ else if (Operation == "metrics")
 else { <OperationsDashboard /> }
 
 @code {
+    [CascadingParameter] public OperationsWorkspaceContext? Workspace { get; set; }
+    private string ActiveOperation => Workspace?.Pane ?? Operation ?? OperationsNavigation.Parse(Navigation.ToBaseRelativePath(Navigation.Uri)).Pane;
     [Parameter] public string? ResourceId { get; set; }
     [SupplyParameterFromQuery(Name = "resourceId")] public string? QueryResourceId { get; set; }
     [SupplyParameterFromQuery(Name = "operation")] public string? Operation { get; set; }

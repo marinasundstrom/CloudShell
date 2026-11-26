@@ -42,6 +42,16 @@ builder.AddCloudShellControlPlane(controlPlane =>
             SampleResourceProvider.ProviderId,
             "sample:worker");
 
+        if (builder.Configuration.GetValue<bool>("DesignPreview:Enabled"))
+        {
+            resources.AddResourceGroup("sample-data", "Data services", "Simulated resources for UI review.");
+            resources.AddResourceGroup("sample-messaging", "Messaging", "Simulated resources for UI review.");
+            foreach (var id in new[] { "sample:sql", "sample:orders-db", "sample:reporting-db" })
+                resources.Declare(SampleResourceProvider.ProviderId, id).WithResourceGroup("sample-data").WithAutoStart(false);
+            foreach (var id in new[] { "sample:broker", "sample:orders-queue", "sample:deadletters" })
+                resources.Declare(SampleResourceProvider.ProviderId, id).WithResourceGroup("sample-messaging").WithAutoStart(false);
+        }
+
         api.Allow(alice, CloudShellPermissions.Resources.Read);
         database.Allow(alice, CloudShellPermissions.Resources.Manage);
     });

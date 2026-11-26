@@ -113,3 +113,12 @@ select a sample service, and switch Dashboard/Logs/Traces/Service details while
 retaining the compact inventory. Edit dashboard changes the selected resource's
 layout; users with `shell.configure` can also save organization defaults.
 See [Operations workspace](../../docs/operations-workspace.md).
+
+### Design preview inventory
+
+Set `DesignPreview__Enabled=true` when running this sample to include simulated
+SQL-server/database and broker/queue resources alongside the three services.
+The fixture includes two Resource Groups, a three-level parent/child hierarchy,
+long labels, and running/stopped states. It starts no SQL or broker processes
+and does not validate live provider telemetry. Use it to review hierarchy,
+Resource Group sections, filtering, compact/full inventory, and both themes.

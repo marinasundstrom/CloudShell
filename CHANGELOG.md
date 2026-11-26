@@ -12,6 +12,15 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Added parent/child resource inventory disclosure and optional Resource Group
+  sections, preserving readable children when parents are unavailable. Added an
+  opt-in mixed-kind design fixture. Replaced inventory Expand text with reversible
+  icons and corrected scoped telemetry pane rendering.
+- Continued the theme/layout consistency pass across nested surfaces, activity
+  colors, metric tables, empty states, Environment sections, Settings, account
+  branding, and fallback pages. See [design review](docs/design-review-2026-11-26.md)
+  for coverage and remaining provider-runtime checks.
+
 - Removed the dashboard-specific canvas background so resource dashboards
   inherit the same default background as other operations panes, retaining
   shared widget surfaces and theme-aware panel shadows.

@@ -30,6 +30,9 @@ inventory; selecting a resource narrows that list beside its dashboard and
 standard or custom operational panes. Ordinary shell navigation and standalone
 Observability remain independent. Resource configuration forms retain their
 editing workflows while operational content moves into workspace panes.
+The inventory represents provider parent/child relationships as nested resources,
+while Control Plane Resource Groups are an optional sectioning mode. Neither
+presentation changes ownership, dependencies, or authorization.
 
 Dashboards compose ordinary CoreShell sections and receive a Resource Manager
 UI scope context. There is one system dashboard and one dashboard per resource.

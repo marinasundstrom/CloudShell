@@ -8,7 +8,7 @@
 
 <PageHeading Eyebrow="@L["Platform"].Value"
              Title="@L["Settings"].Value"
-             Description="@L["Configure CloudShell shell behavior and platform extension surfaces from one place."].Value" />
+             Description="@L["Manage workspace preferences, users, and extensions."].Value" />
 
 <CloudShellCoreShellSectionTabbedLayout Page="@ShellIds.SettingsPage"
                                         Outlet="@ShellIds.SettingsMainOutlet"
@@ -24,7 +24,7 @@
             </Icon>
         </ShellSummaryTile>
         <ShellSummaryTile Title="@L["{0} section(s)", sections.Count].Value"
-                          Description="@L["CoreShell-backed"].Value">
+                          Description="@L["Available settings"].Value">
             <Icon>
                 <FluentIcon Value="@(new Icons.Regular.Size20.AppsListDetail())" />
             </Icon>

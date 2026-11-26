@@ -47,7 +47,8 @@ configuration/deployment tiles, and RabbitMQ charts now share these surfaces.
 Light panels use shadows and faint borders; dark panels retain surface contrast.
 Continue adoption in specialized
 provider layouts and embedded pages without rebuilding their workflows;
-see [System design guidelines](system-design-guidelines.md).
+see [System design guidelines](system-design-guidelines.md) and the
+[theme/layout review](design-review-2026-11-26.md) for coverage and remaining runtime checks.
 
 ## Current Direction
 
@@ -114,7 +115,9 @@ resource dashboard and operational panes. Standalone Observability and other
 ordinary navigation areas retain their own pages. Configuration workflows stay
 intact. System and resource dashboards support type defaults, per-resource
 organization layouts, and personal overrides; RabbitMQ contributes overview
-charts and separate detailed operational panes.
+charts and separate detailed operational panes. The inventory now distinguishes
+parent/child resource hierarchy from optional Resource Group sections; an opt-in
+mixed-kind ResourceHost fixture supports visual review.
 
 This focused user-requested Resource Manager change supersedes the earlier
 restriction on new operational workspace/personalization work for this feature.

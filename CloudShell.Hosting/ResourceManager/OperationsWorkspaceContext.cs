@@ -14,6 +14,7 @@ public sealed record OperationsWorkspaceContext(
     Func<Resource, string> GetLabel)
 {
     public IReadOnlyDictionary<string, ResourceHealthSummary> Health { get; init; } = new Dictionary<string, ResourceHealthSummary>();
+    public string Pane { get; init; } = "dashboard";
     public bool IsSystem => string.IsNullOrEmpty(ResourceId);
     public string DashboardHref(string? resourceId = null) => OperationsNavigation.Dashboard(resourceId);
 }

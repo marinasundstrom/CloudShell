@@ -4,7 +4,7 @@
     gap: .9rem;
 }
 
-.environment-panel-full {
+.environment-page-grid ::deep .environment-panel-full {
     grid-column: 1 / -1;
 }
 
@@ -36,7 +36,7 @@
     min-width: 92rem;
 }
 
-.environment-map-panel {
+.environment-page-grid ::deep .environment-map-panel {
     min-width: 0;
 }
 
@@ -130,7 +130,11 @@
         grid-template-columns: 1fr;
     }
 
-    .environment-panel-full {
+    .environment-page-grid ::deep .environment-panel-full {
         grid-column: auto;
     }
+}
+
+.environment-page-grid ::deep .shell-panel:has(> .empty-state) {
+    min-height: 0;
 }
