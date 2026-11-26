@@ -10,6 +10,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Aligned resource hierarchy connectors with parent icon centers in expanded and compact lists, using consistent indentation for nested resources.
+
 - Kept resource-list command backgrounds transparent in both themes and lifecycle progress visible in expanded and compact lists, including locally executing actions. Other provider-enabled commands remain available during an operation.
 
 - Restored resource-list attention icons for active operation failures, unhealthy checks, lifecycle/health mismatches, and degraded or unknown states. Widened the sidebar and separated widening the filtered list from hiding it to focus on a resource.

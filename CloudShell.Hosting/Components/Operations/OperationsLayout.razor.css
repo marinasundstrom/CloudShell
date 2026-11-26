@@ -52,7 +52,7 @@
 .inventory-footer { flex-wrap:wrap; justify-content:flex-start; }
 .operations-inventory { overflow-x:hidden; }
 
-.resource-row { padding-left: calc(var(--resource-depth, 0) * .8rem); }
+.resource-row { --tree-indent:1.5rem; --tree-gap:.25rem; --tree-icon-size:16px; --tree-anchor-padding:3px; padding-left:calc(var(--resource-depth, 0) * var(--tree-indent)); }
 .resource-branch-spacer { width: 1.35rem; flex-shrink: 0; }
 .resource-row ::deep .resource-branch-toggle { flex: 0 0 1.35rem; min-width: 1.35rem; }
 .resource-row ::deep .resource-branch-toggle::part(control) { padding: 0; min-width: 1.35rem; }
@@ -92,8 +92,8 @@
 .resource-name-block { display:flex; flex-direction:column; min-width:0; flex:1; gap:.2rem; }
 .resource-summary { display:flex; align-items:center; gap:.3rem; min-width:0; font-size:.75rem; font-weight:400; color:var(--cloudshell-text-muted); }
 .resource-type { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.child-resource::before { content:""; position:absolute; left:calc(var(--resource-depth) * .8rem - .15rem); top:0; height:50%; width:.5rem; border-left:1px dotted var(--cloudshell-stroke); border-bottom:1px dotted var(--cloudshell-stroke); pointer-events:none; }
-.inventory-only .resource-row { gap:.6rem; min-height:60px; border-radius:0; padding-block:.25rem; }
+.child-resource::before { content:""; position:absolute; left:calc((var(--resource-depth) - 1) * var(--tree-indent) + 1.35rem + var(--tree-gap) + var(--tree-anchor-padding) + var(--tree-icon-size) / 2); top:0; height:50%; width:calc(var(--tree-indent) - var(--tree-icon-size) / 2 - 3px); border-left:1px dotted var(--cloudshell-stroke); border-bottom:1px dotted var(--cloudshell-stroke); pointer-events:none; }
+.inventory-only .resource-row { --tree-gap:.6rem; --tree-icon-size:24px; --tree-anchor-padding:.4rem; gap:var(--tree-gap); min-height:60px; border-radius:0; padding-block:.25rem; }
 .inventory-only .resource-row ::deep fluent-anchor { flex:0 1 45%; }
 .inventory-only .resource-row ::deep fluent-anchor::part(control) { padding:.4rem; }
 .inventory-only .resource-row ::deep .resource-kind-icon { width:24px; height:24px; }
@@ -144,3 +144,5 @@
 @media(max-width:1050px) {
     .resource-row.transitioning .row-state > span { display:inline; }
 }
+
+.resource-row ::deep .resource-kind-icon { box-sizing:border-box; flex-basis:var(--tree-icon-size); }
