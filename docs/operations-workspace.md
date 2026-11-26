@@ -208,3 +208,20 @@ Group presentation and branch collapse are local to the current workspace visit.
 The inventory expand/collapse icon preserves the previous scoped pane when
 returning from the full list. Resource logs, traces, and metrics use the shared
 explorers even when a provider does not contribute a corresponding view tab.
+
+Relationship widgets render `ResourceRelationshipDiagram`, a static component
+using the full resource graph's shared node-card, edge, and arrow styles plus
+provider-aware resource icons and lifecycle indicators. Dependencies, parent,
+and owner links retain distinct line patterns. Nodes stay at a fixed readable
+size and the diagram scrolls within its widget; the full graph remains available
+for interactive exploration. Selected resources are retained when a neighborhood
+is limited to 24 nodes.
+
+Opening a child resource reveals its visible ancestors. Collapsing a branch
+containing the selected resource retains an accent marker on that branch;
+refreshing data does not force it open again. Loading inventory no longer briefly
+shows a misleading “No matching resources” message.
+
+The shared operations header owns the resource icon, kind, and display name across panes. Configuration retains its command bar (including lifecycle, logs, delete, close, and apply), without repeating the resource heading.
+
+Switching resources preserves configuration mode or an operational provider tab when the target supports it; otherwise the workspace returns to the target dashboard. Logs, traces, metrics, and time-range query filters continue across resource scopes.

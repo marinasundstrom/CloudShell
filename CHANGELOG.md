@@ -12,6 +12,15 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Preserve configuration mode and supported operational tabs when switching resources.
+
+- Consolidated resource identity in the shared operations header, retaining lifecycle, logs, delete, close, and apply commands inside configuration.
+
+- Reused resource-graph node and edge styling in a static relationship diagram
+  component with resource icons, status indicators, directed lines, and readable
+  fixed-size nodes. Reopening a nested resource reveals its visible ancestors;
+  collapsed branches containing the selected resource retain an accent marker.
+
 - Added parent/child resource inventory disclosure and optional Resource Group
   sections, preserving readable children when parents are unavailable. Added an
   opt-in mixed-kind design fixture. Replaced inventory Expand text with reversible

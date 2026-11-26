@@ -7,6 +7,20 @@ public sealed record OperationsInventoryRow(Resource Resource, int Depth, int Ch
 /// <summary>Projects visible resources into a parent/child inventory without exposing hidden parents.</summary>
 public static class OperationsInventoryTree
 {
+    public static IReadOnlySet<string> Ancestors(IReadOnlyList<Resource> resources, string? resourceId)
+    {
+        var byId = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var ancestors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (resourceId is null) return ancestors;
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { resourceId };
+        while (byId.TryGetValue(resourceId, out var resource) && resource.ParentResourceId is { } parent && byId.ContainsKey(parent) && visited.Add(parent))
+        {
+            ancestors.Add(parent);
+            resourceId = parent;
+        }
+        return ancestors;
+    }
+
     public static IReadOnlyList<OperationsInventoryRow> Create(
         IReadOnlyList<Resource> visibleResources,
         IReadOnlySet<string> collapsed,

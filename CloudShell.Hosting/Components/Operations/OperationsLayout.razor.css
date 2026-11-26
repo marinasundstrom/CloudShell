@@ -64,3 +64,15 @@
 .resource-label { width: 100%; overflow: hidden; }
 .resource-name { min-width: 0; flex: 1; }
 .resource-child-count, .row-state { flex-shrink: 0; }
+
+.resource-row.contains-selection { box-shadow: inset 2px 0 var(--cloudshell-accent); background: var(--cloudshell-accent-subtle); }
+.resource-row.contains-selection .resource-child-count { color: var(--cloudshell-accent-foreground); }
+@media(max-width:760px) {
+    .inventory-heading { flex-wrap: wrap; }
+    .inventory-heading nav { flex-wrap: wrap; }
+    .inventory-only .resource-row { gap: .25rem; }
+}
+
+.operations-identity { display:flex; align-items:center; gap:.65rem; min-width:0; }
+.operations-identity-text { min-width:0; }
+.operations-identity h1 { overflow-wrap:anywhere; }

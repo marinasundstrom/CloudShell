@@ -1,4 +1,1 @@
-.relationship-graph { overflow:auto; } svg { width:100%; min-width:480px; } rect { fill:var(--cloudshell-surface); stroke:var(--cloudshell-stroke); } line { stroke:var(--cloudshell-text-muted); stroke-width:1.5; } line.parent { stroke-dasharray:6 4; } line.owner { stroke-dasharray:2 4; } .graph-node { display:grid; font-size:11px; } .graph-node span { padding-left:6px; } .graph-node ::deep fluent-anchor::part(control) { padding:0 6px; height:24px; overflow:hidden; } .graph-caption { font-size:.75rem; color:var(--cloudshell-text-muted); }
-
-.graph-node ::deep fluent-anchor { height:25px; min-height:0; }
-.graph-node { grid-template-rows:25px 15px; line-height:15px; }
+.graph-caption { font-size: .75rem; color: var(--cloudshell-text-muted); }

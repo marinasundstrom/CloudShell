@@ -1,0 +1,61 @@
+@inject IStringLocalizer<SharedResource> L
+@{
+    var positions = Resources.Select((resource, index) => (resource.Id, X: 24 + index % 3 * 280, Y: 24 + index / 3 * 126))
+        .ToDictionary(position => position.Id, StringComparer.OrdinalIgnoreCase);
+    var edges = Resources.SelectMany(resource => resource.DependsOn.Select(id => (From: resource.Id, To: id, Kind: "Dependency"))
+        .Concat(resource.ParentResourceId is null ? [] : new[] { (From: resource.Id, To: resource.ParentResourceId, Kind: "Parent") })
+        .Concat(resource.OwnerResourceId is null ? [] : new[] { (From: resource.Id, To: resource.OwnerResourceId, Kind: "Owner") }))
+        .Where(edge => edge.From != edge.To && positions.ContainsKey(edge.To)).Distinct().ToArray();
+    var width = Math.Min(3, Resources.Count) * 280;
+    var height = Math.Max(126, ((Resources.Count + 2) / 3) * 126);
+}
+<div class="resource-relationship-diagram">
+    <svg width="@width" height="@height" viewBox="@($"0 0 {width} {height}")" role="group" aria-label="@L["Resource relationships"]">
+        <defs>
+            <marker id="@ArrowId" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" class="resource-graph-arrow" />
+            </marker>
+        </defs>
+        @foreach (var edge in edges)
+        {
+            var from = positions[edge.From];
+            var to = positions[edge.To];
+            var vertical = from.X == to.X;
+            var forward = vertical ? from.Y < to.Y : from.X < to.X;
+            var x1 = vertical ? from.X + 105 : from.X + (forward ? 210 : 0);
+            var x2 = vertical ? to.X + 105 : to.X + (forward ? 0 : 210);
+            var y1 = vertical ? from.Y + (forward ? 76 : 0) : from.Y + 38;
+            var y2 = vertical ? to.Y + (forward ? 0 : 76) : to.Y + 38;
+            var bend = forward ? 24 : -24;
+            var path = vertical
+                ? $"M {x1} {y1} C {x1} {y1 + bend}, {x2} {y2 - bend}, {x2} {y2}"
+                : $"M {x1} {y1} C {x1 + bend} {y1}, {x2 - bend} {y2}, {x2} {y2}";
+            <path d="@path"
+                  class="resource-graph-link relationship-link @edge.Kind.ToLowerInvariant()" style="marker-end:url(#@ArrowId)">
+                <title>@L[edge.Kind]: @GetLabel(Resources.First(r => r.Id == edge.From)) → @GetLabel(Resources.First(r => string.Equals(r.Id, edge.To, StringComparison.OrdinalIgnoreCase)))</title>
+            </path>
+        }
+        @foreach (var resource in Resources)
+        {
+            var position = positions[resource.Id];
+            <g class="resource-graph-node @(resource.Id == SelectedResourceId ? "selected" : null)">
+                <title>@GetLabel(resource) · @resource.Kind</title>
+                <rect class="resource-graph-node-card" x="@position.X" y="@position.Y" width="210" height="76" rx="10" />
+                <foreignObject x="@(position.X + 10)" y="@(position.Y + 10)" width="190" height="56">
+                    <div xmlns="http://www.w3.org/1999/xhtml" class="relationship-node-content">
+                        <ResourceKindIcon Resource="resource" />
+                        <FluentAnchor Href="@OperationsNavigation.Dashboard(resource.Id)" Appearance="Appearance.Stealth" Title="@GetLabel(resource)">@GetLabel(resource)</FluentAnchor>
+                        <span class="relationship-node-state"><ResourceStateIndicator State="resource.State" />@(resource.State?.ToString() ?? L["No lifecycle"].Value)</span>
+                    </div>
+                </foreignObject>
+            </g>
+        }
+    </svg>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<Resource> Resources { get; set; } = [];
+    [Parameter, EditorRequired] public Func<Resource, string> GetLabel { get; set; } = resource => resource.Name;
+    [Parameter] public string? SelectedResourceId { get; set; }
+    private readonly string ArrowId = "relationship-arrow-" + Guid.NewGuid().ToString("N");
+}

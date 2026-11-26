@@ -64,21 +64,7 @@
 
 @if (!operational)
 {
-<section class="page-heading compact">
-    <div class="resource-page-title">
-        <span class="eyebrow">@L["Resource Manager"]</span>
-        <div class="resource-title-line">
-            @if (resource is not null)
-            {
-                <ResourceKindIcon Resource="resource" Class="resource-kind-icon resource-title-icon" />
-            }
-            <div class="resource-title-name">
-                <h1>@(resource is null ? L["Resource"] : GetResourceLabel(resource))</h1>
-            </div>
-        </div>
-        <p>@(resource is null ? L["Generated details and provider-contributed views for this resource."] :
-                                                                                    GetResourceSubtitle(resource))</p>
-        </div>
+    <section class="resource-configuration-commands" aria-label="@L["Configuration commands"]">
         <div class="heading-actions resource-detail-actions">
             @if (resource is not null)
             {
@@ -1032,11 +1018,6 @@
     }
 
     private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
-
-    private string GetResourceSubtitle(Resource resource) =>
-        DisplaySelection.EnableDisplayNames
-            ? L["{0} / {1}", resource.Kind, DisplaySelection.GetResourceName(resource)].Value
-            : resource.Kind;
 
     private sealed record PendingResourceRestart(
         string ResourceId,

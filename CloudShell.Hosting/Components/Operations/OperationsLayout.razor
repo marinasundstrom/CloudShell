@@ -49,7 +49,7 @@
             @foreach (var row in section.Rows)
             {
                 var resource = row.Resource;
-                <div @key="resource.Id" class="resource-row @(resource.Id == ResourceId ? "selected" : null)" style="--resource-depth:@row.Depth">
+                <div @key="resource.Id" class="resource-row @(resource.Id == ResourceId ? "selected" : null) @(CollapsedResources.Contains(resource.Id) && SelectedAncestorIds.Contains(resource.Id) ? "contains-selection" : null)" style="--resource-depth:@row.Depth">
                     @if (row.ChildCount > 0)
                     {
                         <FluentButton Appearance="Appearance.Stealth" Class="resource-branch-toggle"
@@ -83,7 +83,7 @@
             {
                 <p>@L["No visible resources"]</p>
             }
-            else if (InventorySections.All(section => section.Rows.Count == 0))
+            else if (!Loading && InventorySections.All(section => section.Rows.Count == 0))
             {
                 <p>@L["No matching resources"]</p>
             }
@@ -97,9 +97,15 @@
     </aside>
     <section class="operations-main">
         <header class="operations-heading">
-            <div>
-                <span class="scope-label">@L[ResourceId is null ? "System" : "Resource"]</span>
-                <h1>@(Selected is null ? L[ResourceId is null ? "CloudShell" : "Resource unavailable"].Value : Display.GetResourceLabel(Selected))</h1>
+            <div class="operations-identity">
+                @if (Selected is not null)
+                {
+                    <ResourceKindIcon Resource="Selected" Class="resource-kind-icon resource-title-icon" />
+                }
+                <div class="operations-identity-text">
+                    <span class="scope-label">@(Selected is null ? L[ResourceId is null ? "System" : "Resource"].Value : Selected.Kind)</span>
+                    <h1>@(Selected is null ? L[ResourceId is null ? "CloudShell" : Loading ? "Loading resource" : "Resource unavailable"].Value : Display.GetResourceLabel(Selected))</h1>
+                </div>
             </div>
             <div class="operations-tools">
                 <FluentButton Class="resource-toggle" OnClick="() => ShowResources = !ShowResources" aria-expanded="@ShowResources">@L["Resources"]</FluentButton>
@@ -200,6 +206,15 @@
                 Rows: OperationsInventoryTree.Create(group.ToArray(), CollapsedResources, Filter, Display.GetResourceLabel)))
             .Where(section => section.Rows.Count > 0).OrderBy(section => section.Name, StringComparer.OrdinalIgnoreCase)
         : new[] { (Name: "", Count: Resources.Count, Rows: OperationsInventoryTree.Create(Resources, CollapsedResources, Filter, Display.GetResourceLabel)) };
+    private string? RevealedResourceId;
+    private IReadOnlySet<string> SelectedAncestorIds => OperationsInventoryTree.Ancestors(Resources, ResourceId);
+    private void RevealSelection()
+    {
+        if (ResourceId is null) { RevealedResourceId = null; return; }
+        if (ResourceId == RevealedResourceId || Selected is null) return;
+        foreach (var id in SelectedAncestorIds) CollapsedResources.Remove(id);
+        RevealedResourceId = ResourceId;
+    }
     private void ToggleChildren(string id) { if (!CollapsedResources.Add(id)) CollapsedResources.Remove(id); }
     private IReadOnlyDictionary<string, ResourceHealthSummary> Health = new Dictionary<string, ResourceHealthSummary>();
     private ResourceManagerDisplaySelection Display = ResourceManagerDisplaySelection.Default;
@@ -210,15 +225,16 @@
     private Resource? Selected => Resources.FirstOrDefault(r => string.Equals(r.Id, ResourceId, StringComparison.OrdinalIgnoreCase));
     private OperationsWorkspaceContext Context => new(Resources, Selected, ResourceId, Loading, Error, UpdatedAt, Display.GetResourceLabel) { Health = Health, Pane = Pane };
     private (string Id, string Title)[] StandardPanes => [("dashboard", "Dashboard"), ("logs", "Logs"), ("traces", "Traces")];
-    private IEnumerable<ResourceTabContribution> ProviderPanes => Selected is null ? [] : ResourceTabResolver.Resolve(
-        Selected, Catalog.ResourceTypes.FirstOrDefault(t => t.Id == Selected.EffectiveTypeId),
-        true, Selected.ResourceCapabilities.Any(c => c.Id == ResourceCapabilityIds.Monitoring), Authorization.CanReadUsage(), false).Tabs
+    private IEnumerable<ResourceTabContribution> ProviderPanes => Selected is null ? [] : OperationalTabs(Selected);
+    private IEnumerable<ResourceTabContribution> OperationalTabs(Resource resource) => ResourceTabResolver.Resolve(
+        resource, Catalog.ResourceTypes.FirstOrDefault(t => t.Id == resource.EffectiveTypeId),
+        true, resource.ResourceCapabilities.Any(c => c.Id == ResourceCapabilityIds.Monitoring), Authorization.CanReadUsage(), false).Tabs
         .Where(OperationsNavigation.IsOperational).Where(t => t.Id != ResourcePredefinedViewIds.Logs && t.Id != ResourcePredefinedViewIds.Traces);
     private string InventoryReturnHref = OperationsNavigation.Dashboard(null);
     private bool InventoryOnly => ResourceId is null && Pane == "resources";
     private bool IsConfiguration => Pane is not ("dashboard" or "logs" or "traces" or "metrics" or "health" or "monitoring" or "activity" or "usage") && !ProviderPanes.Any(t => t.Id.Identifier == Pane);
     private IEnumerable<CoreShellBlazorSection> CustomPanes => Sections.Where(s => OperationsContributions.Applies(s.Section.Attributes, Context));
-    private bool MatchesFilter(Resource resource) => string.IsNullOrWhiteSpace(Filter) || Display.GetResourceLabel(resource).Contains(Filter, StringComparison.OrdinalIgnoreCase) || resource.Kind.Contains(Filter, StringComparison.OrdinalIgnoreCase);
+    private bool MatchesFilter(Resource resource) => string.IsNullOrWhiteSpace(Filter) || Display.GetResourceLabel(resource).Contains(Filter.Trim(), StringComparison.OrdinalIgnoreCase) || resource.Kind.Contains(Filter.Trim(), StringComparison.OrdinalIgnoreCase);
     private string ConfigurationHref(Resource resource) =>
         Catalog.ResourceTypes.FirstOrDefault(t => t.Id == resource.EffectiveTypeId)?.UpdateComponentType is not null
             ? ResourceManagerRoutes.ResourceDetails(resource.Id, ResourcePredefinedViewIds.Configuration)
@@ -226,7 +242,15 @@
     private string CustomHref(string id) => Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(OperationsNavigation.Dashboard(ResourceId), "pane", id);
     private string ScopeHref(string? id)
     {
+        var resource = id is null ? null : Resources.FirstOrDefault(r => r.Id == id);
         var target = OperationsNavigation.Pane(id, Pane is "logs" or "traces" or "metrics" ? Pane : "dashboard");
+        if (resource is not null && CustomPaneId is null)
+        {
+            if (IsConfiguration)
+                target = ConfigurationHref(resource);
+            else if (OperationalTabs(resource).FirstOrDefault(tab => tab.Id.Identifier == Pane) is { } matchingTab)
+                target = ResourceManagerRoutes.ResourceDetails(resource.Id, matchingTab.Id);
+        }
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
         foreach (var key in new[] { "since", "before", "timeRange" })
             if (query.TryGetValue(key, out var value)) target = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(target, key, value.ToString());
@@ -248,6 +272,7 @@
         (ResourceId, Pane) = OperationsNavigation.Parse(Navigation.ToBaseRelativePath(Navigation.Uri));
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
         CustomPaneId = query.TryGetValue("pane", out var pane) ? pane.ToString() : null;
+        RevealSelection();
         if (!InventoryOnly) InventoryReturnHref = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
     }
 
@@ -280,6 +305,7 @@
                 .OrderBy(display.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase).ToArray();
             Groups = groups;
             Display = display;
+            RevealSelection();
             Health = (await HealthManager.ListResourceHealthAsync(Lifetime.Token))
                 .Where(pair => Resources.Any(r => r.Id == pair.Key)).ToDictionary(pair => pair.Key, pair => pair.Value);
             Sections = (await Outlets.ResolveSectionOutletAsync(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Panes, Lifetime.Token))?.Sections ?? [];

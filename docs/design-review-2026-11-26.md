@@ -38,5 +38,6 @@ resources, long names, and stopped states; it is not a live-provider substitute.
 - Exercise populated provider-specific charts, tables, and failure states with
   real runtime services in both themes.
 - Review embedded Settings/Extensions heading ownership and nested panel density.
-- Refine relationship diagram geometry separately from the surface-language pass.
+- Extend the static relationship component to more complex graph layouts; it now
+  shares the full graph's node/edge styling and provider-aware icons.
 - Expand narrow-screen and keyboard-only checks across provider forms.

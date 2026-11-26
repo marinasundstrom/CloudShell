@@ -42,6 +42,15 @@ public sealed class OperationsInventoryTreeTests
         Assert.Equal(2, rows.Select(row => row.Resource.Id).Distinct().Count());
     }
 
+    [Fact]
+    public void AncestorsRevealOnlyVisibleParentsAndStopAtCycles()
+    {
+        var resources = new[] { Item("root"), Item("middle", "root"), Item("child", "middle"), Item("orphan", "hidden") };
+        Assert.Equal(new[] { "middle", "root" }, OperationsInventoryTree.Ancestors(resources, "child").Order());
+        Assert.Empty(OperationsInventoryTree.Ancestors(resources, "orphan"));
+        Assert.Equal(new[] { "b" }, OperationsInventoryTree.Ancestors([Item("a", "b"), Item("b", "a")], "a"));
+    }
+
     private static Resource Item(string id, string? parent = null) => new(
         id, id, "Test", "Test", "local", ResourceState.Running, [], "1", DateTimeOffset.UnixEpoch, [], ParentResourceId: parent);
 }

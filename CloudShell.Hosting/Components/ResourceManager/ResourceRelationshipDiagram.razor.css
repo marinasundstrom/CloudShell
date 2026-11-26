@@ -1,0 +1,10 @@
+.resource-relationship-diagram { max-width: 100%; overflow: auto; padding: .25rem; }
+.resource-relationship-diagram svg { display: block; max-width: none; }
+.relationship-link { fill: none; }
+.relationship-link.parent { stroke-dasharray: 6 4; }
+.relationship-link.owner { stroke-dasharray: 2 4; }
+.relationship-node-content { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; column-gap: 6px; row-gap: 2px; }
+.relationship-node-content ::deep .resource-kind-icon { width: 22px; height: 22px; }
+.relationship-node-content ::deep fluent-anchor { min-width: 0; overflow: hidden; }
+.relationship-node-content ::deep fluent-anchor::part(control) { padding: 0; height: 28px; min-height: 0; justify-content: flex-start; font-size: 12px; font-weight: 600; overflow: hidden; white-space: nowrap; }
+.relationship-node-state { grid-column: 2; display: flex; gap: 5px; align-items: center; color: var(--cloudshell-text-muted); font-size: 11px; }
