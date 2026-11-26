@@ -71,3 +71,14 @@
 .resource-table ::deep td .menu-action-content .action-icon {
     display: inline-flex;
 }
+
+/* Keep semantic status dots and labels together inside otherwise stacked cells. */
+.resource-table ::deep td .resource-table-state {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    color: var(--cloudshell-text);
+}
+.resource-table ::deep td .resource-table-state .state-dot {
+    flex: 0 0 auto;
+}

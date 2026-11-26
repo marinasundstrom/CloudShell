@@ -106,6 +106,9 @@ workflows:
 - Page canvases use `--cloudshell-page`; top-level summary, metric, and usage
   cards use the panel tokens. Nested tiles, extension cards, trace details,
   and empty states use `--cloudshell-inset-background` to separate levels.
+  Provider sections and charts embedded in an existing card remain flat: no
+  additional panel background, border, or shadow. Use spacing and headings
+  to organize them; retain inset surfaces only for distinct supporting items.
 - Selection uses a restrained accent tint plus an edge marker, rather than
   another outlined box. Icon tiles use `--cloudshell-accent-subtle`; reserve
   semantic colors for resource state, health, warnings, and errors.

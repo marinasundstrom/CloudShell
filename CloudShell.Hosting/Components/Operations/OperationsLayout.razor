@@ -154,7 +154,8 @@
             </div>
         }
         @if (ActionMessage is not null) { <p class="operation-confirmation" role="status">@ActionMessage</p> }
-        <div class="operations-content" @key="(ResourceId, Pane, CustomPaneId)">
+        @* Preserve the resource page and its configuration menu when only the selected view changes. *@
+        <div class="operations-content" @key="ResourceId">
             @if (InventoryOnly) { }
             else if (ResourceId is not null && Selected is null)
             {

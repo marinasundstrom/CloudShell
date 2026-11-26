@@ -5843,11 +5843,15 @@ h3 {
 .heading-actions { row-gap: var(--cloudshell-space-sm); }
 
 
-/* Embedded provider sections use a second surface level inside shell panels. */
+/* A shell card owns elevation; embedded provider sections remain flat. */
 .panel .blade-section,
 .shell-panel .blade-section,
 .dashboard-widget .blade-section {
-    background: var(--cloudshell-inset-background);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: var(--cloudshell-space-sm) 0;
 }
 .blade-section-header { flex-wrap: wrap; }
 .blade-section-header > div { min-width: 0; }

@@ -10,6 +10,10 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Kept the resource configuration page mounted while switching views, avoiding menu flicker and transient resource-not-found content.
+
+- Flattened embedded provider sections and RabbitMQ chart surfaces to avoid nested cards, aligned widget summary spacing, and added shared SQL database state indicators.
+
 - Aligned the SQL Server dashboard database preview with compact resource lists: removed nested row cards, softened separators, and matched resource-link typography.
 
 ### 2026-11-26

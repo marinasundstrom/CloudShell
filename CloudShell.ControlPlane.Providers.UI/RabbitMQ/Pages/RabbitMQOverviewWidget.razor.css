@@ -1,7 +1,7 @@
 .broker-summary {
     display: flex;
     flex-wrap: wrap;
-    gap: 2rem;
+    gap: 1rem 1.5rem;
 }
 
 .broker-summary div {
@@ -11,6 +11,7 @@
 
 .broker-summary strong {
     font-size: 1.4rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .broker-summary span,.legend {
@@ -80,9 +81,7 @@ polyline {
 
 .broker-charts section {
     min-width: 0;
-    padding: var(--cloudshell-space-md, .75rem);
-    background: var(--cloudshell-inset-background);
-    border-radius: var(--cloudshell-control-radius, 6px);
+    padding: 0;
 }
 
 .queue-heading { gap: .75rem; align-items: baseline; margin-top: .6rem; }
@@ -100,3 +99,5 @@ polyline {
 .area-key { display: inline-block; width: .65rem; height: .65rem; border-radius: 2px; }
 .ready-key { background: var(--cloudshell-accent); }
 .unacked-key { background: var(--cloudshell-chart-acknowledged); }
+
+.broker-summary span { color: var(--cloudshell-text-muted); }

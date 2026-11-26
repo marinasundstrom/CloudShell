@@ -1,4 +1,5 @@
 @using System.Globalization
+@using CloudShell.Hosting.ResourceManager
 @inject IResourceManager ResourceManager
 
 @if (Server is null)
@@ -56,14 +57,14 @@ else
                                                    IconTitle="Database"
                                                    Summary="@database.ResourceId">
                                 <TitleContent>
-                                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(database.ResourceId)">
+                                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(database.ResourceId)" Appearance="Appearance.Hypertext">
                                         @database.Label
                                     </FluentAnchor>
                                 </TitleContent>
                             </ResourceTableIdentity>
                         </td>
                         <td>@FormatProvisioning(database.Source, database.EnsureCreated)</td>
-                        <td>@FormatState(database.Resource.State)</td>
+                        <td><span class="resource-table-state"><ResourceStateIndicator State="database.Resource.State" /> @FormatState(database.Resource.State)</span></td>
                     </tr>
                 }
             </tbody>

@@ -23,10 +23,9 @@
 
 .rabbitmq-dashboard-chart-shell {
     min-width: 0;
-    padding: .65rem;
+    padding: 0;
     border: 0;
-    border-radius: var(--cloudshell-panel-radius, 10px);
-    background: var(--cloudshell-inset-background, var(--cloudshell-surface));
+    background: transparent;
 }
 
 .rabbitmq-dashboard-chart {
