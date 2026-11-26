@@ -21,7 +21,7 @@
             @foreach (var action in Resource.ResourceActions)
             {
                 var state = State(action);
-                <FluentMenuItem Disabled="@(!state.IsEnabled)" Title="@state.Title" OnClick="() => Requested.InvokeAsync((Resource, action))">@L[action.DisplayName]</FluentMenuItem>
+                <FluentMenuItem Disabled="@(!state.IsEnabled)" Title="@state.Title" OnClick="() => Requested.InvokeAsync((Resource, action))"><FluentIcon Value="@OperationsActionIcons.From(action.EffectivePresentation.Icon)" Slot="start" />@L[action.DisplayName]</FluentMenuItem>
             }
         </ChildContent>
     </FluentMenuButton>

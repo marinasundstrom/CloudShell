@@ -1,4 +1,4 @@
-.operations-workspace { display:flex; height:calc(100dvh - 7rem); min-height:26rem; border:1px solid var(--cloudshell-stroke); border-radius:6px; background:var(--cloudshell-surface); overflow:hidden; --operation-gap:.65rem; }
+.operations-workspace { display:flex; flex:1; min-height:0; border:1px solid var(--cloudshell-stroke); border-radius:6px; background:var(--cloudshell-surface); overflow:hidden; --operation-gap:.65rem; }
 .operations-inventory { display:flex; flex-direction:column; gap:.4rem; width:17rem; min-width:13rem; max-width:35%; resize:horizontal; overflow:auto; flex-shrink:0; border-right:1px solid var(--cloudshell-stroke); padding:.6rem; }
 .inventory-heading, .inventory-footer, .operations-heading, .operations-tools { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
 .inventory-heading { padding:.3rem; } .inventory-heading span { color:var(--cloudshell-text-muted); }
@@ -24,7 +24,7 @@
 .compact .operations-content ::deep .registration-layout { gap:.6rem; }
 @media(max-width:1050px) { .row-state > span { display:none; } .operations-inventory { width:14rem; } }
 @media(max-width:760px) {
- .operations-workspace { position:relative; height:calc(100dvh - 10rem); }
+ .operations-workspace { position:relative; }
  .operations-inventory { display:none; }
  .show-resources .operations-inventory { display:flex; position:absolute; inset:0 auto 0 0; z-index:5; background:var(--cloudshell-surface); max-width:85%; width:18rem; box-shadow:4px 0 16px #0003; }
  .operations-tools ::deep .resource-toggle { display:inline-flex; }

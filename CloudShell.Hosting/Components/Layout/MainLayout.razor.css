@@ -223,3 +223,24 @@
         grid-column: 1;
     }
 }
+
+/* The operations workspace owns its scrolling and fills the space below the topbar. */
+.shell:has(.operations-workspace) {
+    height: 100dvh;
+    min-height: 0;
+}
+
+.shell:has(.operations-workspace) .shell-main {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.shell-content:has(.operations-workspace) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}

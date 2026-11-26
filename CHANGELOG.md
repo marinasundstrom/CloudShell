@@ -12,8 +12,11 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Added matching lifecycle icons to the compact resource action menu.
+
 - Removed outer padding for the resource operations workspace while retaining
-  page gutters for Settings and other standalone pages.
+  page gutters for Settings and other standalone pages. The workspace fills
+  the remaining height below the shell header without a bottom gap.
 
 - Replaced the default resource inventory/preview with a compact operations
   workspace: full-width inventory first, persistent compact resource list on
