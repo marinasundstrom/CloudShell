@@ -15,7 +15,7 @@ link to the decision so the dependency is visible.
 
 CloudShell panels use rounded backgrounds without decorative heading dividers.
 Light mode relies on soft shadows and faint borders to distinguish white panels
-on white content pages or light-gray dashboard canvases. Dark mode retains
+on the default content background, shared by dashboards and other panes. Dark mode retains
 contrasting surface colors and visually borderless panels. This is shared across
 the shell and extension UI, rather than a dashboard-only treatment. Common
 panels and composed dashboard widgets use the same theme-derived surface,

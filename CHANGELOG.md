@@ -12,6 +12,10 @@ link to ADR entries when a change depends on a recorded decision.
 
 ### 2026-11-26
 
+- Removed the dashboard-specific canvas background so resource dashboards
+  inherit the same default background as other operations panes, retaining
+  shared widget surfaces and theme-aware panel shadows.
+
 - Refined light-mode panels with white surfaces, soft shadows, and faint
   borders while retaining dark-mode surface contrast and white normal pages.
   Adapted provider sections, resource pickers, and configuration/deployment

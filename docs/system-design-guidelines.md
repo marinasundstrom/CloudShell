@@ -88,7 +88,8 @@ placement, naming, and component-scoped styling rules in
 
 CloudShell's shared panel language uses rounded surfaces. In light mode,
 white panels are separated primarily by soft shadows and a faint outer border;
-normal content pages remain white, while dashboard canvases use a light gray.
+dashboards inherit the same default background as other content panes, without
+a dashboard-specific canvas color.
 Dark mode retains contrasting surface colors and visually borderless panels. Use `ShellPanel` or the shared
 `.panel` class; custom widget containers use `--cloudshell-panel-background`,
 `--cloudshell-panel-radius`, `--cloudshell-panel-border`, and

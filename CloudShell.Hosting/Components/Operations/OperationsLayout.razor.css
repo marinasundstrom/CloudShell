@@ -51,6 +51,3 @@
 .resource-label { display:flex; align-items:center; gap:.45rem; min-width:0; }
 .inventory-footer { flex-wrap:wrap; justify-content:flex-start; }
 .operations-inventory { overflow-x:hidden; }
-
-
-.operations-content:has(.dashboard-grid) { background: var(--cloudshell-card-canvas); }

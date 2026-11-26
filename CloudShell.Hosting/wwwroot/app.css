@@ -13,7 +13,6 @@ body {
 :root {
     color-scheme: light dark;
     --cloudshell-page: light-dark(#ffffff, var(--neutral-layer-1, #272727));
-    --cloudshell-card-canvas: light-dark(#f3f4f6, var(--neutral-layer-1, #272727));
     --cloudshell-surface: var(--neutral-layer-1, #ffffff);
     --cloudshell-surface-muted: var(--neutral-fill-layer-rest, #fafafa);
     --cloudshell-hover: color-mix(in srgb, var(--cloudshell-text) 8%, var(--cloudshell-surface));
