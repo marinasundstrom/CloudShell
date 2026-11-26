@@ -63,6 +63,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                     CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "rabbitmq-counters"), "RabbitMQ", 25,
                     new Dictionary<string, string>
                     {
+                        [OperationsWorkspaceIds.Icon] = "broker",
                         [OperationsWorkspaceIds.Scope] = "resource",
                         [OperationsWorkspaceIds.ResourceType] = RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                         [OperationsWorkspaceIds.DefaultWidget] = "true",
@@ -75,6 +76,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension(
                     CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "sql-server-databases"), "Databases", 25,
                     new Dictionary<string, string>
                     {
+                        [OperationsWorkspaceIds.Icon] = "databases",
                         [OperationsWorkspaceIds.Scope] = "resource",
                         [OperationsWorkspaceIds.ResourceType] = SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                         [OperationsWorkspaceIds.DefaultWidget] = "true"

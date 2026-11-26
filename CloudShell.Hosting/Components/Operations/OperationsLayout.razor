@@ -160,7 +160,7 @@
             @if (Error is not null) { <span>@L[Error]</span> }
             else if (Loading) { <span>@L["Loading resources…"]</span> }
             else if (UpdatedAt is not null) { <span>@L["Updated {0} · refreshes every 5 seconds", UpdatedAt.Value.ToLocalTime().ToString("HH:mm:ss")]</span> }
-            @if (Selected is not null && !MatchesFilter(Selected)) { <span>@L["Selected resource is outside the list filter."]</span> }
+            @if (Selected is not null && (!Display.ShowsResource(Selected) || !MatchesFilter(Selected))) { <span>@L["Selected resource is outside the list filter."]</span> }
         </div>
         @if (PendingAction is { } pending)
         {
@@ -223,6 +223,7 @@
     private string? Error;
     private DateTimeOffset? UpdatedAt;
     private IReadOnlyList<Resource> Resources = [];
+    private IReadOnlyList<Resource> ReadableResources = [];
     private readonly HashSet<string> CollapsedResources = new(StringComparer.OrdinalIgnoreCase);
     private string Grouping = "hierarchy";
     private IReadOnlyDictionary<string, ResourceGroup> Groups = ResourceManagerUiAccess.EmptyGroupLookup;
@@ -248,8 +249,10 @@
     private string? ResourceId;
     private string Pane = "dashboard";
     private string? CustomPaneId;
-    private Resource? Selected => Resources.FirstOrDefault(r => string.Equals(r.Id, ResourceId, StringComparison.OrdinalIgnoreCase));
-    private OperationsWorkspaceContext Context => new(Resources, Selected, ResourceId, Loading, Error, UpdatedAt, Display.GetResourceLabel) { Health = Health, Pane = Pane };
+    private Resource? Selected => ReadableResources.FirstOrDefault(r => string.Equals(r.Id, ResourceId, StringComparison.OrdinalIgnoreCase));
+    private IReadOnlyList<Resource> ContextResources => Selected is { } selected && !Resources.Any(r => r.Id == selected.Id)
+        ? [.. Resources, selected] : Resources;
+    private OperationsWorkspaceContext Context => new(ContextResources, Selected, ResourceId, Loading, Error, UpdatedAt, Display.GetResourceLabel) { Health = Health, Pane = Pane };
     private (string Id, string Title)[] StandardPanes => [("dashboard", "Dashboard"), ("logs", "Logs"), ("traces", "Traces")];
     private IEnumerable<ResourceTabContribution> ProviderPanes => Selected is null ? [] : OperationalTabs(Selected);
     private IEnumerable<ResourceTabContribution> OperationalTabs(Resource resource) => ResourceTabResolver.Resolve(
@@ -329,13 +332,14 @@
             var display = await DisplaySettings.GetAsync(Lifetime.Token);
             var inventory = await ResourceManager.ListResourcesAsync(cancellationToken: Lifetime.Token);
             var groups = await ResourceManagerUiAccess.CreateGroupLookupAsync(ResourceManager, inventory);
-            Resources = inventory.Where(display.ShowsResource).Where(r => ResourceManagerUiAccess.CanReadResource(Authorization, r, groups))
+            ReadableResources = inventory.Where(r => ResourceManagerUiAccess.CanReadResource(Authorization, r, groups)).ToArray();
+            Resources = ReadableResources.Where(display.ShowsResource)
                 .OrderBy(display.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase).ToArray();
             Groups = groups;
             Display = display;
             RevealSelection();
             Health = (await HealthManager.ListResourceHealthAsync(Lifetime.Token))
-                .Where(pair => Resources.Any(r => r.Id == pair.Key)).ToDictionary(pair => pair.Key, pair => pair.Value);
+                .Where(pair => ReadableResources.Any(r => r.Id == pair.Key)).ToDictionary(pair => pair.Key, pair => pair.Value);
             Sections = (await Outlets.ResolveSectionOutletAsync(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Panes, Lifetime.Token))?.Sections ?? [];
             Capabilities = Resources.Count == 0 ? new Dictionary<string, ResourceOperationCapabilities>()
                 : await ResourceManager.GetResourceOperationCapabilitiesAsync(Resources.Select(r => r.Id).ToArray(), Lifetime.Token);

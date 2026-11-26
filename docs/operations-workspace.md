@@ -31,7 +31,9 @@ use pane-local Save commands rather than the configuration Apply workflow.
 
 Compact density is the default; Comfortable is a persisted user preference.
 Inventory search filters the list without changing the selected resource or
-signal scope. The list and content scroll independently. On narrow screens,
+signal scope. Display preferences can hide a resource from the list without
+blocking its authorized detail links; a directly selected hidden resource stays
+in its dashboard relationship diagram and is labeled as outside the list filter. The list and content scroll independently. On narrow screens,
 Resources toggles the inventory drawer; the selected scope remains labeled.
 
 The default root landing opens the system dashboard unless a host has configured
@@ -137,6 +139,7 @@ module.ExtendSections(OperationsWorkspaceIds.Page, OperationsWorkspaceIds.Widget
         {
             [OperationsWorkspaceIds.Scope] = "resource",
             [OperationsWorkspaceIds.ResourceType] = "my.resource-type",
+            [OperationsWorkspaceIds.Icon] = "metrics",
             [OperationsWorkspaceIds.DefaultWidget] = "true"
         });
 ```
@@ -291,3 +294,9 @@ outer cards when migrating existing provider views. Pass `ownsLayout: false` to
 Configuration views and legacy tab contributions retain shell framing by default.
 Provider widgets with isolated CSS must include `ProviderStyles` so direct entry
 and navigation from another provider both load their scoped styles.
+
+Widget headers render a decorative Fluent icon before the title. Contributions
+choose a semantic icon name through `OperationsWorkspaceIds.Icon` (`operations.icon`);
+the shell uses a generic widget icon when omitted. Icons inherit the title color
+for light/dark contrast, do not imply a separate action, and are hidden from
+assistive technology because the adjacent title provides the accessible name.

@@ -27,6 +27,8 @@ public static class OperationsWorkspaceIds
     public static readonly CoreShellSectionOutletId Panes = CoreShellSectionOutletId.Create(Page, "panes");
     public const string Scope = "operations.scope"; // system, resource, or both (default)
     public const string ResourceType = "operations.resource-type";
+    /// <summary>Semantic icon name rendered beside a dashboard widget title.</summary>
+    public const string Icon = "operations.icon";
     public const string DefaultWidget = "operations.default";
 }
 

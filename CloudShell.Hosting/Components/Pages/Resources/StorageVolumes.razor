@@ -1,6 +1,5 @@
 @inject IResourceManager ResourceManager
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
-@inject NavigationManager Navigation
 @inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 @using System.Globalization
@@ -23,11 +22,11 @@ else
                                         Permission="@CloudShellPermissions.Resources.Manage"
                                         GlobalPermission="@CloudShellPermissions.Resources.Create"
                                         RequireWritableResourceManager="true">
-                <FluentButton Appearance="Appearance.Accent"
-                              IconStart="@(new Icons.Regular.Size20.AddCircle())"
-                              OnClick="CreateVolume">
+                <FluentAnchor Appearance="Appearance.Accent"
+                              IconStart="@(new Icons.Regular.Size20.AddCircle().WithColor("currentColor"))"
+                              Href="@BuildCreateVolumeRoute(Storage.Id)">
                     Add volume
-                </FluentButton>
+                </FluentAnchor>
             </ResourcePermissionBoundary>
         </div>
         @if (Volumes.Count == 0)
@@ -47,9 +46,9 @@ else
                                       Summary="@GetVolumeSummary(volume)"
                                       Metadata="@GetVolumeMetadata(volume)">
                         <TitleContent>
-                            <a class="resource-link" href="@BuildResourceRoute(volume.Volume.Id)">
+                            <FluentAnchor Class="resource-link" Appearance="Appearance.Hypertext" Href="@BuildResourceRoute(volume.Volume.Id)">
                                 @ResourceDisplayLabels.GetQualifiedLabel(volume.Volume)
-                            </a>
+                            </FluentAnchor>
                         </TitleContent>
                         <ChildContent>
                             <VolumeUsagePreview ResourceId="@volume.Volume.Id" />
@@ -58,10 +57,11 @@ else
                                                         Permission="@CloudShellPermissions.Resources.Manage"
                                                         RequireWritableResourceManager="true">
                                 <span class="inline-actions">
-                                    <FluentButton Appearance="Appearance.Neutral"
-                                                  OnClick="@(() => ManageVolume(volume.Volume.Id))">
-                                        Manage
-                                    </FluentButton>
+                                    <FluentAnchor Appearance="Appearance.Neutral"
+                                                  IconStart="@(new Icons.Regular.Size20.Settings())"
+                                                  Href="@BuildManageResourceRoute(volume.Volume.Id)">
+                                        Configure
+                                    </FluentAnchor>
                                 </span>
                             </ResourcePermissionBoundary>
                         </ChildContent>
@@ -239,17 +239,6 @@ else
                 ["storageResourceId"] = storageResourceId,
                 ["returnUrl"] = BuildResourceTabRoute(storageResourceId, ResourcePredefinedViewIds.Volumes)
             });
-
-    private void CreateVolume()
-    {
-        if (Storage is not null)
-        {
-            Navigation.NavigateTo(BuildCreateVolumeRoute(Storage.Id));
-        }
-    }
-
-    private void ManageVolume(string resourceId) =>
-        Navigation.NavigateTo(BuildManageResourceRoute(resourceId));
 
     private string Localize(string value) => L[value].Value;
 

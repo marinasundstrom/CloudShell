@@ -45,9 +45,9 @@ else
                                       Summary="@GetMappingSummary(mapping)"
                                       Metadata="@GetMappingMetadata(mapping)">
                         <TitleContent>
-                            <a class="resource-link" href="@BuildResourceRoute(mapping.Id, ResourcePredefinedViewIds.Overview)">
+                            <FluentAnchor Class="resource-link" Appearance="Appearance.Hypertext" Href="@BuildResourceRoute(mapping.Id, ResourcePredefinedViewIds.Overview)">
                                 @ResourceNameMappingDisplay.GetHostName(mapping)
-                            </a>
+                            </FluentAnchor>
                         </TitleContent>
                         <ChildContent>
                             @if (GetNameMappingEndpointAddress(mapping) is { } resolvedEndpoint)

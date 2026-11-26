@@ -39,20 +39,20 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 operationsPage.AddSections(OperationsWorkspaceIds.Panes, isExtendable: true);
                 var widgets = operationsPage.AddSections(OperationsWorkspaceIds.Widgets, isExtendable: true);
                 widgets.AddSection<StatusWidget>(CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "status"), "Status", 10,
-                    new Dictionary<string, string> { [OperationsWorkspaceIds.DefaultWidget] = "true" });
+                    new Dictionary<string, string> { [OperationsWorkspaceIds.Icon] = "status", [OperationsWorkspaceIds.DefaultWidget] = "true" });
                 widgets.AddSection<AttentionWidget>(CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "attention"), "Needs attention", 20,
-                    new Dictionary<string, string> { [OperationsWorkspaceIds.DefaultWidget] = "true", [OperationsWorkspaceIds.Scope] = "system" });
+                    new Dictionary<string, string> { [OperationsWorkspaceIds.Icon] = "attention", [OperationsWorkspaceIds.DefaultWidget] = "true", [OperationsWorkspaceIds.Scope] = "system" });
                 widgets.AddSection<EndpointsWidget>(CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "endpoints"), "Endpoints", 20,
-                    new Dictionary<string, string> { [OperationsWorkspaceIds.DefaultWidget] = "true", [OperationsWorkspaceIds.Scope] = "resource" });
+                    new Dictionary<string, string> { [OperationsWorkspaceIds.Icon] = "endpoints", [OperationsWorkspaceIds.DefaultWidget] = "true", [OperationsWorkspaceIds.Scope] = "resource" });
                 widgets.AddSection<RelationshipsWidget>(CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "relationships"), "Relationships", 30,
-                    new Dictionary<string, string> { [OperationsWorkspaceIds.DefaultWidget] = "true", ["operations.wide"] = "true" });
+                    new Dictionary<string, string> { [OperationsWorkspaceIds.Icon] = "relationships", [OperationsWorkspaceIds.DefaultWidget] = "true", ["operations.wide"] = "true" });
                 widgets.AddSection<ActivityWidget>(CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "activity"), "Recent activity", 40,
-                    new Dictionary<string, string> { [OperationsWorkspaceIds.DefaultWidget] = "true" });
+                    new Dictionary<string, string> { [OperationsWorkspaceIds.Icon] = "activity", [OperationsWorkspaceIds.DefaultWidget] = "true" });
                 widgets.AddSection<LogsWidget>(CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "logs"), "Recent logs", 50,
-                    new Dictionary<string, string> { [OperationsWorkspaceIds.DefaultWidget] = "true", [OperationsWorkspaceIds.Scope] = "resource", ["operations.signal"] = "logs" },
+                    new Dictionary<string, string> { [OperationsWorkspaceIds.Icon] = "logs", [OperationsWorkspaceIds.DefaultWidget] = "true", [OperationsWorkspaceIds.Scope] = "resource", ["operations.signal"] = "logs" },
                     CoreShellAuthorizationRequirements.FromAnyPermissions(CloudShell.Abstractions.Authorization.ObservabilityAuthorization.LogsReadPermissions));
                 widgets.AddSection<TracesWidget>(CoreShellSectionId.Create(OperationsWorkspaceIds.Widgets, "traces"), "Recent traces", 60,
-                    new Dictionary<string, string> { [OperationsWorkspaceIds.DefaultWidget] = "true", [OperationsWorkspaceIds.Scope] = "resource", ["operations.signal"] = "traces" },
+                    new Dictionary<string, string> { [OperationsWorkspaceIds.Icon] = "traces", [OperationsWorkspaceIds.DefaultWidget] = "true", [OperationsWorkspaceIds.Scope] = "resource", ["operations.signal"] = "traces" },
                     CoreShellAuthorizationRequirements.FromAnyPermissions(CloudShell.Abstractions.Authorization.ObservabilityAuthorization.TracesReadPermissions));
                 module.AddPage(
                     ResourceManagerShellIds.ResourcesPage,

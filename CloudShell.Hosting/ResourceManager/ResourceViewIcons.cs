@@ -16,6 +16,9 @@ internal static class ResourceViewIcons
 
         return normalized switch
         {
+            "status" => new Icons.Regular.Size20.HeartPulseCheckmark(),
+            "attention" => new Icons.Regular.Size20.Warning(),
+            "relationships" => new Icons.Regular.Size20.Branch(),
             "dashboard" or "overview" or "home" => new Icons.Regular.Size20.HomeMore(),
             "configuration" or "settings" => new Icons.Regular.Size20.SettingsCogMultiple(),
             "endpoints" or "endpoint" or "networking" or "network" => new Icons.Regular.Size20.Connector(),

@@ -10,6 +10,10 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Kept authorized resource detail links working when a resource is hidden from the inventory by display preferences, including volumes opened from their parent storage pane.
+
+- Added consistent, theme-aware icons to dashboard widget headings, including provider widgets, with an optional semantic icon contribution. Aligned storage and DNS resource links with Fluent navigation and clarified volume configuration commands.
+
 - Moved Configuration Store Values, Secrets Vault Secrets/Certificates, storage status and inventories, application storage attachments, and DNS name mappings into operational panes. Added permission-aware pane-local saves that preserve drafts across refreshes. Ordered resource-specific panes directly after Dashboard and before shared operational views; Configuration remains last.
 
 - Added persistent labels and responsive field alignment to configuration settings and secrets; kept certificate commands together in a wrapping action row. Restored populated Device Registry enrollment policy views through an explicit provider projection without exposing unrelated collections.

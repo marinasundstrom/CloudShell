@@ -22,9 +22,9 @@ else
             {
                 <dt>Storage resource</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildResourceRoute(storageResourceId)">
+                    <FluentAnchor Class="resource-link" Appearance="Appearance.Hypertext" Href="@BuildResourceRoute(storageResourceId)">
                         @GetStorageResourceLabel(storageResourceId)
-                    </a>
+                    </FluentAnchor>
                 </dd>
                 <dt>Volume subpath</dt>
                 <dd>@GetAttribute(ResourceAttributeNames.VolumeSubPath, "Provider default")</dd>
@@ -62,9 +62,9 @@ else
                 {
                     <ResourceListItem Resource="consumer.Resource">
                         <TitleContent>
-                            <a class="resource-link" href="@BuildResourceRoute(consumer.Resource.Id)">
+                            <FluentAnchor Class="resource-link" Appearance="Appearance.Hypertext" Href="@BuildResourceRoute(consumer.Resource.Id)">
                                 @ResourceDisplayLabels.GetQualifiedLabel(consumer.Resource)
-                            </a>
+                            </FluentAnchor>
                         </TitleContent>
                         <ChildContent>
                             @if (consumer.Mounts.Count == 0)

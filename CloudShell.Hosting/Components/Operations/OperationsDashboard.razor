@@ -54,7 +54,7 @@ else
         {
             var section = Available.FirstOrDefault(s => s.Section.Id.Value == id);
             <section @key="id" data-widget-id="@id" class="dashboard-widget @(section?.Section.Attributes.GetValueOrDefault("operations.wide") == "true" ? "wide" : null)">
-                <header><h2>@(section is null ? L["Unavailable widget"].Value : L[section.Section.Title].Value)</h2>
+                <header><h2><span class="widget-title-icon" aria-hidden="true"><FluentIcon Value="@ResourceViewIcons.FromName(section?.Section.Attributes.GetValueOrDefault(OperationsWorkspaceIds.Icon)).WithColor("currentColor")" /></span><span>@(section is null ? L["Unavailable widget"].Value : L[section.Section.Title].Value)</span></h2>
                     @if (Editing)
                     {
                         <div class="widget-tools">
