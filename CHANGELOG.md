@@ -10,6 +10,8 @@ link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
+- Resource Templates now uses the reusable Monaco code editor for editable imports and read-only exports, with YAML/JSON highlighting and automatic light/dark themes. Format changes preserve import text; export previews retain their actual serialized format.
+
 - Added provider-owned Configuration Store and Secrets Vault creation wizards with required service endpoints, deferred optional groups, review, and tab-local draft restoration; creation uses existing resource template contracts and leaves resources stopped.
 
 - Migrated packaged application creation (.NET, JavaScript, Java, Go, and Python) to the shared three-step wizard with non-secret draft restoration, deferred groups, package validation before review, and stable layout selections across parameter refreshes.

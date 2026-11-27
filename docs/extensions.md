@@ -392,3 +392,15 @@ Registration flows may default safe common choices, but must require critical
 identity, destination, and routing values. Context from an explicitly selected
 resource may prefill related fields; arbitrary inventory order must not choose
 a destination. Validate required values at their step and again on submission.
+
+### Reusable code editor
+
+`CloudShell.Components.CodeEditor` hosts Monaco with `Language` (`yaml` or
+`json`), `Label`, `InitialValue`, and `ReadOnly` parameters. Read current content
+with `GetValueAsync()` before applying. `InitialValue` is a creation-time value;
+use `SetDocumentAsync(value, language)` to replace content without remounting Monaco.
+`JsonCodeEditor` remains a JSON-specific wrapper for existing provider views.
+The shared loader uses bundled assets and follows the shell theme. A plain text
+fallback remains available if browser assets fail to load. Resource Templates
+uses this component for import editing and read-only export previews; server-side
+template diagnostics remain authoritative (YAML highlighting is not schema validation).

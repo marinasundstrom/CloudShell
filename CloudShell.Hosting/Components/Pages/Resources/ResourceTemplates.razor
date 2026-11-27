@@ -49,7 +49,7 @@
         <label for="template-format">@L["Template format"]</label>
         <FluentSelect TOption="string"
                       Id="template-format"
-                      @bind-Value="SelectedTemplateFormatValue"
+                      Value="@SelectedTemplateFormatValue" ValueChanged="ChangeFormatAsync"
                       Appearance="Appearance.Outline">
             <FluentOption TOption="string" Value="@ResourceTemplateFormat.Yaml.ToString()">YAML</FluentOption>
             <FluentOption TOption="string" Value="@ResourceTemplateFormat.Json.ToString()">JSON</FluentOption>
@@ -81,12 +81,8 @@
 
         @if (!string.IsNullOrWhiteSpace(ExportDocument))
         {
-            <label for="export-document">@L["Template {0}", TemplateFormatName]</label>
-            <FluentTextArea Id="export-document"
-                            Class="template-json"
-                            ReadOnly="true"
-                            Rows="24"
-                            Value="@ExportDocument" />
+            <CodeEditor @ref="ExportEditor" Label="@L["Template {0}", ExportFormatName].Value"
+                        Language="@ExportLanguage" ReadOnly="true" InitialValue="@ExportDocument" />
         }
     </div>
 
@@ -101,13 +97,9 @@
             </ProcedureMessage>
         }
 
-        <label for="import-document">@L["Template {0}", TemplateFormatName]</label>
-        <FluentTextArea Id="import-document"
-                        Class="template-json"
-                        Rows="24"
-                        Placeholder="@L["Paste a resource template {0} document", TemplateFormatName]"
-                        ReadOnly="@isReadOnly"
-                        @bind-Value="ImportDocument" />
+        <CodeEditor @ref="ImportEditor" Label="@L["Template {0}", TemplateFormatName].Value"
+                    Language="@(SelectedTemplateFormat == ResourceTemplateFormat.Json ? "json" : "yaml")"
+                    ReadOnly="@isReadOnly" InitialValue="@(ImportDocument ?? string.Empty)" />
 
         <FormActions>
             <FluentButton Appearance="Appearance.Neutral" OnClick="ClearImport">
@@ -115,7 +107,7 @@
             </FluentButton>
             <FluentButton Appearance="Appearance.Accent"
                           IconStart="@(new Icons.Regular.Size20.ArrowUpload())"
-                          Disabled="@(!canImport || string.IsNullOrWhiteSpace(ImportDocument) || IsBusy)"
+                          Disabled="@(!canImport || IsBusy)"
                           OnClick="ImportTemplate">
                 @L["Apply template"]
             </FluentButton>
@@ -155,6 +147,16 @@
     private string SelectedTemplateFormatValue { get; set; } = ResourceTemplateFormat.Yaml.ToString();
     private string? ExportDocument { get; set; }
     private string? ImportDocument { get; set; }
+    private CodeEditor? ImportEditor;
+    private CodeEditor? ExportEditor;
+    private string ExportLanguage = "yaml";
+    private string ExportFormatName => ExportLanguage.ToUpperInvariant();
+    private async Task ChangeFormatAsync(string value)
+    {
+        if (ImportEditor is not null) ImportDocument = await ImportEditor.GetValueAsync();
+        SelectedTemplateFormatValue = value;
+        if (ImportEditor is not null) await ImportEditor.SetDocumentAsync(ImportDocument ?? string.Empty, SelectedTemplateFormat == ResourceTemplateFormat.Json ? "json" : "yaml");
+    }
     private string? StatusMessage { get; set; }
     private bool IsBusy { get; set; }
     private IReadOnlyList<ResourceGroup> Groups { get; set; } = [];
@@ -209,7 +211,10 @@
                 result.Template,
                 SelectedTemplateFormat,
                 CreateSerializerOptions(result.ResourceTypes));
+            ExportLanguage = SelectedTemplateFormat == ResourceTemplateFormat.Json ? "json" : "yaml";
+            if (ExportEditor is not null) await ExportEditor.SetDocumentAsync(ExportDocument, ExportLanguage);
             ImportDocument = ExportDocument;
+            if (ImportEditor is not null) await ImportEditor.SetDocumentAsync(ImportDocument ?? string.Empty, SelectedTemplateFormat == ResourceTemplateFormat.Json ? "json" : "yaml");
             Diagnostics.AddRange(result.Diagnostics);
             StatusMessage = L["Exported {0} resources.", result.Template.Resources.Count].Value;
             await Toasts.PublishAsync(new CoreShellToastRequest(
@@ -237,8 +242,10 @@
             return;
         }
 
+        if (ImportEditor is not null) ImportDocument = await ImportEditor.GetValueAsync();
         if (string.IsNullOrWhiteSpace(ImportDocument))
         {
+            StatusMessage = L["Paste a resource template before applying."].Value;
             return;
         }
 
@@ -276,9 +283,10 @@
         }
     }
 
-    private void ClearImport()
+    private async Task ClearImport()
     {
         ImportDocument = null;
+        if (ImportEditor is not null) await ImportEditor.SetDocumentAsync(ImportDocument ?? string.Empty, SelectedTemplateFormat == ResourceTemplateFormat.Json ? "json" : "yaml");
         Diagnostics.Clear();
         StatusMessage = null;
     }

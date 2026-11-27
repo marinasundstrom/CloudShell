@@ -1,0 +1,102 @@
+@using BlazorMonaco.Editor
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="code-editor">
+    <label id="@($"{Id}-label")">@Label</label>
+    @if (Ready)
+    {
+        <StandaloneCodeEditor @ref="Editor" Id="@Id" ConstructionOptions="Options" />
+    }
+    else if (Failed)
+    {
+        <FluentTextArea Label="@Label" ReadOnly="@ReadOnly" @bind-Value="FallbackValue" Rows="12" Style="width:100%" />
+        <p role="status">The code editor could not load. You can still @(ReadOnly ? "view" : "edit") @LanguageName as text.</p>
+    }
+    else
+    {
+        <p role="status">Loading @LanguageName editor…</p>
+    }
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "Code";
+    [Parameter] public string Language { get; set; } = "json";
+    private string LanguageName => Language.ToUpperInvariant();
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public string InitialValue { get; set; } = "{}";
+    private string Id { get; } = $"code-editor-{Guid.NewGuid():N}";
+    private StandaloneCodeEditor? Editor;
+    private IJSObjectReference? Module;
+    private bool Ready;
+    private bool Failed;
+    private bool Disposed;
+    private bool Registered;
+    private string FallbackValue = "{}";
+    private string CurrentLanguage = "json";
+    protected override void OnInitialized()
+    {
+        FallbackValue = InitialValue;
+        CurrentLanguage = Language;
+    }
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Editor is not null && Module is not null)
+            await Module.InvokeVoidAsync("updatePresentation", Id, Label, ReadOnly);
+    }
+    public async Task SetDocumentAsync(string value, string language)
+    {
+        FallbackValue = value;
+        CurrentLanguage = language;
+        if (Editor is not null && Module is not null)
+            await Module.InvokeVoidAsync("setDocument", Id, value, language);
+        await InvokeAsync(StateHasChanged);
+    }
+    private StandaloneEditorConstructionOptions Options(StandaloneCodeEditor _) => new()
+    {
+        Language = CurrentLanguage, Value = FallbackValue, AutomaticLayout = true,
+        AriaLabel = Label, ReadOnly = ReadOnly, ScrollBeyondLastLine = false, FontSize = 13,
+        Minimap = new EditorMinimapOptions { Enabled = false },
+        WordWrap = "on", TabSize = 2
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            Module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/CloudShell.Components/codeEditor.js");
+            if (Disposed) { await CleanupAsync(); return; }
+            await Module.InvokeVoidAsync("initialize");
+            Registered = true;
+            if (Disposed) { await CleanupAsync(); return; }
+            Ready = true;
+        }
+        catch (JSException) { Failed = true; }
+        catch (JSDisconnectedException) { return; }
+        if (Disposed) { await CleanupAsync(); return; }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task<string> GetValueAsync() => Editor is not null ? await Editor.GetValue() : FallbackValue;
+
+    public async ValueTask DisposeAsync()
+    {
+        Disposed = true;
+        if (Ready || Failed) await CleanupAsync();
+    }
+
+    private async ValueTask CleanupAsync()
+    {
+        var module = Module;
+        Module = null;
+        if (module is null) return;
+        try
+        {
+            if (Registered) { Registered = false; await module.InvokeVoidAsync("release"); }
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+    }
+}

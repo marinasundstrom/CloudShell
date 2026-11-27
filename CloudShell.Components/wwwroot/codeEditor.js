@@ -32,3 +32,14 @@ export function release() {
     users = Math.max(0, users - 1);
     if (!users) { observer?.disconnect(); observer = undefined; }
 }
+
+export function setDocument(id, value, language) {
+    const editor = window.blazorMonaco.editor.getEditor(id, true);
+    if (!editor) return;
+    if (editor.getValue() !== value) editor.setValue(value);
+    monaco.editor.setModelLanguage(editor.getModel(), language);
+}
+
+export function updatePresentation(id, label, readOnly) {
+    window.blazorMonaco.editor.getEditor(id, true)?.updateOptions({ ariaLabel: label, readOnly });
+}
